@@ -101,8 +101,6 @@ extraction (geometry backfilled into the subset PBF flows through automatically)
 
 The script reads the `osmosis_replication_timestamp` from the PBF header (set automatically when filtering from an official planet download), binary-searches the daily replication feed at `planet.openstreetmap.org/replication/day/` to find the matching sequence, downloads and chains all daily diffs since that point, then derives the sub-PBFs and runs the extraction on the result.
 
-Note: planet.osm.org publishes weekly full planet dumps (`.osm.bz2`) but OSC change files are only available at daily granularity. Running after 3 weeks of inactivity chains 21 daily diffs (~50-100MB each).
-
 ### Geometry backfill
 
 A daily diff carries an element's full tags and references, but not the
@@ -116,7 +114,7 @@ extraction silently drops it (it keeps only nodes with a valid location).
 ID from the Overpass API (ways and relations with full member recursion), and
 `osmium merge` folds the geometry back in. It iterates until `check-refs` is
 clean. The step is best-effort: any network or merge failure is a warning and
-never aborts the weekly run (the fallback is the same incomplete geometry as
+never aborts the daily run (the fallback is the same incomplete geometry as
 before). Pass `--no-backfill` to skip it.
 
 Detection (`--detect`) is pointed at the focused sub-PBFs (`*_proposed_ways` and
@@ -154,8 +152,3 @@ created from the fetched geometry:
 # Report missing refs only, no network or writes
 ./backfill_geometry.sh --dry-run planet-latest_proposed_ways.osm.pbf
 ```
-
-**Recommended cadence**: run `update_daily.sh` weekly. A full `run_all.sh` on a
-fresh planet download once a month is still worthwhile to correct any larger
-drift (e.g. references the backfill could not resolve because they were deleted
-upstream).

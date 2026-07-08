@@ -27,9 +27,11 @@
 </template>
 
 <script setup lang="ts">
+import { toastInfo, toastError } from "@/services/core/toast";
+
 import { useMapStore } from "@/stores/mapStore";
 import { useAuthStore } from "@/stores/authStore";
-import { useToast } from "@/composables/ui/useToast";
+
 import { useI18n } from "vue-i18n";
 import type { AppMode } from "@shared/types";
 
@@ -39,7 +41,7 @@ defineProps<{
 
 const mapStore = useMapStore();
 const authStore = useAuthStore();
-const toast = useToast();
+
 const { t } = useI18n();
 
 let lastToastTime = 0;
@@ -124,21 +126,11 @@ function handleModeSwitch() {
         moderation: "moderation.switchedToModerationMode",
       };
 
-      toast.add({
-        severity: "info",
-        summary: t(modeSummaryKeys[newMode]),
-        detail: getModeTooltip(),
-        life: 3000,
-      });
+      toastInfo(getModeTooltip(), t(modeSummaryKeys[newMode]));
     }
   } catch (error) {
     console.error("Error toggling mode:", error);
-    toast.add({
-      severity: "error",
-      summary: t("moderation.modeSwitchError"),
-      detail: t("moderation.modeSwitchErrorDetail"),
-      life: 3000,
-    });
+    toastError(t("moderation.modeSwitchErrorDetail"), t("moderation.modeSwitchError"));
   } finally {
     isSwitchingMode = false;
   }

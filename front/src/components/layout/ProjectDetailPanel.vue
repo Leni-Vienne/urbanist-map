@@ -162,14 +162,15 @@
 </template>
 
 <script setup lang="ts">
+import { toastError } from "@/services/core/toast";
+
 import { computed, nextTick, ref, useTemplateRef, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 
 import { useWikidataEntity } from "@/composables/project/useWikidataEntity";
 import { useScrollFade } from "@/composables/ui/useScrollFade";
-import { useIsMobile } from "@/composables/ui/useIsMobile";
-import { useToast } from "@/composables/ui/useToast";
+import { isMobile } from "@/services/core/viewport";
 
 import { useProjectStore } from "@/stores/projectStore";
 import { useOverlayStore } from "@/stores/overlayStore";
@@ -192,7 +193,7 @@ import ProjectMetadataCard from "@/components/map/popups/ProjectMetadataCard.vue
 import ImageLightbox from "@/components/common/ImageLightbox.vue";
 
 const { t } = useI18n();
-const toast = useToast();
+
 const lightbox = useTemplateRef<InstanceType<typeof ImageLightbox>>("lightbox");
 
 // Hide the scrollbar on the fields area and fade its bottom edge while there's more to scroll.
@@ -331,7 +332,6 @@ const wikidataId = computed(() => {
 const { entity: wikidataEntity } = useWikidataEntity(wikidataId);
 
 // A neutral header block anchors the panel on desktop; on mobile the drawer already frames it.
-const { isMobile } = useIsMobile();
 const showHeaderBand = computed(() => !isMobile.value);
 
 // Recenter is only possible when the project carries a map location.
@@ -386,21 +386,14 @@ async function handleViewOriginalOverlay(originalOverlayId: string) {
   try {
     const success = await navigateToOverlay(originalOverlayId, true);
     if (!success) {
-      toast.add({
-        severity: "error",
-        summary: t("overlay.navigationFailed"),
-        detail: t("overlay.failedToNavigate"),
-        life: 3000,
-      });
+      toastError(t("overlay.failedToNavigate"), t("overlay.navigationFailed"));
     }
   } catch (error) {
     console.error("Failed to navigate to original overlay:", error);
-    toast.add({
-      severity: "error",
-      summary: t("overlay.navigationFailed"),
-      detail: error instanceof Error ? error.message : t("overlay.failedToNavigate"),
-      life: 3000,
-    });
+    toastError(
+      error instanceof Error ? error.message : t("overlay.failedToNavigate"),
+      t("overlay.navigationFailed"),
+    );
   }
 }
 </script>

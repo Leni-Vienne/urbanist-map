@@ -27,7 +27,7 @@
     <ToggleSwitch
       class="shrink-0"
       :modelValue="show3DBuildings"
-      @update:modelValue="toggleBuildings3D"
+      @update:modelValue="toggle3DBuildings"
     />
   </label>
 
@@ -51,10 +51,12 @@ import LanguageSwitcherMenu from "@/components/map/LanguageSwitcherMenu.vue";
 import MapLanguageMenu from "@/components/map/MapLanguageMenu.vue";
 import CompassRose from "@/components/map/CompassRose.vue";
 import { useTheme } from "@/composables/core/useTheme";
-import { useBuildings3D } from "@/composables/core/useBuildings3D";
-import { useMapRotation } from "@/composables/core/useMapRotation";
+import {
+  show3DBuildings,
+  toggle3DBuildings,
+  mapRotationEnabled,
+  toggleMapRotation,
+} from "@/services/map/settings";
 
 const { theme, toggle: toggleTheme } = useTheme();
-const { show3DBuildings, toggle: toggleBuildings3D } = useBuildings3D();
-const { mapRotationEnabled, toggle: toggleMapRotation } = useMapRotation();
 </script>

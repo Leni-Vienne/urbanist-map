@@ -12,7 +12,7 @@
 
 <script setup lang="ts">
 import { ref, watch, reactive } from "vue";
-import { useProjectFormValidation } from "@/composables/forms/useProjectFormValidation";
+import { validateProjectForm } from "@/utils/validationHelpers";
 import type { Project, ProjectFormData } from "@/types/index";
 import { projectToFormData, formDataToProjectFields } from "@/utils/projectFormHelpers";
 
@@ -31,8 +31,6 @@ const timelineStatus = ref<
 const emit = defineEmits<{
   submit: [project: Partial<Project>];
 }>();
-
-const { validateProjectForm } = useProjectFormValidation();
 
 watch(
   () => props.project,

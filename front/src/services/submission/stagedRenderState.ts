@@ -22,3 +22,7 @@ export function getStagedRender(projectId: string): StagedRender | undefined {
 export function clearStagedRender(projectId: string): void {
   stagedRenders.delete(projectId);
 }
+
+export function clearAllStagedRenders(): void {
+  stagedRenders.clear();
+}

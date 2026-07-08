@@ -203,6 +203,8 @@
 </template>
 
 <script setup lang="ts">
+import { toastWarn, toastError } from "@/services/core/toast";
+
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import ProjectHeader from "@/components/project/ProjectHeader.vue";
@@ -213,12 +215,12 @@ import type { Project, Overlay, PendingChangeRequest } from "@/types/index";
 
 import { useUiStore } from "@/stores/uiStore";
 import { useFocusStore } from "@/stores/focusStore";
-import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
+import { handleOverlayClickNavigation } from "@/services/overlay/clickHandler";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { getProjectShapeBounds, hasProjectShapes } from "@/services/map/shapes/registry";
 import { navigateToProject } from "@/services/navigation/projectNavigation";
 import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/selection";
-import { useToast } from "@/composables/ui/useToast";
+
 import { useScrollFade } from "@/composables/ui/useScrollFade";
 import { useMapStore } from "@/stores/mapStore";
 
@@ -278,10 +280,9 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
-const toast = useToast();
+
 const uiStore = useUiStore();
 const focusStore = useFocusStore();
-const { handleOverlayClickNavigation } = useOverlayClickHandler();
 
 const scrollAreaRef = ref<HTMLElement | null>(null);
 const contentRef = ref<HTMLElement | null>(null);
@@ -407,12 +408,7 @@ async function handleOverlayCardClick(overlay: Overlay) {
 function handleProjectClick(project: Project) {
   try {
     if (typeof project.lat !== "number" || typeof project.lng !== "number") {
-      toast.add({
-        severity: "warn",
-        summary: t("project.noLocation"),
-        detail: t("project.noLocation"),
-        life: 3000,
-      });
+      toastWarn(t("project.noLocation"), t("project.noLocation"));
       return;
     }
     const mapStore = useMapStore();
@@ -422,12 +418,10 @@ function handleProjectClick(project: Project) {
     navigateToProject(project.lat, project.lng, project.id);
   } catch (error) {
     console.error("Failed to navigate to project:", error);
-    toast.add({
-      severity: "error",
-      summary: t("overlay.navigationFailed"),
-      detail: error instanceof Error ? error.message : t("overlay.failedToNavigate"),
-      life: 3000,
-    });
+    toastError(
+      error instanceof Error ? error.message : t("overlay.failedToNavigate"),
+      t("overlay.navigationFailed"),
+    );
   }
 }
 </script>

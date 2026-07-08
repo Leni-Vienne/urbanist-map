@@ -16,6 +16,7 @@ import { selectOverlay } from "@/services/overlay/selection";
 import { useFocusStore } from "@/stores/focusStore";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { enrichOverlayWithProject, resolveOverlayCorners } from "@/services/overlay/data";
+import { showsSuggestedState } from "@/services/overlay/transform";
 import { isOverlayUnsaved } from "@/utils/unsavedState";
 import { buildLngLatBounds } from "@/utils/cornersBounds";
 
@@ -100,8 +101,6 @@ function getOverlayMarkerColor(
   const hasBeenModified = isOverlayUnsaved(overlayData);
   const hasPendingChanges =
     "hasPendingChanges" in overlayData ? overlayData.hasPendingChanges : false;
-  const isViewingApprovedPosition =
-    "isViewingApprovedPosition" in overlayData ? overlayData.isViewingApprovedPosition : undefined;
   const isTooBig = "isTooBig" in overlayData && overlayData.isTooBig === true;
   const isReplacement = Boolean(overlayData.replacesOverlayId);
   const status = overlayData.status;
@@ -113,14 +112,11 @@ function getOverlayMarkerColor(
   // Local replacement overlay (before submission)
   if (isReplacement && hasBeenModified && status !== "approved") return "purple";
 
-  // Viewing suggested (pending) position - show yellow only when explicitly toggled
-  if (hasPendingChanges && isViewingApprovedPosition === false) {
-    return "yellow";
-  }
-
-  // Approved overlay with pending changes, viewing approved position (default or explicit)
-  if (hasPendingChanges && status === "approved") {
-    return "green";
+  // Open change request without a staged local edit on top; a staged edit falls through to the
+  // status colors below (orange in edit mode).
+  if (hasPendingChanges && mode !== "view" && !hasBeenModified) {
+    if (showsSuggestedState(overlayData, mode)) return "yellow";
+    if (status === "approved") return "green";
   }
 
   if (mode === "moderation" || mode === "edit") {
@@ -166,7 +162,6 @@ function updateMarkerTooltip(overlayObject: OverlayObject, cachedMarkerColor?: M
     const isApproved = overlayObject.status === "approved";
     const isPending = overlayObject.status === "pending";
     const isRejected = overlayObject.status === "rejected";
-    const isViewingApprovedPosition = overlayObject.isViewingApprovedPosition;
 
     // eslint-disable-next-line init-declarations
     let statusText: string;
@@ -181,12 +176,12 @@ function updateMarkerTooltip(overlayObject: OverlayObject, cachedMarkerColor?: M
       }
     } else if (isApproved) {
       statusText = t("common.approved");
-      if (hasPendingChanges && isViewingApprovedPosition === false) {
-        modifierText = t("markerTooltip.modifiers.viewingSuggested");
-      } else if (hasPendingChanges && isViewingApprovedPosition !== false) {
-        modifierText = t("markerTooltip.modifiers.hasPendingChanges");
-      } else if (hasBeenModified) {
+      if (hasBeenModified) {
         modifierText = t("markerTooltip.modifiers.modified");
+      } else if (hasPendingChanges && showsSuggestedState(overlayObject, mapStore.mode)) {
+        modifierText = t("markerTooltip.modifiers.viewingSuggested");
+      } else if (hasPendingChanges) {
+        modifierText = t("markerTooltip.modifiers.hasPendingChanges");
       }
     } else if (isRejected) {
       statusText = t("markerTooltip.status.rejected");
@@ -219,10 +214,9 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
 
 /**
  * Set up a single watchEffect that keeps every overlay marker's color in sync with its
- * Pinia state (status, staged pending modifications, hasPendingChanges, isViewingApprovedPosition,
- * project, isTooBig, replacesOverlayId) and the current map mode. Replaces the imperative
- * updateOverlayMarkersColors call sites; data mutations that go through overlayStore /
- * batchUpdateOverlays / updateOverlay trigger this automatically.
+ * Pinia state (status, staged pending modifications, hasPendingChanges, positionState,
+ * project, isTooBig, replacesOverlayId) and the current map mode. Data mutations that go
+ * through overlayStore.updateOverlay (or direct reactive writes) trigger this automatically.
  *
  * Initial color is set by createOverlayMarker / createMarker on creation; this effect
  * only handles subsequent changes. The _cmorgColor cache on each marker short-circuits

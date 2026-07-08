@@ -98,18 +98,24 @@
 </template>
 
 <script setup lang="ts">
+import { toastWarn } from "@/services/core/toast";
+
 import { ref, computed, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import {
   canModerateCountry,
   syncModerationCountry,
 } from "@/services/moderation/moderationCountrySync";
-import { useLatestContributions } from "@/composables/overlay/useLatestContributions";
+import {
+  contributions,
+  isLoading,
+  fetchLatestContributions,
+} from "@/services/feed/latestContributions";
 import { buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { formatRelativeTime } from "@/utils/dateFormat";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
 import { useMapStore } from "@/stores/mapStore";
-import { useToast } from "@/composables/ui/useToast";
+
 import { useScrollFade } from "@/composables/ui/useScrollFade";
 import {
   navigateToProject,
@@ -123,9 +129,7 @@ import { LngLatBounds } from "maplibre-gl";
 
 const { t, locale } = useI18n();
 const mapStore = useMapStore();
-const toast = useToast();
 
-const { contributions, isLoading, fetchLatestContributions } = useLatestContributions();
 const { imageErrors, handleImageError, handleImageLoad } = useImageErrors();
 
 function getContributionImageUrl(filename: string): string {
@@ -205,12 +209,7 @@ async function handleContributionClick(contribution: LatestContribution) {
   // Block navigation if the moderator can't moderate this country
   if (mapStore.mode === "moderation" && contribution.countryCode) {
     if (!canModerateCountry(contribution.countryCode)) {
-      toast.add({
-        severity: "warn",
-        summary: t("moderation.title"),
-        detail: t("moderation.noAccessToThisCountry"),
-        life: 4000,
-      });
+      toastWarn(t("moderation.noAccessToThisCountry"), t("moderation.title"));
       return;
     }
     syncModerationCountry(contribution.countryCode);

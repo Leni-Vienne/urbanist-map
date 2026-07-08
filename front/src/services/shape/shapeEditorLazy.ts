@@ -1,4 +1,4 @@
-import { refreshPendingChangeRequests } from "@/composables/changes/useChanges";
+import { refreshPendingChangeRequests } from "@/services/changes/changeRequests";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useProjectStore } from "@/stores/projectStore";

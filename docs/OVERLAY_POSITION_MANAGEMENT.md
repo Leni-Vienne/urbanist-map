@@ -1,0 +1,25 @@
+**Overlay Position Management**:
+
+- Position memory persists across mode switches during edit session
+- View mode always shows approved corner positions of overlays from database
+
+An overlay's position is tracked in three distinct in-app places plus one server-provided default, each answering a different question.
+
+- Live GL image (`entries` Map in `services/overlay/mapLayers.ts`): the corners actually rendered on the map. `getOverlayImageCorners`/`getCurrentTransform`.
+- `overlayObject.baselineCorners`: the immutable backend/approved baseline (the wire `corners` field, renamed at ingest via `overlayWireToData`).
+- `overlayObject.history[]` + `redoStack`: powers undo/redo (Ctrl+Z/Y) via `overlayStore.undoHistory`. Each step carries corners + imageUrl (+ optional cropRect). `history[0]` is the seed = the overlay's edit-mode default position. Whether the user has staged (unsubmitted) corner edits is `overlayObject.positionState === "staged"` (the overlayStore history actions keep this in sync with history depth).
+- `overlayObject.positionState` (`OverlayPositionState`): the stored discriminant for where the edit-session display rests: `"baseline"` (no CR), `"suggested"` (open CR default), `"approved-toggled"` (open CR, user toggled to approved), `"staged"` (unsubmitted corner edits, position = history top). `reconcilePositionState` keeps the non-staged states consistent with `hasPendingChanges`.
+- `overlayObject.suggestedCorners` (+ `hasPendingChanges`): server state for an overlay with an open change request. It is the **edit-mode default position** for such an overlay (`getEditModeDefaultCorners`), so re-entering edit mode or reloading shows the proposed position consistently.
+
+Caption is symmetric with position: `overlayObject.baselineCaption` (mirror of `baselineCorners`, copied from the wire `caption` at ingest, never overwritten by edits) + `overlayObject.suggestedCaption` (mirror of `suggestedCorners`, the proposed caption of an open change request), with the live edited value on `overlayObject.caption`. `getEditModeDefaultCaption` mirrors `getEditModeDefaultCorners`.
+
+Both staged deltas are **derived** in `utils/unsavedState.ts`, no store: corners via `getStagedCornersDelta` (`current = history.at(-1).corners`, `original = baselineCorners ?? []`, staged ⟺ `positionState === "staged"`) and caption via `getStagedCaptionDelta` (`current = caption`, `original = baselineCaption`, staged ⟺ `caption !== getEditModeDefaultCaption`). `getStagedOverlayModifications` merges both from `overlayStore.liveOverlays`. Submitting collapses history to the submitted position (`resetHistoryBaseline`) and moves `baselineCaption`/`suggestedCaption` so the staged tests go false; undo history does not survive submission.
+
+`resolveOverlayCorners` (`services/overlay/data.ts`) is the single resolver that picks among suggested/live/history/backend by (purpose x mode x status). It exists because there is no single canonical position source.
+
+**Desired-state + reconcile is THE mechanism.** The map is a projection of the store. Writers only mutate store data and call `scheduleOverlayReconcile()` (a leaf hook in `mapLayers.ts`); they never move an image or marker themselves. One RAF-coalesced pass, `reconcileOverlayExistence` in `services/map/viewportRenderLoop.ts`, owns all JS-managed overlay display:
+
+- **Existence**: over a candidate union (approved tile cache ∪ `viewModeOverlays` ∪ local overlays ∪ current registry ids), an overlay's image/marker should exist iff mode/user visibility ∧ map filters ∧ its resolved "marker" corners intersect the padded viewport (local overlays are bounds-exempt). When a candidate is absent from the tile cache and the session/country lists (`viewModeOverlays`), its canonical store object is the data source, so an overlay whose image sits away from its tile footprint (an edit-mode change request whose suggested position sits away from its approved footprint, a moderation preview, a staged overlay dragged away) stays alive while that resolved position is in view.
+- **Position/image convergence** (edit and moderation): for each existing, non-gesture-owned entry, the desired display is `{corners: resolveOverlayCorners(canonical, "image"), imageUrl: canonical.imageUrl}`. A differing imageUrl replaces the source (crop/undo image swap); differing corners (compared to the last-applied, store-derived corners, never a GL read-back) move the image + marker and, in an active edit session, refresh the edit handles.
+
+Two escape hatches: mid-gesture the GL image is deliberately ahead of the store, so gesture-owned ids are skipped entirely; and the moderation change-request preview drives position through `changeRequestStore.previewState` (which `resolveOverlayCorners`/`showsSuggestedState` read), not through an imperative mover.

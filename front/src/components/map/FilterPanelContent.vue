@@ -11,7 +11,7 @@
       v-if="selectedProjectTags.filter((slug) => slug !== untaggedFilter).length > 0"
       type="button"
       class="text-xs text-color-secondary underline cursor-pointer bg-transparent border-0 p-0"
-      @click="clearTagFilters"
+      @click="clearProjectTagFilters"
       @dblclick.stop
     >
       {{ $t("map.controls.clearTagFilters") }}
@@ -35,7 +35,7 @@
               }
             : { backgroundColor: 'transparent', color: tag.color, borderColor: tag.color }
       "
-      @click="toggleTagFilter(tag.slug)"
+      @click="toggleProjectTagFilter(tag.slug)"
       @dblclick.stop
     >
       {{ $te(`tags.${tag.slug}`) ? $t(`tags.${tag.slug}`) : tag.slug }}
@@ -63,7 +63,7 @@
               }
             : { backgroundColor: 'transparent', color: tag.color, borderColor: tag.color }
       "
-      @click="toggleTagFilter(tag.slug)"
+      @click="toggleProjectTagFilter(tag.slug)"
       @dblclick.stop
     >
       {{ $te(`tags.${tag.slug}`) ? $t(`tags.${tag.slug}`) : tag.slug }}
@@ -75,7 +75,7 @@
   </p>
   <div class="flex flex-col gap-1 mb-4">
     <label class="flex items-center gap-2 cursor-pointer text-sm text-color">
-      <input type="checkbox" :checked="showOnlyWithImages" @change="handleToggleImageFilter" />
+      <input type="checkbox" :checked="showOnlyWithImages" @change="toggleShowOnlyWithImages" />
       {{ $t("map.controls.onlyWithImages") }}
     </label>
   </div>
@@ -92,7 +92,7 @@
       <input
         type="checkbox"
         :checked="selectedStatusFilters.includes(timelineStatus)"
-        @change="toggleCompletionFilter(timelineStatus)"
+        @change="toggleFilter(timelineStatus)"
       />
       <LinePreview :status="timelineStatus" :color="linePreviewColor" />
       {{ $t(labelKey) }}
@@ -111,7 +111,7 @@
       <input
         type="checkbox"
         :checked="selectedNameFilters.includes(nameVal)"
-        @change="handleToggleNameFilter(nameVal)"
+        @change="toggleNameFilter(nameVal)"
       />
       {{ $t(`map.controls.${nameVal}`) }}
     </label>
@@ -119,7 +119,7 @@
       <input
         type="checkbox"
         :checked="selectedProjectTags.includes(untaggedFilter)"
-        @change="toggleTagFilter(untaggedFilter)"
+        @change="toggleProjectTagFilter(untaggedFilter)"
       />
       {{ $t("map.controls.untagged") }}
     </label>
@@ -188,10 +188,6 @@ import type { TimelineStatus } from "../../../../back/src/db/schema";
 import { PROJECT_TAGS, PROJECT_TAG_MAP, BUILDING_CATEGORY_TAGS } from "@/constants/projectTags";
 import { useTheme } from "@/composables/core/useTheme";
 import LinePreview from "@/components/common/LinePreview.vue";
-
-const emit = defineEmits<{
-  "filter-overlays": [];
-}>();
 
 withDefaults(defineProps<{ showHeading?: boolean }>(), { showHeading: true });
 
@@ -288,16 +284,6 @@ watch(dateSliderPositions, ([minPos, maxPos]) => {
 
 const nameFilters: ("named" | "unnamed")[] = ["named", "unnamed"];
 
-function handleToggleNameFilter(value: "named" | "unnamed") {
-  toggleNameFilter(value);
-  emit("filter-overlays");
-}
-
-function handleToggleImageFilter() {
-  toggleShowOnlyWithImages();
-  emit("filter-overlays");
-}
-
 function formatSize(meters: number): string {
   if (!Number.isFinite(meters)) return "500km+";
   if (meters >= 1000) return `${(meters / 1000).toFixed(1)}km`;
@@ -328,19 +314,4 @@ const allTags = PROJECT_TAGS.filter((tag) => !tag.hidden);
 const lineTags = allTags.filter((tag) => !BUILDING_CATEGORY_TAGS.has(tag.slug));
 const buildingTags = allTags.filter((tag) => BUILDING_CATEGORY_TAGS.has(tag.slug));
 const untaggedFilter = UNTAGGED_PROJECT_FILTER;
-
-function toggleCompletionFilter(status: TimelineStatus) {
-  toggleFilter(status);
-  emit("filter-overlays");
-}
-
-function toggleTagFilter(slug: string) {
-  toggleProjectTagFilter(slug);
-  emit("filter-overlays");
-}
-
-function clearTagFilters() {
-  clearProjectTagFilters();
-  emit("filter-overlays");
-}
 </script>

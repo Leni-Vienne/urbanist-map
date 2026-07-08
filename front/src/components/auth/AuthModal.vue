@@ -285,10 +285,11 @@
 </template>
 
 <script setup lang="ts">
+import { toastSuccess, toastInfo } from "@/services/core/toast";
+
 import { ref, reactive, computed, watch, nextTick } from "vue";
 import { useI18n } from "vue-i18n";
 import { useAuthStore } from "@/stores/authStore";
-import { useToast } from "@/composables/ui/useToast";
 
 const props = defineProps<{
   visible: boolean;
@@ -301,7 +302,6 @@ const emit = defineEmits<{
 
 const { t: $t } = useI18n();
 const authStore = useAuthStore();
-const toast = useToast();
 
 const isLoginMode = ref(props.initialMode !== "signup");
 const isForgotPasswordMode = ref(false);
@@ -496,12 +496,7 @@ async function handleSubmit() {
     if (isLoginMode.value) {
       const result = await authStore.signIn(form.email, form.password, form.rememberMe);
       if (result.success) {
-        toast.add({
-          severity: "success",
-          summary: $t("common.success"),
-          detail: $t("auth.success.loggedIn"),
-          life: 3000,
-        });
+        toastSuccess($t("auth.success.loggedIn"));
         visible.value = false;
         resetForm();
       } else {
@@ -517,12 +512,7 @@ async function handleSubmit() {
       if (result.success) {
         registrationSuccess.value = true;
         errorMessage.value = "";
-        toast.add({
-          severity: "success",
-          summary: $t("common.success"),
-          detail: $t("auth.success.registered"),
-          life: 3000,
-        });
+        toastSuccess($t("auth.success.registered"));
       } else {
         if (result.error === "auth.error.usernameTaken") {
           usernameError.value = $t("auth.error.usernameTaken");
@@ -553,12 +543,7 @@ async function handleOAuthSignIn(provider: "google") {
   try {
     const result = await authStore.signInWithOAuth(provider, form.rememberMe);
     if (result.success) {
-      toast.add({
-        severity: "success",
-        summary: $t("common.success"),
-        detail: $t("auth.success.googleAuthSuccess"),
-        life: 3000,
-      });
+      toastSuccess($t("auth.success.googleAuthSuccess"));
       visible.value = false;
       resetForm();
     } else {
@@ -578,12 +563,7 @@ async function handleForgotPassword() {
     const result = await authStore.requestPasswordReset(forgotPasswordEmail.value);
     if (result.success) {
       resetLinkSent.value = true;
-      toast.add({
-        severity: "info",
-        summary: $t("auth.checkYourEmail"),
-        detail: $t("auth.resetLinkSent"),
-        life: 5000,
-      });
+      toastInfo($t("auth.resetLinkSent"), $t("auth.checkYourEmail"));
     } else {
       errorMessage.value = translateError(result.error) || $t("common.error");
     }

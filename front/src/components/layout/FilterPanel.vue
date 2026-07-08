@@ -1,21 +1,10 @@
 <template>
   <!-- overflow-x hidden removes the spurious horizontal scrollbar from the sliders -->
   <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4">
-    <FilterPanelContent :show-heading="false" @filter-overlays="refreshOverlays" />
+    <FilterPanelContent :show-heading="false" />
   </div>
 </template>
 
 <script setup lang="ts">
 import FilterPanelContent from "@/components/map/FilterPanelContent.vue";
-import { useViewportTriggers } from "@/composables/viewport/useViewportTriggers";
-
-const { refreshViewport } = useViewportTriggers();
-
-async function refreshOverlays() {
-  try {
-    await refreshViewport(true);
-  } catch (error) {
-    console.error("Failed to refresh overlays after filter change", error);
-  }
-}
 </script>

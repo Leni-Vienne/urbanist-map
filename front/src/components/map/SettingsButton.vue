@@ -22,9 +22,8 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import SettingsMenuItems from "@/components/map/SettingsMenuItems.vue";
-import { useIsMobile } from "@/composables/ui/useIsMobile";
+import { isMobile } from "@/services/core/viewport";
 
-const { isMobile } = useIsMobile();
 const settingsPopover = ref();
 const isOpen = ref(false);
 

@@ -1,7 +1,7 @@
 import { computed, reactive } from "vue";
 import { formDataToProjectFields } from "@/utils/projectFormHelpers";
 import { useProjectStore } from "@/stores/projectStore";
-import { useToast } from "@/composables/ui/useToast";
+import { toastError } from "@/services/core/toast";
 import { t } from "@/locales";
 import { getProjectValidationErrors } from "@/utils/validationHelpers";
 import type { Project, ProjectFormData } from "@/types/index";
@@ -35,10 +35,9 @@ interface EditableProjectFormOptions {
 }
 
 // Local-edit form for a project: edits are written to the store with isModified, then
-// submitted to the backend later through the submission dialog (useSubmissionService).
+// submitted to the backend later through the submission dialog (submissionService).
 export function useEditableProjectForm(options: EditableProjectFormOptions) {
   const projectStore = useProjectStore();
-  const toast = useToast();
 
   // originalData is the comparison baseline; formData is what the user edits
   const originalData = reactive({ ...options.initialData });
@@ -94,12 +93,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
 
     const firstError = Object.values(errors)[0];
     if (!firstError) return false;
-    toast.add({
-      severity: "error",
-      summary: t("toast.validationError"),
-      detail: t(firstError.key, firstError.params ?? {}),
-      life: 3000,
-    });
+    toastError(t(firstError.key, firstError.params ?? {}), t("toast.validationError"));
     return false;
   }
 

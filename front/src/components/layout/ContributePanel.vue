@@ -3,7 +3,7 @@
   <ProjectAccordionPanel
     :projects="filteredProjects"
     :is-loading="isLoading"
-    :change-requests="pendingChangeRequests"
+    :change-requests="changeRequestStore.pendingChangeRequests"
     :show-edit-buttons="true"
     :selected-project-id="selectedProjectId"
     :pinned-external-project="pinnedExternalProject"
@@ -140,7 +140,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted } from "vue";
-import { useChangeRequests } from "@/composables/changes/useChanges";
+import { refreshPendingChangeRequests } from "@/services/changes/changeRequests";
+import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useUserContributions } from "@/composables/project/useUserContributions";
 import { useContributeActions } from "@/composables/project/useContributeActions";
 import { useFocusStore } from "@/stores/focusStore";
@@ -160,7 +161,7 @@ const {
   filteredProjects,
 } = useUserContributions();
 
-const { pendingChangeRequests, refreshPendingChangeRequests } = useChangeRequests();
+const changeRequestStore = useChangeRequestStore();
 
 const {
   isStagedRenderOverlay,

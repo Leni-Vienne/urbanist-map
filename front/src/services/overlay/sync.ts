@@ -1,87 +1,138 @@
 // Keeps an overlay's desired state in sync across its store and its live map representation.
 //
-// `applyOverlayCorners` is the low-level primitive: it pushes a set of corners onto the image
-// layer, edit handles, marker pin and (optionally) the history baseline + tooltip. It is the
-// shared engine behind resetting to the approved position and previewing a change request's
-// position, each of which previously reimplemented this same sync dance.
+// `applyOverlayBackendFields` is the single write path for backend-owned fields (baseline and
+// change-request state): it writes them and pushes their display consequences in the same step.
 //
-// `revertOverlayFieldModification` is a command built on top of it: it restores a staged field
-// edit (corners or caption) to its captured baseline in the stores, then syncs the map to match.
+// `revertOverlayFieldModification` reverts a staged field edit (corners or caption) in the store
+// and schedules a reconcile. A corners revert collapses history to the resting position (an open
+// change request's suggested position, otherwise baseline).
 import { useOverlayStore } from "@/stores/overlayStore";
-import { usePendingModificationsStore } from "@/stores/pendingModificationsStore";
-import { getImageHandle, setOverlayImageCorners } from "@/services/overlay/mapLayers";
-import { refreshEditHandles } from "@/services/overlay/editing";
-import { updateMarkerPosition } from "@/services/overlay/markers";
-import { isValidQuad } from "@/services/overlay/transform";
-import type { LatLng, ModifiableField, OverlayObject } from "@/types/index";
+import { useMapStore } from "@/stores/mapStore";
+import { scheduleOverlayReconcile } from "@/services/overlay/mapLayers";
+import {
+  isValidQuad,
+  getEditModeRestingCorners,
+  reconcilePositionState,
+  sameCorners,
+} from "@/services/overlay/transform";
+import {
+  getStagedCornersDelta,
+  getStagedCaptionDelta,
+  getEditModeDefaultCaption,
+} from "@/utils/unsavedState";
+import { createOverlayObject } from "@/utils/typeFactories";
+import type { ModifiableField, OverlayData, OverlayObject } from "@/types/index";
 
-interface ApplyOverlayCornersOptions {
-  // Collapse undo/redo history to these corners, so re-entering edit mode starts from here.
-  resetHistory?: boolean;
-  // Re-sync the drag surface, corner markers and outline; skip when not in an editing context.
-  refreshHandles?: boolean;
-}
+// Backend-owned fields that define an overlay's default (unedited) position and caption.
+type OverlayBackendFields = Partial<
+  Pick<
+    OverlayObject,
+    | "baselineCorners"
+    | "baselineCaption"
+    | "hasPendingChanges"
+    | "suggestedCorners"
+    | "suggestedCaption"
+  >
+>;
 
-export function applyOverlayCorners(
+// Single write path for backend-owned overlay fields (approved baseline + open change-request
+// state). It writes the fields and the store-side consequences (positionState, caption, and an
+// unedited overlay's history seed when its resting position changed), then schedules a reconcile;
+// the viewport render loop converges the image/marker to the new resolved position. Overlays with
+// staged edits or pending redo state keep the user's position and seed.
+export function applyOverlayBackendFields(
   overlayObject: OverlayObject,
-  corners: LatLng[] | null,
-  options: ApplyOverlayCornersOptions = {},
+  fields: OverlayBackendFields,
 ): void {
-  const overlayId = overlayObject.id;
-  const hasFullCorners = isValidQuad(corners);
+  const previousDefaultCaption = getEditModeDefaultCaption(overlayObject);
+  const previousRestingCorners = getEditModeRestingCorners(overlayObject);
+  const captionWasUntouched = overlayObject.caption === previousDefaultCaption;
 
-  if (options.resetHistory && hasFullCorners) {
-    useOverlayStore().resetHistoryBaseline(overlayId, corners);
+  useOverlayStore().updateOverlay(overlayObject.id, fields);
+  overlayObject.positionState = reconcilePositionState(overlayObject);
+
+  const newDefaultCaption = getEditModeDefaultCaption(overlayObject);
+  if (captionWasUntouched && overlayObject.caption !== newDefaultCaption) {
+    overlayObject.caption = newDefaultCaption;
   }
 
-  // setOverlayImageCorners is a no-op without a handle, but refreshEditHandles is not, so guard both.
-  if (getImageHandle(overlayId) && hasFullCorners) {
-    setOverlayImageCorners(overlayId, corners);
-    if (options.refreshHandles) refreshEditHandles();
+  // Re-seed an unedited overlay's history to the new resting position so its undo target follows a
+  // change request arriving/resolving. Staged overlays keep their edits and seed.
+  const hasEditState =
+    overlayObject.positionState === "staged" || overlayObject.redoStack.length > 0;
+  if (!hasEditState && useMapStore().mode === "edit") {
+    const restingCorners = getEditModeRestingCorners(overlayObject);
+    if (!sameCorners(previousRestingCorners, restingCorners) && isValidQuad(restingCorners)) {
+      useOverlayStore().resetHistoryBaseline(overlayObject.id, restingCorners);
+    }
   }
 
-  // Reads the live image corners (just set) and falls back to overlayObject.baselineCorners otherwise.
-  updateMarkerPosition(overlayObject);
+  scheduleOverlayReconcile();
 }
 
-function resetOverlayField(
-  field: ModifiableField,
-  overlayId: string,
-  overlayObject: OverlayObject,
-  capturedOriginalCaption: string | null | undefined,
-  capturedOriginalCorners: { lat: number; lng: number }[] | null | undefined,
-): void {
-  if (field === "corners") {
-    const cornersToUse = capturedOriginalCorners ?? overlayObject.baselineCorners;
-    applyOverlayCorners(overlayObject, cornersToUse, { resetHistory: true, refreshHandles: true });
-  } else if (capturedOriginalCaption !== undefined) {
-    useOverlayStore().updateOverlay(overlayId, { caption: capturedOriginalCaption ?? "" });
+// Single ingest path for backend-sourced overlay wire data. Produces exactly one canonical
+// OverlayObject per id: built once via the factory on first contact, then mutated in place on every
+// later delivery, never rebuilt. Returns the canonical (Pinia-reactive) object.
+//
+// Field precedence by `data.source`: "bbox" wire is authoritative for everything it carries,
+// including change-request state; "tile" wire carries no change-request state, so it must never
+// write hasPendingChanges/suggestedCorners/suggestedCaption. Both route their backend-owned fields
+// through applyOverlayBackendFields so the display consequences (caption advance, resting-position
+// snap) ride with the write. An unsaved local crop (imageUrl is a data: URL) survives untouched
+// because the existing object is never replaced.
+// the existing object is never replaced.
+export function upsertOverlayFromWire(data: OverlayData): OverlayObject {
+  const overlayStore = useOverlayStore();
+  const existing = overlayStore.liveOverlays[data.id];
+
+  if (!existing) {
+    const overlayObject = createOverlayObject(data);
+    // An untouched caption tracks the edit-mode default (an open change request's suggested caption
+    // when present), not the baseline the factory set from the wire caption.
+    overlayObject.caption = getEditModeDefaultCaption(overlayObject);
+    overlayStore.addOverlay(data.id, overlayObject);
+    return overlayStore.liveOverlays[data.id] ?? overlayObject;
   }
+
+  const fields: OverlayBackendFields = {
+    baselineCorners: data.baselineCorners,
+    baselineCaption: data.baselineCaption,
+  };
+  if (data.source !== "tile") {
+    fields.hasPendingChanges = data.hasPendingChanges;
+    fields.suggestedCorners = data.suggestedCorners;
+    fields.suggestedCaption = data.suggestedCaption;
+  }
+  applyOverlayBackendFields(existing, fields);
+
+  // Approved overlays first loaded via vectorTileSync lack project data; attach it when a later
+  // (bbox) delivery carries it, so the detail panel can resolve activeProject.
+  if (data.project) existing.project = data.project;
+
+  return existing;
 }
 
-// Reverts one field of a staged overlay modification (caption or corners) back to its captured
-// baseline, syncing the image layer, edit handles, marker and tooltip. Returns true if other staged
-// fields remain.
+// Reverts one field of a staged overlay modification (caption or corners), syncing the image
+// layer, edit handles, marker and tooltip. Both reverts target the resting position/caption (an
+// open change request's suggested value, otherwise the approved baseline). Returns true if the
+// overlay's other field is still staged.
 export function revertOverlayFieldModification(
   overlayId: string,
   field: ModifiableField,
   overlayObject: OverlayObject,
 ): boolean {
-  const pendingModsStore = usePendingModificationsStore();
+  if (field === "corners") {
+    // Collapse to the resting position (store-only); the reconciler converges the image/marker.
+    const restingCorners = getEditModeRestingCorners(overlayObject);
+    if (isValidQuad(restingCorners)) {
+      useOverlayStore().resetHistoryBaseline(overlayId, restingCorners);
+    }
+    scheduleOverlayReconcile();
+    return getStagedCaptionDelta(overlayObject) !== null; // caption still staged?
+  }
 
-  const pendingMod = pendingModsStore.getPendingModifications(overlayId);
-  const capturedOriginalCaption = pendingMod?.caption?.original;
-  const capturedOriginalCorners = pendingMod?.corners?.original;
-
-  const hasRemainingMods = pendingModsStore.clearFieldModification(overlayId, field);
-
-  resetOverlayField(
-    field,
-    overlayId,
-    overlayObject,
-    capturedOriginalCaption,
-    capturedOriginalCorners,
-  );
-
-  return hasRemainingMods;
+  useOverlayStore().updateOverlay(overlayId, {
+    caption: getEditModeDefaultCaption(overlayObject),
+  });
+  return getStagedCornersDelta(overlayObject) !== null; // corners still staged?
 }

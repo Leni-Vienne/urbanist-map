@@ -47,15 +47,16 @@
 </template>
 
 <script setup lang="ts">
+import { toastInfo, toastError } from "@/services/core/toast";
+
 import { ref, computed, watch } from "vue";
-import { useToast } from "@/composables/ui/useToast";
+
 import { useI18n } from "vue-i18n";
 import { updateOverlayInfo } from "@/services/overlay/actions";
 import { useUiStore, type OverlayEditTarget } from "@/stores/uiStore";
 
 const bodyElement = document.body;
 
-const toast = useToast();
 const { t } = useI18n();
 const uiStore = useUiStore();
 
@@ -108,12 +109,7 @@ function saveChanges() {
   }
 
   if (!hasChanges.value) {
-    toast.add({
-      severity: "info",
-      summary: t("common.info"),
-      detail: t("overlay.noChangesToSave"),
-      life: 3000,
-    });
+    toastInfo(t("overlay.noChangesToSave"));
     closeDialog();
     return;
   }
@@ -126,12 +122,7 @@ function saveChanges() {
     closeDialog();
   } catch (error) {
     console.error("Error updating overlay:", error);
-    toast.add({
-      severity: "error",
-      summary: t("common.error"),
-      detail: error instanceof Error ? error.message : t("overlay.publishFailedDetail"),
-      life: 3000,
-    });
+    toastError(error instanceof Error ? error.message : t("overlay.publishFailedDetail"));
   }
 }
 </script>

@@ -9,7 +9,7 @@ import type {
 import { map, OPENFREEMAP_STYLE_URL, markMlMapReady } from "@/services/core/map";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import countryBboxes from "@/assets/country_bboxes.json";
-import { useToast } from "@/composables/ui/useToast";
+
 import { t } from "@/locales";
 import {
   addProjectDataToMlMap,
@@ -25,10 +25,10 @@ import {
 import { applyMapLabelLanguage } from "../mapLabelLanguage";
 import { dropImageHandlesForStyleSwitch } from "@/services/overlay/mapLayers";
 import { reattachEditHandlesAfterStyleSwitch } from "@/services/overlay/editing";
-import { show3DBuildings } from "@/composables/core/useBuildings3D";
+import { show3DBuildings } from "@/services/map/settings";
 import {
   selectedProjectTags,
-  visibleStates,
+  selectedStatusFilters,
   sizeFilterRange,
   selectedNameFilters,
   lastModifiedDateRange,
@@ -36,6 +36,7 @@ import {
 } from "@/services/map/filters";
 import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 import { syncOverlaysFromTiles } from "@/services/map/tiles/sync";
+import { toastError } from "@/services/core/toast";
 
 interface BoundingBox {
   minLat: number;
@@ -134,10 +135,6 @@ const originalExtrusionPaint = new Map<string, { height: unknown; base: unknown 
  */
 function applyBuildings3DState(extruded: boolean): void {
   const mlMap = map.value;
-  // Guard only on the map existing, not isStyleLoaded(): that returns false until every
-  // source cache finishes loading, which is still pending inside the style.load handler
-  // where this runs on a basemap switch. The style JSON is parsed by then, so the layers
-  // and setPaintProperty are usable.
   for (const layer of mlMap.getStyle().layers) {
     if (layer.type !== "fill-extrusion") continue;
 
@@ -163,6 +160,7 @@ function applyBuildings3DState(extruded: boolean): void {
 let countryBorders: CountryBorder[] | undefined = undefined;
 
 let lastPendingProjectPointsGeojson: GeoJSON.FeatureCollection | null = null;
+let lastPendingProjectShapesGeojson: GeoJSON.FeatureCollection | null = null;
 
 // Dynamically imports all country borders as a single chunk, only loads on first satellite use
 async function ensureCountryBordersLoaded(): Promise<CountryBorder[]> {
@@ -285,12 +283,20 @@ async function detectCountryFromCoordinates(
 function whenStyleLoaded(mlMap: MaplibreMap, cb: () => void): void {
   if (mlMap.isStyleLoaded()) {
     cb();
-  } else {
-    // style.load fires once the style JSON is parsed, before the initial basemap tiles
-    // finish downloading. Using it (instead of "load") lets the backend tile source register
-    // and start fetching in parallel with the OpenFreeMap/Natural Earth basemap tiles.
-    void mlMap.once("style.load", cb);
+    return;
   }
+  // style.load fires once the style JSON is parsed, before the initial basemap tiles finish
+  // downloading, so the backend tile source registers and fetches in parallel. "idle" is a
+  // fallback covering the window where style.load has already fired but sources are still
+  // loading (isStyleLoaded() false), which a once("style.load") registered late would miss.
+  let ran = false;
+  function runOnce(): void {
+    if (ran) return;
+    ran = true;
+    cb();
+  }
+  void mlMap.once("style.load", runOnce);
+  void mlMap.once("idle", runOnce);
 }
 
 /** Initialize the map's project data layers and interaction once the basemap style is ready. */
@@ -306,8 +312,7 @@ export function addTileLayer(): void {
     onFirstStyleReady(mlMap);
   });
 
-  initEsriMetadataListener(); // Start listening for potential high-res availability
-  initAutoCountrySwitchListener(); // Start listening for country-based satellite switching
+  initSatelliteMoveEndListener();
 }
 
 /** Wire up project data + interaction on first style load, then mark the map ready. */
@@ -332,14 +337,12 @@ function onFirstStyleReady(mlMap: MaplibreMap): void {
     if (lastPendingProjectPointsGeojson) {
       updatePendingProjectPointsSource(lastPendingProjectPointsGeojson);
     }
+    if (lastPendingProjectShapesGeojson) {
+      updatePendingProjectShapesSource(lastPendingProjectShapesGeojson);
+    }
   } catch (error) {
     console.error("Failed to initialize MapLibre project layers:", error);
-    useToast().add({
-      severity: "error",
-      summary: t("errors.mapInitFailed"),
-      detail: error instanceof Error ? error.message : undefined,
-      life: 8000,
-    });
+    toastError(error instanceof Error ? error.message : undefined, t("errors.mapInitFailed"));
   }
 }
 
@@ -347,7 +350,7 @@ function onFirstStyleReady(mlMap: MaplibreMap): void {
 watch(
   [
     selectedProjectTags,
-    visibleStates,
+    selectedStatusFilters,
     sizeFilterRange,
     selectedNameFilters,
     lastModifiedDateRange,
@@ -360,7 +363,6 @@ watch(
     // tag/status/name/date filters (querySourceFeatures bypasses setFilter).
     syncOverlaysFromTiles();
   },
-  { deep: true },
 );
 
 watch(show3DBuildings, (extruded) => {
@@ -377,8 +379,6 @@ export function updatePendingProjectPointsSource(geojson: GeoJSON.FeatureCollect
     source.setData(geojson);
   }
 }
-
-let lastPendingProjectShapesGeojson: GeoJSON.FeatureCollection | null = null;
 
 /** Update the pending-project-shapes source with fresh GeoJSON data (edit/moderation mode). */
 export function updatePendingProjectShapesSource(geojson: GeoJSON.FeatureCollection): void {
@@ -412,6 +412,9 @@ function buildSatelliteSourceSpec(layerType: SatelliteLayerType): RasterSourceSp
 function buildSatelliteStyle(layerType: SatelliteLayerType): StyleSpecification {
   return {
     version: 8,
+    // Renders the project-points-count text-field with the same server-side Noto Sans Bold
+    // as the plan style; without it MapLibre falls back to locally drawn TinySDF glyphs.
+    glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
     sources: {
       satellite: buildSatelliteSourceSpec(layerType),
     },
@@ -423,52 +426,70 @@ function buildSatelliteStyle(layerType: SatelliteLayerType): StyleSpecification 
  * Switch the basemap style. Because project data now lives on the same map as the basemap,
  * setStyle() wipes the project source/layers, so they are re-added once the new style loads.
  */
+let styleSwitchGeneration = 0;
+
 async function switchToStyle(style: StyleSpecification | string): Promise<void> {
   const mlMap = map.value;
+  const generation = (styleSwitchGeneration += 1);
   await new Promise<void>((resolve) => {
     void mlMap.once("style.load", () => {
-      // Re-apply road/rail overrides if switching back to the plan style.
-      if (style === OPENFREEMAP_STYLE_URL) {
-        applyPlanStyleRoadOverrides(mlMap);
-        applyRailStyleOverrides(mlMap);
-        applyPoiVisibilityOverrides(mlMap);
-        applySky(mlMap);
-        applyMapLabelLanguage(mlMap);
-        applyBuildings3DState(show3DBuildings.value);
+      // A newer switch superseded this one: skip the work so it can't apply this call's
+      // (now stale) style overrides or double-add project sources on the final style.
+      if (generation !== styleSwitchGeneration) {
+        resolve();
+        return;
       }
-      addProjectDataToMlMap(mlMap);
-      if (lastPendingProjectPointsGeojson) {
-        updatePendingProjectPointsSource(lastPendingProjectPointsGeojson);
+      try {
+        // Re-apply road/rail overrides if switching back to the plan style.
+        if (style === OPENFREEMAP_STYLE_URL) {
+          applyPlanStyleRoadOverrides(mlMap);
+          applyRailStyleOverrides(mlMap);
+          applyPoiVisibilityOverrides(mlMap);
+          applySky(mlMap);
+          applyMapLabelLanguage(mlMap);
+          applyBuildings3DState(show3DBuildings.value);
+        }
+        addProjectDataToMlMap(mlMap);
+        if (lastPendingProjectPointsGeojson) {
+          updatePendingProjectPointsSource(lastPendingProjectPointsGeojson);
+        }
+        if (lastPendingProjectShapesGeojson) {
+          updatePendingProjectShapesSource(lastPendingProjectShapesGeojson);
+        }
+        // Drop overlay image handles so vectorTileSync re-creates them on the next idle.
+        dropImageHandlesForStyleSwitch();
+        // Re-add the selected overlay's edit-handle layer so it stays draggable.
+        reattachEditHandlesAfterStyleSwitch();
+        runViewportRenderLoop();
+      } catch (error) {
+        console.error("Failed to re-apply project layers after style switch:", error);
+        toastError(error instanceof Error ? error.message : undefined, t("errors.mapInitFailed"));
+      } finally {
+        resolve();
       }
-      if (lastPendingProjectShapesGeojson) {
-        updatePendingProjectShapesSource(lastPendingProjectShapesGeojson);
-      }
-      // Drop overlay image handles so vectorTileSync re-creates them on the next idle.
-      dropImageHandlesForStyleSwitch();
-      // Re-add the selected overlay's edit-handle layer so it stays draggable.
-      reattachEditHandlesAfterStyleSwitch();
-      runViewportRenderLoop();
-      resolve();
     });
     mlMap.setStyle(style);
   });
 }
 
+/**
+ * Resolve the best satellite layer for the current view: a country-specific layer when
+ * zoomed in over a supported country, otherwise the generic Esri layer.
+ */
+async function resolveSatelliteLayer(): Promise<SatelliteLayerType> {
+  if (map.value.getZoom() <= MAP_CONFIG.MIN_ZOOM_FOR_COUNTRY_LAYERS) {
+    return "esri";
+  }
+  const center = map.value.getCenter();
+  const detectedCountry = await detectCountryFromCoordinates(center.lat, center.lng);
+  return detectedCountry ?? "esri";
+}
+
 /** Switch to a different tile layer. */
 export async function switchTileLayer(layerType: TileLayerType): Promise<void> {
-  // When switching to satellite, try to jump directly to the country-specific layer
-  // to avoid a brief flash of the generic ESRI layer.
-  let resolvedLayerType = layerType;
-  if (layerType === "esri") {
-    const currentZoom = map.value.getZoom();
-    if (currentZoom > MAP_CONFIG.MIN_ZOOM_FOR_COUNTRY_LAYERS) {
-      const center = map.value.getCenter();
-      const detectedCountry = await detectCountryFromCoordinates(center.lat, center.lng);
-      if (detectedCountry && isTileLayerType(detectedCountry)) {
-        resolvedLayerType = detectedCountry;
-      }
-    }
-  }
+  // When switching to satellite, jump directly to the country-specific layer to avoid a
+  // brief flash of the generic ESRI layer.
+  const resolvedLayerType = layerType === "esri" ? await resolveSatelliteLayer() : layerType;
 
   if (currentTileLayer.value === resolvedLayerType) {
     return;
@@ -487,10 +508,6 @@ export async function switchTileLayer(layerType: TileLayerType): Promise<void> {
   }
 }
 
-function isTileLayerType(value: string): value is TileLayerType {
-  return value === "plan" || Object.hasOwn(satelliteLayerConfigs, value);
-}
-
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 // Cache of max zoom by location (key: "lat,lng" rounded to ~100m).
 const maxZoomCache = new Map<string, number>();
@@ -504,14 +521,16 @@ async function checkEsriMaxZoom() {
 
   if (zoom < 15) return;
 
+  // Cancel any pending fetch from a previous location before either serving the cache or
+  // scheduling a new fetch, so a stale timer can't overwrite the value applied here.
+  if (debounceTimer) clearTimeout(debounceTimer);
+
   const cacheKey = `${center.lat.toFixed(3)},${center.lng.toFixed(3)}`;
   const cachedMaxZoom = maxZoomCache.get(cacheKey);
   if (cachedMaxZoom !== undefined) {
     applyEsriMaxZoom(cachedMaxZoom);
     return;
   }
-
-  if (debounceTimer) clearTimeout(debounceTimer);
 
   debounceTimer = setTimeout(async () => {
     try {
@@ -555,14 +574,13 @@ interface EsriIdentifyResponse {
 }
 
 /** Queries the ESRI Identify API to get the max native zoom level at the given location. */
-async function fetchEsriMaxZoom(lat: number, lng: number): Promise<number | null> {
+async function fetchEsriMaxZoom(lat: number, lng: number): Promise<number> {
   const bounds = map.value.getBounds();
   const extent = {
     xmin: bounds.getWest(),
     ymin: bounds.getSouth(),
     xmax: bounds.getEast(),
     ymax: bounds.getNorth(),
-    spatialReference: { wkid: 4326 },
   };
 
   const url = new URL(
@@ -582,24 +600,21 @@ async function fetchEsriMaxZoom(lat: number, lng: number): Promise<number | null
   url.searchParams.append("returnGeometry", "false");
 
   const response = await fetch(url.toString());
+  if (!response.ok) return BASELINE_ESRI_MAX_ZOOM;
   // oxlint-disable-next-line no-unsafe-type-assertion
   const data = (await response.json()) as EsriIdentifyResponse | null;
 
-  if (data?.results) {
-    const firstEsriResult = data.results[0];
-    if (!firstEsriResult) return BASELINE_ESRI_MAX_ZOOM;
-
-    const attributes = firstEsriResult.attributes;
-
-    if (attributes.MaxMapLevel) {
-      const maxLevel = Number.parseInt(attributes.MaxMapLevel, 10);
-      if (!Number.isNaN(maxLevel)) {
-        return Math.min(maxLevel, 22);
-      }
+  const maxMapLevel = data?.results?.[0]?.attributes.MaxMapLevel;
+  if (maxMapLevel) {
+    const maxLevel = Number.parseInt(maxMapLevel, 10);
+    if (!Number.isNaN(maxLevel)) {
+      return Math.min(maxLevel, 22);
     }
   }
 
-  return null;
+  // No usable metadata for this location: fall back to (and cache) the safe baseline so
+  // moveend doesn't re-fetch forever here.
+  return BASELINE_ESRI_MAX_ZOOM;
 }
 
 /** Switch the satellite layer based on the map view location and zoom. */
@@ -608,38 +623,16 @@ async function checkAndAutoSwitchSatelliteLayer() {
     return;
   }
 
-  const currentZoom = map.value.getZoom();
-
-  if (currentZoom <= MAP_CONFIG.MIN_ZOOM_FOR_COUNTRY_LAYERS) {
-    if (currentTileLayer.value !== "esri") {
-      await switchTileLayer("esri");
-    }
-    return;
-  }
-
-  const center = map.value.getCenter();
-  const detectedCountry: CountryCode | undefined = await detectCountryFromCoordinates(
-    center.lat,
-    center.lng,
-  );
-
-  const targetLayer: TileLayerType =
-    detectedCountry && isTileLayerType(detectedCountry) ? detectedCountry : "esri";
-
+  const targetLayer = await resolveSatelliteLayer();
   if (currentTileLayer.value !== targetLayer) {
     await switchTileLayer(targetLayer);
   }
 }
 
-/** Start listening for map movements to auto-switch between country satellite layers. */
-function initAutoCountrySwitchListener() {
+/** Listen for map movements to maintain the satellite basemap (country switch + Esri max zoom). */
+function initSatelliteMoveEndListener() {
   map.value.on("moveend", () => {
     void checkAndAutoSwitchSatelliteLayer();
-  });
-}
-
-function initEsriMetadataListener() {
-  map.value.on("moveend", () => {
     void checkEsriMaxZoom();
   });
 }

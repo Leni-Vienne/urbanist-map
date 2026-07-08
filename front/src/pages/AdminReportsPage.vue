@@ -213,13 +213,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
-import { useToast } from "@/composables/ui/useToast";
+import { toastSuccess, toastError } from "@/services/core/toast";
 import { trpc, type RouterOutput } from "@/client";
 
 type ReportedUser = RouterOutput["moderation"]["getReportedUsers"][number];
 
 const { t } = useI18n();
-const toast = useToast();
 
 const reportedUsers = ref<ReportedUser[]>([]);
 const isLoading = ref(true);
@@ -234,23 +233,19 @@ async function handlePruneImages() {
   isPruning.value = true;
   try {
     const result = await trpc.admin.pruneScheduledDeletions.mutate();
-    toast.add({
-      severity: "success",
-      summary: t("admin.pruneImages.success"),
-      detail: t("admin.pruneImages.successDetail", {
+    toastSuccess(
+      t("admin.pruneImages.successDetail", {
         deleted: result.deleted,
         failed: result.failed,
       }),
-      life: 4000,
-    });
+      t("admin.pruneImages.success"),
+    );
   } catch (error) {
     console.error("Failed to prune scheduled deletions:", error);
-    toast.add({
-      severity: "error",
-      summary: t("admin.pruneImages.failed"),
-      detail: error instanceof Error ? error.message : t("admin.pruneImages.failedDetail"),
-      life: 3000,
-    });
+    toastError(
+      error instanceof Error ? error.message : t("admin.pruneImages.failedDetail"),
+      t("admin.pruneImages.failed"),
+    );
   } finally {
     isPruning.value = false;
   }
@@ -262,12 +257,10 @@ async function loadReportedUsers() {
     reportedUsers.value = await trpc.moderation.getReportedUsers.query();
   } catch (error) {
     console.error("Error loading reported users:", error);
-    toast.add({
-      severity: "error",
-      summary: t("admin.reports.messages.loadError"),
-      detail: error instanceof Error ? error.message : undefined,
-      life: 5000,
-    });
+    toastError(
+      error instanceof Error ? error.message : String(error),
+      t("admin.reports.messages.loadError"),
+    );
   } finally {
     isLoading.value = false;
   }
@@ -276,23 +269,19 @@ async function loadReportedUsers() {
 async function clearReports(user: ReportedUser) {
   try {
     await trpc.moderation.clearUserReports.mutate({ userId: user.userId });
-    toast.add({
-      severity: "success",
-      summary: t("admin.reports.messages.clearSuccess"),
-      detail: t("admin.reports.messages.clearSuccessDetail", {
+    toastSuccess(
+      t("admin.reports.messages.clearSuccessDetail", {
         username: user.username,
       }),
-      life: 5000,
-    });
+      t("admin.reports.messages.clearSuccess"),
+    );
     await loadReportedUsers();
   } catch (error) {
     console.error("Error clearing reports:", error);
-    toast.add({
-      severity: "error",
-      summary: t("admin.reports.messages.clearError"),
-      detail: error instanceof Error ? error.message : undefined,
-      life: 5000,
-    });
+    toastError(
+      error instanceof Error ? error.message : String(error),
+      t("admin.reports.messages.clearError"),
+    );
   }
 }
 
@@ -321,25 +310,21 @@ async function confirmBan() {
       deleteContent: deleteContent.value,
     });
 
-    toast.add({
-      severity: "success",
-      summary: t("admin.reports.messages.banSuccess"),
-      detail: t("admin.reports.messages.banSuccessDetail", {
+    toastSuccess(
+      t("admin.reports.messages.banSuccessDetail", {
         username: selectedUser.value.username,
       }),
-      life: 5000,
-    });
+      t("admin.reports.messages.banSuccess"),
+    );
 
     closeBanDialog();
     await loadReportedUsers();
   } catch (error) {
     console.error("Error banning user:", error);
-    toast.add({
-      severity: "error",
-      summary: t("admin.reports.messages.banError"),
-      detail: error instanceof Error ? error.message : undefined,
-      life: 5000,
-    });
+    toastError(
+      error instanceof Error ? error.message : String(error),
+      t("admin.reports.messages.banError"),
+    );
   } finally {
     isBanning.value = false;
   }

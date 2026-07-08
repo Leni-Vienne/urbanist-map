@@ -80,7 +80,7 @@ OV_RETRIES=3
 # suggest a full re-filter (run_all.sh) to correct any larger drift.
 WARN_REFS=100000
 
-UA="UrbanistMap-backfill/1.0 (osm-extract weekly geometry backfill)"
+UA="UrbanistMap-backfill/1.0 (osm-extract daily geometry backfill)"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in

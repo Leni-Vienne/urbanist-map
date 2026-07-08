@@ -29,7 +29,7 @@
       @dblclick.stop
       style="max-height: min(600px, 70svh)"
     >
-      <FilterPanelContent @filter-overlays="emit('filter-overlays')" />
+      <FilterPanelContent />
     </div>
   </Popover>
 </template>
@@ -44,10 +44,8 @@ import {
   lastModifiedDateRange,
   showOnlyWithImages,
 } from "@/services/map/filters";
-import { useIsMobile } from "@/composables/ui/useIsMobile";
+import { isMobile } from "@/services/core/viewport";
 import FilterPanelContent from "@/components/map/FilterPanelContent.vue";
-
-const { isMobile } = useIsMobile();
 
 const activeFilterCount = computed(() => {
   let count =
@@ -66,10 +64,6 @@ const FILTER_HINT_KEY = "filter-control-seen";
 const showFilterHint = ref(localStorage.getItem(FILTER_HINT_KEY) !== "1");
 const showFilterPanel = ref(false);
 const filterPanel = ref();
-
-const emit = defineEmits<{
-  "filter-overlays": [];
-}>();
 
 function toggleFilterPanel(event: Event) {
   if (showFilterHint.value) {

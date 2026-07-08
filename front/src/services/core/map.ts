@@ -2,7 +2,7 @@ import maplibre, { type Map as MaplibreMap, type RequestParameters } from "mapli
 import "maplibre-gl/dist/maplibre-gl.css"; // needed for maplibre controls and attribution styling
 import { ref, watch, shallowRef } from "vue";
 import { getApiUrl } from "@/client";
-import { mapRotationEnabled } from "@/composables/core/useMapRotation";
+import { mapRotationEnabled } from "@/services/map/settings";
 
 export const OPENFREEMAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 

@@ -3,7 +3,7 @@
 // feature in the vector tile layer (desktop only, touch has no mousemove).
 
 import { ref } from "vue";
-import { isMobileViewport } from "@/composables/ui/useIsMobile";
+import { isMobile } from "@/services/core/viewport";
 
 // Inline data sourced directly from vector tile feature properties, no backend call needed.
 export type HoverProjectData = {
@@ -53,7 +53,7 @@ function clearTimer(): void {
 
 /** Hover previews are pointer-only; suppress them on mobile widths and touch frames. */
 function isHoverPreviewDisabled(): boolean {
-  return isMobileViewport() || globalThis.matchMedia("(hover: none)").matches;
+  return isMobile.value || globalThis.matchMedia("(hover: none)").matches;
 }
 
 /**

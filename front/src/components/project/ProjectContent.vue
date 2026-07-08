@@ -217,7 +217,7 @@
 import { computed, useTemplateRef } from "vue";
 import { AccordionContent } from "primevue";
 import { useI18n } from "vue-i18n";
-import { useOverlayClickHandler } from "@/composables/overlay/useOverlayClickHandler";
+import { handleOverlayClickNavigation } from "@/services/overlay/clickHandler";
 import { buildImageUrl, buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
 import type { Project, Overlay, PendingChangeRequest } from "@/types/index";
@@ -229,7 +229,6 @@ import ImageLightbox from "@/components/common/ImageLightbox.vue";
 import ProjectMetadataCard from "@/components/map/popups/ProjectMetadataCard.vue";
 
 const { t } = useI18n();
-const { handleOverlayClickNavigation } = useOverlayClickHandler();
 
 interface Props {
   project: Project;

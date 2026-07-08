@@ -120,12 +120,14 @@
 </template>
 
 <script setup lang="ts">
+import { toastSuccess, toastError } from "@/services/core/toast";
+
 import { ref, computed, watch, onMounted, onUnmounted, defineAsyncComponent } from "vue";
 import { isSyntheticEmail } from "@shared/types";
 import { hasUnsavedChanges } from "@/utils/unsavedState";
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
-import { useToast } from "@/composables/ui/useToast";
+
 import { signOut } from "@/services/auth/signOut";
 import { useI18n } from "vue-i18n";
 
@@ -137,7 +139,7 @@ const ModeratedContributionsDialog = defineAsyncComponent(
 
 const authStore = useAuthStore();
 const uiStore = useUiStore();
-const toast = useToast();
+
 const { t } = useI18n();
 const isMenuOpen = ref(false);
 const userPopover = ref();
@@ -170,19 +172,9 @@ async function handleSignOut() {
 
   const result = await signOut();
   if (result.success) {
-    toast.add({
-      severity: "success",
-      summary: t("auth.signedOut"),
-      detail: t("auth.signedOutMessage"),
-      life: 3000,
-    });
+    toastSuccess(t("auth.signedOutMessage"), t("auth.signedOut"));
   } else {
-    toast.add({
-      severity: "error",
-      summary: t("auth.error.signOutFailed"),
-      detail: result.error ?? undefined,
-      life: 5000,
-    });
+    toastError(result.error ?? undefined, t("auth.error.signOutFailed"));
   }
   userPopover.value.hide();
   isMenuOpen.value = false;

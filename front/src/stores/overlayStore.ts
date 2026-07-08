@@ -1,6 +1,16 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
-import type { OverlayObject, OverlayData, OverlayHistoryState } from "@/types/index";
+import type {
+  OverlayObject,
+  OverlayData,
+  OverlayHistoryState,
+  OverlayPositionState,
+} from "@/types/index";
+
+// The non-staged resting state: an open change request rests on its suggested state, else baseline.
+function restingPositionState(overlay: OverlayObject): OverlayPositionState {
+  return overlay.hasPendingChanges === true ? "suggested" : "baseline";
+}
 
 export const useOverlayStore = defineStore("overlay", () => {
   const liveOverlays = ref<Record<string, OverlayObject>>({});
@@ -27,13 +37,6 @@ export const useOverlayStore = defineStore("overlay", () => {
     Object.assign(current, updates);
   }
 
-  function batchUpdateOverlays(updates: Record<string, Partial<OverlayObject>>) {
-    for (const [id, update] of Object.entries(updates)) {
-      const current = liveOverlays.value[id];
-      if (current) Object.assign(current, update);
-    }
-  }
-
   // Replace an overlay's edit history wholesale. Callers compute the new history array
   // (seeding/dedup live in commitOverlayEdit); this is the single reactive write.
   function commitHistory(overlayId: string, history: OverlayHistoryState[]) {
@@ -41,6 +44,7 @@ export const useOverlayStore = defineStore("overlay", () => {
     if (!overlay) return;
     overlay.history = history;
     overlay.redoStack = [];
+    overlay.positionState = history.length > 1 ? "staged" : restingPositionState(overlay);
   }
 
   // Collapse history to a single baseline step at `corners` (cloned so later edits don't alias it)
@@ -60,6 +64,9 @@ export const useOverlayStore = defineStore("overlay", () => {
           ]
         : [];
     overlay.redoStack = [];
+    // A collapse to a single step leaves no staged edits; a toggled/suggested state written just
+    // before this call is preserved (only a staged state is reconciled to the resting state).
+    if (overlay.positionState === "staged") overlay.positionState = restingPositionState(overlay);
   }
 
   // Step back one history entry. Returns the step to restore (for the GL effect), or null on no-op.
@@ -71,6 +78,7 @@ export const useOverlayStore = defineStore("overlay", () => {
     overlay.redoStack.push(current);
     const target = overlay.history.at(-1);
     if (!target) return null;
+    if (overlay.history.length === 1) overlay.positionState = restingPositionState(overlay);
     return target;
   }
 
@@ -81,6 +89,7 @@ export const useOverlayStore = defineStore("overlay", () => {
     const target = overlay.redoStack.pop();
     if (!target) return null;
     overlay.history.push(target);
+    if (overlay.history.length > 1) overlay.positionState = "staged";
     return target;
   }
 
@@ -110,7 +119,6 @@ export const useOverlayStore = defineStore("overlay", () => {
     clearViewModeOverlays,
     addOverlay,
     updateOverlay,
-    batchUpdateOverlays,
     commitHistory,
     resetHistoryBaseline,
     undoHistory,

@@ -199,10 +199,12 @@
 </template>
 
 <script setup lang="ts">
+import { toastError, toastSuccess } from "@/services/core/toast";
+
 import { ref, onMounted, reactive, computed } from "vue";
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
-import { useToast } from "@/composables/ui/useToast";
+
 import { trpc, type RouterOutput } from "@/client";
 import { buildThumbnailUrl } from "@/utils/imageUrl";
 import { getStatusSeverity } from "@/utils/statusHelpers";
@@ -214,7 +216,6 @@ type OverlayType = CountryDetails["overlays"][number];
 
 const route = useRoute();
 const { t } = useI18n();
-const toast = useToast();
 
 const userId = route.params.userId as string;
 
@@ -257,12 +258,10 @@ async function loadUserContributions() {
   } catch (error) {
     console.error("Error loading user contributions:", error);
     errorRef.value = true;
-    toast.add({
-      severity: "error",
-      summary: t("admin.userContributions.messages.loadError"),
-      detail: error instanceof Error ? error.message : undefined,
-      life: 5000,
-    });
+    toastError(
+      error instanceof Error ? error.message : undefined,
+      t("admin.userContributions.messages.loadError"),
+    );
   } finally {
     isLoading.value = false;
   }
@@ -282,12 +281,10 @@ async function loadCountryDetails(countryCode: string | null) {
     }
   } catch (error) {
     console.error("Error loading country details:", error);
-    toast.add({
-      severity: "error",
-      summary: t("admin.userContributions.messages.loadError"),
-      detail: error instanceof Error ? error.message : undefined,
-      life: 5000,
-    });
+    toastError(
+      error instanceof Error ? error.message : undefined,
+      t("admin.userContributions.messages.loadError"),
+    );
   } finally {
     loadingCountry.value = null;
   }
@@ -358,21 +355,15 @@ async function adminDeleteProject() {
       }
     }
 
-    toast.add({
-      severity: "success",
-      summary: t("admin.userContributions.messages.projectDeleted"),
-      life: 5000,
-    });
+    toastSuccess(t("admin.userContributions.messages.projectDeleted"));
 
     showDeleteDialog.value = false;
   } catch (error) {
     console.error("Error deleting project:", error);
-    toast.add({
-      severity: "error",
-      summary: t("admin.userContributions.messages.deleteError"),
-      detail: error instanceof Error ? error.message : undefined,
-      life: 5000,
-    });
+    toastError(
+      error instanceof Error ? error.message : undefined,
+      t("admin.userContributions.messages.deleteError"),
+    );
   } finally {
     isDeleting.value = false;
   }
@@ -407,21 +398,15 @@ async function adminDeleteOverlay() {
       }
     }
 
-    toast.add({
-      severity: "success",
-      summary: t("admin.userContributions.messages.overlayDeleted"),
-      life: 5000,
-    });
+    toastSuccess(t("admin.userContributions.messages.overlayDeleted"));
 
     showDeleteDialog.value = false;
   } catch (error) {
     console.error("Error deleting overlay:", error);
-    toast.add({
-      severity: "error",
-      summary: t("admin.userContributions.messages.deleteError"),
-      detail: error instanceof Error ? error.message : undefined,
-      life: 5000,
-    });
+    toastError(
+      error instanceof Error ? error.message : undefined,
+      t("admin.userContributions.messages.deleteError"),
+    );
   } finally {
     isDeleting.value = false;
   }

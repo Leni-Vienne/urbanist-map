@@ -194,14 +194,16 @@
 </template>
 
 <script setup lang="ts">
+import { toastError, toastSuccess } from "@/services/core/toast";
+
 import { ref, computed, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
-import { useToast } from "@/composables/ui/useToast";
+
 import { addOverlay } from "@/services/overlay/editing";
-import { setStagedRender } from "@/composables/submission/stagedRenderStore";
+import { setStagedRender } from "@/services/submission/stagedRenderState";
 import { MAX_UPLOAD_FILE_SIZE_BYTES, MAX_UPLOAD_FILE_SIZE_MB } from "@shared/uploadLimits";
 
 type UploadMode = "choose" | "overlay" | "render";
@@ -210,7 +212,6 @@ const { t } = useI18n();
 const uiStore = useUiStore();
 const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
-const toast = useToast();
 
 const fileInputRef = ref<HTMLInputElement>();
 const selectedFile = ref<File | null>(null);
@@ -338,12 +339,7 @@ function processFile(file: File) {
     reader.readAsDataURL(file);
   } catch (error) {
     console.error("Error handling file selection:", error);
-    toast.add({
-      severity: "error",
-      summary: t("common.error"),
-      detail: t("overlay.uploadFailedDetail"),
-      life: 3000,
-    });
+    toastError(t("overlay.uploadFailedDetail"));
   }
 }
 
@@ -352,12 +348,7 @@ function handleConfirm() {
 
   const projectId = uiStore.imageUploadDialog.projectId;
   if (!projectId) {
-    toast.add({
-      severity: "error",
-      summary: t("common.error"),
-      detail: t("errors.projectRequired"),
-      life: 3000,
-    });
+    toastError(t("errors.projectRequired"));
     return;
   }
 
@@ -375,32 +366,17 @@ function confirmOverlay(projectId: string) {
     addOverlay(imageDataUrl.value, projectId, replacementId ?? undefined);
 
     if (replacementId) {
-      toast.add({
-        severity: "success",
-        summary: t("toasts.replacementOverlayCreated"),
-        detail: t("toasts.replacementOverlayDetail"),
-        life: 3000,
-      });
+      toastSuccess(t("toasts.replacementOverlayDetail"), t("toasts.replacementOverlayCreated"));
       // Reset replacement state after creating the overlay
       overlayStore.resetReplacement();
     } else {
-      toast.add({
-        severity: "success",
-        summary: t("overlay.overlayCreated"),
-        detail: t("overlay.positionOverlayOnMap"),
-        life: 3000,
-      });
+      toastSuccess(t("overlay.positionOverlayOnMap"), t("overlay.overlayCreated"));
     }
 
     uiStore.closeImageUploadDialog();
   } catch (error) {
     console.error("Error creating overlay:", error);
-    toast.add({
-      severity: "error",
-      summary: t("overlay.uploadFailed"),
-      detail: t("overlay.uploadFailedDetail"),
-      life: 3000,
-    });
+    toastError(t("overlay.uploadFailedDetail"), t("overlay.uploadFailed"));
   }
 }
 
@@ -411,21 +387,14 @@ function confirmRender(projectId: string, file: File) {
     // other change; nothing uploads until the user confirms the submission.
     setStagedRender(projectId, { file, previewUrl: imageDataUrl.value });
     projectStore.updateProject(projectId, { isModified: true });
-    toast.add({
-      severity: "success",
-      summary: t("imageUpload.renderStaged"),
-      detail: t("imageUpload.renderStagedDetail"),
-      life: 4000,
-    });
+    toastSuccess(t("imageUpload.renderStagedDetail"), t("imageUpload.renderStaged"));
     uiStore.closeImageUploadDialog();
   } catch (error) {
     console.error("Error staging render:", error);
-    toast.add({
-      severity: "error",
-      summary: t("overlay.uploadFailed"),
-      detail: error instanceof Error ? error.message : t("overlay.uploadFailedDetail"),
-      life: 3000,
-    });
+    toastError(
+      error instanceof Error ? error.message : t("overlay.uploadFailedDetail"),
+      t("overlay.uploadFailed"),
+    );
   }
 }
 

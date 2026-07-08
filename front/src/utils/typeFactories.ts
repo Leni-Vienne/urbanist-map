@@ -1,21 +1,30 @@
 // Factory functions for creating type instances to reduce duplication
-import type { Project, OverlayObject, OverlayData, Overlay, LatLng } from "@/types/index";
+import type { Project, OverlayObject, Overlay, LatLng } from "@/types/index";
 import type { ApprovalStatus } from "@shared/types";
 import { v4 as uuidv4 } from "uuid";
 import { buildImageUrl } from "@/utils/imageUrl";
-import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 
 // Accepts any subset of Project fields, with null allowed for any field.
 // All coercion to non-null defaults happens inside the factory body.
 type ProjectInput = { [K in keyof Project]?: Project[K] | null };
 
-// Rename a wire overlay's `corners` to the frontend domain field `baselineCorners`.
+// Rename a wire overlay's `corners` to the frontend domain field `baselineCorners`, and snapshot
+// the wire `caption` into `baselineCaption` (the approved caption, never overwritten by edits).
 // The single translation from the tRPC wire shape to OverlayData.
-export function overlayWireToData<T extends { corners: LatLng[] }>(
+export function overlayWireToData<T extends { corners: LatLng[]; caption?: string | null }>(
   wire: T,
-): Omit<T, "corners"> & { baselineCorners: T["corners"] } {
+): Omit<T, "corners"> & {
+  baselineCorners: T["corners"];
+  baselineCaption: string | null;
+  source: "bbox";
+} {
   const { corners, ...rest } = wire;
-  return { ...rest, baselineCorners: corners };
+  return {
+    ...rest,
+    baselineCorners: corners,
+    baselineCaption: rest.caption ?? null,
+    source: "bbox",
+  };
 }
 
 /**
@@ -103,46 +112,17 @@ export function createOverlayObject(data: Partial<OverlayObject> = {}): OverlayO
     updatedAt: data.updatedAt ?? new Date(),
     centroid: data.centroid ?? { lat: 0, lng: 0 },
     baselineCorners: data.baselineCorners ?? null,
+    baselineCaption: data.baselineCaption ?? data.caption ?? null,
     imageUrl,
     history: data.history ?? [],
     redoStack: data.redoStack ?? [],
     project: data.project ?? null,
     suggestedCorners: data.suggestedCorners ?? undefined,
+    suggestedCaption: data.suggestedCaption ?? undefined,
     hasPendingChanges: data.hasPendingChanges ?? undefined,
     isTooBig: data.isTooBig ?? undefined,
-  };
-}
-
-/**
- * Convert OverlayObject to OverlayData format (strips UI state for caching)
- */
-export function convertOverlayToData(overlayObject: OverlayObject): OverlayData {
-  // Calculate centroid from corners
-  const centroid = calculateCentroidFromCorners(overlayObject.baselineCorners ?? []) ?? {
-    lat: 0,
-    lng: 0,
-  };
-
-  return {
-    id: overlayObject.id,
-    version: overlayObject.version,
-    filename: overlayObject.imageUrl.startsWith("data:")
-      ? overlayObject.imageUrl
-      : overlayObject.filename,
-    caption: overlayObject.caption,
-    status: overlayObject.status,
-    projectId: overlayObject.projectId,
-    authorId: overlayObject.authorId,
-    replacesOverlayId: overlayObject.replacesOverlayId,
-    replacedByOverlayId: overlayObject.replacedByOverlayId,
-    project: null,
-    centroid,
-    baselineCorners: overlayObject.baselineCorners,
-    suggestedCorners: overlayObject.suggestedCorners, // Pending position if change requests exist
-    distance: 0,
-    createdAt: overlayObject.createdAt,
-    updatedAt: overlayObject.updatedAt,
-    hasPendingChanges: overlayObject.hasPendingChanges,
+    source: data.source ?? "local",
+    positionState: data.positionState ?? (data.hasPendingChanges ? "suggested" : "baseline"),
   };
 }
 
@@ -192,7 +172,7 @@ export function createLocalOverlayContribution(
   };
 }
 
-// A staged render (still only in stagedRenderStore) as a pending render overlay entry, so it appears
+// A staged render (still only in stagedRenderState) as a pending render overlay entry, so it appears
 // on its parent contribution in My Contributions the same way a submitted render does.
 export function createStagedRenderOverlay(
   projectId: string,

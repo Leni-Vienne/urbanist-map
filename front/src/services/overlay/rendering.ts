@@ -1,31 +1,25 @@
-// MapLibre overlay rendering: creates image sources/raster layers and status markers.
+// MapLibre overlay rendering: creates image sources/raster layers. Status markers are owned by the
+// viewport reconciler (reconcileOverlayExistence), not created here.
 
-import { useOverlayStore } from "@/stores/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useMapStore } from "@/stores/mapStore";
 import { isOverlayVisible } from "@/services/overlay/visibility";
-import { createOverlayObject } from "@/utils/typeFactories";
-import {
-  resolveOverlayCorners,
-  enrichOverlayWithProject,
-  mergeEditState,
-} from "@/services/overlay/data";
-import { createOverlayMarker } from "@/services/overlay/markers";
+import { resolveOverlayCorners, enrichOverlayWithProject } from "@/services/overlay/data";
+import { upsertOverlayFromWire } from "@/services/overlay/sync";
 import * as registry from "@/services/overlay/mapLayers";
 import { createOverlayImage } from "@/services/overlay/mapLayers";
 import type { OverlayObject, OverlayData } from "@/types/index";
 
 /**
- * Render backend CDN overlays on the map for view mode.
+ * Render backend CDN overlay images on the map. Markers are owned by the viewport reconciler; a
+ * reconcile is scheduled afterwards so each freshly-created image gets its status pin.
  */
-export function renderViewModeOverlays(
-  viewModeOverlays: OverlayData[],
-  createMarkers = true,
-): void {
+export function renderViewModeOverlays(viewModeOverlays: OverlayData[]): void {
   // renderSingleOverlay's beginCreation gate handles "already rendered" and "in flight".
   for (const cdnOverlay of viewModeOverlays) {
-    renderSingleOverlay(cdnOverlay, createMarkers);
+    renderSingleOverlay(cdnOverlay);
   }
+  registry.scheduleOverlayReconcile();
 }
 
 /**
@@ -47,14 +41,14 @@ export function createOverlayImageForObject(overlayObject: OverlayObject): void 
     return;
   }
   registry.setImageHandle(overlayObject.id, handle);
+  registry.recordAppliedCorners(overlayObject.id, corners);
   registry.endCreation(overlayObject.id);
 }
 
 /**
  * Render a single overlay as a MapLibre image source + raster layer.
  */
-function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true): void {
-  const overlayStore = useOverlayStore();
+function renderSingleOverlay(cdnOverlay: OverlayData): void {
   const mapStore = useMapStore();
 
   // Skip replaced overlays - their images are deleted and would cause 404 errors
@@ -72,45 +66,24 @@ function renderSingleOverlay(cdnOverlay: OverlayData, createMarkers = true): voi
     return;
   }
 
-  const existingOverlay = overlayStore.liveOverlays[cdnOverlay.id];
-  const overlayObject = createOverlayObject(cdnOverlay);
+  // Ingest into the single canonical store object (created once, mutated in place afterwards),
+  // then render that instance so its identity is stable across re-renders.
+  const overlay = upsertOverlayFromWire(cdnOverlay);
+  enrichOverlayWithProject(overlay);
 
-  // Preserve in-progress edit state when re-rendering, so the image doesn't snap back to backend
-  // corners on any round-trip (e.g. edit -> view -> edit) where the fresh object has empty history.
-  if (existingOverlay) {
-    mergeEditState(overlayObject, existingOverlay);
-  }
-
-  const enriched = enrichOverlayWithProject(overlayObject);
-
-  const corners = resolveOverlayCorners(enriched, "image");
+  const corners = resolveOverlayCorners(overlay, "image");
   if (!corners) {
     registry.endCreation(cdnOverlay.id);
     return;
   }
 
-  const handle = createOverlayImage(enriched, corners);
+  const handle = createOverlayImage(overlay, corners);
   if (!handle) {
     registry.endCreation(cdnOverlay.id);
     return;
   }
   registry.setImageHandle(cdnOverlay.id, handle);
-
-  // One canonical object per id: refresh the stored instance in place so its identity is stable
-  // across re-renders (any service holding the reference keeps seeing live state). Only the first
-  // render creates the instance. The merge above already folded backend fields over edit state.
-  if (existingOverlay) {
-    overlayStore.updateOverlay(cdnOverlay.id, enriched);
-  } else {
-    overlayStore.addOverlay(cdnOverlay.id, enriched);
-  }
-  const overlay = overlayStore.liveOverlays[cdnOverlay.id];
-
-  // View mode passes createMarkers=false and relies on the overlay-footprints MVT layer
-  // for low-zoom representation and click handling.
-  if (createMarkers && overlay) {
-    createOverlayMarker(overlay);
-  }
+  registry.recordAppliedCorners(cdnOverlay.id, corners);
 
   registry.endCreation(cdnOverlay.id);
 }

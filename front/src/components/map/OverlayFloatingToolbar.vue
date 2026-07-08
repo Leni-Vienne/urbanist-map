@@ -161,9 +161,9 @@ import { navigateOverlaySequence, getProjectSiblingOverlayIds } from "@/services
 import { selectOverlay } from "@/services/overlay/selection";
 import { undo, redo, showEditHandles, hideEditHandles } from "@/services/overlay/editing";
 import { showCropHandles, hideCropHandles, applyCrop } from "@/services/overlay/cropHandles";
-import { useSubmissionDialog } from "@/composables/submission/useSubmissionDialog";
+import { prepareOverlaySubmission } from "@/services/submission/submissionDialog";
 import { isOverlayUnsaved } from "@/utils/unsavedState";
-import { useProjectDeletion } from "@/composables/project/useProjectDeletion";
+import { confirmAndDeleteOverlay } from "@/services/core/entityRemoval";
 
 const { t } = useI18n();
 const overlayStore = useOverlayStore();
@@ -388,11 +388,6 @@ function toggleStacking() {
   isInFront.value = next;
 }
 
-const { handleDeleteOverlay } = useProjectDeletion();
-
-// Use submission dialog composable to trigger the singleton dialog (rendered in Home.vue)
-const { prepareOverlaySubmission } = useSubmissionDialog();
-
 function onSave() {
   const overlay = selectedOverlay.value;
   if (!overlay) return;
@@ -442,7 +437,7 @@ async function onDelete() {
   const overlay = overlayStore.liveOverlays[id];
   if (!overlay) return;
   // Deselection (handles, highlight, docked detail) happens in removeOverlayFromMapAndStore.
-  await handleDeleteOverlay(id, overlay.caption ?? null);
+  await confirmAndDeleteOverlay(id, overlay.caption ?? null);
 }
 
 function canDeleteOverlay(overlayObject: OverlayObject): boolean {

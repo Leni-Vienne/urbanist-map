@@ -1,7 +1,7 @@
 import type { LngLatLike, PaddingOptions } from "maplibre-gl";
 import { map } from "@/services/core/map";
 import { useUiStore } from "@/stores/uiStore";
-import { isMobileViewport } from "@/composables/ui/useIsMobile";
+import { isMobile } from "@/services/core/viewport";
 
 // Skip re-animation when the camera is already within this many meters of the target.
 const distanceThreshold = 10;
@@ -88,7 +88,7 @@ function shouldSkipMove(
 
 // The drawer only covers the map on mobile while it's open.
 function shouldApplyMobileOffset(): boolean {
-  if (!isMobileViewport()) return false;
+  if (!isMobile.value) return false;
   return useUiStore().mobileDrawerVisible;
 }
 
@@ -423,7 +423,7 @@ export function flyToGeometry(
   options: { fromMapClick?: boolean; instant?: boolean } = {},
 ): boolean {
   const mlMap = map.value;
-  if (options.fromMapClick && !isMobileViewport()) return false;
+  if (options.fromMapClick && !isMobile.value) return false;
 
   const target = toLatLng(latlng);
   const currentZoom = mlMap.getZoom();

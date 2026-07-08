@@ -1,5 +1,7 @@
 import maplibre from "maplibre-gl";
-import type { LatLng } from "@/types/index";
+import type { LatLng, OverlayPositionState } from "@/types/index";
+import type { AppMode } from "@shared/types";
+import { useChangeRequestStore } from "@/stores/changeRequestStore";
 
 // Web Mercator is undefined beyond ~±85.06°. A corner that is finite but out of range (or
 // otherwise malformed) projects to Infinity inside cameraForBounds and crashes the camera, so
@@ -17,6 +19,66 @@ function isValidCorner(c: LatLng): boolean {
 
 export function isValidQuad(corners: LatLng[] | undefined | null): corners is LatLng[] {
   return corners?.length === 4 && corners.every(isValidCorner);
+}
+
+// Exact per-coordinate compare. Valid only for corners that both come from wire/store data, never
+// from a GL read-back (the rigid transform is not float-stable through cornersToTransform).
+export function sameCorners(a: LatLng[] | null, b: LatLng[] | null): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return false;
+  return a.every((c, i) => c.lat === b[i]?.lat && c.lng === b[i].lng);
+}
+
+// The position an overlay shows in edit mode absent any staged edits: the suggested position of
+// its open change request when one exists, otherwise the backend baseline.
+function getEditModeDefaultCorners(overlay: {
+  hasPendingChanges?: boolean;
+  suggestedCorners?: LatLng[];
+  baselineCorners: LatLng[] | null;
+}): LatLng[] | null {
+  if (overlay.hasPendingChanges === true && isValidQuad(overlay.suggestedCorners)) {
+    return overlay.suggestedCorners;
+  }
+  return overlay.baselineCorners;
+}
+
+// The edit-mode default, except when the user explicitly toggled "view approved position"
+// (positionState === "approved-toggled"), which shows the baseline. This is the position an
+// overlay with no staged edits rests at in edit mode, and the history seed / undo target.
+export function getEditModeRestingCorners(overlay: {
+  hasPendingChanges?: boolean;
+  suggestedCorners?: LatLng[];
+  baselineCorners: LatLng[] | null;
+  positionState?: OverlayPositionState;
+}): LatLng[] | null {
+  if (overlay.positionState === "approved-toggled") return overlay.baselineCorners;
+  return getEditModeDefaultCorners(overlay);
+}
+
+// The non-staged position state follows the presence of an open change request; a staged state is
+// preserved. The single reconciler that keeps positionState consistent with the backend CR flag.
+export function reconcilePositionState(overlay: {
+  hasPendingChanges?: boolean;
+  positionState: OverlayPositionState;
+}): OverlayPositionState {
+  if (overlay.positionState === "staged") return "staged";
+  if (overlay.hasPendingChanges !== true) return "baseline";
+  return overlay.positionState === "approved-toggled" ? "approved-toggled" : "suggested";
+}
+
+// Whether the map shows the suggested (proposed) state of an overlay's open change request.
+// Edit mode defaults to it (any state other than the explicit approved-position toggle, so
+// caption-only CRs still count). Non-edit modes show the approved state unless an explicit
+// moderation preview of the suggested position is active for this overlay.
+export function showsSuggestedState(
+  overlay: { id: string; positionState?: OverlayPositionState },
+  mode: AppMode,
+): boolean {
+  if (mode === "edit") {
+    return overlay.positionState !== "approved-toggled";
+  }
+  const preview = useChangeRequestStore().previewState;
+  return preview.type === "suggested" && preview.overlayId === overlay.id;
 }
 
 // Rigid overlay model used while editing. Storage stays as 4 corners; this is in-memory only.
