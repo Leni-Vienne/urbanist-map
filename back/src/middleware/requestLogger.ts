@@ -65,8 +65,7 @@ export async function requestLogger(c: Context, next: Next) {
       cfCountry: cloudflare.cfCountry,
       cfRay: cloudflare.cfRay,
       userId,
-      // userAgent is wide and low-signal on success; keep it only on failures
-      ...(status >= 400 ? { userAgent } : {}),
+      userAgent,
     });
 
     // Track errors for alerting (4xx and 5xx), but only for routes we serve

@@ -2,7 +2,6 @@ import { nextTick } from "vue";
 import { LngLat, LngLatBounds } from "maplibre-gl";
 import { t } from "@/locales";
 
-import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useMapStore } from "@/stores/mapStore";
 import { getOverlayBounds } from "@/services/overlay/markers";
@@ -65,11 +64,7 @@ export function isPreviewingChange(changeId: string): boolean {
 }
 
 // Navigate to position, combining new and previous bounds for a smooth unzoom effect
-function navigateToPosition(
-  targetLatLngs: LngLat[],
-  previousBounds: LngLatBounds | null,
-  overlayId: string,
-): void {
+function navigateToPosition(targetLatLngs: LngLat[], previousBounds: LngLatBounds | null): void {
   const targetBounds = new LngLatBounds();
   for (const pt of targetLatLngs) {
     targetBounds.extend(pt);
@@ -82,11 +77,6 @@ function navigateToPosition(
   }
 
   mobileAwareFlyToBounds(targetBounds);
-
-  // Select overlay after flyTo completes
-  void map.value.once("moveend", () => {
-    selectOverlay(overlayId);
-  });
 }
 
 export function getPreviewType(changeId: string): "current" | "suggested" | null {
@@ -197,7 +187,7 @@ function applyPositionPreview(
   registry.scheduleOverlayReconcile();
 
   const targetLatLngs = targetCorners.map((c) => new LngLat(c.lng, c.lat));
-  navigateToPosition(targetLatLngs, previousBounds, overlayId);
+  navigateToPosition(targetLatLngs, previousBounds);
 }
 
 export async function previewOverlayGeometry(options: PreviewGeometryOptions): Promise<void> {
@@ -224,22 +214,13 @@ export async function previewOverlayGeometry(options: PreviewGeometryOptions): P
       return;
     }
 
-    // Set the preview state before converging: the reconciler resolves the moderation preview
-    // position from it.
-    if (type === "new") {
-      changeRequestStore.previewState = {
-        type: "suggested",
-        changeId: change.id,
-        overlayId: change.entityId,
-        corners,
-      };
-    } else {
-      changeRequestStore.previewState = {
-        type: "current",
-        changeId: change.id,
-        overlayId: change.entityId,
-      };
-    }
+    // The effective preview derives from intent × selection, so record the intent and select the
+    // overlay before converging: the reconciler resolves the moderation preview position from it.
+    changeRequestStore.previewIntent = {
+      changeId: change.id,
+      side: type === "new" ? "suggested" : "current",
+    };
+    selectOverlay(change.entityId);
 
     // Don't pass previousBounds when toggling, both positions are already visible
     applyPositionPreview(

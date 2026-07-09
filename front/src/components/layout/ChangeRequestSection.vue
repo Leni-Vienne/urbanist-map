@@ -103,7 +103,7 @@
 <script setup lang="ts">
 import { toastError } from "@/services/core/toast";
 
-import { computed, watchEffect } from "vue";
+import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 
 import {
@@ -112,13 +112,6 @@ import {
   previewOverlayGeometry,
 } from "@/services/overlay/changeRequestPreview";
 import { previewShapes } from "@/services/overlay/shapeChangeRequestPreview";
-import {
-  syncPreviewStateOnNavigation,
-  syncProjectShapePreviewState,
-} from "@/services/overlay/changeRequestPreviewSync";
-import { useOverlayStore } from "@/stores/overlayStore";
-import { useFocusStore } from "@/stores/focusStore";
-import { useMapStore } from "@/stores/mapStore";
 import type { Project, Overlay, PendingChangeRequest } from "@/types/index";
 import ChangeValueDisplay from "@/components/layout/ChangeValueDisplay.vue";
 
@@ -157,29 +150,6 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
-
-const overlayStore = useOverlayStore();
-const focusStore = useFocusStore();
-const mapStore = useMapStore();
-
-// Sync preview button state reactively. The sync functions read the mode's change request
-// store internally, so this effect tracks both the focus selection and the store contents.
-// IMPORTANT: do NOT read previewState inside this effect, it would create a read→write cycle.
-watchEffect(() => {
-  const selectedId = focusStore.selectedOverlayId;
-  if (selectedId) {
-    // Sync "view approved position" button for the currently selected overlay
-    const sel = overlayStore.liveOverlays[selectedId];
-    if (sel) {
-      const isViewingApproved =
-        mapStore.mode !== "edit" || sel.positionState === "approved-toggled";
-      syncPreviewStateOnNavigation(selectedId, isViewingApproved);
-    }
-  } else {
-    // No overlay selected: sync "view current shapes" button for project geometry changes
-    syncProjectShapePreviewState();
-  }
-});
 
 function isPreviewActive(changeId: string, type: "old" | "new"): boolean {
   if (!isPreviewingChange(changeId)) return false;

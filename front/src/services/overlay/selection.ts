@@ -11,24 +11,11 @@ import {
   whenImageReady,
   raiseOverlayImage,
 } from "@/services/overlay/mapLayers";
-import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewSync";
-import type { OverlayObject, LatLng } from "@/types/index";
+import type { LatLng } from "@/types/index";
 import { syncModerationCountryFromMapClick } from "@/services/moderation/moderationCountrySync";
 import { resolveOverlayCorners } from "@/services/overlay/data";
 import { showsSuggestedState } from "@/services/overlay/transform";
 import { isOverlayUnsaved } from "@/utils/unsavedState";
-
-function setupNewSelection(newlySelected: OverlayObject, overlayId: string): void {
-  // Raise the clicked image above its siblings so the one the user picked is never hidden.
-  raiseOverlayImage(overlayId);
-
-  // Sync preview state for reactive button highlighting in change request UI. Edit mode displays
-  // the suggested position of an open change request by default (only the explicit toggle views
-  // the approved one); non-edit modes always start on the approved position.
-  const isViewingApproved =
-    useMapStore().mode !== "edit" || newlySelected.positionState === "approved-toggled";
-  syncPreviewStateOnNavigation(overlayId, isViewingApproved);
-}
 
 /**
  * Select an overlay. The map highlight (sister overlays + footprint) follows the focus store
@@ -52,7 +39,8 @@ export function selectOverlay(overlayId: string | null): void {
   // Pin the overlay; this replaces any open project detail (mutual exclusivity is free).
   focus.selectOverlay(overlayId);
 
-  setupNewSelection(newlySelected, overlayId);
+  // Raise the clicked image above its siblings so the one the user picked is never hidden.
+  raiseOverlayImage(overlayId);
 
   // In moderation mode, switch the panel to this overlay's country so its pending submissions load.
   syncModerationCountryFromMapClick(newlySelected.project?.countryCode);

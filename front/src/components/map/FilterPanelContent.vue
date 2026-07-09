@@ -17,58 +17,25 @@
       {{ $t("map.controls.clearTagFilters") }}
     </button>
   </div>
-  <div class="flex flex-wrap gap-2 mb-3">
-    <button
-      v-for="tag in lineTags"
-      :key="tag.slug"
-      type="button"
-      class="px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all duration-150 cursor-pointer"
-      :aria-pressed="selectedProjectTags.includes(tag.slug)"
-      :style="
-        selectedProjectTags.includes(tag.slug)
-          ? { backgroundColor: tag.color, color: tag.textColor, borderColor: tag.color }
-          : theme === 'dark'
-            ? {
-                backgroundColor: tag.color + '28',
-                color: tag.textColor,
-                borderColor: tag.color,
-              }
-            : { backgroundColor: 'transparent', color: tag.color, borderColor: tag.color }
-      "
-      @click="toggleProjectTagFilter(tag.slug)"
-      @dblclick.stop
-    >
-      {{ $te(`tags.${tag.slug}`) ? $t(`tags.${tag.slug}`) : tag.slug }}
-    </button>
-  </div>
-
-  <p class="m-0 mb-1.5 text-[0.7rem] italic text-color-secondary">
-    {{ $t("map.controls.buildingTagsHint") }}
-  </p>
-  <div class="flex flex-wrap gap-2 mb-4">
-    <button
-      v-for="tag in buildingTags"
-      :key="tag.slug"
-      type="button"
-      class="px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all duration-150 cursor-pointer"
-      :aria-pressed="selectedProjectTags.includes(tag.slug)"
-      :style="
-        selectedProjectTags.includes(tag.slug)
-          ? { backgroundColor: tag.color, color: tag.textColor, borderColor: tag.color }
-          : theme === 'dark'
-            ? {
-                backgroundColor: tag.color + '28',
-                color: tag.textColor,
-                borderColor: tag.color,
-              }
-            : { backgroundColor: 'transparent', color: tag.color, borderColor: tag.color }
-      "
-      @click="toggleProjectTagFilter(tag.slug)"
-      @dblclick.stop
-    >
-      {{ $te(`tags.${tag.slug}`) ? $t(`tags.${tag.slug}`) : tag.slug }}
-    </button>
-  </div>
+  <template v-for="group in tagGroups" :key="group.key">
+    <p v-if="group.hintKey" class="m-0 mb-1.5 text-[0.7rem] italic text-color-secondary">
+      {{ $t(group.hintKey) }}
+    </p>
+    <div class="flex flex-wrap gap-2 mb-4">
+      <button
+        v-for="tag in group.tags"
+        :key="tag.slug"
+        type="button"
+        class="px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all duration-150 cursor-pointer"
+        :aria-pressed="selectedProjectTags.includes(tag.slug)"
+        :style="tagStyle(tag)"
+        @click="toggleProjectTagFilter(tag.slug)"
+        @dblclick.stop
+      >
+        {{ $te(`tags.${tag.slug}`) ? $t(`tags.${tag.slug}`) : tag.slug }}
+      </button>
+    </div>
+  </template>
 
   <p class="m-0 mb-1.5 text-xs font-semibold text-color-secondary uppercase tracking-wide">
     {{ $t("map.controls.filterByImages") }}
@@ -185,7 +152,12 @@ import {
   toggleShowOnlyWithImages,
 } from "@/services/map/filters";
 import type { TimelineStatus } from "../../../../back/src/db/schema";
-import { PROJECT_TAGS, PROJECT_TAG_MAP, BUILDING_CATEGORY_TAGS } from "@/constants/projectTags";
+import {
+  PROJECT_TAGS,
+  PROJECT_TAG_MAP,
+  BUILDING_CATEGORY_TAGS,
+  type ProjectTag,
+} from "@/constants/projectTags";
 import { useTheme } from "@/composables/core/useTheme";
 import LinePreview from "@/components/common/LinePreview.vue";
 
@@ -310,8 +282,25 @@ const linePreviewColor = computed(() => {
 });
 
 const { theme } = useTheme();
+
+function tagStyle(tag: ProjectTag): Record<string, string> {
+  if (selectedProjectTags.value.includes(tag.slug)) {
+    return { backgroundColor: tag.color, color: tag.textColor, borderColor: tag.color };
+  }
+  if (theme.value === "dark") {
+    return { backgroundColor: tag.color + "28", color: tag.textColor, borderColor: tag.color };
+  }
+  return { backgroundColor: "transparent", color: tag.color, borderColor: tag.color };
+}
+
 const allTags = PROJECT_TAGS.filter((tag) => !tag.hidden);
-const lineTags = allTags.filter((tag) => !BUILDING_CATEGORY_TAGS.has(tag.slug));
-const buildingTags = allTags.filter((tag) => BUILDING_CATEGORY_TAGS.has(tag.slug));
+const tagGroups: { key: string; hintKey?: string; tags: ProjectTag[] }[] = [
+  { key: "line", tags: allTags.filter((tag) => !BUILDING_CATEGORY_TAGS.has(tag.slug)) },
+  {
+    key: "building",
+    hintKey: "map.controls.buildingTagsHint",
+    tags: allTags.filter((tag) => BUILDING_CATEGORY_TAGS.has(tag.slug)),
+  },
+];
 const untaggedFilter = UNTAGGED_PROJECT_FILTER;
 </script>
