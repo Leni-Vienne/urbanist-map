@@ -19,7 +19,7 @@ function tabToMode(tab: PanelTab): AppMode {
     case "moderation":
       return "moderation";
     default:
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      // eslint-disable-next-line restrict-template-expressions
       throw new Error(`Unhandled tab: ${tab}`);
   }
 }
@@ -50,7 +50,7 @@ export const useMapStore = defineStore("map", () => {
       case "moderation":
         return "moderation";
       default:
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+        // eslint-disable-next-line restrict-template-expressions
         throw new Error(`Unhandled mode: ${targetMode}`);
     }
   }
@@ -75,7 +75,7 @@ export const useMapStore = defineStore("map", () => {
 });
 
 // Enable HMR for this store
-// eslint-disable @typescript-eslint/no-unnecessary-condition @typescript-eslint/strict-void-return
+// eslint-disable no-unnecessary-condition strict-void-return
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useMapStore, import.meta.hot));
 }

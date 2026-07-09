@@ -449,7 +449,6 @@ export const overlayRouter = router({
           // The deleteLocalImages function handles logging internally
         }
 
-        // Delete from database
         await db.delete(overlays).where(eq(overlays.id, input.id));
 
         return { success: true };

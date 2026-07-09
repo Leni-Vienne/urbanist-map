@@ -51,17 +51,15 @@ export function createProjectObject(data: ProjectInput = {}): Project {
     ownerId: data.ownerId ?? "",
     ownerUsername: data.ownerUsername ?? null,
     status: data.status ?? null,
-    rejectionReason: data.rejectionReason ?? null, // Moderator-selected rejection reason
-    // Timeline status - project lifecycle stage
+    rejectionReason: data.rejectionReason ?? null,
     timelineStatus: data.timelineStatus ?? "proposed",
-    // Import source tracking
     importSourceId: data.importSourceId ?? null,
     externalId: data.externalId ?? null,
     externalProperties: data.externalProperties ?? null,
     externalLastModified: data.externalLastModified ?? null,
     lastImportedAt: data.lastImportedAt ?? null,
     importSource: data.importSource ?? null,
-    // Center coordinate fields - all projects now have center coordinates
+    // Center coordinate fields
     lat: data.lat ?? null,
     lng: data.lng ?? null,
     centerCoordinate: data.centerCoordinate ?? null,

@@ -80,7 +80,6 @@ export function applyOverlayBackendFields(
 // through applyOverlayBackendFields so the display consequences (caption advance, resting-position
 // snap) ride with the write. An unsaved local crop (imageUrl is a data: URL) survives untouched
 // because the existing object is never replaced.
-// the existing object is never replaced.
 export function upsertOverlayFromWire(data: OverlayData): OverlayObject {
   const overlayStore = useOverlayStore();
   const existing = overlayStore.liveOverlays[data.id];

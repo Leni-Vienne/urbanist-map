@@ -39,7 +39,7 @@ export const bootedFromDeeplinkView = ref(false);
 
 // Exported as non-null MaplibreMap to satisfy TypeScript, though it is technically null before map initialization.
 // This allows callers to safely use map.value without strict null checking boilerplate.
-// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+// eslint-disable-next-line no-unsafe-type-assertion
 export const map = shallowRef<MaplibreMap>(null as unknown as MaplibreMap);
 export const currentZoomLevel = ref(12);
 export const currentBearing = ref(0);
@@ -94,7 +94,7 @@ function transformMapRequest(url: string): RequestParameters | undefined {
 // This reaches into the handler's private `_aroundPoint`, as there is no public API for it.
 function enableCursorTrackingScrollZoom(targetMap: MaplibreMap): void {
   /* eslint-disable no-underscore-dangle -- mirrors MapLibre's private fields */
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+  // eslint-disable-next-line no-unsafe-type-assertion
   const handler = targetMap.scrollZoom as unknown as {
     wheel: (e: WheelEvent) => void;
     _aroundPoint?: { x: number; y: number };
@@ -214,7 +214,7 @@ export function initializeMap() {
   });
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+// eslint-disable-next-line no-unnecessary-condition
 if (import.meta.hot) {
   import.meta.hot.dispose((data) => {
     data.styleReady = styleReady;

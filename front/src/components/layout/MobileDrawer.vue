@@ -139,7 +139,6 @@ const { detailVisible, activeTab } = useDetailPanel();
 
 const isVisible = defineModel<boolean>("visible", { default: false });
 
-// Drawer height management
 const drawerHeight = computed({
   get: () => uiStore.mobileDrawerHeightPercent,
   set: (value) => {

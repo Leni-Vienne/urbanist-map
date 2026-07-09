@@ -167,7 +167,7 @@ function wireHandle(edge: Edge): void {
  */
 export function showCropHandles(overlayObject: OverlayObject): void {
   const mlMap = map.value;
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  // eslint-disable-next-line no-unnecessary-condition
   if (!getImageHandle(overlayObject.id)) return;
 
   hideCropHandles();

@@ -295,7 +295,7 @@ function syncSvgOutline(): void {
   if (!session?.svgPath) return;
   const mlMap = map.value;
   const transform = getCurrentTransform(session.id);
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  // eslint-disable-next-line no-unnecessary-condition
   if (!transform) return;
 
   const threshold = getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
@@ -328,7 +328,7 @@ function refreshEditHandlesGeometry(skipCorner = -1): void {
   if (!session) return;
   const mlMap = map.value;
   const transform = getCurrentTransform(session.id);
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  // eslint-disable-next-line no-unnecessary-condition
   if (!transform) return;
 
   const corners = transformToCorners(transform);
@@ -496,7 +496,7 @@ function wireSurfaceDrag(s: EditSession): void {
 export function showEditHandles(overlayObject: OverlayObject): void {
   const mlMap = map.value;
   const handle = getImageHandle(overlayObject.id);
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  // eslint-disable-next-line no-unnecessary-condition
   if (!handle) return;
 
   hideEditHandles();
@@ -577,7 +577,7 @@ export function reattachEditHandlesAfterStyleSwitch(): void {
   if (!session) return;
   const mlMap = map.value;
   const transform = getCurrentTransform(session.id);
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  // eslint-disable-next-line no-unnecessary-condition
   if (!transform) return;
 
   const corners = transformToCorners(transform);

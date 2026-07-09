@@ -84,7 +84,7 @@ export const useModeratedContributionsStore = defineStore("moderatedContribution
   };
 });
 
-// eslint-disable @typescript-eslint/no-unnecessary-condition @typescript-eslint/strict-void-return
+// eslint-disable no-unnecessary-condition strict-void-return
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useModeratedContributionsStore, import.meta.hot));
 }

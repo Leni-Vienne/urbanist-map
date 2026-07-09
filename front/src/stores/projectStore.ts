@@ -303,7 +303,6 @@ export const useProjectStore = defineStore("project", () => {
   }
 
   return {
-    // State
     projects,
     userContributions,
     userContributionsLoading,
@@ -316,6 +315,7 @@ export const useProjectStore = defineStore("project", () => {
     resetProjectField,
     getOriginalProject,
     getProjectById,
+
     // User contributions actions
     setUserContributions,
     setUserContributionsLoading,
@@ -327,7 +327,6 @@ export const useProjectStore = defineStore("project", () => {
     removeOverlayFromUserContributions,
     removeProjectFromUserContributions,
 
-    // Comprehensive cleanup
     clearAllState,
   };
 });

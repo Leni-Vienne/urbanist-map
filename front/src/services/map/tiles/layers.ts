@@ -1378,7 +1378,6 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     },
   });
 
-  // ── Pending points GeoJSON source ──
   mlMap.addSource("pending-project-points-source", {
     type: "geojson",
     data: {
@@ -1388,7 +1387,6 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     promoteId: "id",
   });
 
-  // ── Pending shapes GeoJSON source ──
   mlMap.addSource("pending-project-shapes-source", {
     type: "geojson",
     data: {
@@ -1416,7 +1414,6 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     },
   });
 
-  // Pending shapes fill
   mlMap.addLayer(
     {
       id: "pending-project-shapes-fill",
@@ -1534,7 +1531,6 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     FOOTPRINT_BAND_BEFORE_ID,
   );
 
-  // Pending overlay footprints fill
   mlMap.addLayer(
     {
       id: "pending-overlay-footprints-fill",
@@ -1569,7 +1565,6 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     FOOTPRINT_BAND_BEFORE_ID,
   );
 
-  // Apply current tag filters to MVT layers
   applyTagFiltersToVectorLayers(mlMap);
 
   initHiddenProjectsWatcher();

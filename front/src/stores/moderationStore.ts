@@ -121,7 +121,7 @@ export const useModerationStore = defineStore("moderation", () => {
 });
 
 // Enable HMR for this store
-// eslint-disable @typescript-eslint/no-unnecessary-condition @typescript-eslint/strict-void-return
+// eslint-disable no-unnecessary-condition strict-void-return
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useModerationStore, import.meta.hot));
 }

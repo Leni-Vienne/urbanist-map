@@ -148,7 +148,6 @@ const overlaySelectFields = {
      FROM ST_DumpPoints(${overlays.corners}) AS dump(path, geom)
      WHERE path[2] <= 4)
   `,
-  // Extract centroid as {lat, lng}
   centroid: sql<{ lat: number; lng: number }>`
     json_build_object('lat', ST_Y(${overlays.centroid}), 'lng', ST_X(${overlays.centroid}))
   `,

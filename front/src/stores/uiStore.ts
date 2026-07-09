@@ -27,7 +27,6 @@ interface ShapeEditorState {
 }
 
 export const useUiStore = defineStore("ui", () => {
-  // Dialog visibility states
   const authModalVisible = ref(false);
   const authModalInitialMode = ref<"login" | "signup">("login");
   const markerPlacementBarVisible = ref(false);
@@ -36,12 +35,10 @@ export const useUiStore = defineStore("ui", () => {
   // Badge indicator, set by ModeratedContributionsWatcher so UserMenu never imports the composable
   const hasUnacknowledgedModeratedContributions = ref(false);
 
-  // Project dialog state
   const projectDialog = ref<ProjectDialogState>({
     visible: false,
   });
 
-  // Edit form states
   const projectEditForm = ref<EditFormState>({
     visible: false,
   });
@@ -61,13 +58,11 @@ export const useUiStore = defineStore("ui", () => {
   const mobileDrawerVisible = ref(true); // Open by default on mobile
   const mobileDrawerHeightPercent = ref(40); // Drawer height as percentage of viewport (10-90%)
 
-  // Image upload dialog state
   const imageUploadDialog = ref<ImageUploadDialogState>({
     visible: false,
     projectId: null,
   });
 
-  // Shape editor state
   const shapeEditor = ref<ShapeEditorState>({ project: null, reopen: false });
 
   // Shared accordion state that persists across panels
@@ -76,7 +71,6 @@ export const useUiStore = defineStore("ui", () => {
   // Post-login callback - stores action to execute after successful login
   const postLoginCallback = ref<(() => void) | null>(null);
 
-  // Project dialog actions
   function openProjectDialog(project?: Partial<Project>) {
     projectDialog.value = {
       visible: true,
@@ -90,7 +84,6 @@ export const useUiStore = defineStore("ui", () => {
     };
   }
 
-  // Project edit form actions
   function openProjectEditForm(project: Project) {
     projectEditForm.value = {
       visible: true,
@@ -104,7 +97,7 @@ export const useUiStore = defineStore("ui", () => {
     };
   }
 
-  // Shared overlay edit dialog actions - used by both sidemenu and detail panel
+  // Shared overlay edit dialog actions, used by both sidemenu and detail panel
   function openOverlayEditDialog(overlay: OverlayEditTarget) {
     overlayEditDialog.value = {
       visible: true,
@@ -119,7 +112,6 @@ export const useUiStore = defineStore("ui", () => {
     };
   }
 
-  // Image upload dialog actions
   function openImageUploadDialog(projectId: string) {
     imageUploadDialog.value = {
       visible: true,
@@ -134,7 +126,6 @@ export const useUiStore = defineStore("ui", () => {
     };
   }
 
-  // Shape editor actions
   function openShapeEditor(project: Project, reopen = false) {
     shapeEditor.value = { project, reopen };
   }
@@ -151,7 +142,6 @@ export const useUiStore = defineStore("ui", () => {
   }
 
   return {
-    // State
     authModalVisible,
     authModalInitialMode,
     markerPlacementBarVisible,
@@ -168,7 +158,6 @@ export const useUiStore = defineStore("ui", () => {
     postLoginCallback,
     activeAccordionPanels,
 
-    // Actions
     openProjectDialog,
     closeProjectDialog,
     openProjectEditForm,
@@ -183,7 +172,7 @@ export const useUiStore = defineStore("ui", () => {
   };
 });
 
-// eslint-disable @typescript-eslint/no-unnecessary-condition @typescript-eslint/strict-void-return
+// eslint-disable no-unnecessary-condition strict-void-return
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useUiStore, import.meta.hot));
 }

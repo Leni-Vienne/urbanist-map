@@ -139,7 +139,6 @@ const yearOptions = computed(() => {
   return years;
 });
 
-// Month options
 const monthOptions = computed(() => {
   const formatter = new Intl.DateTimeFormat(undefined, { month: "long" });
   return Array.from({ length: 12 }, (_, i) => ({

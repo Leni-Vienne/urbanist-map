@@ -29,7 +29,7 @@ export function removeOverlayFromMapAndStore(overlayId: string) {
 
   clearRegistryEntry(overlayId);
 
-  // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+  // eslint-disable-next-line no-dynamic-delete
   delete overlayStore.liveOverlays[overlayId];
 
   overlayStore.viewModeOverlays = overlayStore.viewModeOverlays.filter((o) => o.id !== overlayId);
@@ -78,7 +78,7 @@ function removeProject(
   }
 
   if (projectStore.projects[projectId]) {
-    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    // eslint-disable-next-line no-dynamic-delete
     delete projectStore.projects[projectId];
   }
 

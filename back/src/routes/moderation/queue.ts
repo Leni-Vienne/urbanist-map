@@ -172,13 +172,11 @@ export const queueProcedures = {
           }
         }
 
-        // Step 1: Get hidden users and pending project IDs
         const [hiddenUserIds, pendingProjectIds] = await Promise.all([
           buildHiddenUserIdsSet(moderatorId),
           collectPendingProjectIds(),
         ]);
 
-        // Step 2: Build pagination and moderation conditions
         const paginationConditions = await buildPaginationConditions(
           { countryCode: effectiveCountryCode, cursor: input.cursor },
           sortColumn,
@@ -197,11 +195,9 @@ export const queueProcedures = {
           ...paginationConditions,
         ];
 
-        // Step 3: Fetch all moderation data
         const { projectsResult, overlaysResult, overlayChanges, projectChanges } =
           await fetchModerationData(projectModerationConditions, sortColumn, limit);
 
-        // Step 4: Process and filter results
         const changeRequestsResult = [...overlayChanges, ...projectChanges].toSorted(
           (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
         );
@@ -231,7 +227,6 @@ export const queueProcedures = {
           "requestedBy",
         );
 
-        // Step 5: Enrich with report counts
         const { projectsWithOverlays, overlaysWithReports, changeRequestsWithReports } =
           await enrichWithReportCounts(filteredProjects, filteredOverlays, filteredChangeRequests);
 

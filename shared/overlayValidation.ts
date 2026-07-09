@@ -37,18 +37,15 @@ export function validateOverlaySize(corners: Corner[]): OverlaySizeValidationRes
   const [topLeft, topRight, bottomRight, bottomLeft] = corners;
 
   /*oxlint-disable no-non-null-assertion*/
-  // Calculate distances for all edges
   const topEdge = calculateDistance(topLeft!, topRight!);
   const bottomEdge = calculateDistance(bottomLeft!, bottomRight!);
   const leftEdge = calculateDistance(topLeft!, bottomLeft!);
   const rightEdge = calculateDistance(topRight!, bottomRight!);
 
-  // Calculate diagonals
   const diagonalTLBR = calculateDistance(topLeft!, bottomRight!);
   const diagonalTRBL = calculateDistance(topRight!, bottomLeft!);
   /*oxlint-enable no-non-null-assertion*/
 
-  // Check if any dimension exceeds limits
   const isValid =
     topEdge <= MAX_WIDTH_METERS &&
     bottomEdge <= MAX_WIDTH_METERS &&

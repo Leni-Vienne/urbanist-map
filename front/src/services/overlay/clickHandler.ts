@@ -96,7 +96,6 @@ async function navigateToReplacedOrRejectedOverlay(
   // First try to get centroid from overlay store (has full overlay data)
   const storeCorners = overlayStore.liveOverlays[overlay.id]?.baselineCorners;
   if (isValidQuad(storeCorners)) {
-    // Calculate centroid from corners
     const centroidLat = storeCorners.reduce((sum, c) => sum + c.lat, 0) / storeCorners.length;
     const centroidLng = storeCorners.reduce((sum, c) => sum + c.lng, 0) / storeCorners.length;
 
