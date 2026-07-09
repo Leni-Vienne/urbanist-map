@@ -94,8 +94,10 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - alloy_data:/var/lib/alloy/data
     environment:
-      # Loki endpoint - update this with your Loki URL
-      LOKI_URL: ${LOKI_URL:-http://loki:3100/loki/api/v1/push}
+      # Grafana Cloud Loki push endpoint, instance ID, and token (names match the Grafana onboarding script)
+      GCLOUD_HOSTED_LOGS_URL: ${GCLOUD_HOSTED_LOGS_URL}
+      GCLOUD_HOSTED_LOGS_ID: ${GCLOUD_HOSTED_LOGS_ID}
+      GCLOUD_RW_API_KEY: ${GCLOUD_RW_API_KEY}
       # Project name for container filtering in alloy-config.alloy
       COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME}
     networks:
