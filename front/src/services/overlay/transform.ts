@@ -21,6 +21,32 @@ export function isValidQuad(corners: LatLng[] | undefined | null): corners is La
   return corners?.length === 4 && corners.every(isValidCorner);
 }
 
+// Shape guards for untyped wire values (change-request JSONB geometry).
+function isLatLng(value: unknown): value is LatLng {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "lat" in value &&
+    "lng" in value &&
+    typeof value.lat === "number" &&
+    typeof value.lng === "number"
+  );
+}
+
+function isLatLngArray(value: unknown): value is LatLng[] {
+  return Array.isArray(value) && value.length > 0 && value.every(isLatLng);
+}
+
+// Parse an untyped wire geometry value into a validated 4-corner quad, or null.
+export function parseQuadValue(value: unknown): LatLng[] | null {
+  return isLatLngArray(value) && isValidQuad(value) ? value : null;
+}
+
+// Parse an untyped wire geometry value into a validated single coordinate, or null.
+export function parsePointValue(value: unknown): LatLng | null {
+  return isLatLng(value) && isValidCorner(value) ? value : null;
+}
+
 // Exact per-coordinate compare. Valid only for corners that both come from wire/store data, never
 // from a GL read-back (the rigid transform is not float-stable through cornersToTransform).
 export function sameCorners(a: LatLng[] | null, b: LatLng[] | null): boolean {

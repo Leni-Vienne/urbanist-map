@@ -6,7 +6,12 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useMapStore } from "@/stores/mapStore";
 import { getOverlayBounds } from "@/services/overlay/markers";
 import * as registry from "@/services/overlay/mapLayers";
-import { isValidQuad, getEditModeRestingCorners } from "@/services/overlay/transform";
+import {
+  isValidQuad,
+  parsePointValue,
+  parseQuadValue,
+  getEditModeRestingCorners,
+} from "@/services/overlay/transform";
 import { selectOverlay } from "@/services/overlay/selection";
 import { clearAllMapContent } from "@/services/overlay/lifecycle";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
@@ -21,40 +26,11 @@ interface PreviewGeometryOptions {
   type: "old" | "new";
 }
 
-// Type guard for coordinate object
-function isCoordinate(value: unknown): value is { lat: number; lng: number } {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "lat" in value &&
-    "lng" in value &&
-    typeof value.lat === "number" &&
-    typeof value.lng === "number"
-  );
-}
-
-// Type guard for coordinate array
-function isCoordinateArray(value: unknown): value is { lat: number; lng: number }[] {
-  return Array.isArray(value) && value.length > 0 && value.every(isCoordinate);
-}
-
-// Parse geometry value into corner coordinates (single coord or coordinate array from JSONB)
-function parseGeometry(geometryValue: unknown): { lat: number; lng: number }[] {
-  if (!geometryValue || typeof geometryValue !== "object") {
-    return [];
-  }
-
-  // Single coordinate (centerCoordinate, centroid)
-  if (isCoordinate(geometryValue)) {
-    return [geometryValue];
-  }
-
-  // Array of coordinates (corners)
-  if (isCoordinateArray(geometryValue)) {
-    return geometryValue;
-  }
-
-  return [];
+// Parse a change-request geometry value: a single coordinate (centroid) or a 4-corner quad.
+function parseGeometry(geometryValue: unknown): LatLng[] {
+  const point = parsePointValue(geometryValue);
+  if (point) return [point];
+  return parseQuadValue(geometryValue) ?? [];
 }
 
 export function isPreviewingChange(changeId: string): boolean {
@@ -158,20 +134,12 @@ function applyPositionPreview(
     previousBounds = getOverlayBounds(overlayObject);
   }
 
-  // A "new" preview asserts the overlay has an open change request; record its suggested position
-  // so resolveOverlayCorners renders the image there.
-  if (type === "new") {
-    overlayObject.hasPendingChanges = true;
-    if (isValidQuad(targetCorners)) {
-      overlayObject.suggestedCorners = targetCorners;
-    }
-  }
-
   // In edit mode the toggle moves an unedited overlay's resting position, so its history seed
   // follows it (the first undo returns to the shown position). A staged overlay keeps its edits and
-  // undo target. Moderation resolves the preview from changeRequestStore.previewState, so it needs
-  // no position-state mutation here. Either way the reconciler converges the image, marker and (in
-  // edit mode) the edit handles to the resolved position.
+  // undo target. Moderation resolves the preview entirely from changeRequestStore.previewState (the
+  // previewed request's own corners), so it never mutates the overlay object. Either way the
+  // reconciler converges the image, marker and (in edit mode) the edit handles to the resolved
+  // position.
   if (useMapStore().mode === "edit") {
     const isUnedited =
       overlayObject.positionState !== "staged" && overlayObject.redoStack.length === 0;

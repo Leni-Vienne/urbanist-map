@@ -10,8 +10,9 @@ import type {
   Project,
   LatLng,
 } from "@/types/index";
-import { isValidQuad, showsSuggestedState } from "@/services/overlay/transform";
+import { isValidQuad, parseQuadValue } from "@/services/overlay/transform";
 import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
+import { useChangeRequestStore } from "@/stores/changeRequestStore";
 
 /**
  * Resolve and attach the overlay's project in place, falling back to the moderation store in
@@ -31,6 +32,17 @@ export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayOb
 
   if (project) savedOverlay.project = project;
   return savedOverlay;
+}
+
+// The corners an active moderation suggested-position preview shows for this overlay: the
+// previewed change request's own proposed geometry, read off the request rather than any field on
+// the overlay object. Null when no suggested-position preview targets the overlay or the request's
+// value is not a valid quad.
+function getModerationPreviewCorners(overlayId: string): LatLng[] | null {
+  const preview = useChangeRequestStore().previewState;
+  if (preview.type !== "suggested" || preview.overlayId !== overlayId) return null;
+  const change = useModerationStore().changeRequests.find((cr) => cr.id === preview.changeId);
+  return parseQuadValue(change?.newValue);
 }
 
 // Single resolver for an overlay's on-map geometry. There is no single canonical position source;
@@ -65,13 +77,16 @@ export function resolveOverlayCorners(
 
   // Edit mode renders an overlay at its suggested position only while its state rests there; staged
   // edits and the explicit "view approved position" toggle move it to other position states.
-  // Moderation renders it there only while an explicit suggested-position preview targets it.
-  const suggestedAllowed =
-    mapStore.mode === "edit"
-      ? overlay.positionState === "suggested"
-      : mapStore.mode === "moderation" && showsSuggestedState(overlay, "moderation");
-  const fromSuggested =
-    suggestedAllowed && isValidQuad(overlay.suggestedCorners) ? overlay.suggestedCorners : null;
+  // Moderation renders the previewed change request's own corners while an explicit
+  // suggested-position preview targets the overlay.
+  let fromSuggested: LatLng[] | null = null;
+  if (mapStore.mode === "edit") {
+    if (overlay.positionState === "suggested" && isValidQuad(overlay.suggestedCorners)) {
+      fromSuggested = overlay.suggestedCorners;
+    }
+  } else if (mapStore.mode === "moderation") {
+    fromSuggested = getModerationPreviewCorners(overlay.id);
+  }
 
   if (purpose === "marker") {
     if (isValidQuad(liveCorners)) return liveCorners;
