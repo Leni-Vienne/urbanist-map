@@ -21,7 +21,7 @@ jobs:
     runs-on:
       - self-hosted
       - home-github-runner
-    environment: ${{ github.event_name == 'pull_request' && 'preview' || (github.ref == 'refs/heads/production' && 'production' || 'preview') }}
+    environment: ${{ github.ref == 'refs/heads/production' && 'production' || 'preview' }}
 
     steps:
       - name: Checkout code
@@ -43,12 +43,7 @@ jobs:
 
       - name: Set environment variables
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "WRANGLER_ENV=preview" >> $GITHUB_ENV
-            echo "DEPLOY_TARGET=preview" >> $GITHUB_ENV
-            echo "DB_PORT=5433" >> $GITHUB_ENV
-            echo "DB_NAME=construction_map_preview" >> $GITHUB_ENV
-          elif [ "${{ github.ref }}" = "refs/heads/production" ]; then
+          if [ "${{ github.ref }}" = "refs/heads/production" ]; then
             echo "WRANGLER_ENV=" >> $GITHUB_ENV
             echo "DEPLOY_TARGET=production" >> $GITHUB_ENV
             echo "DB_PORT=5432" >> $GITHUB_ENV
@@ -155,7 +150,9 @@ jobs:
           SES_REGION: ${{ vars.SES_REGION }}
           FROM_EMAIL: ${{ vars.FROM_EMAIL }}
           ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
-          LOKI_URL: ${{ vars.LOKI_URL }}
+          GCLOUD_HOSTED_LOGS_URL: ${{ vars.GCLOUD_HOSTED_LOGS_URL }}
+          GCLOUD_HOSTED_LOGS_ID: ${{ vars.GCLOUD_HOSTED_LOGS_ID }}
+          GCLOUD_RW_API_KEY: ${{ secrets.GCLOUD_RW_API_KEY }}
           TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
 
@@ -227,7 +224,9 @@ jobs:
           DB_PORT=${DB_PORT}
           BACKEND_PORT=${BACKEND_PORT}
           ALLOY_PORT=${ALLOY_PORT}
-          LOKI_URL=${LOKI_URL}
+          GCLOUD_HOSTED_LOGS_URL=${GCLOUD_HOSTED_LOGS_URL}
+          GCLOUD_HOSTED_LOGS_ID=${GCLOUD_HOSTED_LOGS_ID}
+          GCLOUD_RW_API_KEY=${GCLOUD_RW_API_KEY}
           COOKIE_SECRET=${COOKIE_SECRET}
           CORS_ORIGIN=${CORS_ORIGIN}
           VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
@@ -261,16 +260,3 @@ jobs:
             sudo systemctl reload caddy
             echo "Caddy configuration deployed and reloaded"
           fi
-
-      - name: Comment on PR with deployment status
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const deploymentUrl = 'https://construction-map-preview.leni-vienne2.workers.dev';
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `✅ PR deployed to split environment for testing!\n\n🔗 **Frontend URL**: ${deploymentUrl}\n🖥️ **Backend**: Self-hosted with Docker Compose (DB + API)\n🗄️ **Database**: Self-hosted PostgreSQL\n\n⚠️ **Note**: This is a preview deployment. Production deployment happens only after merging to \`production\` branch.`

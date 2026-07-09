@@ -55,6 +55,10 @@ loki.relabel "backend" {
 
 loki.write "default" {
   endpoint {
-    url = env("LOKI_URL") + "/loki/api/v1/push"
+    url = env("GCLOUD_HOSTED_LOGS_URL")
+    basic_auth {
+      username = env("GCLOUD_HOSTED_LOGS_ID")
+      password = env("GCLOUD_RW_API_KEY")
+    }
   }
 }
