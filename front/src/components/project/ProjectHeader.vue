@@ -63,13 +63,7 @@ const props = defineProps<Props>();
 
 const isOsmImport = computed(() => props.importSourceType === "osm");
 
-const wikidataId = computed(() => {
-  const p = props.externalProperties;
-  if (!p || typeof p !== "object") return null;
-  const id = (p as Record<string, unknown>)["wikidata"];
-  return typeof id === "string" ? id : null;
-});
-const { entity: wikidataEntity } = useWikidataEntity(wikidataId);
+const { entity: wikidataEntity } = useWikidataEntity(computed(() => props.externalProperties));
 </script>
 
 <style scoped>

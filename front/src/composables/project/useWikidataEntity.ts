@@ -1,4 +1,4 @@
-import { ref, watch, type Ref } from "vue";
+import { computed, ref, watch, type Ref } from "vue";
 import { useI18n } from "vue-i18n";
 
 interface WikidataEntity {
@@ -106,13 +106,21 @@ async function fetchEntity(id: string, lang: string): Promise<WikidataEntity | n
   }
 }
 
+function extractWikidataId(externalProperties: unknown): string | null {
+  if (!externalProperties || typeof externalProperties !== "object") return null;
+  const id = (externalProperties as Record<string, unknown>).wikidata;
+  return typeof id === "string" ? id : null;
+}
+
 /**
  * Fetch and cache Wikidata entity data (description, logo, image, building height).
+ * Takes a project's `externalProperties` and derives the Wikidata Q-id from it.
  * Results are cached for the session so each Q-id is fetched at most once per locale.
  */
-export function useWikidataEntity(wikidataId: Ref<string | null | undefined>) {
+export function useWikidataEntity(externalProperties: Ref<unknown>) {
   const { locale } = useI18n();
   const entity = ref<WikidataEntity | null>(null);
+  const wikidataId = computed(() => extractWikidataId(externalProperties.value));
 
   watch(
     [wikidataId, locale],

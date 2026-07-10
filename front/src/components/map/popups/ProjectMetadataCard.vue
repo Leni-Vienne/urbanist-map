@@ -190,13 +190,9 @@ const props = withDefaults(defineProps<Props>(), {
   showWikidataMedia: false,
 });
 
-const wikidataId = computed(() => {
-  const p = props.project?.externalProperties;
-  if (!p || typeof p !== "object") return null;
-  const id = (p as Record<string, unknown>)["wikidata"];
-  return typeof id === "string" ? id : null;
-});
-const { entity: wikidataEntityData } = useWikidataEntity(wikidataId);
+const { entity: wikidataEntityData } = useWikidataEntity(
+  computed(() => props.project?.externalProperties),
+);
 const wikidataDescription = computed(() => wikidataEntityData.value?.description ?? null);
 
 const cls = {

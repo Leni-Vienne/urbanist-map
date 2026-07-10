@@ -323,13 +323,9 @@ const renderImageCrossorigin = computed(() =>
 );
 
 // Wikidata entity for the current project (logo, description, height)
-const wikidataId = computed(() => {
-  const p = project.value?.externalProperties;
-  if (!p || typeof p !== "object") return null;
-  const id = (p as Record<string, unknown>)["wikidata"];
-  return typeof id === "string" ? id : null;
-});
-const { entity: wikidataEntity } = useWikidataEntity(wikidataId);
+const { entity: wikidataEntity } = useWikidataEntity(
+  computed(() => project.value?.externalProperties),
+);
 
 // A neutral header block anchors the panel on desktop; on mobile the drawer already frames it.
 const showHeaderBand = computed(() => !isMobile.value);
