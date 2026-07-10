@@ -65,10 +65,8 @@
         <ChangeRequestSection
           v-if="projectChanges.length > 0"
           :changes="projectChanges"
-          :all-change-requests="allChangeRequests"
-          :projects="projectsContext"
+          :project="project"
           :is-my-contributions="isContributePanel"
-          :on-navigate-to-overlay="onNavigateToOverlay"
           :show-user-stats-link="showUserStatsLink"
           @show-user-stats="(data) => $emit('show-user-stats', data)"
           container-class="py-[0.5625rem] px-[0.6875rem] bg-[var(--p-content-hover-background)] border border-surface rounded-lg"
@@ -190,12 +188,10 @@
           <ChangeRequestSection
             v-if="getOverlayChangeRequestsForOverlay(overlay.id).length > 0"
             :changes="getOverlayChangeRequestsForOverlay(overlay.id)"
-            :all-change-requests="allChangeRequests"
-            :projects="projectsContext"
+            :overlay="overlay"
             :is-my-contributions="isContributePanel"
             :is-overlay-changes="true"
             :entity-name="overlay.caption || $t('overlay.untitled')"
-            :on-navigate-to-overlay="onNavigateToOverlay"
             :show-user-stats-link="showUserStatsLink"
             @show-user-stats="(data) => $emit('show-user-stats', data)"
             container-class="mt-0 pt-2 px-[0.6875rem] pb-[0.6875rem] bg-[var(--p-orange-25)] border-t border-t-[var(--p-orange-200)] mx-1 mb-1 rounded-b-lg"
@@ -233,9 +229,7 @@ const { t } = useI18n();
 interface Props {
   project: Project;
   projectChanges: PendingChangeRequest[];
-  allChangeRequests: PendingChangeRequest[];
   overlayChangesMap: Map<string, PendingChangeRequest[]>;
-  projectsContext: Project[];
   isContributePanel: boolean;
   showUserStatsLink?: boolean;
   hideStatusBadges?: boolean;

@@ -43,7 +43,6 @@
               </div>
               <ChangeValueDisplay
                 :change="group.change"
-                :projects="projects"
                 :is-preview-active="isPreviewActive"
                 :show-user-stats-link="showUserStatsLink"
                 @preview-geometry="previewGeometry"
@@ -82,7 +81,6 @@
                 <div class="flex items-center gap-2 mb-1"></div>
                 <ChangeValueDisplay
                   :change="change"
-                  :projects="projects"
                   :is-preview-active="isPreviewActive"
                   :show-user-stats-link="showUserStatsLink"
                   @preview-geometry="previewGeometry"
@@ -101,8 +99,6 @@
 </template>
 
 <script setup lang="ts">
-import { toastError } from "@/services/core/toast";
-
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 
@@ -117,18 +113,19 @@ import ChangeValueDisplay from "@/components/layout/ChangeValueDisplay.vue";
 
 interface Props {
   changes: PendingChangeRequest[];
-  allChangeRequests: PendingChangeRequest[];
-  projects: Project[];
+  overlay?: Overlay | null;
+  project?: Project | null;
   isMyContributions?: boolean;
   isOverlayChanges?: boolean;
   entityName?: string;
   showHeader?: boolean;
   containerClass?: string;
-  onNavigateToOverlay?: (overlayId: string) => Promise<void>;
   showUserStatsLink?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  overlay: null,
+  project: null,
   isMyContributions: false,
   isOverlayChanges: false,
   entityName: "",
@@ -236,45 +233,18 @@ function formatFieldName(fieldName: string): string {
   return translated !== translationKey ? translated : fieldName;
 }
 
-// Wrapper function to handle preview with proper error handling
-async function previewGeometry(geometryValue: unknown, type: "old" | "new", changeId: string) {
-  // Find the change request
-  const change = props.allChangeRequests.find((c) => c.id === changeId);
-  if (!change) {
-    toastError(t("overlay.couldNotFindChange"), t("overlay.changeNotFound"));
-    return;
-  }
+async function previewGeometry(change: PendingChangeRequest, type: "old" | "new") {
+  const geometryValue = type === "old" ? change.oldValue : change.newValue;
 
-  if (change.entityType === "overlay") {
-    // Find the overlay data
-    let overlayForModeration: Overlay | null = null;
-    for (const project of props.projects) {
-      if (project.overlays) {
-        overlayForModeration =
-          project.overlays.find((o: Overlay) => o.id === change.entityId) ?? null;
-        if (overlayForModeration) break;
-      }
-    }
-
-    if (!overlayForModeration) {
-      toastError(t("overlay.couldNotFindOverlay"), t("overlay.overlayNotFound"));
-      return;
-    }
-
+  if (change.entityType === "overlay" && props.overlay) {
     await previewOverlayGeometry({
       change,
-      overlayForModeration,
+      overlayForModeration: props.overlay,
       geometryValue,
       type,
     });
-  } else if (change.entityType === "project") {
-    const project = props.projects.find((p) => p.id === change.entityId);
-    if (!project) {
-      toastError(t("overlay.couldNotFindChange"), t("overlay.changeNotFound"));
-      return;
-    }
-
-    await previewShapes({ change, project, geometryValue, type });
+  } else if (change.entityType === "project" && props.project) {
+    await previewShapes({ change, project: props.project, geometryValue, type });
   }
 }
 </script>

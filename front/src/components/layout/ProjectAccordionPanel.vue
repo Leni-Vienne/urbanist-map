@@ -51,9 +51,7 @@
                 plain
                 :project="selectedCard"
                 :project-changes="getProjectChangeRequestsForProject(selectedCard)"
-                :all-change-requests="changeRequests"
                 :overlay-changes-map="overlayChangesMap"
-                :projects-context="projects"
                 :is-contribute-panel="isContributePanel"
                 :show-user-stats-link="showUserStatsLink"
                 :hide-status-badges="hideStatusBadges"
@@ -126,9 +124,7 @@
             <ProjectContent
               :project="project"
               :project-changes="getProjectChangeRequestsForProject(project)"
-              :all-change-requests="changeRequests"
               :overlay-changes-map="overlayChangesMap"
-              :projects-context="projects"
               :is-contribute-panel="isContributePanel"
               :show-user-stats-link="showUserStatsLink"
               :hide-status-badges="hideStatusBadges"

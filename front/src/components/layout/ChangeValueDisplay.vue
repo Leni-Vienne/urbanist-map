@@ -4,7 +4,7 @@
       <Button
         icon="pi pi-map-marker"
         :label="$t('overlay.viewCurrentPosition')"
-        @click.stop="$emit('preview-geometry', change.oldValue, 'old', change.id)"
+        @click.stop="$emit('preview-geometry', change, 'old')"
         severity="success"
         :outlined="!isPreviewActive(change.id, 'old')"
         size="small"
@@ -12,7 +12,7 @@
       <Button
         icon="pi pi-map-marker"
         :label="$t('overlay.viewSuggestedPosition')"
-        @click.stop="$emit('preview-geometry', change.newValue, 'new', change.id)"
+        @click.stop="$emit('preview-geometry', change, 'new')"
         severity="warn"
         :outlined="!isPreviewActive(change.id, 'new')"
         size="small"
@@ -26,7 +26,7 @@
         v-if="hasGeometry(change.oldValue)"
         icon="pi pi-map-marker"
         :label="$t('shapes.viewCurrentShapes')"
-        @click.stop="$emit('preview-geometry', change.oldValue, 'old', change.id)"
+        @click.stop="$emit('preview-geometry', change, 'old')"
         severity="success"
         :outlined="!isPreviewActive(change.id, 'old')"
         size="small"
@@ -35,7 +35,7 @@
         v-if="hasGeometry(change.newValue)"
         icon="pi pi-map-marker"
         :label="$t('shapes.viewSuggestedShapes')"
-        @click.stop="$emit('preview-geometry', change.newValue, 'new', change.id)"
+        @click.stop="$emit('preview-geometry', change, 'new')"
         severity="warn"
         :outlined="!isPreviewActive(change.id, 'new')"
         size="small"
@@ -75,12 +75,11 @@
 
 <script setup lang="ts">
 import { useI18n } from "vue-i18n";
-import type { Project, PendingChangeRequest } from "@/types/index";
+import type { PendingChangeRequest } from "@/types/index";
 import ContributorInfo from "@/components/common/ContributorInfo.vue";
 
 interface Props {
   change: PendingChangeRequest;
-  projects: Project[];
   isPreviewActive: (changeId: string, type: "old" | "new") => boolean;
   showUserStatsLink?: boolean;
 }
@@ -90,7 +89,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-  "preview-geometry": [geometryValue: unknown, type: "old" | "new", changeId: string];
+  "preview-geometry": [change: PendingChangeRequest, type: "old" | "new"];
   "click-contributor": [data: { userId: string; username: string | null; reportCount: number }];
 }>();
 
