@@ -19,7 +19,7 @@ import {
   getStagedCornersDelta,
   getStagedCaptionDelta,
   getEditModeDefaultCaption,
-} from "@/utils/unsavedState";
+} from "@/services/overlay/unsavedState";
 import { createOverlayObject } from "@/utils/typeFactories";
 import type { ModifiableField, OverlayData, OverlayObject } from "@/types/index";
 

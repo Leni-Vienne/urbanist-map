@@ -124,7 +124,7 @@ import { toastSuccess, toastError } from "@/services/core/toast";
 
 import { ref, computed, watch, onMounted, onUnmounted, defineAsyncComponent } from "vue";
 import { isSyntheticEmail } from "@shared/types";
-import { hasUnsavedChanges } from "@/utils/unsavedState";
+import { hasUnsavedChanges } from "@/services/overlay/unsavedState";
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
 

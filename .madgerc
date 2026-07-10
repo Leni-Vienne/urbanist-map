@@ -4,12 +4,5 @@
     "js",
     "vue"
   ],
-  "tsConfig": "./tsconfig.json",
-  "webpackConfig": {
-    "resolve": {
-      "alias": {
-        "@/": "./front/src"
-      }
-    }
-  }
+  "tsConfig": "./tsconfig.json"
 }

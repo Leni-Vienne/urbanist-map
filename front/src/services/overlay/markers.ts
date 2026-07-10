@@ -16,7 +16,7 @@ import { useFocusStore } from "@/stores/focusStore";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { resolveOverlayCorners } from "@/services/overlay/data";
 import { showsSuggestedState } from "@/services/overlay/transform";
-import { isOverlayUnsaved } from "@/utils/unsavedState";
+import { isOverlayUnsaved } from "@/services/overlay/unsavedState";
 import { buildLngLatBounds } from "@/utils/cornersBounds";
 import { registerOnce } from "@/utils/registerOnce";
 
@@ -181,7 +181,7 @@ function applyMarkerColorAndTooltip(
   element.title = getTooltipTextForOverlay();
 }
 
-export function getApprovalStatusColor(
+function getApprovalStatusColor(
   status: ApprovalStatus | null | undefined,
   mode: "edit" | "moderation",
   options: {

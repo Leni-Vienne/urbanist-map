@@ -13,7 +13,7 @@ import type { LatLng } from "@/types/index";
 import { syncModerationCountryFromMapClick } from "@/services/moderation/moderationCountrySync";
 import { resolveOverlayCorners } from "@/services/overlay/data";
 import { showsSuggestedState } from "@/services/overlay/transform";
-import { isOverlayUnsaved } from "@/utils/unsavedState";
+import { isOverlayUnsaved } from "@/services/overlay/unsavedState";
 
 /**
  * Select an overlay. The map highlight (sister overlays + footprint) follows the focus store

@@ -13,7 +13,7 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useUiStore } from "@/stores/uiStore";
-import { getStagedOverlayModifications } from "@/utils/unsavedState";
+import { getStagedOverlayModifications } from "@/services/overlay/unsavedState";
 import { createProjectContext, formatEntityChanges, submitContext } from "./submissionService";
 import type {
   SubmissionChange,

@@ -11,7 +11,7 @@ import { useProjectStore } from "@/stores/projectStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useMapStore } from "@/stores/mapStore";
-import { isOverlayUnsaved, isProjectUnsaved } from "@/utils/unsavedState";
+import { isOverlayUnsaved, isProjectUnsaved } from "@/services/overlay/unsavedState";
 import { startShapeEditing } from "@/services/shape/shapeEditorLazy";
 import { selectProject } from "@/services/map/projectSelection";
 import { flyToGeometry } from "@/services/map/mapNavigation";

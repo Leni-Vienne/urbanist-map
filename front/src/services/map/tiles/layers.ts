@@ -14,7 +14,7 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useMapStore } from "@/stores/mapStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useUiStore } from "@/stores/uiStore";
-import { isOverlayUnsaved } from "@/utils/unsavedState";
+import { isOverlayUnsaved } from "@/services/overlay/unsavedState";
 import { registerOnce } from "@/utils/registerOnce";
 import { watch } from "vue";
 
