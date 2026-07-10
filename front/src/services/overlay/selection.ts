@@ -1,9 +1,7 @@
 import { useOverlayStore } from "@/stores/overlayStore";
-import { useProjectStore } from "@/stores/projectStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useMapStore } from "@/stores/mapStore";
-import { trpc } from "@/client";
-import { createProjectObject } from "@/utils/typeFactories";
+import { ensureProjectLoaded } from "@/services/map/projectSelection";
 import {
   getMarker,
   getRenderedOverlayIds,
@@ -45,31 +43,10 @@ export function selectOverlay(overlayId: string | null): void {
   // In moderation mode, switch the panel to this overlay's country so its pending submissions load.
   syncModerationCountryFromMapClick(newlySelected.project?.countryCode);
 
-  // Fetch the overlay's project if the selection came from the map (vector tiles don't always
-  // carry the full project) so the docked detail can resolve it.
-  void hydrateOverlayProject(overlayId);
-}
-
-// The docked overlay detail needs the overlay's full Project. Map (vector tile) selections only
-// carry minimal data, so fetch and cache the project when neither the store nor the overlay has it.
-async function hydrateOverlayProject(overlayId: string): Promise<void> {
-  const overlayStore = useOverlayStore();
-  const overlay = overlayStore.liveOverlays[overlayId];
-  if (!overlay?.projectId) return;
-
-  const projectStore = useProjectStore();
-  if (projectStore.projects[overlay.projectId] || overlay.project) return;
-
-  try {
-    const result = await trpc.project.getById.query({ id: overlay.projectId });
-    if (result) {
-      projectStore.updateProject(
-        overlay.projectId,
-        createProjectObject({ ...result, tags: result.tags ?? [], overlayIds: [] }),
-      );
-    }
-  } catch (error) {
-    console.error("Failed to fetch project for overlay detail:", error);
+  // The docked overlay detail needs the overlay's full Project. Map (vector tile) selections only
+  // carry minimal data, so load it when the overlay doesn't already hold it.
+  if (newlySelected.projectId && !newlySelected.project) {
+    void ensureProjectLoaded(newlySelected.projectId);
   }
 }
 

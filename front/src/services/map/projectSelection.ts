@@ -30,47 +30,44 @@ export function selectProject(project: Project): void {
   syncModerationCountryFromMapClick(project.countryCode);
 }
 
-// Resolve a project that isn't in the project store yet: first from the moderation
-// store (pending submissions), then from the backend. Returns null if neither has it.
-async function resolveProjectForTileClick(projectId: string): Promise<Project | null> {
-  const moderationStore = useModerationStore();
-  const pendingProject = moderationStore.projects.find((p) => p.id === projectId);
+/**
+ * Resolve a project by id and cache it in the project store, so it behaves like a loaded one
+ * (editable, re-selectable) for the rest of the session. Sources, in order: the project store,
+ * the moderation store (pending submissions the backend won't serve), then the backend.
+ * Returns null when none has it.
+ */
+export async function ensureProjectLoaded(projectId: string): Promise<Project | null> {
+  const projectStore = useProjectStore();
+  const cached = projectStore.projects[projectId];
+  if (cached) return cached;
+
+  const pendingProject = useModerationStore().projects.find((p) => p.id === projectId);
   if (pendingProject) {
-    return createProjectObject({
-      ...pendingProject,
-      tags: pendingProject.tags,
-      overlayIds: [],
-    });
+    return cacheProject(
+      createProjectObject({ ...pendingProject, tags: pendingProject.tags, overlayIds: [] }),
+    );
   }
 
   const result = await loadOrNull(async () => trpc.project.getById.query({ id: projectId }), {
-    errorMessage: "Failed to fetch project for tile click",
+    errorMessage: "Failed to load project",
   });
-
   if (!result) return null;
-  return createProjectObject({
-    ...result,
-    tags: result.tags ?? [],
-    overlayIds: [],
-  });
+
+  return cacheProject(createProjectObject({ ...result, tags: result.tags ?? [], overlayIds: [] }));
+}
+
+function cacheProject(project: Project): Project {
+  useProjectStore().updateProject(project.id, project);
+  return project;
 }
 
 /**
  * Handle a MapLibre tile click given only a project ID.
- * Looks up the project from the store or resolves it, then delegates to selectProject.
- * Any project resolved from outside the store is stored so it behaves like a loaded
- * one (editable, re-selectable) for the rest of the session.
+ * Looks up the project, then delegates to selectProject.
  */
 export async function handleProjectClickFromTile(projectId: string): Promise<void> {
-  const projectStore = useProjectStore();
-  let project = projectStore.projects[projectId];
-
-  if (!project) {
-    const resolved = await resolveProjectForTileClick(projectId);
-    if (!resolved) return;
-    project = resolved;
-    projectStore.updateProject(projectId, project);
-  }
+  const project = await ensureProjectLoaded(projectId);
+  if (!project) return;
 
   selectProject(project);
 }
