@@ -32,7 +32,9 @@ export function removeOverlayFromMapAndStore(overlayId: string) {
   // eslint-disable-next-line no-dynamic-delete
   delete overlayStore.liveOverlays[overlayId];
 
-  overlayStore.viewModeOverlays = overlayStore.viewModeOverlays.filter((o) => o.id !== overlayId);
+  overlayStore.renderLoopOverlays = overlayStore.renderLoopOverlays.filter(
+    (o) => o.id !== overlayId,
+  );
 }
 
 function removeOverlay(

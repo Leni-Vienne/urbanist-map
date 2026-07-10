@@ -8,7 +8,7 @@ import { useMapStore } from "@/stores/mapStore";
 import { useAuthStore } from "@/stores/authStore";
 import { isOverlayVisible } from "@/services/overlay/visibility";
 import type { OverlayObject, OverlayData, MarkerColor } from "@/types/index";
-import { getApprovalStatusColor } from "@/utils/markerColors";
+import type { ApprovalStatus } from "@shared/types";
 import { t } from "@/locales";
 import * as registry from "@/services/overlay/mapLayers";
 import { selectOverlay } from "@/services/overlay/selection";
@@ -176,6 +176,33 @@ function updateMarkerTooltip(overlayObject: OverlayObject, markerColor: MarkerCo
   }
 
   element.title = getTooltipTextForOverlay();
+}
+
+export function getApprovalStatusColor(
+  status: ApprovalStatus | null | undefined,
+  mode: "edit" | "moderation",
+  options: {
+    isModified?: boolean;
+    isReplacement?: boolean;
+  } = {},
+): MarkerColor {
+  const { isModified = false, isReplacement = false } = options;
+
+  if (mode === "moderation") {
+    // A replacement the user is editing stands out from the approved/pending overlays.
+    if (isReplacement && isModified) return "purple";
+    if (status === "pending") return "yellow";
+    if (status === "approved") return "green";
+    if (status === "rejected") return "red";
+    return "grey";
+  }
+
+  // edit mode
+  if (isModified) return "orange";
+  if (status === "pending") return "yellow";
+  if (status === "rejected") return "red";
+  if (status === "approved") return "green";
+  return "orange";
 }
 
 /**

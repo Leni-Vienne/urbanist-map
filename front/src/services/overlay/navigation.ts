@@ -109,12 +109,12 @@ async function loadOverlay(
   // Lazy-loaded as its own chunk: overlayRendering is dynamically imported here and in
   // vectorTileSync / viewportRenderLoop. A static import would merge it into this chunk and
   // defeat that split (INEFFECTIVE_DYNAMIC_IMPORT).
-  const { renderViewModeOverlays } = await import("@/services/overlay/rendering");
+  const { renderBackendOverlays } = await import("@/services/overlay/rendering");
 
-  renderViewModeOverlays([overlayWireToData(result.overlay)]);
+  renderBackendOverlays([overlayWireToData(result.overlay)]);
 
   if (includeIntersecting && result.intersectingOverlays.length > 0) {
-    renderViewModeOverlays(result.intersectingOverlays.map(overlayWireToData));
+    renderBackendOverlays(result.intersectingOverlays.map(overlayWireToData));
   }
 
   // Don't check overlayStore.liveOverlays[overlayId] here: overlay registration is async

@@ -67,13 +67,13 @@ function getVisibleProjectsToRender() {
   // Collect projects with overlays, always use backend overlay data as the project record
   // so that projectData.geometry is always the approved geometry. storedProject is looked
   // up separately in processAndRenderProjectShape for edit-mode rendering.
-  for (const overlay of overlayStore.viewModeOverlays) {
+  for (const overlay of overlayStore.renderLoopOverlays) {
     if (overlay.projectId && overlay.project && !projectsToRender.has(overlay.projectId)) {
       projectsToRender.set(overlay.projectId, normalizeOverlayProject(overlay.project));
     }
   }
 
-  // In edit/moderation mode, viewModeOverlays only contains pending overlays.
+  // In edit/moderation mode, renderLoopOverlays only contains pending overlays.
   // Approved overlays are rendered by vectorTileSync, collect their project IDs from
   // the tile cache so that approved-overlay projects still get their shapes rendered.
   if (mapStore.mode !== "view") {

@@ -136,7 +136,7 @@ function convergeOverlayDisplay(overlayObject: OverlayObject): boolean {
  *
  * Candidate ids come from every set that can want an overlay on the map:
  *   - approvedOverlayDataCache: approved overlays vetted by tile sync (filters + viewport applied).
- *   - viewModeOverlays: pending + session change-request overlays (edit/moderation only).
+ *   - renderLoopOverlays: pending + session change-request overlays (edit/moderation only).
  *   - liveOverlays(status === null): local/unsaved overlays.
  *   - current registry ids: so entries that left every live set get destroyed.
  *
@@ -158,16 +158,16 @@ function reconcileOverlayExistence(bounds: ViewportBounds) {
   let handlesNeedSync = false;
 
   const tileManaged = getApprovedOverlayDataFromTiles();
-  // viewModeOverlays holds only pending + session change-request overlays, delivered in edit and
+  // renderLoopOverlays holds only pending + session change-request overlays, delivered in edit and
   // moderation; view mode leaves the last edit session's list stale, so it is ignored there.
-  const viewModeById = new Map<string, OverlayData>();
+  const sessionById = new Map<string, OverlayData>();
   if (mode !== "view") {
-    for (const data of overlayStore.viewModeOverlays) viewModeById.set(data.id, data);
+    for (const data of overlayStore.renderLoopOverlays) sessionById.set(data.id, data);
   }
 
   const candidateIds = new Set<string>();
   for (const id of tileManaged.keys()) candidateIds.add(id);
-  for (const id of viewModeById.keys()) candidateIds.add(id);
+  for (const id of sessionById.keys()) candidateIds.add(id);
   for (const [id, overlay] of Object.entries(overlayStore.liveOverlays)) {
     if (overlay.status === null) candidateIds.add(id);
   }
@@ -211,7 +211,7 @@ function reconcileOverlayExistence(bounds: ViewportBounds) {
       // dragged away from its footprint): membership then keys on the resolved "marker" position, so
       // an overlay whose image sits away from its tile footprint stays alive while that position is
       // in view.
-      const data = viewModeById.get(id) ?? liveObject ?? null;
+      const data = sessionById.get(id) ?? liveObject ?? null;
       desired =
         data !== null &&
         isOverlayVisible(liveObject ?? data, mode, userId) &&
@@ -245,8 +245,8 @@ function reconcileOverlayExistence(bounds: ViewportBounds) {
   if (handlesNeedSync) registry.runEditHandleSync();
 
   if (backendToRender.length > 0) {
-    void import("@/services/overlay/rendering").then(({ renderViewModeOverlays }) => {
-      renderViewModeOverlays(backendToRender);
+    void import("@/services/overlay/rendering").then(({ renderBackendOverlays }) => {
+      renderBackendOverlays(backendToRender);
     });
   }
   if (localToRender.length > 0) {

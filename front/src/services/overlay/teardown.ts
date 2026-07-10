@@ -30,8 +30,8 @@ export function clearAllOverlays(): void {
   useOverlayStore().liveOverlays = {};
 }
 
-// Wipe overlays and view-mode cache. Used to enter a focused single-submission preview.
+// Wipe overlays and the render-loop list. Used to enter a focused single-submission preview.
 export function clearAllMapContent(): void {
   clearAllOverlays();
-  useOverlayStore().clearViewModeOverlays();
+  useOverlayStore().clearRenderLoopOverlays();
 }

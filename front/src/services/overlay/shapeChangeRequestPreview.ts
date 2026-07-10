@@ -2,7 +2,7 @@ import { nextTick } from "vue";
 import { useMapStore } from "@/stores/mapStore";
 
 import { t } from "@/locales";
-import { clearAllMapContent } from "@/services/overlay/lifecycle";
+import { clearAllMapContent } from "@/services/overlay/teardown";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { renderPreviewShapes, computeShapeBounds } from "@/services/map/shapes/rendering";
 import { selectProject } from "@/services/map/projectSelection";

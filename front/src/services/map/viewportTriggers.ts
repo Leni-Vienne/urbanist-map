@@ -17,7 +17,7 @@ import {
   clearAllOverlays,
   clearOverlayImagesOnly,
   clearOverlayRenderState,
-} from "@/services/overlay/lifecycle";
+} from "@/services/overlay/teardown";
 import * as registry from "@/services/overlay/mapLayers";
 import { upsertOverlayFromWire } from "@/services/overlay/sync";
 import { overlayWireToData } from "@/utils/typeFactories";
@@ -123,10 +123,10 @@ export async function refreshMapSessionData(): Promise<void> {
 function renderFullOverlays(overlaysData: OverlayData[]): void {
   const overlayStore = useOverlayStore();
 
-  overlayStore.setViewModeOverlays(overlaysData);
+  overlayStore.setRenderLoopOverlays(overlaysData);
   hydrateOverlayStoreObjects(overlaysData);
 
-  // The reconciler owns image + marker existence for the viewModeOverlays it just received.
+  // The reconciler owns image + marker existence for the render-loop list it just received.
   runViewportRenderLoop();
 }
 
@@ -137,10 +137,10 @@ function renderMarkersOnly(overlaysData: OverlayData[]): void {
   const overlayStore = useOverlayStore();
   clearOverlayImagesOnly();
 
-  overlayStore.setViewModeOverlays(overlaysData);
+  overlayStore.setRenderLoopOverlays(overlaysData);
   hydrateOverlayStoreObjects(overlaysData);
 
-  // The reconciler owns marker existence for the viewModeOverlays it just received.
+  // The reconciler owns marker existence for the render-loop list it just received.
   runViewportRenderLoop();
 }
 
