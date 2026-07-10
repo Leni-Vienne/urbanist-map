@@ -5,7 +5,6 @@
     :header="$t('moderation.moderatedContributions.title')"
     :style="{ width: '90vw', maxWidth: '600px' }"
     :closable="true"
-    @hide="emit('close')"
   >
     <!-- Loading state -->
     <div v-if="isLoading" class="flex justify-center items-center py-8">
@@ -120,7 +119,7 @@
 <script setup lang="ts">
 import { toastSuccess } from "@/services/core/toast";
 
-import { computed, ref, watch, onMounted } from "vue";
+import { computed, ref, onMounted } from "vue";
 
 import { storeToRefs } from "pinia";
 import { useModeratedContributionsStore } from "@/stores/moderatedContributionsStore";
@@ -130,22 +129,13 @@ import { formatRelativeTime } from "@/utils/dateFormat";
 import { useI18n } from "vue-i18n";
 import { handleImageError } from "@/utils/imageErrorHandler";
 
-interface Props {
-  visible: boolean;
-}
-
-const props = defineProps<Props>();
-const emit = defineEmits<{
-  "update:visible": [value: boolean];
-  close: [];
-}>();
+const isVisible = defineModel<boolean>("visible", { default: false });
 const { t } = useI18n();
 
 const moderatedContributionsStore = useModeratedContributionsStore();
 const { moderatedContributions, isLoading } = storeToRefs(moderatedContributionsStore);
 const { ensureModeratedContributions, acknowledgeAll } = moderatedContributionsStore;
 
-const isVisible = ref(props.visible);
 const isAcknowledging = ref(false);
 
 const hasApprovedItem = computed(() =>
@@ -156,23 +146,6 @@ const hasApprovedItem = computed(() =>
 // on first open and fetches fresh on later reopens.
 onMounted(() => {
   ensureModeratedContributions();
-});
-
-watch(
-  () => props.visible,
-  (newVal) => {
-    isVisible.value = newVal;
-    if (newVal) {
-      ensureModeratedContributions();
-    }
-  },
-);
-
-watch(isVisible, (newVal) => {
-  emit("update:visible", newVal);
-  if (!newVal) {
-    emit("close");
-  }
 });
 
 function getLocationDisplay(item: {
@@ -195,7 +168,7 @@ async function handleAcknowledgeAll() {
         t("moderation.moderatedContributions.acknowledgeSuccessDetail"),
         t("moderation.moderatedContributions.acknowledgeSuccess"),
       );
-      emit("close");
+      isVisible.value = false;
     }
   } finally {
     isAcknowledging.value = false;

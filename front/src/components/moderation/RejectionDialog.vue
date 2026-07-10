@@ -4,7 +4,7 @@
     modal
     :header="$t('moderation.confirmRejection')"
     :style="{ width: '450px' }"
-    @update:visible="handleVisibilityChange"
+    @update:visible="onDialogToggle"
   >
     <!-- Confirmation message -->
     <p class="mb-4 text-color">
@@ -93,13 +93,12 @@ import { ref, watch, computed } from "vue";
 import { useI18n } from "vue-i18n";
 
 interface Props {
-  visible: boolean;
   userId?: string | null;
   isLoading?: boolean;
   pendingOverlayCount?: number; // Number of pending overlays for this project (0 for overlays)
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   userId: null,
   isLoading: false,
   pendingOverlayCount: 0,
@@ -108,7 +107,6 @@ const props = withDefaults(defineProps<Props>(), {
 const { t } = useI18n();
 
 const emit = defineEmits<{
-  "update:visible": [value: boolean];
   confirm: [
     options: {
       rejectionReason: string;
@@ -141,34 +139,29 @@ const rejectionReasons = computed(() => [
   { label: t("moderation.rejectionReason.spam"), value: "spam" },
 ]);
 
-const isVisible = ref(props.visible);
+const isVisible = defineModel<boolean>("visible", { default: false });
 const rejectionReason = ref("");
 const rejectAllOverlays = ref(false);
 const reportUser = ref(false);
 const reportReason = ref("");
 
-watch(
-  () => props.visible,
-  (newValue) => {
-    isVisible.value = newValue;
-    if (newValue) {
-      rejectionReason.value = "";
-      rejectAllOverlays.value = false;
-      reportUser.value = false;
-      reportReason.value = "";
-    }
-  },
-);
+watch(isVisible, (visible) => {
+  if (visible) {
+    rejectionReason.value = "";
+    rejectAllOverlays.value = false;
+    reportUser.value = false;
+    reportReason.value = "";
+  }
+});
 
-function handleVisibilityChange(value: boolean) {
-  emit("update:visible", value);
+function onDialogToggle(value: boolean) {
   if (!value) {
     emit("cancel");
   }
 }
 
 function handleCancel() {
-  emit("update:visible", false);
+  isVisible.value = false;
   emit("cancel");
 }
 
