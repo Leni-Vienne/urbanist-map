@@ -14,7 +14,7 @@ import {
   loadLocaleMessages,
   setI18nInstance,
 } from "./locales";
-import { setupKeyboardShortcuts } from "./services/overlay/history";
+import { initializeKeyboardShortcuts } from "./services/overlay/history";
 import { initializeDetailWatcher } from "./services/map/projectDetailWatcher";
 
 // importing Aura Theme has a 5 kB gzipped impact over manual imports, worth the DX improvement
@@ -103,7 +103,7 @@ initializeDetailWatcher();
 
 // Keyboard shortcuts (undo/redo) are document-level and only act when an overlay is selected,
 // so register them once at boot rather than re-installing on every mode switch.
-setupKeyboardShortcuts();
+initializeKeyboardShortcuts();
 
 window.addEventListener("beforeunload", (event) => {
   if (hasUnsavedChanges()) event.preventDefault();

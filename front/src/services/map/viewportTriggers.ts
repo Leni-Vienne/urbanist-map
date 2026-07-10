@@ -12,7 +12,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { debounce } from "@/utils/debounce";
 import { isOverlayVisible } from "@/services/overlay/visibility";
-import { runViewportRenderLoop, initializeRenderTriggers } from "@/services/map/viewportRenderLoop";
+import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 import {
   clearAllOverlays,
   clearOverlayImagesOnly,
@@ -24,6 +24,7 @@ import { overlayWireToData } from "@/utils/typeFactories";
 import { loadOrNull } from "@/services/core/errorHandling";
 import { trpc, type RouterOutput } from "@/client";
 import { mergeProjectPointsForMode } from "@/services/map/tiles/pendingSources";
+import { registerOnce } from "@/utils/registerOnce";
 import type { OverlayData } from "@/types/index";
 
 type EditSessionProjects = RouterOutput["viewport"]["getEditSessionData"]["projects"];
@@ -208,15 +209,7 @@ export function cleanupEventListeners() {
   }
 }
 
-// MapView can remount; the watchers tie to global state so once is enough.
-let modeWatcherInitialized = false;
-
-export function setupModeWatcher() {
-  initializeRenderTriggers();
-
-  if (modeWatcherInitialized) return;
-  modeWatcherInitialized = true;
-
+function registerModeTriggers(): void {
   const mapStore = useMapStore();
   watch(
     () => mapStore.mode,
@@ -261,3 +254,6 @@ export function setupModeWatcher() {
     },
   );
 }
+
+/** The main mode-transition handler plus the moderation country watcher. */
+export const initializeModeTriggers = registerOnce(registerModeTriggers);

@@ -5,8 +5,6 @@ import { useProjectStore } from "@/stores/projectStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { highlightProjectShapes, unhighlightProjectShapes } from "@/services/map/shapes/registry";
 
-let isWatcherInitialized = false;
-
 // Permanent slugs never change once assigned, so a session-lifetime cache is always valid and saves
 // refetching the slug of a project selected more than once.
 const slugCache = new Map<string, string>();
@@ -97,12 +95,9 @@ function initializeShapeHighlightWatcher() {
 
 /**
  * Drives all focus-driven side effects (URL slug sync, accordion cleanup, GeoJSON shape highlight)
- * so click handlers only need to write the focus store. Call once at app boot after Pinia is installed.
+ * so click handlers only need to write the focus store. Requires Pinia to be installed.
  */
-export function initializeDetailWatcher() {
-  if (isWatcherInitialized) return;
-  isWatcherInitialized = true;
-
+export function initializeDetailWatcher(): void {
   initializeProjectUrlSync();
   initializeSelectedPanelCleanup();
   initializeShapeHighlightWatcher();

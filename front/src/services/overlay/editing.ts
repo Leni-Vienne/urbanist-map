@@ -25,6 +25,7 @@ import { useMapStore } from "@/stores/mapStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
 import { validateOverlaySize } from "@shared/overlayValidation";
+import { registerOnce } from "@/utils/registerOnce";
 
 import { t } from "@/locales";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
@@ -566,12 +567,8 @@ export function hideEditHandles(): void {
   if (mlMap.getLayer(s.fillLayerId)) mlMap.removeLayer(s.fillLayerId);
   if (mlMap.getSource(s.fillSourceId)) mlMap.removeSource(s.fillSourceId);
 }
-let editorWatcherInitialized = false;
 
-export function initializeEditorTriggers(): void {
-  if (editorWatcherInitialized) return;
-  editorWatcherInitialized = true;
-
+function registerEditorTriggers(): void {
   // Let the reconciler refresh the active edit session's handles after it moves an image.
   registry.registerEditHandleSync(refreshEditHandlesGeometry);
 
@@ -600,3 +597,9 @@ export function initializeEditorTriggers(): void {
     { immediate: true },
   );
 }
+
+/**
+ * The edit-handle show/hide watcher (overlay selection + map mode) and the reconciler's
+ * handle-sync callback.
+ */
+export const initializeEditorTriggers = registerOnce(registerEditorTriggers);

@@ -18,6 +18,7 @@ import { resolveOverlayCorners } from "@/services/overlay/data";
 import { showsSuggestedState } from "@/services/overlay/transform";
 import { isOverlayUnsaved } from "@/utils/unsavedState";
 import { buildLngLatBounds } from "@/utils/cornersBounds";
+import { registerOnce } from "@/utils/registerOnce";
 
 /**
  * Create the marker for an overlay. Overlay markers exist only in edit and moderation modes.
@@ -59,7 +60,7 @@ export function createOverlayMarker(overlay: OverlayObject): void {
   }
 
   registry.setMarker(overlay.id, marker);
-  updateMarkerTooltip(overlay, markerColor);
+  applyMarkerColorAndTooltip(marker, overlay, markerColor);
 }
 
 // Selection + change-request preview + camera flight for a marker click. Selection runs first
@@ -124,13 +125,15 @@ function getOverlayMarkerColor(
 }
 
 /**
- * Update marker color + tooltip based on overlay storage status
+ * Apply the marker's color and its hover tooltip text, both derived from the overlay's
+ * storage status.
  */
-function updateMarkerTooltip(overlayObject: OverlayObject, markerColor: MarkerColor): void {
+function applyMarkerColorAndTooltip(
+  marker: maplibregl.Marker,
+  overlayObject: OverlayObject,
+  markerColor: MarkerColor,
+): void {
   const mapStore = useMapStore();
-  const marker = registry.getMarker(overlayObject.id);
-
-  if (!marker) return;
 
   updateOverlayMarkerColor(marker, markerColor);
 
@@ -220,22 +223,7 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
   }
 }
 
-/**
- * Set up a single watchEffect that keeps every overlay marker's color in sync with its
- * Pinia state (status, staged pending modifications, hasPendingChanges, positionState,
- * isTooBig, replacesOverlayId) and the current map mode. Data mutations that go
- * through overlayStore.updateOverlay (or direct reactive writes) trigger this automatically.
- *
- * Initial color is set by createOverlayMarker / createMarker on creation; this effect
- * only handles subsequent changes. The _cmorgColor cache on each marker short-circuits
- * no-op setIcon calls.
- */
-let markerColorTriggersInitialized = false;
-
-export function initializeMarkerColorTriggers(): void {
-  if (markerColorTriggersInitialized) return;
-  markerColorTriggersInitialized = true;
-
+function registerMarkerColorTriggers(): void {
   const mapStore = useMapStore();
   const overlayStore = useOverlayStore();
 
@@ -246,7 +234,19 @@ export function initializeMarkerColorTriggers(): void {
     for (const overlayObject of Object.values(overlayStore.liveOverlays)) {
       const marker = registry.getMarker(overlayObject.id);
       if (!marker) continue;
-      updateMarkerTooltip(overlayObject, getOverlayMarkerColor(overlayObject, mode));
+      applyMarkerColorAndTooltip(marker, overlayObject, getOverlayMarkerColor(overlayObject, mode));
     }
   });
 }
+
+/**
+ * A single watchEffect that keeps every overlay marker's color in sync with its Pinia state
+ * (status, staged pending modifications, hasPendingChanges, positionState, isTooBig,
+ * replacesOverlayId) and the current map mode. Data mutations that go through
+ * overlayStore.updateOverlay (or direct reactive writes) trigger this automatically.
+ *
+ * Initial color is set by createOverlayMarker / createMarker on creation; this effect
+ * only handles subsequent changes. The _cmorgColor cache on each marker short-circuits
+ * no-op setIcon calls.
+ */
+export const initializeMarkerColorTriggers = registerOnce(registerMarkerColorTriggers);

@@ -61,7 +61,7 @@ export function onMlMapReady(cb: () => void): void {
   }
 }
 
-/** Mark the style ready and flush queued onMlMapReady callbacks. Called once on first style load. */
+/** Mark the style ready and flush queued onMlMapReady callbacks. Called on each instance's first style load. */
 export function markMlMapReady(): void {
   styleReady = true;
   for (const cb of mlMapReadyCallbacks) cb();
@@ -119,6 +119,14 @@ function enableCursorTrackingScrollZoom(targetMap: MaplibreMap): void {
 }
 
 export function initializeMap() {
+  // Re-initialization builds a fresh instance: release the previous one's WebGL context and requeue
+  // onMlMapReady callers behind the new style load.
+  // oxlint-disable-next-line no-unnecessary-condition
+  if (map.value) {
+    map.value.remove();
+    styleReady = false;
+  }
+
   const hasMapHash = globalThis.location.hash.startsWith("#map=");
   // An explicit map-state hash wins over the deep-link view (e.g. a shared link with both).
   const deeplinkBounds = hasMapHash ? null : parseDeeplinkBounds();

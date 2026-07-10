@@ -82,9 +82,6 @@ function applyHistoryAction(action: "undo" | "redo") {
   scheduleOverlayReconcile();
 }
 
-// Guard against duplicate keyboard shortcut registration
-let keyboardShortcutsRegistered = false;
-
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   if (target.isContentEditable) return true;
@@ -108,8 +105,7 @@ function handleKeyDown(event: KeyboardEvent) {
   }
 }
 
-export function setupKeyboardShortcuts() {
-  if (keyboardShortcutsRegistered) return;
+/** Document-level undo/redo shortcuts. */
+export function initializeKeyboardShortcuts(): void {
   globalThis.addEventListener("keydown", handleKeyDown, true);
-  keyboardShortcutsRegistered = true;
 }

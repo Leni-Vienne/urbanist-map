@@ -9,6 +9,7 @@ import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useModerationStore } from "@/stores/moderationStore";
 import { getApprovedOverlayDataFromTiles } from "@/services/map/tiles/approvedOverlayCache";
 import { createProjectObject } from "@/utils/typeFactories";
+import { registerOnce } from "@/utils/registerOnce";
 
 /** Return the pending geometry change request value for a project, if any. */
 function getPendingGeometry(
@@ -150,16 +151,7 @@ export function renderAllProjectShapes() {
   }
 }
 
-/**
- * Shape-specific render triggers: change requests, moderation load, entering view mode.
- * Overlay-pruning triggers (filters, tags) live in viewportRenderLoop's initializeRenderTriggers.
- */
-let shapeRenderTriggersInitialized = false;
-
-export function initializeShapeRenderTriggers() {
-  if (shapeRenderTriggersInitialized) return;
-  shapeRenderTriggersInitialized = true;
-
+function registerShapeRenderTriggers(): void {
   const mapStore = useMapStore();
   const changeRequestStore = useChangeRequestStore();
   const moderationStore = useModerationStore();
@@ -190,3 +182,9 @@ export function initializeShapeRenderTriggers() {
     },
   );
 }
+
+/**
+ * Shape-specific render triggers: change requests, moderation load, entering view mode.
+ * Overlay-pruning triggers (filters, tags) live in viewportRenderLoop's initializeRenderTriggers.
+ */
+export const initializeShapeRenderTriggers = registerOnce(registerShapeRenderTriggers);

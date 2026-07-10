@@ -13,7 +13,7 @@ import countryBboxes from "@/assets/country_bboxes.json";
 import { t } from "@/locales";
 import {
   addProjectDataToMlMap,
-  registerHybridInteractionHandlers,
+  initializeHybridInteractionHandlers,
   applyTagFiltersToVectorLayers,
 } from "./layers";
 import {
@@ -119,8 +119,6 @@ export type TileLayerType = "plan" | SatelliteLayerType;
 
 // Current active tile layer ("plan" = MapLibre vector basemap)
 export const currentTileLayer = ref<TileLayerType>("plan");
-
-let interactionRegistered = false;
 
 // Original extrusion height/base expressions per layer, captured before flattening
 // so 3D can be restored on toggle-back.
@@ -325,10 +323,7 @@ function onFirstStyleReady(mlMap: MaplibreMap): void {
     applyMapLabelLanguage(mlMap);
     addProjectDataToMlMap(mlMap);
 
-    if (!interactionRegistered) {
-      registerHybridInteractionHandlers();
-      interactionRegistered = true;
-    }
+    initializeHybridInteractionHandlers();
 
     markMlMapReady();
 
