@@ -10,14 +10,15 @@ import type {
   Project,
   LatLng,
 } from "@/types/index";
+import type { AppMode } from "@shared/types";
 import { isValidQuad, parseQuadValue } from "@/services/overlay/transform";
-import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
+import { getOverlayImageCorners, getRenderedOverlayCorners } from "@/services/overlay/mapLayers";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 
 /**
  * Resolve and attach the overlay's project in place, falling back to the moderation store in
- * moderation mode. Mutates the canonical object (no rebuild) and returns it, so callers reading
- * overlay.project (marker color/tooltip, detail panel) see the resolved value.
+ * moderation mode. Mutates the canonical object (no rebuild) and returns it, so later readers of
+ * overlay.project (e.g. the detail panel) see the resolved value.
  */
 export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayObject {
   if (savedOverlay.project || !savedOverlay.projectId) return savedOverlay;
@@ -45,14 +46,34 @@ function getModerationPreviewCorners(overlayId: string): LatLng[] | null {
   return parseQuadValue(change?.newValue);
 }
 
+// The suggested position an overlay displays. Edit mode uses it only while the overlay's state
+// rests there; staged edits and the "view approved position" toggle move it to other position
+// states. Moderation uses the previewed change request's own corners while an explicit
+// suggested-position preview targets the overlay. Null in view mode.
+function getSuggestedDisplayCorners(
+  overlay: OverlayData & { positionState?: OverlayPositionState },
+  mode: AppMode,
+): LatLng[] | null {
+  if (mode === "edit") {
+    const rests = overlay.positionState === "suggested";
+    return rests && isValidQuad(overlay.suggestedCorners) ? overlay.suggestedCorners : null;
+  }
+  if (mode === "moderation") return getModerationPreviewCorners(overlay.id);
+  return null;
+}
+
 // Single resolver for an overlay's on-map geometry. There is no single canonical position source;
 // `purpose` picks the priority order:
-//   "image"  (re)creates the raster, so it prefers the remembered/intended position:
-//            suggested (open CR default) > history > backend corners > live image.
-//   "marker" tracks where the image actually sits, so it prefers the live position:
-//            live image > suggested > history > backend corners.
+//   "image"   (re)creates the raster, so it prefers the remembered/intended position:
+//             suggested (open CR default) > history > backend corners > live image.
+//   "marker"  tracks where the image actually sits, so it prefers the live position:
+//             live image > suggested > history > backend corners.
+//   "publish" is the geometry sent to the backend: history > backend corners. It reads neither the
+//             map mode, the live image, nor the suggested position.
 // History is used for the image unless a view-mode approved overlay (which always renders at its
-// backend corners), and for the marker only while editing. The suggested position is the edit-mode
+// backend corners), and for the marker only while editing. The live read falls back to the last
+// history entry when the raster is not rendered, except for a view-mode approved overlay, whose
+// live position is the rendered raster only. The suggested position is the edit-mode
 // default for an overlay with an open change request, and the moderation display while an explicit
 // suggested-position preview targets it. `history` is read off the passed object when
 // present (the image path resolves a freshly-built object before it is committed to the store) and
@@ -60,33 +81,27 @@ function getModerationPreviewCorners(overlayId: string): LatLng[] | null {
 // render (kind='render'), whose corners are null.
 export function resolveOverlayCorners(
   overlay: OverlayData & { history?: OverlayHistoryState[]; positionState?: OverlayPositionState },
-  purpose: "image" | "marker",
+  purpose: "image" | "marker" | "publish",
 ): LatLng[] | null {
-  const mapStore = useMapStore();
-
   const history = overlay.history ?? useOverlayStore().liveOverlays[overlay.id]?.history ?? [];
   const historyCorners = history.at(-1)?.corners;
-  const liveCorners = getOverlayImageCorners(overlay.id);
   const stored = overlay.baselineCorners;
 
-  const historyAllowed =
-    purpose === "image"
-      ? !(mapStore.mode === "view" && overlay.status === "approved")
-      : mapStore.mode === "edit";
+  if (purpose === "publish") {
+    if (isValidQuad(historyCorners)) return historyCorners;
+    return isValidQuad(stored) ? stored : null;
+  }
+
+  const mapStore = useMapStore();
+  const viewApproved = mapStore.mode === "view" && overlay.status === "approved";
+  const liveCorners = viewApproved
+    ? getRenderedOverlayCorners(overlay.id)
+    : getOverlayImageCorners(overlay.id);
+
+  const historyAllowed = purpose === "image" ? !viewApproved : mapStore.mode === "edit";
   const fromHistory = historyAllowed && isValidQuad(historyCorners) ? historyCorners : null;
 
-  // Edit mode renders an overlay at its suggested position only while its state rests there; staged
-  // edits and the explicit "view approved position" toggle move it to other position states.
-  // Moderation renders the previewed change request's own corners while an explicit
-  // suggested-position preview targets the overlay.
-  let fromSuggested: LatLng[] | null = null;
-  if (mapStore.mode === "edit") {
-    if (overlay.positionState === "suggested" && isValidQuad(overlay.suggestedCorners)) {
-      fromSuggested = overlay.suggestedCorners;
-    }
-  } else if (mapStore.mode === "moderation") {
-    fromSuggested = getModerationPreviewCorners(overlay.id);
-  }
+  const fromSuggested = getSuggestedDisplayCorners(overlay, mapStore.mode);
 
   if (purpose === "marker") {
     if (isValidQuad(liveCorners)) return liveCorners;

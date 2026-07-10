@@ -8,31 +8,30 @@ import { useMapStore } from "@/stores/mapStore";
 import { useAuthStore } from "@/stores/authStore";
 import { isOverlayVisible } from "@/services/overlay/visibility";
 import type { OverlayObject, OverlayData, MarkerColor } from "@/types/index";
-import type { AppMode } from "@shared/types";
-import { getApprovalStatusColor, getTimelineStatusColor } from "@/utils/markerColors";
+import { getApprovalStatusColor } from "@/utils/markerColors";
 import { t } from "@/locales";
 import * as registry from "@/services/overlay/mapLayers";
 import { selectOverlay } from "@/services/overlay/selection";
 import { useFocusStore } from "@/stores/focusStore";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
-import { enrichOverlayWithProject, resolveOverlayCorners } from "@/services/overlay/data";
+import { resolveOverlayCorners } from "@/services/overlay/data";
 import { showsSuggestedState } from "@/services/overlay/transform";
 import { isOverlayUnsaved } from "@/utils/unsavedState";
 import { buildLngLatBounds } from "@/utils/cornersBounds";
 
 /**
- * Create the marker for an overlay (edit / moderation modes). Idempotent: skips overlays that
- * already have a marker, are "replaced", or fail the mode/user visibility check.
+ * Create the marker for an overlay. Overlay markers exist only in edit and moderation modes.
  */
 export function createOverlayMarker(overlay: OverlayObject): void {
-  const mapStore = useMapStore();
+  const mode = useMapStore().mode;
+  if (mode === "view") return;
   const mlMap = map.value;
   // The replacement sits at the same spot, so a marker for the replaced one would confuse.
   if (overlay.status === "replaced") return;
   if (registry.getMarker(overlay.id)) return;
 
   const authStore = useAuthStore();
-  if (!isOverlayVisible(overlay, mapStore.mode, authStore.user?.id)) return;
+  if (!isOverlayVisible(overlay, mode, authStore.user?.id)) return;
 
   const corners = resolveOverlayCorners(overlay, "marker");
   if (!corners) return;
@@ -40,8 +39,7 @@ export function createOverlayMarker(overlay: OverlayObject): void {
   const centroid = calculateCentroidFromCorners(corners);
   if (!centroid) return;
 
-  const enriched = enrichOverlayWithProject(overlay);
-  const markerColor = getOverlayMarkerColor(enriched, mapStore.mode);
+  const markerColor = getOverlayMarkerColor(overlay, mode);
   const element = createOverlayMarkerElement(markerColor);
 
   const marker = new maplibregl.Marker({ element, anchor: "bottom" })
@@ -61,7 +59,7 @@ export function createOverlayMarker(overlay: OverlayObject): void {
   }
 
   registry.setMarker(overlay.id, marker);
-  updateMarkerTooltip(enriched, markerColor);
+  updateMarkerTooltip(overlay, markerColor);
 }
 
 // Selection + change-request preview + camera flight for a marker click. Selection runs first
@@ -95,7 +93,7 @@ export function getOverlayBounds(overlay: OverlayData): LngLatBounds | null {
 
 function getOverlayMarkerColor(
   overlayData: OverlayObject | OverlayData,
-  mode: AppMode,
+  mode: "edit" | "moderation",
 ): MarkerColor {
   // Extract overlay-specific properties (not present on all overlay types)
   const hasBeenModified = isOverlayUnsaved(overlayData);
@@ -114,46 +112,29 @@ function getOverlayMarkerColor(
 
   // Open change request without a staged local edit on top; a staged edit falls through to the
   // status colors below (orange in edit mode).
-  if (hasPendingChanges && mode !== "view" && !hasBeenModified) {
+  if (hasPendingChanges && !hasBeenModified) {
     if (showsSuggestedState(overlayData, mode)) return "yellow";
     if (status === "approved") return "green";
   }
 
-  if (mode === "moderation" || mode === "edit") {
-    return getApprovalStatusColor(status, mode, {
-      isModified: hasBeenModified,
-      isReplacement,
-    });
-  }
-
-  // View mode: color by the project's timeline status
-  const project = overlayData.project;
-  if (!project) return "grey";
-
-  return getTimelineStatusColor(project.timelineStatus);
+  return getApprovalStatusColor(status, mode, {
+    isModified: hasBeenModified,
+    isReplacement,
+  });
 }
 
 /**
  * Update marker color + tooltip based on overlay storage status
- * @param overlayObject - The overlay object to update
- * @param cachedMarkerColor - Optional pre-calculated marker color to avoid redundant computation
  */
-function updateMarkerTooltip(overlayObject: OverlayObject, cachedMarkerColor?: MarkerColor): void {
+function updateMarkerTooltip(overlayObject: OverlayObject, markerColor: MarkerColor): void {
   const mapStore = useMapStore();
   const marker = registry.getMarker(overlayObject.id);
 
   if (!marker) return;
 
-  const markerColor = cachedMarkerColor ?? getOverlayMarkerColor(overlayObject, mapStore.mode);
   updateOverlayMarkerColor(marker, markerColor);
 
   const element = marker.getElement();
-
-  // View mode shows no tooltip; edit & moderation modes do.
-  if (mapStore.mode === "view") {
-    element.removeAttribute("title");
-    return;
-  }
 
   function getTooltipTextForOverlay(): string {
     const hasBeenModified = isOverlayUnsaved(overlayObject);
@@ -215,7 +196,7 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
 /**
  * Set up a single watchEffect that keeps every overlay marker's color in sync with its
  * Pinia state (status, staged pending modifications, hasPendingChanges, positionState,
- * project, isTooBig, replacesOverlayId) and the current map mode. Data mutations that go
+ * isTooBig, replacesOverlayId) and the current map mode. Data mutations that go
  * through overlayStore.updateOverlay (or direct reactive writes) trigger this automatically.
  *
  * Initial color is set by createOverlayMarker / createMarker on creation; this effect
@@ -233,13 +214,12 @@ export function initializeMarkerColorTriggers(): void {
 
   watchEffect(() => {
     const mode = mapStore.mode;
+    // On the switch to view mode every overlay marker is torn down, so there is nothing to recolor.
+    if (mode === "view") return;
     for (const overlayObject of Object.values(overlayStore.liveOverlays)) {
       const marker = registry.getMarker(overlayObject.id);
       if (!marker) continue;
-      // Enrich to match createOverlayMarker: view-mode timeline color needs the resolved project,
-      // which the raw store object may lack when it's only findable via a store lookup.
-      const enriched = enrichOverlayWithProject(overlayObject);
-      updateMarkerTooltip(enriched, getOverlayMarkerColor(enriched, mode));
+      updateMarkerTooltip(overlayObject, getOverlayMarkerColor(overlayObject, mode));
     }
   });
 }

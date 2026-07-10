@@ -24,7 +24,8 @@ import {
   getProjectValidationErrors,
   prepareOverlayValidationData,
 } from "@/utils/validationHelpers";
-import { publishOverlay, getCornersFromOverlay } from "@/services/overlay/actions";
+import { publishOverlay } from "@/services/overlay/actions";
+import { resolveOverlayCorners } from "@/services/overlay/data";
 import { applyOverlayBackendFields } from "@/services/overlay/sync";
 import { refreshMapSessionData } from "@/services/map/viewportTriggers";
 import type { SubmissionChange, SubmissionChangeType, SubmissionContext } from "./submissionTypes";
@@ -156,7 +157,7 @@ function newOverlayContext(
     entityId: overlayId,
     changeType: "create",
     proposed: {
-      corners: getCornersFromOverlay(overlayObj) ?? undefined,
+      corners: resolveOverlayCorners(overlayObj, "publish") ?? undefined,
     },
   };
 }

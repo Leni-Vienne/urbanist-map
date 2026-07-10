@@ -561,11 +561,16 @@ export function getCurrentTransform(id: string): OverlayTransform | null {
   return corners ? cornersToTransform(corners) : null;
 }
 
-// Live corners of the overlay's current rigid transform. The edited position during editing.
-export function getOverlayImageCorners(id: string): LatLng[] | null {
+// Corners of the rendered GL image, or null when the overlay's raster is not on the map.
+export function getRenderedOverlayCorners(id: string): LatLng[] | null {
   const handle = getImageHandle(id);
-  if (handle) return transformToCorners(handle.transform);
-  return lastHistoryCorners(id);
+  return handle ? transformToCorners(handle.transform) : null;
+}
+
+// Live corners of the overlay's current rigid transform: from the rendered image when present,
+// else the last history entry. The edited position during editing.
+export function getOverlayImageCorners(id: string): LatLng[] | null {
+  return getRenderedOverlayCorners(id) ?? lastHistoryCorners(id);
 }
 
 // Set raster opacity (0..1) for one overlay, persisting it on the handle.

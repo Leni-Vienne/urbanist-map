@@ -5,11 +5,11 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useAuthStore } from "@/stores/authStore";
-import type { LatLng, OverlayObject, Project } from "@/types/index";
+import type { OverlayObject, Project } from "@/types/index";
 import { trpc, getApiUrl } from "@/client";
 import { projectSchema } from "@shared/validation/schemas";
 import { MAX_UPLOAD_FILE_SIZE_BYTES, MAX_UPLOAD_FILE_SIZE_MB } from "@shared/uploadLimits";
-import { isValidQuad } from "@/services/overlay/transform";
+import { resolveOverlayCorners } from "@/services/overlay/data";
 
 import { selectOverlay, raiseSelectedOverlayWhenReady } from "@/services/overlay/selection";
 import { getMarker } from "@/services/overlay/mapLayers";
@@ -183,14 +183,6 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
   overlayStore.updateOverlay(id, { caption: newCaption });
 }
 
-// The user's last edited position (history.at(-1)) is the source of truth; fall back to
-// the stored backend corners for an unedited overlay. Null when the overlay has no footprint.
-export function getCornersFromOverlay(overlay: OverlayObject): LatLng[] | null {
-  const lastEdited = overlay.history.at(-1)?.corners;
-  if (isValidQuad(lastEdited)) return lastEdited;
-  return isValidQuad(overlay.baselineCorners) ? overlay.baselineCorners : null;
-}
-
 // Images upload to local storage first and migrate to R2 only after moderator approval.
 async function prepareImageForServer(overlay: OverlayObject): Promise<string> {
   if (overlay.imageUrl.startsWith("data:")) {
@@ -301,7 +293,7 @@ export async function publishOverlay(
     throw new Error(t("overlay.publishErrorNoProjectId"));
   }
 
-  const corners = getCornersFromOverlay(overlay);
+  const corners = resolveOverlayCorners(overlay, "publish");
   if (!corners) {
     throw new Error(t("overlay.publishErrorNoCorners"));
   }
