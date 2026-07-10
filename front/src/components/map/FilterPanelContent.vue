@@ -165,6 +165,35 @@ withDefaults(defineProps<{ showHeading?: boolean }>(), { showHeading: true });
 
 const { t } = useI18n();
 
+// Range slider that only ever commits a single active bound. Tiles carry per-cell min/max,
+// not a full distribution, so two active bounds would produce false cluster matches.
+function useSingleBoundSlider(max: number, commit: (minPos: number, maxPos: number) => void) {
+  const positions = ref<[number, number]>([0, max]);
+  const prev = ref<[number, number]>([0, max]);
+
+  watch(positions, ([minPos, maxPos]) => {
+    // Collapse crossed handles to the one that didn't move.
+    if (minPos > maxPos) {
+      const [prevMin] = prev.value;
+      positions.value = minPos !== prevMin ? [maxPos, maxPos] : [minPos, minPos];
+      return;
+    }
+    const [prevMin, prevMax] = prev.value;
+    if (minPos !== prevMin && minPos > 0 && maxPos < max) {
+      positions.value = [minPos, max];
+      return;
+    }
+    if (maxPos !== prevMax && maxPos < max && minPos > 0) {
+      positions.value = [0, maxPos];
+      return;
+    }
+    prev.value = [minPos, maxPos];
+    commit(minPos, maxPos);
+  });
+
+  return positions;
+}
+
 // Logarithmic slider: positions [0, 100] → meters. Position 100 = Infinity (no upper limit).
 const LOG_SCALE_REF = 500_001;
 
@@ -174,30 +203,11 @@ function posToMeters(pos: number): number {
   return Math.round(LOG_SCALE_REF ** (pos / 100) - 1);
 }
 
-const sizeSliderPositions = ref<[number, number]>([0, 100]);
-const prevSizeSliderPositions = ref<[number, number]>([0, 100]);
-
-watch(sizeSliderPositions, ([minPos, maxPos]) => {
-  // Collapse crossed handles to the one that didn't move.
-  if (minPos > maxPos) {
-    const [prevMin] = prevSizeSliderPositions.value;
-    sizeSliderPositions.value = minPos !== prevMin ? [maxPos, maxPos] : [minPos, minPos];
-    return;
-  }
-  const [prevMin, prevMax] = prevSizeSliderPositions.value;
-  // Single-bound only: tiles carry per-cell min/max, not a full distribution,
-  // so two active bounds would produce false cluster matches.
-  if (minPos !== prevMin && minPos > 0 && maxPos < 100) {
-    sizeSliderPositions.value = [minPos, 100];
-    return;
-  }
-  if (maxPos !== prevMax && maxPos < 100 && minPos > 0) {
-    sizeSliderPositions.value = [0, maxPos];
-    return;
-  }
-  prevSizeSliderPositions.value = [minPos, maxPos];
+function commitSizeRange(minPos: number, maxPos: number) {
   sizeFilterRange.value = [posToMeters(minPos), posToMeters(maxPos)];
-});
+}
+
+const sizeSliderPositions = useSingleBoundSlider(100, commitSizeRange);
 
 // Date slider: reverse-logarithmic in "days ago" so the newest handle gets day-level
 // resolution near now (yesterday, 2 days ago...) while older positions span months and years.
@@ -209,8 +219,7 @@ const nowMs = currentDate.getTime();
 const originMs = new Date(DATE_SLIDER_ORIGIN_YEAR, 0, 1).getTime();
 const totalDaysSpan = Math.max(1, (nowMs - originMs) / MS_PER_DAY);
 
-const dateSliderPositions = ref<[number, number]>([0, DATE_SLIDER_MAX]);
-const prevDateSliderPositions = ref<[number, number]>([0, DATE_SLIDER_MAX]);
+const dateSliderPositions = useSingleBoundSlider(DATE_SLIDER_MAX, commitDateRange);
 
 function posToDaysAgo(pos: number): number {
   return (totalDaysSpan + 1) ** ((DATE_SLIDER_MAX - pos) / DATE_SLIDER_MAX) - 1;
@@ -231,28 +240,11 @@ function formatDateSlider(pos: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-watch(dateSliderPositions, ([minPos, maxPos]) => {
-  // Collapse crossed handles to the one that didn't move.
-  if (minPos > maxPos) {
-    const [prevMin] = prevDateSliderPositions.value;
-    dateSliderPositions.value = minPos !== prevMin ? [maxPos, maxPos] : [minPos, minPos];
-    return;
-  }
-  const [prevMin, prevMax] = prevDateSliderPositions.value;
-  // Single-bound only, same reason as size slider.
-  if (minPos !== prevMin && minPos > 0 && maxPos < DATE_SLIDER_MAX) {
-    dateSliderPositions.value = [minPos, DATE_SLIDER_MAX];
-    return;
-  }
-  if (maxPos !== prevMax && maxPos < DATE_SLIDER_MAX && minPos > 0) {
-    dateSliderPositions.value = [0, maxPos];
-    return;
-  }
-  prevDateSliderPositions.value = [minPos, maxPos];
+function commitDateRange(minPos: number, maxPos: number) {
   const minMs = minPos <= 0 ? 0 : posToMs(minPos);
   const maxMs = maxPos >= DATE_SLIDER_MAX ? Infinity : posToMs(maxPos);
   lastModifiedDateRange.value = [minMs, maxMs];
-});
+}
 
 const nameFilters: ("named" | "unnamed")[] = ["named", "unnamed"];
 
