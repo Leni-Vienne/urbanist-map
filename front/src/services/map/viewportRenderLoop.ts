@@ -30,8 +30,7 @@ interface ViewportBounds {
 }
 
 // Current viewport padded by 10% per axis, so content just past the edge isn't destroyed only to
-// be re-created on the next small pan. Shared by the prune loop and the bbox marker passes in
-// viewportTriggers so creation and destruction agree on viewport membership.
+// be re-created on the next small pan.
 function getPaddedViewportBounds(): ViewportBounds {
   const mlBounds = map.value.getBounds();
   const sw = mlBounds.getSouthWest();

@@ -25,7 +25,9 @@ import { useMapStore } from "@/stores/mapStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
 import { validateOverlaySize } from "@shared/overlayValidation";
+import { onModeTransition } from "@/services/map/modeTransition";
 import { registerOnce } from "@/utils/registerOnce";
+import type { AppMode } from "@shared/types";
 
 import { t } from "@/locales";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
@@ -568,38 +570,46 @@ export function hideEditHandles(): void {
   if (mlMap.getSource(s.fillSourceId)) mlMap.removeSource(s.fillSourceId);
 }
 
+/**
+ * Converge the edit handles to the (selection, mode) pair: handles exist only for the selected
+ * overlay in edit mode. hideEditHandles() no-ops when nothing is shown, and the image may not be
+ * on the map yet, so the show is deferred until it is (and re-checks the mode by then).
+ */
+function syncEditHandles(selectedId: string | null, mode: AppMode): void {
+  hideEditHandles();
+
+  if (!selectedId || mode !== "edit") return;
+
+  const overlay = useOverlayStore().liveOverlays[selectedId];
+  if (!overlay) return;
+
+  whenImageReadyIfSelected(selectedId, () => {
+    if (useMapStore().mode === "edit") showEditHandles(overlay);
+  });
+}
+
 function registerEditorTriggers(): void {
   // Let the reconciler refresh the active edit session's handles after it moves an image.
   registry.registerEditHandleSync(refreshEditHandlesGeometry);
 
-  const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
   const focus = useFocusStore();
 
   watch(
-    [() => focus.selectedOverlayId, () => mapStore.mode],
-    ([newId, newMode], [oldId, oldMode]) => {
-      // Clean up old handles if selection or mode changed
-      if (oldId && (newId !== oldId || oldMode !== "edit" || newMode !== "edit")) {
-        hideEditHandles();
-      }
-
-      // Show handles for new selection in edit mode
-      if (newId && newMode === "edit") {
-        const overlay = overlayStore.liveOverlays[newId];
-        if (overlay) {
-          whenImageReadyIfSelected(newId, () => {
-            if (mapStore.mode === "edit") showEditHandles(overlay);
-          });
-        }
-      }
+    () => focus.selectedOverlayId,
+    (selectedId) => {
+      syncEditHandles(selectedId, mapStore.mode);
     },
     { immediate: true },
   );
+
+  onModeTransition("editHandles", (newMode) => {
+    syncEditHandles(focus.selectedOverlayId, newMode);
+  });
 }
 
 /**
- * The edit-handle show/hide watcher (overlay selection + map mode) and the reconciler's
+ * The edit-handle show/hide triggers (overlay selection and map mode) and the reconciler's
  * handle-sync callback.
  */
 export const initializeEditorTriggers = registerOnce(registerEditorTriggers);

@@ -9,6 +9,7 @@ import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useModerationStore } from "@/stores/moderationStore";
 import { getApprovedOverlayDataFromTiles } from "@/services/map/tiles/approvedOverlayCache";
 import { createProjectObject } from "@/utils/typeFactories";
+import { onModeTransition } from "@/services/map/modeTransition";
 import { registerOnce } from "@/utils/registerOnce";
 
 /** Return the pending geometry change request value for a project, if any. */
@@ -175,12 +176,9 @@ function registerShapeRenderTriggers(): void {
   );
 
   // Entering view mode: MapLibre vector tiles take over shape rendering.
-  watch(
-    () => mapStore.mode,
-    (newMode) => {
-      if (newMode === "view") clearAllProjectShapes();
-    },
-  );
+  onModeTransition("clearProjectShapes", (newMode) => {
+    if (newMode === "view") clearAllProjectShapes();
+  });
 }
 
 /**

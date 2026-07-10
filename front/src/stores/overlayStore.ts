@@ -102,10 +102,14 @@ export const useOverlayStore = defineStore("overlay", () => {
     replacementOverlayId.value = null;
   }
 
+  function clearLiveOverlays() {
+    liveOverlays.value = {};
+  }
+
   // Clear user-specific state on logout or account switch: the live overlay objects and the pending
   // replacement target. renderLoopOverlays is left as-is.
   function clearAllState() {
-    liveOverlays.value = {};
+    clearLiveOverlays();
     resetReplacement();
   }
 
@@ -118,6 +122,7 @@ export const useOverlayStore = defineStore("overlay", () => {
     // Actions
     setRenderLoopOverlays,
     clearRenderLoopOverlays,
+    clearLiveOverlays,
     addOverlay,
     updateOverlay,
     commitHistory,
