@@ -14,7 +14,7 @@ import {
   loadLocaleMessages,
   setI18nInstance,
 } from "./locales";
-import { setupKeyboardShortcuts } from "./services/overlay/editing";
+import { setupKeyboardShortcuts } from "./services/overlay/history";
 import { initializeDetailWatcher } from "./services/map/projectDetailWatcher";
 
 // importing Aura Theme has a 5 kB gzipped impact over manual imports, worth the DX improvement

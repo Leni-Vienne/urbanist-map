@@ -162,7 +162,8 @@ import {
   getProjectSiblingOverlayIds,
 } from "@/services/overlay/navigation";
 import { selectOverlay } from "@/services/overlay/selection";
-import { undo, redo, showEditHandles, hideEditHandles } from "@/services/overlay/editing";
+import { showEditHandles, hideEditHandles } from "@/services/overlay/editing";
+import { undo, redo } from "@/services/overlay/history";
 import { showCropHandles, hideCropHandles, applyCrop } from "@/services/overlay/cropHandles";
 import { prepareOverlaySubmission } from "@/services/submission/submissionDialog";
 import { isOverlayUnsaved } from "@/utils/unsavedState";
