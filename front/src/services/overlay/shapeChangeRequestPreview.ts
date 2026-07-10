@@ -46,7 +46,7 @@ export async function previewShapes(options: PreviewShapesOptions): Promise<void
   // Navigate to the correct country context if not already there
   if (project.countryCode && mapStore.selectedCountryCode !== project.countryCode) {
     clearAllMapContent();
-    mapStore.selectedCountryCode = project.countryCode;
+    mapStore.setSelectedCountryCode(project.countryCode);
     await nextTick();
   }
 

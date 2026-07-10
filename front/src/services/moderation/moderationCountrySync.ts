@@ -16,16 +16,6 @@ export function canModerateCountry(countryCode: string): boolean {
 }
 
 /**
- * Set the active country so the moderation panel reloads its pending submissions.
- */
-export function syncModerationCountry(countryCode: string): void {
-  const mapStore = useMapStore();
-  if (mapStore.selectedCountryCode !== countryCode) {
-    mapStore.selectedCountryCode = countryCode;
-  }
-}
-
-/**
  * Clicking a feature on the map while in moderation mode switches the moderation panel
  * to that feature's country (when the user may moderate it), so the panel loads its
  * pending submissions and scrolls to the clicked item without using the country dropdown.
@@ -36,5 +26,5 @@ export function syncModerationCountryFromMapClick(countryCode: string | null | u
   const mapStore = useMapStore();
   if (mapStore.mode !== "moderation") return;
   if (!canModerateCountry(countryCode)) return;
-  syncModerationCountry(countryCode);
+  mapStore.setSelectedCountryCode(countryCode);
 }

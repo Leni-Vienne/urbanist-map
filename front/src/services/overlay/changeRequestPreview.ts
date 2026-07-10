@@ -89,7 +89,7 @@ async function ensureOverlayLoaded(
 
   // Clear map and navigate to the overlay's country
   clearAllMapContent();
-  mapStore.selectedCountryCode = overlayForModeration.countryCode;
+  mapStore.setSelectedCountryCode(overlayForModeration.countryCode);
 
   // Step 4: Navigate to overlay position
   const targetBounds = new LngLatBounds();

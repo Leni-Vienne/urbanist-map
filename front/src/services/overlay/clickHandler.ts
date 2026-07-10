@@ -8,10 +8,7 @@ import { useMapStore } from "@/stores/mapStore";
 import { t } from "@/locales";
 import { trpc } from "@/client";
 import type { Overlay, LatestContribution } from "@/types/index";
-import {
-  canModerateCountry,
-  syncModerationCountry,
-} from "@/services/moderation/moderationCountrySync";
+import { canModerateCountry } from "@/services/moderation/moderationCountrySync";
 import { loadOrNull } from "@/services/core/errorHandling";
 import { isValidQuad } from "@/services/overlay/transform";
 import { toastWarn, toastInfo, toastError } from "@/services/core/toast";
@@ -48,7 +45,7 @@ export async function handleOverlayClickNavigation(
         return;
       }
       // Auto-select the country so ModerationPanel loads its pending submissions
-      syncModerationCountry(overlay.countryCode);
+      mapStore.setSelectedCountryCode(overlay.countryCode);
     }
 
     // Only switch to edit mode if currently in view mode

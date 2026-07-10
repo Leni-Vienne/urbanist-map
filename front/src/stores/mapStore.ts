@@ -4,6 +4,7 @@ import type { AppMode } from "@shared/types";
 import type { PanelTab } from "@/types/index";
 import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
+import { useModerationStore } from "@/stores/moderationStore";
 
 // The active panel tab is the single source of truth; the map mode is derived from it.
 // view is reachable from two tabs (latest, currentLocation), so mode is a function of
@@ -29,6 +30,15 @@ export const useMapStore = defineStore("map", () => {
   const authStore = useAuthStore();
 
   const selectedCountryCode = ref<string | null>(null);
+
+  // Single write path for the active country (exposed read-only below). The moderation list
+  // is country-scoped, so any country change invalidates it; refetching is left to whoever
+  // displays it (ModerationPanel refetches while mounted, or on its next mount).
+  function setSelectedCountryCode(code: string | null) {
+    if (selectedCountryCode.value === code) return;
+    selectedCountryCode.value = code;
+    useModerationStore().resetModerationLoaded();
+  }
 
   // Derived, read-only. Edit requires authentication: an unauthenticated user can sit on the
   // contribute tab (which shows the sign-in prompt) while the map stays in view mode. On sign-in
@@ -68,7 +78,8 @@ export const useMapStore = defineStore("map", () => {
 
   return {
     mode,
-    selectedCountryCode,
+    selectedCountryCode: computed(() => selectedCountryCode.value),
+    setSelectedCountryCode,
     setMode,
     clearAllState,
   };

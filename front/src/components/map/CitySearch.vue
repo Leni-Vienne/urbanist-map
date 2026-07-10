@@ -163,7 +163,7 @@ function navigateToCity(
   target?: { bbox?: BoundaryBbox; coords?: { lat: number; lng: number } },
 ): void {
   const mapStore = useMapStore();
-  mapStore.selectedCountryCode = countryCode;
+  mapStore.setSelectedCountryCode(countryCode);
 
   if (target?.bbox) {
     const { minLng, minLat, maxLng, maxLat } = target.bbox;
