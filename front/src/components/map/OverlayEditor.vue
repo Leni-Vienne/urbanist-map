@@ -52,7 +52,7 @@ import { toastInfo, toastError } from "@/services/core/toast";
 import { ref, computed, watch } from "vue";
 
 import { useI18n } from "vue-i18n";
-import { updateOverlayInfo } from "@/services/overlay/actions";
+import { updateOverlayInfo } from "@/services/overlay/data";
 import { useUiStore, type OverlayEditTarget } from "@/stores/uiStore";
 
 const bodyElement = document.body;

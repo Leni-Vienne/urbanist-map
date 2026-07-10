@@ -179,7 +179,7 @@ import { useMapStore } from "@/stores/mapStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
 
-import { navigateToOverlay } from "@/services/overlay/actions";
+import { navigateToOverlay } from "@/services/overlay/navigation";
 import { flyToGeometry, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { computeShapeBounds } from "@/services/map/shapes/rendering";
 import { selectProject } from "@/services/map/projectSelection";

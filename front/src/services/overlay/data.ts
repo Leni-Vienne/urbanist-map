@@ -35,6 +35,17 @@ export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayOb
   return savedOverlay;
 }
 
+export function updateOverlayInfo(id: string, info: { caption?: string }): void {
+  const overlayStore = useOverlayStore();
+  const overlayObject = overlayStore.liveOverlays[id];
+  if (!overlayObject) return;
+
+  const newCaption = info.caption ?? null;
+  if (overlayObject.caption === newCaption) return;
+
+  overlayStore.updateOverlay(id, { caption: newCaption });
+}
+
 // The corners an active moderation suggested-position preview shows for this overlay: the
 // previewed change request's own proposed geometry, read off the request rather than any field on
 // the overlay object. Null when no suggested-position preview targets the overlay or the request's

@@ -157,7 +157,10 @@ import {
   getImageHandle,
   whenImageReady,
 } from "@/services/overlay/mapLayers";
-import { navigateOverlaySequence, getProjectSiblingOverlayIds } from "@/services/overlay/actions";
+import {
+  navigateOverlaySequence,
+  getProjectSiblingOverlayIds,
+} from "@/services/overlay/navigation";
 import { selectOverlay } from "@/services/overlay/selection";
 import { undo, redo, showEditHandles, hideEditHandles } from "@/services/overlay/editing";
 import { showCropHandles, hideCropHandles, applyCrop } from "@/services/overlay/cropHandles";
