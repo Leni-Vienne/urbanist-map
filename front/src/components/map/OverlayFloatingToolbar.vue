@@ -287,12 +287,7 @@ function initForSelection() {
 watch(
   selectedId,
   (id, prev) => {
-    if (id !== prev) {
-      if (isCropActive.value) {
-        hideCropHandles();
-        isCropActive.value = false;
-      }
-    }
+    if (id !== prev) abandonCrop();
     destroyMarker();
     stopAnchorSync();
     // nextTick: let Teleport unmount cleanly from the old marker before we create a new one
@@ -314,19 +309,14 @@ watch(
   { immediate: true },
 );
 
-// Leaving edit mode (e.g. via the mode toggle) tears down edit handles elsewhere; abandon any
-// in-progress crop so its handles and mask don't dangle.
 watch(isEditMode, (editing) => {
-  if (!editing && isCropActive.value) {
-    hideCropHandles();
-    isCropActive.value = false;
-  }
+  if (!editing) abandonCrop();
 });
 
 onUnmounted(() => {
   stopAnchorSync();
   destroyMarker();
-  if (isCropActive.value) hideCropHandles();
+  abandonCrop();
   map.value.off("moveend", refreshCanStack);
 });
 
@@ -405,9 +395,14 @@ function startCrop() {
   isCropActive.value = true;
 }
 
-function endCrop() {
+function abandonCrop() {
+  if (!isCropActive.value) return;
   hideCropHandles();
   isCropActive.value = false;
+}
+
+function endCrop() {
+  abandonCrop();
   const overlay = selectedOverlay.value;
   if (overlay && isEditMode.value) showEditHandles(overlay);
 }

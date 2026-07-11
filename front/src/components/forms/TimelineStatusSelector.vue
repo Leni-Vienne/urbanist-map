@@ -45,7 +45,7 @@ interface Props {
   idPrefix?: string;
 }
 
-type Emits = (e: "update:modelValue" | "change", value: TimelineStatus) => void;
+type Emits = (e: "update:modelValue", value: TimelineStatus) => void;
 
 const props = withDefaults(defineProps<Props>(), {
   idPrefix: "timeline",
@@ -79,8 +79,6 @@ function getOptionLabel(value: string) {
 }
 
 function handleSelect(status: string) {
-  const typedStatus = status as TimelineStatus;
-  emit("update:modelValue", typedStatus);
-  emit("change", typedStatus);
+  emit("update:modelValue", status as TimelineStatus);
 }
 </script>

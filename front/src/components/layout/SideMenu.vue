@@ -81,29 +81,18 @@
 </template>
 
 <script setup lang="ts">
-import { watch, defineAsyncComponent } from "vue";
+import { defineAsyncComponent } from "vue";
 import PanelContent from "./PanelContent.vue";
 import PanelTabs from "./PanelTabs.vue";
-import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useDetailPanel } from "@/composables/layout/useDetailPanel";
 
 // Lazy loaded so the detail panel shares the same async chunk scope as PanelContent's copy.
 const ProjectDetailPanel = defineAsyncComponent(() => import("./ProjectDetailPanel.vue"));
 
-const uiStore = useUiStore();
 const authStore = useAuthStore();
 
 const { detailVisible, activeTab } = useDetailPanel();
-
-watch(
-  () => authStore.isAuthenticated,
-  (isAuthenticated) => {
-    if (isAuthenticated && uiStore.postLoginCallback) {
-      uiStore.executePostLoginCallback();
-    }
-  },
-);
 </script>
 
 <style scoped>

@@ -35,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from "vue";
+import { ref, computed } from "vue";
 import {
   selectedStatusFilters,
   selectedProjectTags,
@@ -62,8 +62,8 @@ const activeFilterCount = computed(() => {
 
 const FILTER_HINT_KEY = "filter-control-seen";
 const showFilterHint = ref(localStorage.getItem(FILTER_HINT_KEY) !== "1");
-const showFilterPanel = ref(false);
 const filterPanel = ref();
+const showFilterPanel = computed<boolean>(() => filterPanel.value?.visible ?? false);
 
 function toggleFilterPanel(event: Event) {
   if (showFilterHint.value) {
@@ -71,15 +71,7 @@ function toggleFilterPanel(event: Event) {
     localStorage.setItem(FILTER_HINT_KEY, "1");
   }
   filterPanel.value.toggle(event);
-  showFilterPanel.value = !showFilterPanel.value;
 }
-
-watch(
-  () => filterPanel.value?.visible,
-  (visible) => {
-    showFilterPanel.value = visible ?? false;
-  },
-);
 
 defineExpose({
   filterPanel,

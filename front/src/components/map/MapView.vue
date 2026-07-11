@@ -59,7 +59,7 @@
 <script setup lang="ts">
 import { toastError } from "@/services/core/toast";
 
-import { ref, onMounted, onUnmounted, nextTick, defineAsyncComponent, watch } from "vue";
+import { ref, onMounted, onUnmounted, nextTick, defineAsyncComponent } from "vue";
 
 import { initializeMap, map } from "@/services/core/map";
 import { addTileLayer } from "@/services/map/tiles/basemap";
@@ -97,15 +97,6 @@ const authStore = useAuthStore();
 
 const { t } = useI18n();
 const isLoading = ref(true);
-
-watch(
-  () => authStore.user,
-  (newUser) => {
-    if (!newUser) {
-      mapStore.setMode("view");
-    }
-  },
-);
 
 onMounted(async () => {
   await initializeMapAndOverlays();
