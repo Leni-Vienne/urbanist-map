@@ -164,6 +164,7 @@
     "changeRequestDeleted": "Change request deleted successfully",
     "deleteOverlayError": "Failed to delete image. Please try again.",
     "deleteProjectError": "Failed to delete project. Please try again.",
+    "changeRequestDeleteError": "Failed to delete change request. Please try again.",
     "loadContributionsError": "Failed to load contributions. Please try again.",
     "guest": {
       "title": "Contribute to the map",
@@ -692,6 +693,8 @@
       "acknowledgeAll": "Clear All",
       "acknowledgeSuccess": "Acknowledged",
       "acknowledgeSuccessDetail": "Contribution updates have been cleared",
+      "acknowledgeError": "Clearing failed",
+      "acknowledgeErrorDetail": "Failed to clear contribution updates. Please try again.",
       "viewResults": "View Results"
     },
     "userStats": {

@@ -18,7 +18,7 @@ import { flyToGeometry } from "@/services/map/mapNavigation";
 import { clearStagedRender } from "@/services/submission/stagedRenderState";
 import type { ChangeRequest } from "@/stores/changeRequestStore";
 import type { Project, Overlay } from "@/types/index";
-import { toastSuccess, toastWarn } from "@/services/core/toast";
+import { toastError, toastSuccess, toastWarn } from "@/services/core/toast";
 
 // A render staged in the upload dialog but not yet submitted: kind 'render' with no status. Real
 // renders always carry a server status, so this uniquely identifies a still-staged one.
@@ -96,6 +96,8 @@ export function useContributeActions(
     const result = await deleteChangeRequest(change.id);
     if (result) {
       toastSuccess(t("contribute.changeRequestDeleted"));
+    } else {
+      toastError(t("contribute.changeRequestDeleteError"));
     }
   }
 

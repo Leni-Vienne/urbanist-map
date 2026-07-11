@@ -61,6 +61,41 @@ function cacheProject(project: Project): Project {
   return project;
 }
 
+const detailHydrations = new Map<string, Promise<Project | null>>();
+
+/**
+ * Merge the fields getById adds on top of the viewport payload (slug, render, ownerUsername,
+ * boundaryPath) into the cached project. Concurrent callers for the same id share one request.
+ * Returns the merged project, or null when the fetch failed.
+ */
+export async function hydrateProjectDetail(projectId: string): Promise<Project | null> {
+  const inFlight = detailHydrations.get(projectId);
+  if (inFlight) return inFlight;
+
+  const request = fetchProjectDetail(projectId);
+  detailHydrations.set(projectId, request);
+  try {
+    return await request;
+  } finally {
+    detailHydrations.delete(projectId);
+  }
+}
+
+async function fetchProjectDetail(projectId: string): Promise<Project | null> {
+  const fresh = await loadOrNull(async () => trpc.project.getById.query({ id: projectId }));
+  if (!fresh) return null;
+
+  const projectStore = useProjectStore();
+  projectStore.updateProject(projectId, {
+    slug: fresh.slug ?? null,
+    render: fresh.render ?? null,
+    ownerUsername: fresh.ownerUsername ?? null,
+    boundaryPath: fresh.boundaryPath ?? [],
+  });
+
+  return projectStore.projects[projectId] ?? null;
+}
+
 /**
  * Handle a MapLibre tile click given only a project ID.
  * Looks up the project, then delegates to selectProject.

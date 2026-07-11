@@ -164,6 +164,7 @@
     "changeRequestDeleted": "Suggestion supprimée avec succès",
     "deleteOverlayError": "Échec de la suppression de l'image. Veuillez réessayer.",
     "deleteProjectError": "Échec de la suppression du projet. Veuillez réessayer.",
+    "changeRequestDeleteError": "Échec de la suppression de la suggestion. Veuillez réessayer.",
     "loadContributionsError": "Échec du chargement des contributions. Veuillez réessayer.",
     "guest": {
       "title": "Contribuez à la carte",
@@ -692,6 +693,8 @@
       "acknowledgeAll": "Tout effacer",
       "acknowledgeSuccess": "Acquitté",
       "acknowledgeSuccessDetail": "Les résultats de modération ont été effacés",
+      "acknowledgeError": "Échec de l'effacement",
+      "acknowledgeErrorDetail": "Échec de l'effacement des résultats de modération. Veuillez réessayer.",
       "viewResults": "Voir les résultats"
     },
     "userStats": {

@@ -117,7 +117,7 @@
 </template>
 
 <script setup lang="ts">
-import { toastSuccess } from "@/services/core/toast";
+import { toastError, toastSuccess } from "@/services/core/toast";
 
 import { computed, ref, onMounted } from "vue";
 
@@ -169,6 +169,11 @@ async function handleAcknowledgeAll() {
         t("moderation.moderatedContributions.acknowledgeSuccess"),
       );
       isVisible.value = false;
+    } else {
+      toastError(
+        t("moderation.moderatedContributions.acknowledgeErrorDetail"),
+        t("moderation.moderatedContributions.acknowledgeError"),
+      );
     }
   } finally {
     isAcknowledging.value = false;

@@ -178,11 +178,10 @@ import { useAuthStore } from "@/stores/authStore";
 import { navigateToOverlay } from "@/services/overlay/navigation";
 import { flyToGeometry, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { computeShapeBounds } from "@/services/map/shapes/rendering";
-import { selectProject } from "@/services/map/projectSelection";
+import { selectProject, hydrateProjectDetail } from "@/services/map/projectSelection";
 
 import { buildImageUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { createProjectObject } from "@/utils/typeFactories";
-import { trpc } from "@/client";
 import type { OverlayData, Project } from "@/types/index";
 
 import ProjectMetadataCard from "@/components/map/popups/ProjectMetadataCard.vue";
@@ -291,17 +290,7 @@ watch(
     const current = project.value;
     if (!id || !current || current.status === null || current.render !== undefined) return;
 
-    try {
-      const fresh = await trpc.project.getById.query({ id });
-      if (fresh)
-        projectStore.updateProject(id, {
-          render: fresh.render ?? null,
-          ownerUsername: fresh.ownerUsername ?? null,
-          boundaryPath: fresh.boundaryPath ?? [],
-        });
-    } catch (error) {
-      console.error("Failed to hydrate project render:", error);
-    }
+    await hydrateProjectDetail(id);
   },
   { immediate: true },
 );
