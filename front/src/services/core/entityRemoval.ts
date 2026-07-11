@@ -120,6 +120,9 @@ export async function deleteOverlayDirect(
     return true;
   } catch (error) {
     console.error("Failed to delete overlay:", error);
+    if (showToast) {
+      toastError(t("contribute.deleteOverlayError"));
+    }
     return false;
   }
 }

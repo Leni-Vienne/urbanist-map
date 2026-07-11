@@ -1,57 +1,51 @@
 ﻿<template>
   <Teleport to="body">
-    <Transition name="drawer-fade">
+    <div class="fixed inset-0 z-1100 pointer-events-none">
       <div
-        v-if="visible"
-        class="fixed inset-0 z-1100 pointer-events-none"
-        @click.self="handleBackdropClick"
+        ref="drawerRef"
+        class="draggable-drawer fixed bottom-0 left-0 right-0 bg-content-background rounded-t-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.15)] flex flex-col overflow-visible z-1101 touch-none pointer-events-auto"
+        :style="drawerStyle"
+        @touchstart="handleTouchStart"
+        @touchmove="handleTouchMove"
+        @touchend="handleTouchEnd"
+        @mousedown="handleMouseDown"
       >
+        <!-- Slot for content above drawer (e.g., mode controls) -->
         <div
-          ref="drawerRef"
-          class="draggable-drawer fixed bottom-0 left-0 right-0 bg-content-background rounded-t-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.15)] flex flex-col overflow-visible z-1101 touch-none pointer-events-auto"
-          :style="drawerStyle"
-          @touchstart="handleTouchStart"
-          @touchmove="handleTouchMove"
-          @touchend="handleTouchEnd"
-          @mousedown="handleMouseDown"
+          class="absolute left-0 right-0 mb-2 pointer-events-none"
+          :style="{ bottom: aboveContentBottom }"
         >
-          <!-- Slot for content above drawer (e.g., mode controls) -->
-          <div
-            class="absolute left-0 right-0 mb-2 pointer-events-none"
-            :style="{ bottom: aboveContentBottom }"
-          >
-            <slot name="above" :drawer-height-px="currentDrawerHeightPx"></slot>
-          </div>
+          <slot name="above" :drawer-height-px="currentDrawerHeightPx"></slot>
+        </div>
 
+        <div
+          class="drawer-handle py-2 pb-[0.4rem] flex justify-center items-center cursor-grab active:cursor-grabbing shrink-0 bg-content-hover-background rounded-t-2xl"
+          @click.stop
+        >
           <div
-            class="drawer-handle py-2 pb-[0.4rem] flex justify-center items-center cursor-grab active:cursor-grabbing shrink-0 bg-content-hover-background rounded-t-2xl"
-            @click.stop
-          >
-            <div
-              class="w-10 h-1 bg-(--p-text-muted-color) rounded-sm transition-colors duration-200 hover:bg-(--p-text-color-secondary)"
-            ></div>
-          </div>
+            class="w-10 h-1 bg-(--p-text-muted-color) rounded-sm transition-colors duration-200 hover:bg-(--p-text-color-secondary)"
+          ></div>
+        </div>
 
-          <div
-            class="drawer-header shrink-0 bg-content-hover-background cursor-grab active:cursor-grabbing transition-[padding] duration-300 ease-in-out"
-            :class="{ 'py-0 px-4 pb-[0.3em] text-center': isCompact }"
-          >
-            <slot name="header"></slot>
-          </div>
+        <div
+          class="drawer-header shrink-0 bg-content-hover-background cursor-grab active:cursor-grabbing transition-[padding] duration-300 ease-in-out"
+          :class="{ 'py-0 px-4 pb-[0.3em] text-center': isCompact }"
+        >
+          <slot name="header"></slot>
+        </div>
 
-          <div
-            class="flex flex-col min-h-0 flex-1 overflow-y-auto overflow-x-hidden scrollbar-none [&::-webkit-scrollbar]:hidden bg-content-background"
-          >
-            <slot></slot>
-          </div>
+        <div
+          class="flex flex-col min-h-0 flex-1 overflow-y-auto overflow-x-hidden scrollbar-none [&::-webkit-scrollbar]:hidden bg-content-background"
+        >
+          <slot></slot>
+        </div>
 
-          <!-- Footer (outside scroll area so it's always opaque and visible) -->
-          <div v-if="$slots.footer" class="shrink-0">
-            <slot name="footer"></slot>
-          </div>
+        <!-- Footer (outside scroll area so it's always opaque and visible) -->
+        <div v-if="$slots.footer" class="shrink-0">
+          <slot name="footer"></slot>
         </div>
       </div>
-    </Transition>
+    </div>
   </Teleport>
 </template>
 
@@ -59,7 +53,6 @@
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 
 interface Props {
-  visible: boolean;
   heightPercent?: number;
 }
 
@@ -133,10 +126,6 @@ watch(
     }
   },
 );
-
-function handleBackdropClick() {
-  // Backdrop clicks disabled for mobile drawer
-}
 
 // Drag starts from the grab pill, the header strip, or any opt-in handle (e.g. a detail panel's
 // title bar that takes over the drawer and replaces the header).
@@ -255,11 +244,5 @@ onMounted(() => {
 /* Deep children of the above-content slot need pointer events */
 :deep(.control-wrapper > *) {
   pointer-events: auto;
-}
-
-/* Required by Vue's Transition: slide the drawer off-screen below the viewport when entering/leaving */
-.drawer-fade-enter-from .draggable-drawer,
-.drawer-fade-leave-to .draggable-drawer {
-  transform: translateY(100%);
 }
 </style>

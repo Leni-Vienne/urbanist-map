@@ -8,6 +8,7 @@ import { trpc } from "@/client";
 import { selectOverlay, raiseSelectedOverlayWhenReady } from "@/services/overlay/selection";
 import { getMarker } from "@/services/overlay/mapLayers";
 import { getOverlayBounds } from "@/services/overlay/markers";
+import { isValidQuad } from "@/services/overlay/transform";
 import { buildLngLatBounds } from "@/utils/cornersBounds";
 import { overlayWireToData } from "@/utils/typeFactories";
 import { toastInfo } from "@/services/core/toast";
@@ -141,7 +142,7 @@ export async function navigateToOverlay(
   if (selectAndCenterOverlay(overlayId)) {
     return true;
   }
-  if (loadResult.corners && loadResult.corners.length >= 4) {
+  if (isValidQuad(loadResult.corners)) {
     mobileAwareFlyToBounds(buildLngLatBounds(loadResult.corners));
     return true;
   }

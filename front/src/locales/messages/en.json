@@ -162,6 +162,7 @@
     "overlayDeleted": "Image deleted successfully",
     "projectDeleted": "Project deleted successfully",
     "changeRequestDeleted": "Change request deleted successfully",
+    "deleteOverlayError": "Failed to delete image. Please try again.",
     "deleteProjectError": "Failed to delete project. Please try again.",
     "loadContributionsError": "Failed to load contributions. Please try again.",
     "guest": {

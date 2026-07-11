@@ -8,6 +8,7 @@ import type {
 import { map } from "@/services/core/map";
 import {
   cornersToTransform,
+  isValidQuad,
   transformToCorners,
   type OverlayTransform,
 } from "@/services/overlay/transform";
@@ -437,7 +438,7 @@ export function createOverlayImage(
   corners: LatLng[],
 ): OverlayImageHandle | null {
   const mlMap = map.value;
-  if (corners.length !== 4) return null;
+  if (!isValidQuad(corners)) return null;
 
   const sourceId = overlaySourceId(overlayObject.id);
   const rasterLayerId = overlayRasterLayerId(overlayObject.id);
@@ -494,7 +495,7 @@ export function getLastAppliedCorners(id: string): LatLng[] | null {
 // position). Also refreshes the stored rigid transform so the next edit starts from here.
 export function setOverlayImageCorners(id: string, corners: LatLng[]): void {
   const handle = getImageHandle(id);
-  if (!handle || corners.length !== 4) return;
+  if (!handle || !isValidQuad(corners)) return;
   getImageSource(handle.sourceId)?.setCoordinates(cornersToImageCoordinates(corners));
   handle.transform = cornersToTransform(corners);
   recordAppliedCorners(id, corners);

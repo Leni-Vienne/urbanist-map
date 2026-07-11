@@ -4,6 +4,7 @@ import { map } from "@/services/core/map";
 import * as registry from "@/services/overlay/mapLayers";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";
+import { isValidQuad } from "@/services/overlay/transform";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 
 /** Zoom to an overlay and optionally select it once rendered. */
@@ -12,7 +13,7 @@ export function zoomToOverlayAndSelect(
   corners: { lat: number; lng: number }[],
   autoSelect = true,
 ): boolean {
-  if (corners.length !== 4) return false;
+  if (!isValidQuad(corners)) return false;
 
   const bounds = new LngLatBounds();
   for (const c of corners) {

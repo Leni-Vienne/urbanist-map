@@ -4,7 +4,7 @@
     <SideMenu v-if="!isMobile" />
 
     <!-- Mobile Bottom Drawer -->
-    <MobileDrawer v-if="isMobile" :visible="uiStore.mobileDrawerVisible" />
+    <MobileDrawer v-if="isMobile" />
 
     <div class="grow flex flex-col relative">
       <!-- Info message banner (displayed at top when config.infoMessage is set) -->
@@ -87,7 +87,6 @@ import { showSubmissionDialog } from "@/services/submission/submissionDialogStat
 
 import { useTabNavigation } from "@/composables/layout/useTabNavigation";
 import { handleProjectDeepLink } from "@/services/project/projectDeepLink";
-import { useFocusStore } from "@/stores/focusStore";
 import { selectProject } from "@/services/map/projectSelection";
 import { useModeratedContributionsStore } from "@/stores/moderatedContributionsStore";
 
@@ -196,20 +195,6 @@ const isMobile = computed(() => windowWidth.value <= 768);
 function updateWindowWidth() {
   windowWidth.value = globalThis.innerWidth;
 }
-
-// A selected map feature drives the docked mobile drawer into its detail state, so make sure it
-// is open whenever a selection appears. The drawer keeps its current height (the camera centers
-// the feature in the map area above it), and the user can drag it taller to read more. The
-// desktop side menu is always open, so it needs no handling here.
-const focusStore = useFocusStore();
-const detailActive = computed(() => focusStore.detailVisible);
-
-watch(detailActive, (active) => {
-  if (!active) return;
-  if (isMobile.value) {
-    uiStore.mobileDrawerVisible = true;
-  }
-});
 
 async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
   const project = uiStore.shapeEditor.project;

@@ -55,7 +55,6 @@ export const useUiStore = defineStore("ui", () => {
 
   // Shared tab state between desktop SideMenu and mobile MobileDrawer
   const activeTab = ref<PanelTab>("latest");
-  const mobileDrawerVisible = ref(true); // Open by default on mobile
   const mobileDrawerHeightPercent = ref(40); // Drawer height as percentage of viewport (10-90%)
 
   const imageUploadDialog = ref<ImageUploadDialogState>({
@@ -67,9 +66,6 @@ export const useUiStore = defineStore("ui", () => {
 
   // Shared accordion state that persists across panels
   const activeAccordionPanels = ref<string[]>([]);
-
-  // Post-login callback - stores action to execute after successful login
-  const postLoginCallback = ref<(() => void) | null>(null);
 
   function openProjectDialog(project?: Partial<Project>) {
     projectDialog.value = {
@@ -134,13 +130,6 @@ export const useUiStore = defineStore("ui", () => {
     shapeEditor.value = { project: null, reopen: false };
   }
 
-  function executePostLoginCallback() {
-    if (postLoginCallback.value) {
-      postLoginCallback.value();
-      postLoginCallback.value = null;
-    }
-  }
-
   return {
     authModalVisible,
     authModalInitialMode,
@@ -151,11 +140,9 @@ export const useUiStore = defineStore("ui", () => {
     projectEditForm,
     overlayEditDialog,
     activeTab,
-    mobileDrawerVisible,
     mobileDrawerHeightPercent,
     imageUploadDialog,
     shapeEditor,
-    postLoginCallback,
     activeAccordionPanels,
 
     openProjectDialog,
@@ -168,7 +155,6 @@ export const useUiStore = defineStore("ui", () => {
     closeImageUploadDialog,
     openShapeEditor,
     closeShapeEditor,
-    executePostLoginCallback,
   };
 });
 

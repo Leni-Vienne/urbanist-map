@@ -162,6 +162,7 @@
     "overlayDeleted": "Image supprimée avec succès",
     "projectDeleted": "Projet supprimé avec succès",
     "changeRequestDeleted": "Suggestion supprimée avec succès",
+    "deleteOverlayError": "Échec de la suppression de l'image. Veuillez réessayer.",
     "deleteProjectError": "Échec de la suppression du projet. Veuillez réessayer.",
     "loadContributionsError": "Échec du chargement des contributions. Veuillez réessayer.",
     "guest": {

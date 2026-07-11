@@ -86,10 +86,9 @@ function shouldSkipMove(
   return distance < distanceThreshold;
 }
 
-// The drawer only covers the map on mobile while it's open.
+// The drawer only covers the map on mobile.
 function shouldApplyMobileOffset(): boolean {
-  if (!isMobile.value) return false;
-  return useUiStore().mobileDrawerVisible;
+  return isMobile.value;
 }
 
 // Measures the rendered drawer instead of estimating from mobileDrawerHeightPercent: the drawer is
