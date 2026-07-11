@@ -245,8 +245,8 @@ export const useProjectStore = defineStore("project", () => {
     }
   }
 
-  // Inserts a backend-sourced project into the store, snapshotting it as the change-detection
-  // baseline. No-op if it is already present.
+  // Inserts a project into the store, snapshotting backend-sourced ones (status !== null) as the
+  // change-detection baseline. No-op if it is already present.
   function addProject(project: Project) {
     if (projects.value[project.id]) return;
     projects.value[project.id] = project;

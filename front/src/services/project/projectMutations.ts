@@ -12,7 +12,7 @@ export function createProject(projectData: Partial<Omit<Project, "id" | "overlay
     ownerId: projectData.ownerId ?? authStore.user?.id ?? null,
   });
 
-  projectStore.projects[project.id] = project;
+  projectStore.addProject(project);
 
   return project.id;
 }

@@ -36,14 +36,11 @@ export function flexibleDateToDb(input: FlexibleDateInput | null | undefined): D
 }
 
 /** Format a flexible date for display with localization. */
-export function formatFlexibleDate(
-  input: FlexibleDateInput | null | undefined,
-  locale?: string, // Optional locale override, otherwise uses navigator.language
-): string {
+export function formatFlexibleDate(input: FlexibleDateInput | null | undefined): string {
   if (!input) return "";
 
   const { year, month, day, precision } = input;
-  const userLocale = locale ?? navigator.language;
+  const userLocale = navigator.language;
 
   // Create a date object for formatting
   // Use noon to avoid timezone rollover issues with basic dates

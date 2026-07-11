@@ -76,11 +76,11 @@ export const useModerationStore = defineStore("moderation", () => {
 
   // Adjust a country's pending badge locally after a successful approval/rejection,
   // avoiding a full refetch. Removes the entry once it reaches zero.
-  function decrementPendingCount(countryCode: string | null, amount = 1) {
+  function decrementPendingCount(countryCode: string | null) {
     if (!countryCode) return;
     const current = pendingCountsByCountry.value.get(countryCode);
     if (current === undefined) return;
-    const next = current - amount;
+    const next = current - 1;
     if (next > 0) {
       pendingCountsByCountry.value.set(countryCode, next);
     } else {

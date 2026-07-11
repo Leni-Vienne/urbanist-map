@@ -201,9 +201,7 @@ async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
   const reopen = uiStore.shapeEditor.reopen;
   if (!project) return;
   // Ensure the project is in the store so updateProject doesn't fall back to a default with null status.
-  if (!projectStore.projects[project.id]) {
-    projectStore.projects[project.id] = project;
-  }
+  projectStore.addProject(project);
   projectStore.updateProject(project.id, { geometry, isModified: true });
   await stopShapeEditing();
   // Re-render updated shapes immediately: the editor's own layers are gone after teardown,

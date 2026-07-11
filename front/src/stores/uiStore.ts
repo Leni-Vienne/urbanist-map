@@ -67,6 +67,11 @@ export const useUiStore = defineStore("ui", () => {
   // Shared accordion state that persists across panels
   const activeAccordionPanels = ref<string[]>([]);
 
+  function openAuthModal(initialMode: "login" | "signup" = "login") {
+    authModalInitialMode.value = initialMode;
+    authModalVisible.value = true;
+  }
+
   function openProjectDialog(project?: Partial<Project>) {
     projectDialog.value = {
       visible: true,
@@ -145,6 +150,7 @@ export const useUiStore = defineStore("ui", () => {
     shapeEditor,
     activeAccordionPanels,
 
+    openAuthModal,
     openProjectDialog,
     closeProjectDialog,
     openProjectEditForm,

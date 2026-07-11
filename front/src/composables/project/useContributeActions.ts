@@ -36,7 +36,7 @@ function handleNewProjectClick(): boolean {
   const uiStore = useUiStore();
 
   if (!authStore.isAuthenticated) {
-    uiStore.authModalVisible = true;
+    uiStore.openAuthModal();
     return false;
   }
 

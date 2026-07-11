@@ -24,7 +24,6 @@ type NavigableOverlay = Overlay | LatestContribution;
 export async function handleOverlayClickNavigation(
   overlay: NavigableOverlay,
   shouldToggleEditMode = false,
-  autoSelect = true,
 ): Promise<void> {
   try {
     const overlayStore = useOverlayStore();
@@ -67,7 +66,7 @@ export async function handleOverlayClickNavigation(
       await nextTick();
     }
 
-    await navigateToOverlay(overlay.id, autoSelect);
+    await navigateToOverlay(overlay.id);
   } catch (error) {
     console.error("Failed to navigate to overlay:", error);
     toastError(

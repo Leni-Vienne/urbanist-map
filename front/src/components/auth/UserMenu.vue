@@ -155,8 +155,7 @@ function toggleMenu(event: Event) {
 }
 
 function openAuthModal() {
-  uiStore.authModalInitialMode = "login";
-  uiStore.authModalVisible = true;
+  uiStore.openAuthModal("login");
 }
 
 async function handleSignOut() {

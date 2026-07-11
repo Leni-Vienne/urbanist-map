@@ -360,7 +360,7 @@ async function handleEdit() {
   if (!target) return;
 
   if (!authStore.isAuthenticated) {
-    uiStore.authModalVisible = true;
+    uiStore.openAuthModal();
     return;
   }
 
@@ -376,7 +376,7 @@ function handleBack() {
 
 async function handleViewOriginalOverlay(originalOverlayId: string) {
   try {
-    const success = await navigateToOverlay(originalOverlayId, true);
+    const success = await navigateToOverlay(originalOverlayId);
     if (!success) {
       toastError(t("overlay.failedToNavigate"), t("overlay.navigationFailed"));
     }

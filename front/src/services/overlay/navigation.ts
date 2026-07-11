@@ -88,10 +88,7 @@ type LoadOverlayResult = {
   corners?: { lat: number; lng: number }[];
 };
 
-async function loadOverlay(
-  overlayId: string,
-  includeIntersecting: boolean,
-): Promise<LoadOverlayResult> {
+async function loadOverlay(overlayId: string): Promise<LoadOverlayResult> {
   const overlayStore = useOverlayStore();
 
   if (overlayStore.liveOverlays[overlayId]) {
@@ -100,7 +97,7 @@ async function loadOverlay(
 
   const result = await trpc.overlay.getOverlay.query({
     id: overlayId,
-    includeIntersecting,
+    includeIntersecting: true,
   });
 
   if (!result.overlay) {
@@ -114,7 +111,7 @@ async function loadOverlay(
 
   renderBackendOverlays([overlayWireToData(result.overlay)]);
 
-  if (includeIntersecting && result.intersectingOverlays.length > 0) {
+  if (result.intersectingOverlays.length > 0) {
     renderBackendOverlays(result.intersectingOverlays.map(overlayWireToData));
   }
 
@@ -127,11 +124,8 @@ async function loadOverlay(
 /**
  * Navigates to a specific overlay by ID (loads + selects + centers).
  */
-export async function navigateToOverlay(
-  overlayId: string,
-  includeIntersecting: boolean,
-): Promise<boolean> {
-  const loadResult = await loadOverlay(overlayId, includeIntersecting);
+export async function navigateToOverlay(overlayId: string): Promise<boolean> {
+  const loadResult = await loadOverlay(overlayId);
 
   if (loadResult.alreadyInStore) {
     return selectAndCenterOverlay(overlayId);
