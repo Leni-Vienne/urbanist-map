@@ -79,7 +79,6 @@
       <FlexibleDatePicker
         v-model="flexibleStartDate"
         :label="$t('project.startDate')"
-        unique-id="start-date"
         :error="getFieldError('startDate') ?? undefined"
         @blur="validateFieldHelper('startDate')"
       />
@@ -94,7 +93,6 @@
       <FlexibleDatePicker
         v-model="flexibleEndDate"
         :label="$t('project.endDate')"
-        unique-id="end-date"
         :error="getFieldError('endDate') ?? undefined"
         @blur="validateFieldHelper('endDate')"
       />
@@ -114,7 +112,6 @@
           v-model="flexibleProposalDate"
           :label="$t('project.proposalDate')"
           :max-date="new Date()"
-          unique-id="proposal-date"
           :error="getFieldError('proposalDate') ?? undefined"
           @blur="validateFieldHelper('proposalDate')"
         />

@@ -1,6 +1,6 @@
 ﻿<template>
   <div :class="['mt-4', containerClass]">
-    <div v-if="showHeader" class="mb-2.5">
+    <div class="mb-2.5">
       <div class="flex items-center gap-1.5">
         <i class="pi pi-info-circle text-amber-700 dark:text-amber-400 text-[11px]"></i>
         <span class="text-[13px] font-medium text-amber-800 dark:text-amber-400">
@@ -118,7 +118,6 @@ interface Props {
   isMyContributions?: boolean;
   isOverlayChanges?: boolean;
   entityName?: string;
-  showHeader?: boolean;
   containerClass?: string;
   showUserStatsLink?: boolean;
 }
@@ -129,7 +128,6 @@ const props = withDefaults(defineProps<Props>(), {
   isMyContributions: false,
   isOverlayChanges: false,
   entityName: "",
-  showHeader: true,
   containerClass: "",
   showUserStatsLink: false,
 });

@@ -36,14 +36,7 @@
             class="drawer-header shrink-0 bg-content-hover-background cursor-grab active:cursor-grabbing transition-[padding] duration-300 ease-in-out"
             :class="{ 'py-0 px-4 pb-[0.3em] text-center': isCompact }"
           >
-            <slot name="header">
-              <h3
-                class="m-0 text-lg font-semibold text-color select-none transition-all duration-300 ease-in-out"
-                :class="{ 'text-sm font-medium': isCompact }"
-              >
-                {{ header }}
-              </h3>
-            </slot>
+            <slot name="header"></slot>
           </div>
 
           <div
@@ -67,12 +60,10 @@ import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 
 interface Props {
   visible: boolean;
-  header?: string;
   heightPercent?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  header: "",
   heightPercent: 40,
 });
 
@@ -81,7 +72,6 @@ const MIN_HEIGHT_PX = 65;
 const MAX_HEIGHT_PERCENT = 75;
 
 const emit = defineEmits<{
-  "update:visible": [value: boolean];
   "update:heightPercent": [value: number];
   heightChanged: [value: number];
 }>();

@@ -22,7 +22,7 @@
         <Badge v-if="(pendingChangeCount ?? 0) > 0" :value="pendingChangeCount" severity="warn" />
         <!-- OSM-imported projects show their source instead of a moderation status -->
         <Tag
-          v-if="!hideStatusBadges && isOsmImport"
+          v-if="isOsmImport"
           v-tooltip.bottom="$t('project.importedTooltip')"
           :value="$t('project.osmSource')"
           severity="info"
@@ -30,7 +30,7 @@
         />
         <!-- Moderation status badge with tooltip clarifying it is not a timeline status -->
         <Tag
-          v-else-if="!hideStatusBadges"
+          v-else
           v-tooltip.bottom="$t('approvalStatus.tooltipLabel')"
           :value="$t(`approvalStatus.${status ?? 'draft'}`)"
           :severity="getStatusSeverity(status)"
@@ -51,7 +51,6 @@ import { useWikidataEntity } from "@/composables/project/useWikidataEntity";
 interface Props {
   name: string | null;
   status: string | null;
-  hideStatusBadges?: boolean;
   pendingChangeCount?: number;
   importSourceType?: string | null;
   externalProperties?: unknown;

@@ -11,12 +11,7 @@
     >
       <div class="flex flex-row items-start gap-y-3">
         <div class="flex-1 min-w-0">
-          <ProjectMetadataCard
-            :project="project"
-            :show-name="false"
-            :show-description="true"
-            show-wikidata-media
-          />
+          <ProjectMetadataCard :project="project" show-wikidata-media />
 
           <!-- Contributor line: accordion-only context the metadata card omits -->
           <div
@@ -156,7 +151,6 @@
             </div>
             <div class="flex items-center gap-2 flex-wrap">
               <Tag
-                v-if="!hideStatusBadges"
                 :value="$t(`approvalStatus.${overlay.status ?? 'draft'}`)"
                 :severity="getStatusSeverity(overlay.status)"
                 class="mr-2 capitalize"
@@ -232,7 +226,6 @@ interface Props {
   overlayChangesMap: Map<string, PendingChangeRequest[]>;
   isContributePanel: boolean;
   showUserStatsLink?: boolean;
-  hideStatusBadges?: boolean;
   showEditButtons?: boolean;
   // Hide the project-level navigation chevron (e.g. in the "selected project" card).
   hideChevron?: boolean;

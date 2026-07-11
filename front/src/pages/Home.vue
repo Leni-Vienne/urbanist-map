@@ -4,7 +4,7 @@
     <SideMenu v-if="!isMobile" />
 
     <!-- Mobile Bottom Drawer -->
-    <MobileDrawer v-if="isMobile" v-model:visible="mobileSideMenuOpen" />
+    <MobileDrawer v-if="isMobile" :visible="uiStore.mobileDrawerVisible" />
 
     <div class="grow flex flex-col relative">
       <!-- Info message banner (displayed at top when config.infoMessage is set) -->
@@ -189,13 +189,6 @@ watch(
   },
   { immediate: true },
 );
-
-const mobileSideMenuOpen = computed({
-  get: () => uiStore.mobileDrawerVisible,
-  set: (value) => {
-    uiStore.mobileDrawerVisible = value;
-  },
-});
 
 const windowWidth = ref(typeof globalThis !== "undefined" ? globalThis.innerWidth : 1024);
 const isMobile = computed(() => windowWidth.value <= 768);

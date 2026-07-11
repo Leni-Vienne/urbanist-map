@@ -1,12 +1,7 @@
 <template>
   <div v-if="project" class="flex flex-col gap-3">
-    <div v-if="showName" :class="cls.row">
-      <span :class="cls.label">{{ $t("project.name") }}</span>
-      <span :class="cls.value">{{ project.name ?? "—" }}</span>
-    </div>
-
     <!-- Description: prefer OSM description, fall back to Wikidata description -->
-    <div v-if="showDescription && (project.description || wikidataDescription)" :class="cls.row">
+    <div v-if="project.description || wikidataDescription" :class="cls.row">
       <span :class="cls.label">{{ $t("common.description") }}</span>
       <span :class="cls.value">{{ project.description || wikidataDescription }}</span>
     </div>
@@ -177,16 +172,12 @@ const lightbox = useTemplateRef<InstanceType<typeof ImageLightbox>>("lightbox");
 
 interface Props {
   project: Project | null;
-  showName?: boolean;
-  showDescription?: boolean;
   // Render the Wikidata logo + main image inside the card. Off by default because the detail
   // panel renders its own (logo next to the name, image with a zoom lightbox).
   showWikidataMedia?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  showName: true,
-  showDescription: false,
   showWikidataMedia: false,
 });
 

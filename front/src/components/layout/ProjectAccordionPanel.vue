@@ -42,7 +42,6 @@
                 plain
                 :name="selectedCard.name ?? ''"
                 :status="selectedCard.status"
-                :hide-status-badges="hideStatusBadges"
                 :pending-change-count="getPendingChangeCount(selectedCard)"
                 :import-source-type="selectedCard.importSource?.type ?? null"
                 :external-properties="selectedCard.externalProperties"
@@ -54,11 +53,11 @@
                 :overlay-changes-map="overlayChangesMap"
                 :is-contribute-panel="isContributePanel"
                 :show-user-stats-link="showUserStatsLink"
-                :hide-status-badges="hideStatusBadges"
                 :show-edit-buttons="selectedCardIsExternal ? false : showEditButtons"
                 hide-chevron
                 :on-navigate-to-overlay="navigateToOverlayById"
                 :on-overlay-click="onOverlayClick"
+                @show-user-stats="(data) => emit('show-user-stats', data)"
                 @edit-project="handleProjectClick"
                 @project-click="(p) => emit('external-project-click', p)"
                 @highlight-project="handleProjectHighlight"
@@ -116,7 +115,6 @@
             <ProjectHeader
               :name="project.name ?? ''"
               :status="project.status"
-              :hide-status-badges="hideStatusBadges"
               :pending-change-count="getPendingChangeCount(project)"
               :import-source-type="project.importSource?.type ?? null"
               :external-properties="project.externalProperties"
@@ -127,7 +125,6 @@
               :overlay-changes-map="overlayChangesMap"
               :is-contribute-panel="isContributePanel"
               :show-user-stats-link="showUserStatsLink"
-              :hide-status-badges="hideStatusBadges"
               :show-edit-buttons="showEditButtons"
               :on-navigate-to-overlay="navigateToOverlayById"
               :on-overlay-click="onOverlayClick"
@@ -232,7 +229,6 @@ interface Props {
   // Enables "my contributions" behavior in change request sections (e.g. own-change wording).
   isContributePanel?: boolean;
   showUserStatsLink?: boolean;
-  hideStatusBadges?: boolean;
   disableAutoModeSwitch?: boolean;
   showEditButtons?: boolean;
   // Id of the map-selected project. When it matches a project in `projects`, that project is lifted
@@ -254,7 +250,6 @@ const props = withDefaults(defineProps<Props>(), {
   changeRequests: () => [],
   isContributePanel: false,
   showUserStatsLink: false,
-  hideStatusBadges: false,
   disableAutoModeSwitch: false,
   showEditButtons: false,
   selectedProjectId: null,

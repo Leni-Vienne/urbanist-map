@@ -82,11 +82,7 @@
           >
             <div ref="contentRef" class="flex flex-row items-start gap-3">
               <div class="flex-1 min-w-0">
-                <ProjectMetadataCard
-                  :project="project"
-                  :show-name="false"
-                  :show-description="true"
-                />
+                <ProjectMetadataCard :project="project" />
 
                 <!-- Wikidata main image (P18) shown at the bottom of the metadata section. Click to zoom. -->
                 <div v-if="wikidataEntity?.imageUrl" class="mt-3 pt-3 border-t border-surface">

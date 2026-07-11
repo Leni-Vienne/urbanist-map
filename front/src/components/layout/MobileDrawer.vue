@@ -1,6 +1,6 @@
 <template>
   <DraggableDrawer
-    v-model:visible="isVisible"
+    :visible="visible"
     v-model:height-percent="drawerHeight"
     @height-changed="handleHeightChanged"
   >
@@ -137,7 +137,7 @@ const authStore = useAuthStore();
 // slide-over (suppressed in edit mode, where ContributePanel renders the selection inline).
 const { detailVisible, activeTab } = useDetailPanel();
 
-const isVisible = defineModel<boolean>("visible", { default: false });
+defineProps<{ visible: boolean }>();
 
 const drawerHeight = computed({
   get: () => uiStore.mobileDrawerHeightPercent,

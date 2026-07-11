@@ -1,7 +1,7 @@
 <template>
   <div class="w-full flex flex-col gap-2">
     <label class="text-sm text-(--p-text-color-secondary) font-medium">
-      {{ label }} {{ required ? "*" : "" }}
+      {{ label }}
     </label>
 
     <!-- Compact layout: precision toggle + inputs on same row -->
@@ -64,7 +64,6 @@
         class="flex-1 max-w-64"
         :class="{ 'p-invalid': isTouched && Boolean(error) }"
         :maxDate="maxDate"
-        :minDate="minDate"
         showIcon
         showButtonBar
         @update:modelValue="handleFullDateChange"
@@ -98,11 +97,8 @@ import type { FlexibleDateInput, DatePrecision } from "@shared/types/flexibleDat
 const props = defineProps<{
   modelValue: FlexibleDateInput | null;
   label: string;
-  required?: boolean;
   maxDate?: Date;
-  minDate?: Date;
   error?: string;
-  uniqueId?: string;
 }>();
 
 const emit = defineEmits<{
@@ -128,9 +124,9 @@ const precisionOptions = computed(() => [
   { label: t("project.fullDate"), value: "day" },
 ]);
 
-// Generate year options (from minDate year or 1900 to maxDate year or current + 30)
+// Generate year options (from 1900 to maxDate year or current + 30)
 const yearOptions = computed(() => {
-  const minYear = props.minDate?.getFullYear() ?? 1900;
+  const minYear = 1900;
   const maxYear = props.maxDate?.getFullYear() ?? new Date().getFullYear() + 30;
   const years = [];
   for (let y = maxYear; y >= minYear; y -= 1) {
