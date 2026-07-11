@@ -27,7 +27,7 @@
 </template>
 
 <script setup lang="ts">
-import { toastInfo, toastError } from "@/services/core/toast";
+import { toastInfo } from "@/services/core/toast";
 
 import { useMapStore } from "@/stores/mapStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -46,7 +46,6 @@ const { t } = useI18n();
 
 let lastToastTime = 0;
 const TOAST_THROTTLE_MS = 1000;
-let isSwitchingMode = false;
 
 function getModeIcon(): string {
   switch (mapStore.mode) {
@@ -89,50 +88,41 @@ function getModeTooltip(): string {
 
 // Cycle through modes: view → edit → moderation for moderators, view ↔ edit for regular users.
 function handleModeSwitch() {
-  if (isSwitchingMode) return;
-  try {
-    isSwitchingMode = true;
-    const currentMode = mapStore.mode;
+  const currentMode = mapStore.mode;
 
-    let newMode: AppMode = "view";
+  let newMode: AppMode = "view";
 
-    if (authStore.isModerator) {
-      switch (currentMode) {
-        case "view":
-          newMode = "edit";
-          break;
-        case "edit":
-          newMode = "moderation";
-          break;
-        case "moderation":
-          newMode = "view";
-          break;
-        default:
-          newMode = "view";
-      }
-    } else {
-      newMode = currentMode === "edit" ? "view" : "edit";
+  if (authStore.isModerator) {
+    switch (currentMode) {
+      case "view":
+        newMode = "edit";
+        break;
+      case "edit":
+        newMode = "moderation";
+        break;
+      case "moderation":
+        newMode = "view";
+        break;
+      default:
+        newMode = "view";
     }
+  } else {
+    newMode = currentMode === "edit" ? "view" : "edit";
+  }
 
-    mapStore.setMode(newMode);
+  mapStore.setMode(newMode);
 
-    const now = Date.now();
-    if (now - lastToastTime >= TOAST_THROTTLE_MS) {
-      lastToastTime = now;
+  const now = Date.now();
+  if (now - lastToastTime >= TOAST_THROTTLE_MS) {
+    lastToastTime = now;
 
-      const modeSummaryKeys: Record<AppMode, string> = {
-        view: "moderation.switchedToViewMode",
-        edit: "moderation.switchedToEditMode",
-        moderation: "moderation.switchedToModerationMode",
-      };
+    const modeSummaryKeys: Record<AppMode, string> = {
+      view: "moderation.switchedToViewMode",
+      edit: "moderation.switchedToEditMode",
+      moderation: "moderation.switchedToModerationMode",
+    };
 
-      toastInfo(getModeTooltip(), t(modeSummaryKeys[newMode]));
-    }
-  } catch (error) {
-    console.error("Error toggling mode:", error);
-    toastError(t("moderation.modeSwitchErrorDetail"), t("moderation.modeSwitchError"));
-  } finally {
-    isSwitchingMode = false;
+    toastInfo(getModeTooltip(), t(modeSummaryKeys[newMode]));
   }
 }
 </script>

@@ -1,3 +1,4 @@
+import { reactive } from "vue";
 import type {
   Marker as MaplibreMarker,
   ImageSource,
@@ -342,8 +343,9 @@ function getVectorLayersBottomId(mlMap: MaplibreMap): string | undefined {
 
 // Overlay IDs the user pinned to the front (above the geometry); otherwise inter-image order follows
 // selection (clicked image rises to its band top). Held off the handle so the choice survives handle
-// re-creation (zoom threshold crossing, style switch, viewport re-entry).
-const frontOverlayIds = new Set<string>();
+// re-creation (zoom threshold crossing, style switch, viewport re-entry). Reactive so UI state
+// (front/back toggle) can be computed from it.
+const frontOverlayIds = reactive(new Set<string>());
 
 // Per-overlay raster opacity (0..1), held off the handle for the same reason. Absent = full opacity.
 const overlayOpacities = new Map<string, number>();

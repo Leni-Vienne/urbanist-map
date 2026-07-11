@@ -183,7 +183,7 @@ const isEditMode = computed(() => mode.value === "edit");
 // MapLibre handles pan + zoom positioning via a transform on the element automatically.
 const markerIconEl = ref<HTMLElement | null>(null);
 const opacity = ref(100);
-const isInFront = ref(false);
+const isInFront = computed(() => (selectedId.value ? isOverlayInFront(selectedId.value) : false));
 const canStack = ref(false);
 const isCropActive = ref(false);
 
@@ -280,7 +280,6 @@ function initForSelection() {
   cancelImageWait = null;
   createMarker(lngLat);
   opacity.value = readOpacity();
-  isInFront.value = selectedId.value ? isOverlayInFront(selectedId.value) : false;
   refreshCanStack();
   startAnchorSync();
 }
@@ -387,9 +386,7 @@ function onOpacityInput(e: Event) {
 function toggleStacking() {
   const id = selectedId.value;
   if (!id) return;
-  const next = !isInFront.value;
-  setOverlayInFront(id, next);
-  isInFront.value = next;
+  setOverlayInFront(id, !isInFront.value);
 }
 
 function onSave() {

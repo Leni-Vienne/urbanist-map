@@ -15,8 +15,8 @@ type PreviewState =
   | { type: "none" }
   | { type: "current"; changeId: string; overlayId: string }
   | { type: "suggested"; changeId: string; overlayId: string }
-  | { type: "project-current"; changeId: string; projectId: string }
-  | { type: "project-suggested"; changeId: string; projectId: string };
+  | { type: "project-current"; changeId: string }
+  | { type: "project-suggested"; changeId: string };
 
 // The side of a change request the user explicitly asked to preview. Stale intent (its change
 // request resolved, or its entity no longer selected) is inert rather than cleared: previewState
@@ -90,7 +90,6 @@ export const useChangeRequestStore = defineStore("changeRequest", () => {
     return {
       type: side === "suggested" ? "project-suggested" : "project-current",
       changeId: shapesChange.id,
-      projectId: shapesChange.entityId,
     };
   });
 

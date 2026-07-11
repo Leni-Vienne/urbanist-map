@@ -609,8 +609,6 @@
     "switchedToViewMode": "Mode consultation activé",
     "switchedToModerationMode": "Mode modération activé",
     "clickAgainToAdd": "Cliquez à nouveau sur le bouton pour ajouter une image",
-    "modeSwitchError": "Erreur de changement de mode",
-    "modeSwitchErrorDetail": "Échec du changement de mode. Veuillez réessayer.",
     "undoAction": "Annuler {action} {entity} : {name}",
     "changeApproved": "Modification approuvée",
     "changeApprovedDetail": "La modification a été appliquée avec succès",

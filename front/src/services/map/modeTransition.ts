@@ -9,7 +9,7 @@ import { useMapStore } from "@/stores/mapStore";
 import { registerOnce } from "@/utils/registerOnce";
 import type { AppMode } from "@shared/types";
 
-export type ModeTransitionHook = (newMode: AppMode, oldMode: AppMode) => void | Promise<void>;
+type ModeTransitionHook = (newMode: AppMode, oldMode: AppMode) => void | Promise<void>;
 
 const hooks: { name: string; run: ModeTransitionHook }[] = [];
 
