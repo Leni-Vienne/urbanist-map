@@ -176,6 +176,9 @@ watch(
     if (user) {
       try {
         await moderatedContributionsStore.preloadModeratedContributions();
+        // A logout (or account switch) during the fetch would otherwise surface the previous
+        // user's contributions: the store is not cleared on logout.
+        if (authStore.user?.id !== user.id) return;
         const hasContributions = moderatedContributionsStore.moderatedContributions.length > 0;
         uiStore.hasUnacknowledgedModeratedContributions = hasContributions;
         if (hasContributions) {

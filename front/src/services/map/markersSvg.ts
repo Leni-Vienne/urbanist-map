@@ -31,20 +31,18 @@ const OVERLAY_FRAME_ICON = `
 interface MarkerSVGOptions {
   width: number;
   height: number;
-  // Gradient id suffix: "" for overlay markers, "-standalone" for plain project markers.
-  gradientSuffix: string;
   ariaLabel: string;
   innerGlyph?: string;
 }
 
-// References gradients defined globally in MapSvgDefs.vue: g-[color][suffix], shadow-grad-[color][suffix].
+// The g-[color] and shadow-grad gradients must exist in the document (see MapSvgDefs).
 function buildMarkerSVG(color: MarkerColor, opts: MarkerSVGOptions): string {
   return `
     <svg xmlns="http://www.w3.org/2000/svg" width="${opts.width}" height="${opts.height}" viewBox="0 0 50 82" role="img" aria-label="${opts.ariaLabel}">
       <ellipse cx="38" cy="80" rx="18" ry="6"
-               fill="url(#shadow-grad-${color}${opts.gradientSuffix})" transform="rotate(-8 38 80)"/>
+               fill="url(#shadow-grad)" transform="rotate(-8 38 80)"/>
       <path d="${PIN_BODY_PATH}"
-            fill="url(#g-${color}${opts.gradientSuffix})" stroke="rgba(0,0,0,0.3)" stroke-width="1.5" />
+            fill="url(#g-${color})" stroke="rgba(0,0,0,0.3)" stroke-width="1.5" />
       <circle cx="25" cy="25" r="9.5" fill="#ffffff" stroke="#e6f2ff" stroke-width="1"/>${opts.innerGlyph ?? ""}
     </svg>
   `;
@@ -55,7 +53,6 @@ function createOverlayMarkerSVG(color: MarkerColor): string {
   return buildMarkerSVG(color, {
     width: 32,
     height: 40,
-    gradientSuffix: "",
     ariaLabel: "Map pin",
     innerGlyph: OVERLAY_FRAME_ICON,
   });
@@ -66,7 +63,6 @@ function createProjectPinSVG(color: MarkerColor): string {
   return buildMarkerSVG(color, {
     width: markerSize,
     height: markerHeight,
-    gradientSuffix: "-standalone",
     ariaLabel: "Project marker",
   });
 }

@@ -47,7 +47,19 @@ let editSessionProjects: EditSessionProjects = [];
 let moderationOverlays: OverlayData[] = [];
 let moderationProjects: ModerationProjects = [];
 
+// Mode transitions are not serialized and the country selection can change mid-flight, so a fetch
+// may resolve after the state it was issued for is gone. Every fetch takes a token and applies its
+// rows only while that token is still current; starting a fetch or clearing the lists invalidates
+// whatever is in flight.
+let sessionFetchToken = 0;
+
+function beginSessionFetch(): number {
+  sessionFetchToken += 1;
+  return sessionFetchToken;
+}
+
 function clearMapSessionLists(): void {
+  sessionFetchToken += 1;
   editSessionOverlays = [];
   editSessionProjects = [];
   moderationOverlays = [];
@@ -69,12 +81,14 @@ async function refreshEditSessionData(): Promise<void> {
     return;
   }
 
+  const token = beginSessionFetch();
   const rows = await loadOrNull(async () => trpc.viewport.getEditSessionData.query(), {
     errorMessage: "Failed to fetch edit session data",
   });
 
   // Keep the previous lists on transient failure rather than dropping the session set.
   if (!rows) return;
+  if (token !== sessionFetchToken) return;
 
   editSessionOverlays = rows.overlays.map(overlayWireToData);
   editSessionProjects = rows.projects;
@@ -98,6 +112,7 @@ async function refreshModerationMapData(): Promise<void> {
   }
 
   // No errorMessage: a country-permission rejection is swallowed quietly (logged, not toasted).
+  const token = beginSessionFetch();
   const rows = await loadOrNull(async () =>
     trpc.viewport.getModerationMapData.query({
       countryCode: mapStore.selectedCountryCode ?? undefined,
@@ -105,6 +120,7 @@ async function refreshModerationMapData(): Promise<void> {
   );
 
   if (!rows) return;
+  if (token !== sessionFetchToken) return;
 
   moderationOverlays = rows.overlays.map(overlayWireToData);
   moderationProjects = rows.projects;

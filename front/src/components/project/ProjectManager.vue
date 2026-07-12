@@ -2,16 +2,17 @@
   <!-- Project Dialog for create/edit -->
   <CreateProjectDialog
     v-if="uiStore.projectDialog.visible"
-    v-model:visible="uiStore.projectDialog.visible"
+    :visible="uiStore.projectDialog.visible"
     :project="uiStore.projectDialog.project ?? {}"
     @submit="handleProjectSubmitted"
     @cancel="uiStore.closeProjectDialog"
+    @update:visible="uiStore.closeProjectDialog"
   />
 
   <!-- Project Edit Form Dialog -->
   <Dialog
     v-if="projectEditForm.visible"
-    v-model:visible="projectEditForm.visible"
+    :visible="projectEditForm.visible"
     :modal="true"
     :closable="true"
     :draggable="false"

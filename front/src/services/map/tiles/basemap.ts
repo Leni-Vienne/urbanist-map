@@ -480,11 +480,19 @@ async function resolveSatelliteLayer(): Promise<SatelliteLayerType> {
   return detectedCountry ?? "esri";
 }
 
-/** Switch to a different tile layer. */
+let tileLayerSwitchGeneration = 0;
+
+/** Switch to a different tile layer. The most recent call wins. */
 export async function switchTileLayer(layerType: TileLayerType): Promise<void> {
+  const generation = ++tileLayerSwitchGeneration;
+
   // When switching to satellite, jump directly to the country-specific layer to avoid a
   // brief flash of the generic ESRI layer.
   const resolvedLayerType = layerType === "esri" ? await resolveSatelliteLayer() : layerType;
+
+  if (generation !== tileLayerSwitchGeneration) {
+    return;
+  }
 
   if (currentTileLayer.value === resolvedLayerType) {
     return;
@@ -614,14 +622,20 @@ async function fetchEsriMaxZoom(lat: number, lng: number): Promise<number> {
 
 /** Switch the satellite layer based on the map view location and zoom. */
 async function checkAndAutoSwitchSatelliteLayer() {
-  if (currentTileLayer.value === "plan") {
+  const layerBeforeResolve: TileLayerType = currentTileLayer.value;
+  if (layerBeforeResolve === "plan") {
     return;
   }
 
   const targetLayer = await resolveSatelliteLayer();
-  if (currentTileLayer.value !== targetLayer) {
-    await switchTileLayer(targetLayer);
+
+  // The user may have switched to plan while the country was being resolved.
+  const layerAfterResolve: TileLayerType = currentTileLayer.value;
+  if (layerAfterResolve === "plan" || layerAfterResolve === targetLayer) {
+    return;
   }
+
+  await switchTileLayer(targetLayer);
 }
 
 /** Listen for map movements to maintain the satellite basemap (country switch + Esri max zoom). */
