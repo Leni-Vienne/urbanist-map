@@ -14,7 +14,8 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useMapStore } from "@/stores/mapStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useUiStore } from "@/stores/uiStore";
-import { isOverlayUnsaved } from "@/utils/unsavedState";
+import { isOverlayUnsaved } from "@/services/overlay/unsavedState";
+import { registerOnce } from "@/utils/registerOnce";
 import { watch } from "vue";
 
 import { useFocusStore } from "@/stores/focusStore";
@@ -678,12 +679,7 @@ function getHiddenProjectIds(): string[] {
   return hiddenProjectIdsCache;
 }
 
-let isHiddenProjectsWatcherInitialized = false;
-
-function initHiddenProjectsWatcher(): void {
-  if (isHiddenProjectsWatcherInitialized) return;
-  isHiddenProjectsWatcherInitialized = true;
-
+function registerHiddenProjectsWatcher(): void {
   watch(
     () => computeHiddenProjectIds().toSorted().join("|"),
     (key) => {
@@ -694,6 +690,8 @@ function initHiddenProjectsWatcher(): void {
     { immediate: true },
   );
 }
+
+const initHiddenProjectsWatcher = registerOnce(registerHiddenProjectsWatcher);
 
 function computeHiddenOverlayIds(): string[] {
   const store = useOverlayStore();
@@ -715,8 +713,6 @@ function computeHiddenOverlayIds(): string[] {
 function getHiddenOverlayIds(): string[] {
   return hiddenOverlayIdsCache;
 }
-
-let isHiddenOverlaysWatcherInitialized = false;
 
 // Footprint border/fill filter: locally hidden/edited overlays + the tag, status, name, and date
 // filters (kept in sync with the images, which vectorTileSync applies the same filters to
@@ -740,10 +736,7 @@ function applyFootprintLayerFilters(mlMap: MaplibreMap): void {
   }
 }
 
-function initHiddenOverlaysWatcher(): void {
-  if (isHiddenOverlaysWatcherInitialized) return;
-  isHiddenOverlaysWatcherInitialized = true;
-
+function registerHiddenOverlaysWatcher(): void {
   // Watch a canonical string key (not the array) so the callback only fires when the hidden-id
   // SET actually changes, instead of on every reactive read that rebuilds an identical array.
   watch(
@@ -755,6 +748,8 @@ function initHiddenOverlaysWatcher(): void {
     },
   );
 }
+
+const initHiddenOverlaysWatcher = registerOnce(registerHiddenOverlaysWatcher);
 
 const VECTOR_SOURCE = "project-sources";
 const PENDING_POINTS_SOURCE = "pending-project-points-source";
@@ -920,12 +915,17 @@ async function handlePointFeatureClick(pointFeature: RenderedMapFeature): Promis
   await handleProjectClickFromTile(projectId);
 }
 
-export function registerHybridInteractionHandlers(): void {
+function registerSelectedHoverWatcher(): void {
   const focusStore = useFocusStore();
   watch([() => focusStore.highlightedProjectId, () => focusStore.highlightedOverlayId], () => {
     setSelectedHoverState(map.value);
   });
+}
 
+// Reads map.value inside its callback, so it follows a map instance swap.
+const initializeSelectedHoverWatcher = registerOnce(registerSelectedHoverWatcher);
+
+function registerMapInteractionListeners(mlMap: MaplibreMap): void {
   // queryRenderedFeatures is synchronous and walks MapLibre's internal feature tree.
   // mousemove fires at up to 500+/sec, which would saturate the main thread.
   // Throttling to ~30fps caps the cost to ~8ms/s instead of ~460ms/s.
@@ -934,7 +934,6 @@ export function registerHybridInteractionHandlers(): void {
   let hoverTrailingEvent: { event: MapMouseEvent; clientX: number; clientY: number } | null = null;
 
   function processHover(event: MapMouseEvent, clientX: number, clientY: number): void {
-    const mlMap = map.value;
     const features = queryFeaturesAtPoint(
       event.point,
       mlMap,
@@ -963,7 +962,7 @@ export function registerHybridInteractionHandlers(): void {
     updateHoverPreview(vectorFeature, pointFeature, clientX, clientY);
   }
 
-  map.value.on("mousemove", (event: MapMouseEvent) => {
+  mlMap.on("mousemove", (event: MapMouseEvent) => {
     const orig = event.originalEvent;
     if ("pointerType" in orig && (orig as PointerEvent).pointerType === "touch") {
       return;
@@ -993,8 +992,7 @@ export function registerHybridInteractionHandlers(): void {
     processHover(event, clientX, clientY);
   });
 
-  map.value.on("mouseout", () => {
-    const mlMap = map.value;
+  mlMap.on("mouseout", () => {
     mlMap.getContainer().classList.remove("cursor-pointer");
     clearHoverPreview();
 
@@ -1006,12 +1004,11 @@ export function registerHybridInteractionHandlers(): void {
   // The card is anchored to cursor pixels, but MapLibre stops firing mousemove during a
   // drag-pan, so it would freeze on screen while the map slides underneath. Hide it instead.
   // Right-click drag rotates/pitches without firing dragstart, so clear on those too.
-  map.value.on("dragstart", clearHoverPreview);
-  map.value.on("rotatestart", clearHoverPreview);
-  map.value.on("pitchstart", clearHoverPreview);
+  mlMap.on("dragstart", clearHoverPreview);
+  mlMap.on("rotatestart", clearHoverPreview);
+  mlMap.on("pitchstart", clearHoverPreview);
 
-  map.value.on("click", (event: MapMouseEvent) => {
-    const mlMap = map.value;
+  mlMap.on("click", (event: MapMouseEvent) => {
     clearHoverPreview();
 
     const features = queryFeaturesAtPoint(
@@ -1039,6 +1036,21 @@ export function registerHybridInteractionHandlers(): void {
 
     handleBackgroundClick(event.lngLat);
   });
+}
+
+// The map instance whose listeners are already attached. MapLibre listeners live on the instance and
+// survive setStyle(), which re-runs this path, but a MapView remount builds a fresh instance that
+// needs its own set.
+let interactionListenersMap: MaplibreMap | null = null;
+
+/** Hover/click handlers for the vector tile layers. */
+export function initializeHybridInteractionHandlers(): void {
+  initializeSelectedHoverWatcher();
+
+  const mlMap = map.value;
+  if (interactionListenersMap === mlMap) return;
+  interactionListenersMap = mlMap;
+  registerMapInteractionListeners(mlMap);
 }
 
 // Per-selected-tag project counts for a hovered cluster, read from the count_<tag>/count_untagged
@@ -1378,7 +1390,6 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     },
   });
 
-  // ── Pending points GeoJSON source ──
   mlMap.addSource("pending-project-points-source", {
     type: "geojson",
     data: {
@@ -1388,7 +1399,6 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     promoteId: "id",
   });
 
-  // ── Pending shapes GeoJSON source ──
   mlMap.addSource("pending-project-shapes-source", {
     type: "geojson",
     data: {
@@ -1416,7 +1426,6 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     },
   });
 
-  // Pending shapes fill
   mlMap.addLayer(
     {
       id: "pending-project-shapes-fill",
@@ -1534,7 +1543,6 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     FOOTPRINT_BAND_BEFORE_ID,
   );
 
-  // Pending overlay footprints fill
   mlMap.addLayer(
     {
       id: "pending-overlay-footprints-fill",
@@ -1569,7 +1577,6 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     FOOTPRINT_BAND_BEFORE_ID,
   );
 
-  // Apply current tag filters to MVT layers
   applyTagFiltersToVectorLayers(mlMap);
 
   initHiddenProjectsWatcher();

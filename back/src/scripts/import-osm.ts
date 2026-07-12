@@ -265,7 +265,7 @@ async function waitForDb(): Promise<void> {
 // Flush a batch of rows to the database via a single multi-row upsert.
 // Falls back to individual inserts if the batch fails (e.g. bad geometry on one row).
 // Retries the whole batch if a transient connection error is detected.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line no-explicit-any
 async function flushBatch(batch: any[]): Promise<{ ok: number; fail: number }> {
   if (batch.length === 0) return { ok: 0, fail: 0 };
   // Rows with import_locked_at set carry a moderator-approved user edit; the upsert skips them
@@ -532,7 +532,7 @@ async function main() {
     // the geography computations across all rows in one pass.
     // any[] because SQL<unknown> expressions for geometry/centerCoordinate are valid at runtime
     // but not assignable to the strict $inferInsert column types
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line no-explicit-any
     const pendingRows: any[] = [];
 
     for (let i = 0; i < geojson.features.length; i++) {

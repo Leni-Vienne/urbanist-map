@@ -4,7 +4,7 @@
     modal
     :header="$t('moderation.replacementConflicts.title')"
     :style="{ width: '700px', maxHeight: '80vh' }"
-    @update:visible="handleVisibilityChange"
+    @update:visible="onDialogToggle"
   >
     <div v-if="conflicts" class="flex flex-col gap-6">
       <!-- Image Comparison -->
@@ -149,7 +149,6 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
 import { buildImageUrl, buildThumbnailUrl } from "@/utils/imageUrl";
 import { useI18n } from "vue-i18n";
 import { formatDate } from "@/utils/dateFormat";
@@ -182,37 +181,30 @@ export interface ReplacementConflicts {
 }
 
 interface Props {
-  visible: boolean;
   conflicts: ReplacementConflicts | null;
   isLoading?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   isLoading: false,
 });
 
 const emit = defineEmits<{
-  "update:visible": [value: boolean];
   confirm: [];
   cancel: [];
 }>();
 
-const isVisible = ref(props.visible);
+const isVisible = defineModel<boolean>("visible", { default: false });
 
-watch(
-  () => props.visible,
-  (newValue) => {
-    isVisible.value = newValue;
-  },
-);
-
-function handleVisibilityChange(value: boolean) {
-  emit("update:visible", value);
+function onDialogToggle(value: boolean) {
+  if (!value) {
+    emit("cancel");
+  }
 }
 
 function handleCancel() {
-  emit("cancel");
   isVisible.value = false;
+  emit("cancel");
 }
 
 function handleConfirm() {

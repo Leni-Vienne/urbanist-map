@@ -236,7 +236,6 @@ const hasExistingRender = computed(() => {
   return Boolean(projectId && projectStore.projects[projectId]?.render);
 });
 
-// Computed visibility from store
 const isVisible = computed({
   get: () => uiStore.imageUploadDialog.visible,
   set: (value: boolean) => {

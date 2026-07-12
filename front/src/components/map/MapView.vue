@@ -59,19 +59,19 @@
 <script setup lang="ts">
 import { toastError } from "@/services/core/toast";
 
-import { ref, onMounted, onUnmounted, nextTick, defineAsyncComponent, watch } from "vue";
+import { ref, onMounted, onUnmounted, nextTick, defineAsyncComponent } from "vue";
 
 import { initializeMap, map } from "@/services/core/map";
-import { initializeEditorTriggers } from "@/services/overlay/editing";
 import { addTileLayer } from "@/services/map/tiles/basemap";
 import { initVectorTileSync } from "@/services/map/tiles/sync";
+import { initializeMapGlobalWatchers } from "@/services/map/globalWatchers";
+import { clearOverlayRenderState } from "@/services/overlay/teardown";
 
 import { useI18n } from "vue-i18n";
 import {
   refreshViewport,
   setupEventListeners,
   cleanupEventListeners,
-  setupModeWatcher,
 } from "@/services/map/viewportTriggers";
 import { useMapStore } from "@/stores/mapStore";
 import { useFocusStore } from "@/stores/focusStore";
@@ -98,15 +98,6 @@ const authStore = useAuthStore();
 const { t } = useI18n();
 const isLoading = ref(true);
 
-watch(
-  () => authStore.user,
-  (newUser) => {
-    if (!newUser) {
-      mapStore.setMode("view");
-    }
-  },
-);
-
 onMounted(async () => {
   await initializeMapAndOverlays();
   isLoading.value = false;
@@ -114,12 +105,14 @@ onMounted(async () => {
 
 onUnmounted(() => {
   cleanupEventListeners();
+  // Drop layers/markers off the outgoing map instance while it is still alive, so the registry is
+  // empty when the reconciler rebuilds them on the next map. Overlay store data is kept.
+  clearOverlayRenderState();
 });
 
 async function initializeMapAndOverlays() {
   try {
     initializeMap();
-    initializeEditorTriggers();
 
     setupEventListeners();
 
@@ -140,7 +133,7 @@ async function initializeMapAndOverlays() {
       console.error("Map not available for camera bounds tracking");
     }
 
-    setupModeWatcher();
+    initializeMapGlobalWatchers();
   } catch (error) {
     console.error("Error initializing map and overlays:", error);
     toastError(t("pages.home.errors.initializationError"));

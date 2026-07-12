@@ -25,7 +25,7 @@ export function useModerationCountrySelector({ onCountryDataNeeded }: Options) {
   const selectedCountryCode = computed({
     get: () => mapStore.selectedCountryCode,
     set: (code) => {
-      mapStore.selectedCountryCode = code;
+      mapStore.setSelectedCountryCode(code);
     },
   });
 
@@ -59,8 +59,8 @@ export function useModerationCountrySelector({ onCountryDataNeeded }: Options) {
     }
   }
 
-  // The dropdown's v-model already wrote the new value to mapStore. The watcher
-  // below handles data invalidation; this handler only flies to the country.
+  // The dropdown's v-model already wrote the new value via the store setter (which
+  // invalidates the list); this handler only flies to the country.
   function handleCountryChange() {
     if (mapStore.selectedCountryCode) {
       flyToCountry(mapStore.selectedCountryCode);
@@ -81,13 +81,12 @@ export function useModerationCountrySelector({ onCountryDataNeeded }: Options) {
     }
   }
 
-  // Any change to the active country (dropdown, map click, external nav) needs
-  // to invalidate the moderation list and refetch.
+  // mapStore.setSelectedCountryCode already invalidated the list on any country change
+  // (dropdown, map click, external nav); this watcher does the refetch, which is only
+  // needed while the panel is mounted.
   watch(
     () => mapStore.selectedCountryCode,
-    (newCode, oldCode) => {
-      if (newCode === oldCode) return;
-      moderationStore.resetModerationLoaded();
+    (newCode) => {
       if (newCode) {
         void onCountryDataNeeded();
       }
@@ -122,7 +121,7 @@ export function useModerationCountrySelector({ onCountryDataNeeded }: Options) {
     const country = availableCountries.value[0];
     if (!country) throw new Error("No country found");
 
-    mapStore.selectedCountryCode = country.code;
+    mapStore.setSelectedCountryCode(country.code);
     flyToCountry(country.code);
   }
 

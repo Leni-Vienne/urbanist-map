@@ -4,7 +4,7 @@
     <SideMenu v-if="!isMobile" />
 
     <!-- Mobile Bottom Drawer -->
-    <MobileDrawer v-if="isMobile" v-model:visible="mobileSideMenuOpen" />
+    <MobileDrawer v-if="isMobile" />
 
     <div class="grow flex flex-col relative">
       <!-- Info message banner (displayed at top when config.infoMessage is set) -->
@@ -87,7 +87,6 @@ import { showSubmissionDialog } from "@/services/submission/submissionDialogStat
 
 import { useTabNavigation } from "@/composables/layout/useTabNavigation";
 import { handleProjectDeepLink } from "@/services/project/projectDeepLink";
-import { useFocusStore } from "@/stores/focusStore";
 import { selectProject } from "@/services/map/projectSelection";
 import { useModeratedContributionsStore } from "@/stores/moderatedContributionsStore";
 
@@ -177,6 +176,9 @@ watch(
     if (user) {
       try {
         await moderatedContributionsStore.preloadModeratedContributions();
+        // A logout (or account switch) during the fetch would otherwise surface the previous
+        // user's contributions: the store is not cleared on logout.
+        if (authStore.user?.id !== user.id) return;
         const hasContributions = moderatedContributionsStore.moderatedContributions.length > 0;
         uiStore.hasUnacknowledgedModeratedContributions = hasContributions;
         if (hasContributions) {
@@ -190,13 +192,6 @@ watch(
   { immediate: true },
 );
 
-const mobileSideMenuOpen = computed({
-  get: () => uiStore.mobileDrawerVisible,
-  set: (value) => {
-    uiStore.mobileDrawerVisible = value;
-  },
-});
-
 const windowWidth = ref(typeof globalThis !== "undefined" ? globalThis.innerWidth : 1024);
 const isMobile = computed(() => windowWidth.value <= 768);
 
@@ -204,28 +199,12 @@ function updateWindowWidth() {
   windowWidth.value = globalThis.innerWidth;
 }
 
-// A selected map feature drives the docked mobile drawer into its detail state, so make sure it
-// is open whenever a selection appears. The drawer keeps its current height (the camera centers
-// the feature in the map area above it), and the user can drag it taller to read more. The
-// desktop side menu is always open, so it needs no handling here.
-const focusStore = useFocusStore();
-const detailActive = computed(() => focusStore.detailVisible);
-
-watch(detailActive, (active) => {
-  if (!active) return;
-  if (isMobile.value) {
-    uiStore.mobileDrawerVisible = true;
-  }
-});
-
 async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
   const project = uiStore.shapeEditor.project;
   const reopen = uiStore.shapeEditor.reopen;
   if (!project) return;
   // Ensure the project is in the store so updateProject doesn't fall back to a default with null status.
-  if (!projectStore.projects[project.id]) {
-    projectStore.projects[project.id] = project;
-  }
+  projectStore.addProject(project);
   projectStore.updateProject(project.id, { geometry, isModified: true });
   await stopShapeEditing();
   // Re-render updated shapes immediately: the editor's own layers are gone after teardown,

@@ -218,31 +218,26 @@ const isLoading = computed(
 // Track which overlay positions have been viewed by the moderator (using array for better reactivity)
 const viewedOverlayIds = ref<string[]>([]);
 
-// Track which change request suggested positions have been viewed
+/* Track which change request suggested positions have been viewed */
 const viewedChangeRequestIds = ref<string[]>([]);
 
-// Replacement conflicts dialog state
 const showConflictsDialog = ref(false);
 const pendingConflicts = ref<ReplacementConflicts | null>(null);
 const pendingOverlayId = ref<string | null>(null);
 const isProcessingConflicts = ref(false);
 
-// Report user dialog state
 const showReportDialog = ref(false);
 const userToReport = ref<string | null>(null);
 
-// Rejection confirmation dialog state
 const showRejectConfirmDialog = ref(false);
 const isProcessingRejection = ref(false);
 
-// Pending rejection state (stores type, id, and userId for report functionality)
 const pendingRejection = ref<{
   type: "project" | "overlay" | "change";
   id: string;
   userId: string | null;
 } | null>(null);
 
-// Dialog state for user stats
 const showUserStatsDialog = ref(false);
 const userStatsDialogData = ref({
   userId: null as string | null,
@@ -290,7 +285,6 @@ watch(showReportDialog, (isOpen) => {
   }
 });
 
-// Handle overlay zoom and mark as viewed
 async function handleViewOverlayPosition(overlay: Overlay, shouldFitBounds: boolean) {
   if (!viewedOverlayIds.value.includes(overlay.id)) {
     viewedOverlayIds.value.push(overlay.id);
@@ -411,21 +405,18 @@ async function handleConfirmReplacement() {
   }
 }
 
-// Handle cancellation from replacement conflicts dialog
 function handleCancelReplacement() {
   showConflictsDialog.value = false;
   pendingOverlayId.value = null;
   pendingConflicts.value = null;
 }
 
-// Open report user dialog
 function openReportDialog(userId: string | null) {
   if (!userId) return;
   userToReport.value = userId;
   showReportDialog.value = true;
 }
 
-// Open user stats dialog
 function handleShowUserStats(data: {
   userId: string;
   username?: string | null;

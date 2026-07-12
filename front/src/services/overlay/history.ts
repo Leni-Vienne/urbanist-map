@@ -1,6 +1,12 @@
 import type { NormalizedRect, OverlayHistoryState, LatLng } from "@/types/index";
 import { useOverlayStore } from "@/stores/overlayStore";
-import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
+import { useFocusStore } from "@/stores/focusStore";
+import {
+  getOverlayImageCorners,
+  getImageHandle,
+  deriveOverlayFilename,
+  scheduleOverlayReconcile,
+} from "@/services/overlay/mapLayers";
 import { isValidQuad, getEditModeRestingCorners } from "@/services/overlay/transform";
 
 // Build a history step, cloning corners so later mutations don't alias a stored step.
@@ -44,4 +50,62 @@ export function commitOverlayEdit(id: string, cropRect?: NormalizedRect): void {
   }
 
   overlayStore.commitHistory(id, [...baseHistory, currentState]);
+}
+
+export function undo() {
+  applyHistoryAction("undo");
+}
+
+export function redo() {
+  applyHistoryAction("redo");
+}
+
+function applyHistoryAction(action: "undo" | "redo") {
+  const overlayStore = useOverlayStore();
+
+  const id = useFocusStore().selectedOverlayId;
+  if (!id || !getImageHandle(id)) return;
+
+  const target = action === "undo" ? overlayStore.undoHistory(id) : overlayStore.redoHistory(id);
+  if (!target) return;
+
+  // A step from before a crop carries a different image; sync the canonical imageUrl so the
+  // reconciler swaps the source. Position and marker convergence follow from the moved history top.
+  const overlay = overlayStore.liveOverlays[id];
+  if (overlay && overlay.imageUrl !== target.imageUrl) {
+    overlayStore.updateOverlay(id, {
+      imageUrl: target.imageUrl,
+      filename: deriveOverlayFilename(id, target.imageUrl, overlay.filename),
+    });
+  }
+
+  scheduleOverlayReconcile();
+}
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  return ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
+}
+
+function handleKeyDown(event: KeyboardEvent) {
+  // Let the browser's native undo/redo win while typing in a field, otherwise the global
+  // capture-phase handler would also revert the selected overlay's position.
+  if (isEditableTarget(event.target)) return;
+
+  // Ctrl+Z
+  if (event.ctrlKey && !event.shiftKey && event.key.toLowerCase() === "z") {
+    undo();
+    // Ctrl+Y (AZERTY) or Ctrl+Shift+Z (QWERTY)
+  } else if (
+    event.ctrlKey &&
+    (event.key.toLowerCase() === "y" || (event.shiftKey && event.key.toLowerCase() === "z"))
+  ) {
+    redo();
+  }
+}
+
+/** Document-level undo/redo shortcuts. */
+export function initializeKeyboardShortcuts(): void {
+  globalThis.addEventListener("keydown", handleKeyDown, true);
 }

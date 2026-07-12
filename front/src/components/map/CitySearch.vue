@@ -73,6 +73,7 @@ const selectedCity = ref<BoundarySearchResult | null>(null);
 const suggestions = ref<BoundarySearchResult[]>([]);
 const isLoading = ref(false);
 let searchTimeout: ReturnType<typeof setTimeout> | null = null;
+let latestSearchId = 0;
 
 // Prefer the name in the current UI locale, falling back to English, then the boundary's local name.
 function localizedName(level: LocalizedBoundaryName | null): string | null {
@@ -111,6 +112,7 @@ async function onSearch(event: { query: string }) {
   }
 
   searchTimeout = setTimeout(async () => {
+    const searchId = ++latestSearchId;
     isLoading.value = true;
     try {
       const center = map.value.getCenter();
@@ -129,9 +131,16 @@ async function onSearch(event: { query: string }) {
         }),
       );
 
+      // A slower earlier request must not overwrite the newest query's results.
+      if (searchId !== latestSearchId) {
+        return;
+      }
+
       suggestions.value = results ? results.map((boundary) => buildDisplay(boundary)) : [];
     } finally {
-      isLoading.value = false;
+      if (searchId === latestSearchId) {
+        isLoading.value = false;
+      }
     }
   }, 300);
 }
@@ -163,7 +172,7 @@ function navigateToCity(
   target?: { bbox?: BoundaryBbox; coords?: { lat: number; lng: number } },
 ): void {
   const mapStore = useMapStore();
-  mapStore.selectedCountryCode = countryCode;
+  mapStore.setSelectedCountryCode(countryCode);
 
   if (target?.bbox) {
     const { minLng, minLat, maxLng, maxLat } = target.bbox;

@@ -31,13 +31,14 @@ export type MarkerColor = "blue" | "green" | "orange" | "red" | "yellow" | "purp
 // Which pipeline built an OverlayData object. Tile-sourced data carries no change-request state.
 type OverlayDataSource = "tile" | "bbox" | "local";
 
-// Where an overlay's edit-session display rests.
-//   "baseline": no open change request; rests at approved corners.
-//   "suggested": open change request; rests on its proposed state (caption-only CRs included, whose
-//     proposed corners resolve to baseline).
-//   "approved-toggled": open change request; user explicitly viewing the approved state.
-//   "staged": unsubmitted corner edits; the position is the top of the undo history.
-export type OverlayPositionState = "baseline" | "suggested" | "staged" | "approved-toggled";
+/**
+ * Where an overlay's edit-session display rests.
+ * - `baseline`: no open change request; rests at approved corners.
+ * - `suggested`: open change request; rests on its proposed state (caption-only CRs included, whose
+ *   proposed corners resolve to baseline).
+ * - `approved-toggled`: open change request; user explicitly viewing the approved state.
+ * - `staged`: unsubmitted corner edits; the position is the top of the undo history.
+ */ export type OverlayPositionState = "baseline" | "suggested" | "staged" | "approved-toggled";
 
 export type PendingChangeRequest =
   RouterOutput["moderation"]["getPendingSubmissions"]["changeRequests"][0];
@@ -175,14 +176,12 @@ export interface OverlayHistoryState {
 }
 
 export interface OverlayObject extends OverlayData {
-  // Computed fields
   imageUrl: string;
 
   // Editor state
   history: OverlayHistoryState[];
   redoStack: OverlayHistoryState[];
   isTooBig?: boolean; // Flag for real-time size validation warning
-  // Where the overlay's edit-session display rests (baseline / suggested / staged / approved-toggled).
   positionState: OverlayPositionState;
 }
 

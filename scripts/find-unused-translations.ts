@@ -95,10 +95,97 @@ function findDynamicPrefixes(fileContents: Map<string, string>): Set<string> {
   return dynamicPrefixes;
 }
 
+// Extract keys referenced from real i18n call sites only: t('key'), $t('key')
+// (single/double/backtick, static) and <i18n-t keypath="key">. High precision,
+// used for missing-key detection (unlike isKeyUsed, no bare-string heuristics).
+function extractReferencedKeys(fileContents: Map<string, string>): Set<string> {
+  const referenced = new Set<string>();
+
+  // (?<![\w$]) avoids matching the trailing t( of words like format(, insert()
+  const tCallRegex = /(?<![\w$])\$?t\(\s*["'`]([^"'`$]+)["'`]/g;
+  const keypathRegex = /keypath\s*=\s*["']([^"']+)["']/g;
+
+  for (const content of fileContents.values()) {
+    let match;
+
+    while ((match = tCallRegex.exec(content)) !== null) {
+      referenced.add(match[1]);
+    }
+
+    while ((match = keypathRegex.exec(content)) !== null) {
+      referenced.add(match[1]);
+    }
+  }
+
+  return referenced;
+}
+
+// Report referenced keys that are absent from the reference locale and not
+// covered by a dynamic or ignored prefix (i.e. broken/typo t() call sites).
+function reportMissingKeys(
+  referencedKeys: Set<string>,
+  referenceKeys: Set<string>,
+  ignoredPrefixes: Set<string>,
+): void {
+  const missing = [...referencedKeys]
+    .filter((key) => !referenceKeys.has(key))
+    .filter((key) => ![...ignoredPrefixes].some((prefix) => key.startsWith(prefix)))
+    .sort();
+
+  console.log(
+    `\n🔎 Checking ${referencedKeys.size} referenced keys against the reference locale...`,
+  );
+
+  if (missing.length === 0) {
+    console.log("   ✅ No missing keys referenced in code!");
+    return;
+  }
+
+  console.log(
+    `   ⚠️  Found ${missing.length} keys referenced in code but missing from the reference locale:`,
+  );
+  for (const key of missing) {
+    console.log(`      - ${key}`);
+  }
+}
+
+// Report keys that exist in the reference locale but are absent from another locale.
+function reportLocaleParity(
+  referenceName: string,
+  referenceKeys: Set<string>,
+  otherName: string,
+  otherKeys: Set<string>,
+): void {
+  const missingFromOther = [...referenceKeys].filter((key) => !otherKeys.has(key)).sort();
+  const extraInOther = [...otherKeys].filter((key) => !referenceKeys.has(key)).sort();
+
+  if (missingFromOther.length === 0 && extraInOther.length === 0) {
+    console.log(`   ✅ ${otherName} matches ${referenceName}`);
+    return;
+  }
+
+  if (missingFromOther.length > 0) {
+    console.log(
+      `   ⚠️  ${missingFromOther.length} keys in ${referenceName} but missing from ${otherName}:`,
+    );
+    for (const key of missingFromOther) {
+      console.log(`      - ${key}`);
+    }
+  }
+
+  if (extraInOther.length > 0) {
+    console.log(`   ⚠️  ${extraInOther.length} keys in ${otherName} but not in ${referenceName}:`);
+    for (const key of extraInOther) {
+      console.log(`      - ${key}`);
+    }
+  }
+}
+
 // Check if a translation key is referenced in any source file
 function isKeyUsed(key: string, files: string[], fileContents: Map<string, string>): boolean {
   // Matches common patterns: t('key'), $t('key'), t("key"), $t("key"), backtick variants,
-  // and bare string literals (for variable-indirected usage)
+  // the <i18n-t keypath="key"> component attribute, and bare string literals (for
+  // variable-indirected usage)
   const patterns = [
     `t('${key}'`,
     `t("${key}"`,
@@ -106,6 +193,8 @@ function isKeyUsed(key: string, files: string[], fileContents: Map<string, strin
     `$t("${key}"`,
     `t(\`${key}\``,
     `$t(\`${key}\``,
+    `keypath="${key}"`,
+    `keypath='${key}'`,
     `'${key}'`,
     `"${key}"`,
   ];
@@ -204,8 +293,13 @@ async function main() {
   // Combine detected dynamic prefixes with static ignored prefixes
   const allIgnoredPrefixes = new Set([...IGNORED_PREFIXES, ...dynamicPrefixes]);
 
+  // Keys referenced from real i18n call sites, for missing-key detection
+  const referencedKeys = extractReferencedKeys(fileContents);
+
   // Get all locale files
   const localeFiles = readdirSync(LOCALES_DIR).filter((f) => f.endsWith(".json"));
+
+  const localeKeySets = new Map<string, Set<string>>();
 
   for (const localeFile of localeFiles) {
     const localePath = join(LOCALES_DIR, localeFile);
@@ -215,6 +309,7 @@ async function main() {
       const content = readFileSync(localePath, "utf8");
       const translations = JSON.parse(content) as Record<string, unknown>;
       const allKeys = extractKeys(translations);
+      localeKeySets.set(localeFile, new Set(allKeys));
 
       console.log(`   Total keys: ${allKeys.length}`);
 
@@ -260,6 +355,21 @@ async function main() {
       }
     } catch (error) {
       console.error(`Error processing ${localeFile}:`, error);
+    }
+  }
+
+  // Missing-key detection against the reference locale (en.json if present)
+  const referenceLocale = localeKeySets.has("en.json") ? "en.json" : localeFiles[0];
+  const referenceKeys = referenceLocale ? localeKeySets.get(referenceLocale) : undefined;
+
+  if (referenceLocale && referenceKeys) {
+    console.log(`\n📌 Reference locale: ${referenceLocale}`);
+    reportMissingKeys(referencedKeys, referenceKeys, allIgnoredPrefixes);
+
+    console.log("\n🌐 Locale parity:");
+    for (const [localeFile, keys] of localeKeySets) {
+      if (localeFile === referenceLocale) continue;
+      reportLocaleParity(referenceLocale, referenceKeys, localeFile, keys);
     }
   }
 

@@ -18,6 +18,9 @@ export default defineConfig(({ mode }) => {
   const backendTarget = `http://localhost:${rootEnv.PORT || 3000}`;
 
   return {
+    /*experimental: {
+      bundledDev: true,
+    },*/
     envDir: "../",
     server: {
       host: true,

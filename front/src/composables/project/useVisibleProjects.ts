@@ -336,29 +336,24 @@ export function useVisibleProjects() {
     return filtered.toSorted(compareBySortMode);
   });
 
-  // We gate doRefresh on this flag to avoid querying on every drag frame.
-  let mapMoving = false;
-
   let isActive = true;
-  // Set on unmount so a one-shot `render` listener that fires after teardown no-ops
-  // instead of refreshing a dead instance.
-  let destroyed = false;
 
   onActivated(() => {
     isActive = true;
-    scheduleRefresh();
+    refresh();
   });
 
   onDeactivated(() => {
     isActive = false;
   });
 
-  function doRefresh() {
+  function refresh() {
+    if (!isActive || !isReady.value) return;
     const mlMap = map.value;
     // Skip if the map is still animating, or if tiles for the current viewport
-    // haven't finished loading yet (e.g. mid-zoom). The idle/sourcedata handlers
-    // will re-trigger once everything is ready.
-    if (!isActive || mapMoving || !mlMap.areTilesLoaded()) return;
+    // haven't finished loading yet (e.g. mid-zoom). Both states resolve into a
+    // later `idle`, which calls back in.
+    if (mlMap.isMoving() || !mlMap.areTilesLoaded()) return;
 
     const canvas = mlMap.getCanvas();
     const dpr = window.devicePixelRatio || 1;
@@ -381,84 +376,27 @@ export function useVisibleProjects() {
     }
   }
 
-  // pendingQuery: a one-shot `render` listener has been registered and will call doRefresh()
-  // after the very next paint frame. Using `render` guarantees that
-  // queryRenderedFeatures sees a fully-painted frame with all loaded tile data.
-  let pendingQuery = false;
-
-  function scheduleRefresh() {
-    if (!isActive) return;
-    const mlMap = map.value;
-    if (pendingQuery) return;
-
-    pendingQuery = true;
-    void mlMap.once("render", () => {
-      pendingQuery = false;
-      if (destroyed) return;
-      doRefresh();
-    });
-
-    // Force a render frame so our listener above is guaranteed to fire,
-    // even if there were no visual changes on the map.
-    mlMap.triggerRepaint();
-  }
-
-  let idleHandler: (() => void) | null = null;
-  let sourcedataHandler: (() => void) | null = null;
-  let sourcedataTimer: ReturnType<typeof setTimeout> | null = null;
-  let moveStartHandler: (() => void) | null = null;
-  let moveEndHandler: (() => void) | null = null;
   let hoverClearTimeout: ReturnType<typeof setTimeout> | null = null;
 
   onMlMapReady(() => {
     isReady.value = true;
-    const mlMap = map.value;
-    // Skip refreshes mid-move; refresh once the camera settles.
-    moveStartHandler = () => {
-      mapMoving = true;
-    };
-    moveEndHandler = () => {
-      mapMoving = false;
-      scheduleRefresh();
-    };
-    mlMap.on("movestart", moveStartHandler);
-    mlMap.on("moveend", moveEndHandler);
+    // maplibre fires `idle` at the end of every rendered frame that ends with the camera
+    // still and all source tiles loaded; any change (camera move, tile arrival, data or
+    // style update) dirties the map and yields another such frame, hence another `idle`.
+    // One listener therefore covers every way the visible feature set can change, and
+    // queryRenderedFeatures inside it sees the fully-painted frame. The handler must not
+    // trigger a repaint: the forced frame would end clean, fire `idle` again, and sustain
+    // an endless render loop.
+    map.value.on("idle", refresh);
 
-    // `idle` fires when the map stops moving AND all tiles are loaded.
-    // We still piggyback a render-frame defer to guarantee the paint is done.
-    idleHandler = scheduleRefresh;
-    mlMap.on("idle", idleHandler);
-
-    // `sourcedata` fires when any source finishes loading tile data. Catching
-    // the moment areTilesLoaded() first becomes true covers the race where the
-    // camera moved so quickly that `idle` fired before tiles were fetched.
-    // Debounced to avoid firing on every individual tile during a pan.
-    sourcedataHandler = () => {
-      if (!mlMap.areTilesLoaded() || mlMap.isMoving()) return;
-      if (sourcedataTimer) clearTimeout(sourcedataTimer);
-      sourcedataTimer = setTimeout(() => {
-        sourcedataTimer = null;
-        if (mlMap.areTilesLoaded() && !mlMap.isMoving()) scheduleRefresh();
-      }, 150);
-    };
-    mlMap.on("sourcedata", sourcedataHandler);
-
-    // Refresh initially
-    scheduleRefresh();
+    // Covers the map already sitting idle (no `idle` fires until something changes).
+    refresh();
   });
 
   onUnmounted(() => {
-    destroyed = true;
-    if (sourcedataTimer) clearTimeout(sourcedataTimer);
     if (hoverClearTimeout) clearTimeout(hoverClearTimeout);
-    const mlMap = map.value;
     // oxlint-disable-next-line no-unnecessary-condition
-    if (mlMap) {
-      if (moveStartHandler) mlMap.off("movestart", moveStartHandler);
-      if (moveEndHandler) mlMap.off("moveend", moveEndHandler);
-      if (idleHandler) mlMap.off("idle", idleHandler);
-      if (sourcedataHandler) mlMap.off("sourcedata", sourcedataHandler);
-    }
+    if (map.value) map.value.off("idle", refresh);
   });
 
   // Suppresses hover updates while the camera is flying after a project click.
@@ -483,7 +421,7 @@ export function useVisibleProjects() {
 
     // Block hover events until the list has finished re-rendering after the fly.
     // moveend fires when the camera stops, but the list updates asynchronously
-    // (MapLibre idle → doRefresh → Vue re-render). A short delay after moveend
+    // (MapLibre idle → refresh → Vue re-render). A short delay after moveend
     // ensures the DOM has settled before hover is re-enabled.
     suppressHover = true;
     void map.value.once("moveend", () => {

@@ -15,16 +15,17 @@ function restingPositionState(overlay: OverlayObject): OverlayPositionState {
 export const useOverlayStore = defineStore("overlay", () => {
   const liveOverlays = ref<Record<string, OverlayObject>>({});
 
-  const viewModeOverlays = ref<OverlayData[]>([]);
+  // The mode-scoped list the viewport render loop reconciles against the map.
+  const renderLoopOverlays = ref<OverlayData[]>([]);
 
   const replacementOverlayId = ref<string | null>(null);
 
-  function setViewModeOverlays(overlayData: OverlayData[]) {
-    viewModeOverlays.value = overlayData;
+  function setRenderLoopOverlays(overlayData: OverlayData[]) {
+    renderLoopOverlays.value = overlayData;
   }
 
-  function clearViewModeOverlays() {
-    viewModeOverlays.value = [];
+  function clearRenderLoopOverlays() {
+    renderLoopOverlays.value = [];
   }
 
   function addOverlay(overlayId: string, overlay: OverlayObject) {
@@ -101,22 +102,27 @@ export const useOverlayStore = defineStore("overlay", () => {
     replacementOverlayId.value = null;
   }
 
-  // Clear user-specific state on logout or account switch.
-  // Preserves public data (viewModeOverlays) and clears user/edit-mode data.
-  function clearAllState() {
+  function clearLiveOverlays() {
     liveOverlays.value = {};
+  }
+
+  // Clear user-specific state on logout or account switch: the live overlay objects and the pending
+  // replacement target. renderLoopOverlays is left as-is.
+  function clearAllState() {
+    clearLiveOverlays();
     resetReplacement();
   }
 
   return {
     // State
     liveOverlays,
-    viewModeOverlays,
+    renderLoopOverlays,
     replacementOverlayId,
 
     // Actions
-    setViewModeOverlays,
-    clearViewModeOverlays,
+    setRenderLoopOverlays,
+    clearRenderLoopOverlays,
+    clearLiveOverlays,
     addOverlay,
     updateOverlay,
     commitHistory,
@@ -130,7 +136,7 @@ export const useOverlayStore = defineStore("overlay", () => {
 });
 
 // Enable HMR for this store
-// eslint-disable @typescript-eslint/no-unnecessary-condition @typescript-eslint/strict-void-return
+// eslint-disable no-unnecessary-condition strict-void-return
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useOverlayStore, import.meta.hot));
 }

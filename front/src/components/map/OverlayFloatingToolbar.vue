@@ -157,12 +157,16 @@ import {
   getImageHandle,
   whenImageReady,
 } from "@/services/overlay/mapLayers";
-import { navigateOverlaySequence, getProjectSiblingOverlayIds } from "@/services/overlay/actions";
+import {
+  navigateOverlaySequence,
+  getProjectSiblingOverlayIds,
+} from "@/services/overlay/navigation";
 import { selectOverlay } from "@/services/overlay/selection";
-import { undo, redo, showEditHandles, hideEditHandles } from "@/services/overlay/editing";
+import { showEditHandles, hideEditHandles } from "@/services/overlay/editing";
+import { undo, redo } from "@/services/overlay/history";
 import { showCropHandles, hideCropHandles, applyCrop } from "@/services/overlay/cropHandles";
 import { prepareOverlaySubmission } from "@/services/submission/submissionDialog";
-import { isOverlayUnsaved } from "@/utils/unsavedState";
+import { isOverlayUnsaved } from "@/services/overlay/unsavedState";
 import { confirmAndDeleteOverlay } from "@/services/core/entityRemoval";
 
 const { t } = useI18n();
@@ -179,7 +183,7 @@ const isEditMode = computed(() => mode.value === "edit");
 // MapLibre handles pan + zoom positioning via a transform on the element automatically.
 const markerIconEl = ref<HTMLElement | null>(null);
 const opacity = ref(100);
-const isInFront = ref(false);
+const isInFront = computed(() => (selectedId.value ? isOverlayInFront(selectedId.value) : false));
 const canStack = ref(false);
 const isCropActive = ref(false);
 
@@ -276,7 +280,6 @@ function initForSelection() {
   cancelImageWait = null;
   createMarker(lngLat);
   opacity.value = readOpacity();
-  isInFront.value = selectedId.value ? isOverlayInFront(selectedId.value) : false;
   refreshCanStack();
   startAnchorSync();
 }
@@ -284,12 +287,7 @@ function initForSelection() {
 watch(
   selectedId,
   (id, prev) => {
-    if (id !== prev) {
-      if (isCropActive.value) {
-        hideCropHandles();
-        isCropActive.value = false;
-      }
-    }
+    if (id !== prev) abandonCrop();
     destroyMarker();
     stopAnchorSync();
     // nextTick: let Teleport unmount cleanly from the old marker before we create a new one
@@ -311,19 +309,14 @@ watch(
   { immediate: true },
 );
 
-// Leaving edit mode (e.g. via the mode toggle) tears down edit handles elsewhere; abandon any
-// in-progress crop so its handles and mask don't dangle.
 watch(isEditMode, (editing) => {
-  if (!editing && isCropActive.value) {
-    hideCropHandles();
-    isCropActive.value = false;
-  }
+  if (!editing) abandonCrop();
 });
 
 onUnmounted(() => {
   stopAnchorSync();
   destroyMarker();
-  if (isCropActive.value) hideCropHandles();
+  abandonCrop();
   map.value.off("moveend", refreshCanStack);
 });
 
@@ -383,9 +376,7 @@ function onOpacityInput(e: Event) {
 function toggleStacking() {
   const id = selectedId.value;
   if (!id) return;
-  const next = !isInFront.value;
-  setOverlayInFront(id, next);
-  isInFront.value = next;
+  setOverlayInFront(id, !isInFront.value);
 }
 
 function onSave() {
@@ -404,9 +395,14 @@ function startCrop() {
   isCropActive.value = true;
 }
 
-function endCrop() {
+function abandonCrop() {
+  if (!isCropActive.value) return;
   hideCropHandles();
   isCropActive.value = false;
+}
+
+function endCrop() {
+  abandonCrop();
   const overlay = selectedOverlay.value;
   if (overlay && isEditMode.value) showEditHandles(overlay);
 }

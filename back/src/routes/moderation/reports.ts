@@ -244,7 +244,6 @@ export const reportProcedures = {
                 await deleteLocalImages(overlay.filename, "both");
               } catch (error) {
                 console.error(`Failed to delete images for ${overlay.filename}:`, error);
-                // Continue with other deletions
               }
             }
           }

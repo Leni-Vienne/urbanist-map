@@ -2,7 +2,7 @@ import { nextTick } from "vue";
 import { useMapStore } from "@/stores/mapStore";
 
 import { t } from "@/locales";
-import { clearAllMapContent } from "@/services/overlay/lifecycle";
+import { clearAllMapContent } from "@/services/overlay/teardown";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { renderPreviewShapes, computeShapeBounds } from "@/services/map/shapes/rendering";
 import { selectProject } from "@/services/map/projectSelection";
@@ -46,7 +46,7 @@ export async function previewShapes(options: PreviewShapesOptions): Promise<void
   // Navigate to the correct country context if not already there
   if (project.countryCode && mapStore.selectedCountryCode !== project.countryCode) {
     clearAllMapContent();
-    mapStore.selectedCountryCode = project.countryCode;
+    mapStore.setSelectedCountryCode(project.countryCode);
     await nextTick();
   }
 
@@ -59,8 +59,11 @@ export async function previewShapes(options: PreviewShapesOptions): Promise<void
 
   mobileAwareFlyToBounds(bounds);
 
-  useChangeRequestStore().previewState =
-    type === "new"
-      ? { type: "project-suggested", changeId: change.id, projectId: project.id }
-      : { type: "project-current", changeId: change.id, projectId: project.id };
+  // The effective preview derives from intent × selection: selecting the project (which replaces
+  // any overlay selection) is what puts the intent in effect.
+  selectProject(project);
+  useChangeRequestStore().previewIntent = {
+    changeId: change.id,
+    side: type === "new" ? "suggested" : "current",
+  };
 }

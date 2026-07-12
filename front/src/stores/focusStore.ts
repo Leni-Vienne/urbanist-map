@@ -94,7 +94,7 @@ export const useFocusStore = defineStore("focus", () => {
   };
 });
 
-// eslint-disable @typescript-eslint/no-unnecessary-condition @typescript-eslint/strict-void-return
+// eslint-disable no-unnecessary-condition strict-void-return
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useFocusStore, import.meta.hot));
 }

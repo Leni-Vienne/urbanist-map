@@ -31,12 +31,9 @@ export async function refreshPendingChangeRequests(options?: { force?: boolean }
 }
 
 export async function approveChangeRequests(changeRequestIds: string[]) {
-  const result = await loadOrNull(
-    async () => trpc.changes.approveChangeRequests.mutate({ changeRequestIds }),
-    { errorMessage: "Failed to approve change requests" },
-  );
+  try {
+    const result = await trpc.changes.approveChangeRequests.mutate({ changeRequestIds });
 
-  if (result) {
     // The approved changes plus any competing changes the backend marked 'conflicted' are no
     // longer pending. Drop them from the moderation panel locally instead of refetching every
     // pending submission for the country.
@@ -45,25 +42,26 @@ export async function approveChangeRequests(changeRequestIds: string[]) {
     // The current user's own change requests are fetched lazily, so just invalidate; a conflicted
     // change of theirs must reappear with its conflict badge on the next My Contributions load.
     useChangeRequestStore().resetLoaded();
-  }
 
-  return result;
+    return result;
+  } catch (error) {
+    console.error("Failed to approve change requests:", error);
+    return null;
+  }
 }
 
 export async function rejectChangeRequests(changeRequestIds: string[]) {
-  const result = await loadOrNull(
-    async () => trpc.changes.rejectChangeRequests.mutate({ changeRequestIds }),
-    { errorMessage: "Failed to reject change requests" },
-  );
+  try {
+    const result = await trpc.changes.rejectChangeRequests.mutate({ changeRequestIds });
 
-  if (result) {
     useChangeRequestStore().removeChangeRequests(changeRequestIds);
+    useModerationStore().removeChangeRequests(changeRequestIds);
 
-    const moderationStore = useModerationStore();
-    moderationStore.removeChangeRequests(changeRequestIds);
+    return result;
+  } catch (error) {
+    console.error("Failed to reject change requests:", error);
+    return null;
   }
-
-  return result;
 }
 
 function hasOtherPendingChangeRequestsForOverlay(overlayId: string): boolean {
@@ -94,19 +92,22 @@ function handleOverlayStateAfterDeletion(changeRequest: ChangeRequest) {
 export async function deleteChangeRequest(changeRequestId: string) {
   const store = useChangeRequestStore();
   const changeRequest = store.pendingChangeRequests.find((cr) => cr.id === changeRequestId);
-  const result = await loadOrNull(
-    async () => trpc.changes.deleteChangeRequest.mutate({ id: changeRequestId }),
-    { errorMessage: "Failed to delete change request" },
-  );
 
-  if (result && changeRequest) {
-    store.removeChangeRequest(changeRequestId);
-    handleOverlayStateAfterDeletion(changeRequest);
-    // Reconcile the session map set: a withdrawn overlay CR drops out of the session list.
-    if (changeRequest.entityType === "overlay") {
-      await refreshMapSessionData();
+  try {
+    const result = await trpc.changes.deleteChangeRequest.mutate({ id: changeRequestId });
+
+    if (changeRequest) {
+      store.removeChangeRequest(changeRequestId);
+      handleOverlayStateAfterDeletion(changeRequest);
+      // Reconcile the session map set: a withdrawn overlay CR drops out of the session list.
+      if (changeRequest.entityType === "overlay") {
+        await refreshMapSessionData();
+      }
     }
-  }
 
-  return result;
+    return result;
+  } catch (error) {
+    console.error("Failed to delete change request:", error);
+    return null;
+  }
 }

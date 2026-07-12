@@ -245,8 +245,8 @@ export const useProjectStore = defineStore("project", () => {
     }
   }
 
-  // Inserts a backend-sourced project into the store, snapshotting it as the change-detection
-  // baseline. No-op if it is already present.
+  // Inserts a project into the store, snapshotting backend-sourced ones (status !== null) as the
+  // change-detection baseline. No-op if it is already present.
   function addProject(project: Project) {
     if (projects.value[project.id]) return;
     projects.value[project.id] = project;
@@ -303,7 +303,6 @@ export const useProjectStore = defineStore("project", () => {
   }
 
   return {
-    // State
     projects,
     userContributions,
     userContributionsLoading,
@@ -316,6 +315,7 @@ export const useProjectStore = defineStore("project", () => {
     resetProjectField,
     getOriginalProject,
     getProjectById,
+
     // User contributions actions
     setUserContributions,
     setUserContributionsLoading,
@@ -327,7 +327,6 @@ export const useProjectStore = defineStore("project", () => {
     removeOverlayFromUserContributions,
     removeProjectFromUserContributions,
 
-    // Comprehensive cleanup
     clearAllState,
   };
 });

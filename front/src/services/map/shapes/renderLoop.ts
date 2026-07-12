@@ -1,4 +1,5 @@
 import { watch } from "vue";
+import type { AppMode } from "@shared/types";
 import type { OverlayData, Project } from "@/types/index";
 import { renderProjectShapes, clearAllProjectShapes } from "@/services/map/shapes/rendering";
 import { hasProjectShapes } from "@/services/map/shapes/registry";
@@ -9,15 +10,21 @@ import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useModerationStore } from "@/stores/moderationStore";
 import { getApprovedOverlayDataFromTiles } from "@/services/map/tiles/approvedOverlayCache";
 import { createProjectObject } from "@/utils/typeFactories";
+import { onModeTransition } from "@/services/map/modeTransition";
+import { registerOnce } from "@/utils/registerOnce";
+
+/** Shapes are rendered from store data only outside view mode, where vector tiles own them. */
+type ShapeRenderMode = Exclude<AppMode, "view">;
 
 /** Return the pending geometry change request value for a project, if any. */
 function getPendingGeometry(
   projectId: string,
-  isModeration: boolean,
+  mode: ShapeRenderMode,
 ): GeoJSON.GeometryCollection | null {
-  const crList = isModeration
-    ? useModerationStore().changeRequests
-    : useChangeRequestStore().pendingChangeRequests;
+  const crList =
+    mode === "moderation"
+      ? useModerationStore().changeRequests
+      : useChangeRequestStore().pendingChangeRequests;
   const cr = crList.find(
     (c) => c.entityType === "project" && c.entityId === projectId && c.fieldName === "geometry",
   );
@@ -27,21 +34,16 @@ function getPendingGeometry(
   return geom?.geometries?.length ? geom : null;
 }
 
-type ResolvedGeometry = { geometry: GeoJSON.GeometryCollection } | null;
-
 function resolveProjectGeometry(
   projectId: string,
   approvedGeometry: GeoJSON.GeometryCollection | null | undefined,
   storedGeometry: GeoJSON.GeometryCollection | null | undefined,
-  isEditMode: boolean,
-  isModeration: boolean,
-): ResolvedGeometry {
-  const approved = (isEditMode ? storedGeometry : null) ?? approvedGeometry;
+  mode: ShapeRenderMode,
+): GeoJSON.GeometryCollection | null {
+  const approved = (mode === "edit" ? storedGeometry : null) ?? approvedGeometry;
   // oxlint-disable-next-line no-unnecessary-condition
-  if (approved?.geometries?.length) return { geometry: approved };
-  if (!isEditMode && !isModeration) return null;
-  const pending = getPendingGeometry(projectId, isModeration);
-  return pending ? { geometry: pending } : null;
+  if (approved?.geometries?.length) return approved;
+  return getPendingGeometry(projectId, mode);
 }
 
 function normalizeOverlayProject(project: NonNullable<OverlayData["project"]>): Project {
@@ -54,37 +56,30 @@ function normalizeOverlayProject(project: NonNullable<OverlayData["project"]>): 
 
 /**
  * Collect all visible projects whose shapes need to be rendered.
- * In edit/moderation mode: uses project store geometry for unsaved changes.
- * In view mode: shapes are handled by MapLibre tiles, this function is not called.
+ * Precondition: not in view mode.
  */
 function getVisibleProjectsToRender() {
   const overlayStore = useOverlayStore();
   const projectStore = useProjectStore();
-  const mapStore = useMapStore();
 
   const projectsToRender = new Map<string, Project>();
 
-  // Collect projects with overlays, always use backend overlay data as the project record
-  // so that projectData.geometry is always the approved geometry. storedProject is looked
-  // up separately in processAndRenderProjectShape for edit-mode rendering.
-  for (const overlay of overlayStore.viewModeOverlays) {
+  // Backend overlay data is the project record, so projectData.geometry is the approved geometry.
+  for (const overlay of overlayStore.renderLoopOverlays) {
     if (overlay.projectId && overlay.project && !projectsToRender.has(overlay.projectId)) {
       projectsToRender.set(overlay.projectId, normalizeOverlayProject(overlay.project));
     }
   }
 
-  // In edit/moderation mode, viewModeOverlays only contains pending overlays.
-  // Approved overlays are rendered by vectorTileSync, collect their project IDs from
-  // the tile cache so that approved-overlay projects still get their shapes rendered.
-  if (mapStore.mode !== "view") {
-    for (const [, overlayData] of getApprovedOverlayDataFromTiles()) {
-      const projectId = overlayData.projectId;
-      if (!projectId || projectsToRender.has(projectId)) continue;
-      // The tile-based OverlayData has no project field; look up the project from the store.
-      // Skip if not yet in the store (shape will render on the next cycle once the store is hydrated).
-      const p = projectStore.projects[projectId];
-      if (p) projectsToRender.set(projectId, p);
-    }
+  // renderLoopOverlays holds only pending overlays here, so approved-overlay projects
+  // are collected from the tile cache to get their shapes rendered too.
+  for (const [, overlayData] of getApprovedOverlayDataFromTiles()) {
+    const projectId = overlayData.projectId;
+    if (!projectId || projectsToRender.has(projectId)) continue;
+    // The tile-based OverlayData has no project field; look up the project from the store.
+    // Skip if not yet in the store (shape will render on the next cycle once the store is hydrated).
+    const p = projectStore.projects[projectId];
+    if (p) projectsToRender.set(projectId, p);
   }
 
   return projectsToRender;
@@ -93,31 +88,27 @@ function getVisibleProjectsToRender() {
 function processAndRenderProjectShape(
   projectId: string,
   projectData: Project,
-  isEditMode: boolean,
-  isModeration: boolean,
+  mode: ShapeRenderMode,
 ) {
   if (hasProjectShapes(projectId)) return;
 
   const projectStore = useProjectStore();
   const storedProject = projectStore.projects[projectId];
-  const resolved = resolveProjectGeometry(
+  const finalGeometry = resolveProjectGeometry(
     projectId,
     projectData.geometry,
     storedProject?.geometry,
-    isEditMode,
-    isModeration,
+    mode,
   );
 
-  const finalGeometry = resolved?.geometry;
-
   let oldGeometry: GeoJSON.GeometryCollection | null = null;
-  if (isEditMode && storedProject?.isModified) {
+  if (mode === "edit" && storedProject?.isModified) {
     oldGeometry = projectStore.getOriginalProject(projectId)?.geometry ?? null;
   }
 
   if (!finalGeometry && !oldGeometry) return;
 
-  const projectToRender = (isEditMode ? storedProject : null) ?? projectData;
+  const projectToRender = (mode === "edit" ? storedProject : null) ?? projectData;
 
   renderProjectShapes(
     {
@@ -133,33 +124,21 @@ function processAndRenderProjectShape(
  * Uses project store geometry (not tile data) so unsaved edits are reflected.
  */
 export function renderAllProjectShapes() {
-  const mapStore = useMapStore();
+  const mode = useMapStore().mode;
 
   // In view mode, shapes are rendered exclusively via MapLibre vector tiles.
-  if (mapStore.mode === "view") {
+  if (mode === "view") {
     return;
   }
-
-  const isEditMode = mapStore.mode === "edit";
-  const isModeration = mapStore.mode === "moderation";
 
   const projectsToRender = getVisibleProjectsToRender();
 
   for (const [projectId, projectData] of projectsToRender.entries()) {
-    processAndRenderProjectShape(projectId, projectData, isEditMode, isModeration);
+    processAndRenderProjectShape(projectId, projectData, mode);
   }
 }
 
-/**
- * Shape-specific render triggers: change requests, moderation load, entering view mode.
- * Overlay-pruning triggers (filters, tags) live in viewportRenderLoop's initializeRenderTriggers.
- */
-let shapeRenderTriggersInitialized = false;
-
-export function initializeShapeRenderTriggers() {
-  if (shapeRenderTriggersInitialized) return;
-  shapeRenderTriggersInitialized = true;
-
+function registerShapeRenderTriggers(): void {
   const mapStore = useMapStore();
   const changeRequestStore = useChangeRequestStore();
   const moderationStore = useModerationStore();
@@ -182,11 +161,10 @@ export function initializeShapeRenderTriggers() {
     },
   );
 
-  // Entering view mode: MapLibre vector tiles take over shape rendering.
-  watch(
-    () => mapStore.mode,
-    (newMode) => {
-      if (newMode === "view") clearAllProjectShapes();
-    },
-  );
+  onModeTransition("clearProjectShapes", (newMode) => {
+    if (newMode === "view") clearAllProjectShapes();
+  });
 }
+
+/** Shape-specific render triggers: change requests, moderation load, entering view mode. */
+export const initializeShapeRenderTriggers = registerOnce(registerShapeRenderTriggers);

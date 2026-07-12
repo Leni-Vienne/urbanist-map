@@ -4,10 +4,10 @@
     "back": "Retour",
     "cancel": "Annuler",
     "edit": "Modifier",
-    "delete": "Supprimer",
     "add": "Nouveau",
     "loading": "Chargement...",
     "error": "Erreur",
+    "warn": "Attention",
     "success": "Succès",
     "confirm": "Confirmer",
     "close": "Fermer",
@@ -26,8 +26,7 @@
     "email": "Email",
     "actions": "Actions",
     "approved": "Approuvé",
-    "confirmDelete": "Êtes-vous sûr de vouloir supprimer \"{name}\" ? Cette action est irréversible.",
-    "addField": "ajouter"
+    "confirmDelete": "Êtes-vous sûr de vouloir supprimer \"{name}\" ? Cette action est irréversible."
   },
   "relativeTime": {
     "justNow": "à l'instant",
@@ -76,12 +75,10 @@
     "create": "Créer un projet",
     "unnamed": "Projet sans nom",
     "osmName": "Projet OpenStreetMap",
-    "recenter": "Recentrer la carte sur ce projet",
     "name": "Nom du projet",
     "noLocation": "Aucun emplacement",
     "timelineStatus": "Statut chronologique",
     "proposalDateHelp": "Quand ce projet a-t-il été proposé ou annoncé ?",
-    "country": "Pays",
     "location": "Localisation",
     "startDate": "Début des travaux",
     "endDate": "Fin des travaux",
@@ -92,8 +89,6 @@
     "fullDate": "Date complète",
     "clearDate": "Supprimer la date",
     "clickMapToPlace": "Cliquez sur la carte pour placer le projet",
-    "edit": "Modifier le projet",
-    "publish": "Envoyer",
     "submitChangeRequest": "Envoyer",
     "period": "Dates",
     "estimatedCompletion": "Fin estimée",
@@ -151,14 +146,7 @@
     "planned": "Planifié",
     "under_construction": "En construction"
   },
-  "help": {
-    "filters": {
-      "showPending": "Afficher en attente",
-      "showApproved": "Afficher approuvé"
-    }
-  },
   "contribute": {
-    "myContributions": "Mes contributions",
     "noProjectsMatchFilter": "Aucun projet ne correspond au filtre actuel.",
     "tryChangingFilters": "Essayez de modifier vos paramètres de filtre.",
     "noProjectsFound": "Aucun projet trouvé.",
@@ -174,7 +162,9 @@
     "overlayDeleted": "Image supprimée avec succès",
     "projectDeleted": "Projet supprimé avec succès",
     "changeRequestDeleted": "Suggestion supprimée avec succès",
+    "deleteOverlayError": "Échec de la suppression de l'image. Veuillez réessayer.",
     "deleteProjectError": "Échec de la suppression du projet. Veuillez réessayer.",
+    "changeRequestDeleteError": "Échec de la suppression de la suggestion. Veuillez réessayer.",
     "loadContributionsError": "Échec du chargement des contributions. Veuillez réessayer.",
     "guest": {
       "title": "Contribuez à la carte",
@@ -204,12 +194,10 @@
     "changedFrom": "Modifié depuis",
     "untitled": "Image sans titre",
     "imageAlt": "Image superposée",
-    "unknownLocation": "Lieu inconnu",
     "loadingProjects": "Chargement des projets...",
     "navigationFailed": "Échec de la navigation",
     "failedToNavigate": "Échec de la navigation vers l'image",
     "publishFailedDetail": "Échec de l'enregistrement de l'image",
-    "publishOverlay": "Envoyer",
     "viewCurrentPosition": "Voir la position actuelle",
     "viewSuggestedPosition": "Voir la position suggérée",
     "publishErrorNoFilename": "Impossible de déterminer le nom du fichier de l'image",
@@ -220,6 +208,10 @@
     "couldNotParseCoordinates": "Impossible d'analyser les coordonnées géométriques",
     "previewFailed": "Échec de l'aperçu",
     "couldNotPreviewCoordinates": "Impossible d'afficher un aperçu des coordonnées sur la carte",
+    "loadFailed": "Échec du chargement",
+    "couldNotLoadOverlay": "Impossible de charger l'image sur la carte",
+    "missingData": "Données manquantes",
+    "missingCityOrCountry": "L'image n'a pas d'information de pays",
     "coordinatesViewOnMap": "Coordonnées (voir sur la carte)",
     "replaces": "Remplace",
     "viewOriginalOverlay": "Voir l'image d'origine",
@@ -277,9 +269,6 @@
     },
     "rotation": {
       "label": "Rotation de la carte"
-    },
-    "altLayer": {
-      "label": "Nouvelle carte"
     }
   },
   "search": {
@@ -361,7 +350,6 @@
     "github": "GitHub"
   },
   "submission": {
-    "updateProject": "Mettre à jour le projet",
     "confirmTitle": "Confirmer l'enregistrement",
     "requiresModeration": "Requiert modération",
     "immediateUpdate": "Mise à jour immédiate",
@@ -373,15 +361,10 @@
     "overlayPosition": "Position de l'image",
     "previousPosition": "(Position actuelle)",
     "newPosition": "(Nouvelle position)",
-    "submitChangeRequest": "Soumettre une demande de modification",
-    "updateOverlays": "Mettre à jour les images",
     "removeChange": "Retirer cette modification",
     "changesLabel": "Modifications",
     "noChangesToSubmit": "Aucune modification à soumettre",
-    "newOverlay": "Nouvelle image",
-    "createAction": "Nouvelle soumission",
-    "updatePendingAction": "Mettre à jour la soumission",
-    "updateApprovedAction": "Suggérer des modifications"
+    "newOverlay": "Nouvelle image"
   },
   "pages": {
     "home": {
@@ -494,7 +477,6 @@
     "approveProjectFirst": "Approuvez d'abord le projet pour modérer ses images"
   },
   "toolbar": {
-    "info": "Infos",
     "previousOverlay": "Aller à l'image précédente",
     "nextOverlay": "Aller à l'image suivante",
     "undo": "Annuler (ctrl + z)",
@@ -521,13 +503,6 @@
       "modified": "modifié",
       "hasPendingChanges": "a des modifications en attente",
       "viewingSuggested": "affichage suggéré"
-    },
-    "project": {
-      "pendingApproval": "En attente d'approbation",
-      "rejected": "Projet rejeté",
-      "localProject": "Projet local",
-      "newProject": "Nouveau projet",
-      "modified": "modifié"
     }
   },
   "forms": {
@@ -541,8 +516,7 @@
     "maximumSizeOnMap": "La taille maximale est de 1km × 1km",
     "fileTooLarge": "Le fichier est trop volumineux. La taille maximale est de {maxSize} Mo.",
     "error": {
-      "uploadFailed": "Échec de l'envoi de l'image au serveur.",
-      "storageQuotaExceeded": "Vous avez atteint votre limite de stockage pour les envois en attente. Veuillez patienter jusqu'à la validation de vos contributions existantes avant d'en envoyer d'autres."
+      "uploadFailed": "Échec de l'envoi de l'image au serveur."
     }
   },
   "imageUpload": {
@@ -573,8 +547,6 @@
   },
   "render": {
     "label": "Vue d'artiste",
-    "pendingReview": "En attente de validation",
-    "notSubmitted": "Pas encore enregistrée, envoyez vos modifications pour validation",
     "imageChange": "Nouvelle image"
   },
   "toast": {
@@ -615,6 +587,7 @@
     "checkConflictsFailed": "Échec de la vérification des conflits",
     "noChangesDetected": "Aucune modification détectée à soumettre",
     "preparingSubmission": "Échec de la préparation de la soumission",
+    "submissionFailed": "Échec de l'envoi des modifications",
     "mapInitFailed": "Échec du chargement de la carte"
   },
   "moderation": {
@@ -624,7 +597,6 @@
     "noAccessToThisCountry": "Vous n'avez pas la permission de modérer ce pays.",
     "refreshCountsFailed": "Impossible de rafraîchir les compteurs en attente",
     "unknownUser": "Utilisateur inconnu",
-    "more": "plus",
     "projectApproved": "Projet approuvé",
     "projectApprovedDetail": "Le projet a été approuvé avec succès",
     "projectUpdated": "Projet mis à jour",
@@ -639,8 +611,6 @@
     "switchedToViewMode": "Mode consultation activé",
     "switchedToModerationMode": "Mode modération activé",
     "clickAgainToAdd": "Cliquez à nouveau sur le bouton pour ajouter une image",
-    "modeSwitchError": "Erreur de changement de mode",
-    "modeSwitchErrorDetail": "Échec du changement de mode. Veuillez réessayer.",
     "undoAction": "Annuler {action} {entity} : {name}",
     "changeApproved": "Modification approuvée",
     "changeApprovedDetail": "La modification a été appliquée avec succès",
@@ -723,6 +693,8 @@
       "acknowledgeAll": "Tout effacer",
       "acknowledgeSuccess": "Acquitté",
       "acknowledgeSuccessDetail": "Les résultats de modération ont été effacés",
+      "acknowledgeError": "Échec de l'effacement",
+      "acknowledgeErrorDetail": "Échec de l'effacement des résultats de modération. Veuillez réessayer.",
       "viewResults": "Voir les résultats"
     },
     "userStats": {
@@ -767,8 +739,7 @@
     "rejectAllOverlays": "Rejeter également {count} image(s) en attente"
   },
   "location": {
-    "navigationFailed": "Échec de la navigation",
-    "failedToNavigate": "Impossible de naviguer vers cet emplacement"
+    "navigationFailed": "Échec de la navigation"
   },
   "projectSelector": {
     "suggestChanges": "Suggérer des modifications"

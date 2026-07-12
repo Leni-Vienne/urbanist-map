@@ -1,9 +1,5 @@
 <template>
-  <DraggableDrawer
-    v-model:visible="isVisible"
-    v-model:height-percent="drawerHeight"
-    @height-changed="handleHeightChanged"
-  >
+  <DraggableDrawer v-model:height-percent="drawerHeight" @height-changed="handleHeightChanged">
     <!-- Mode controls above drawer on mobile, with individual floor clamping -->
     <template #above="{ drawerHeightPx }">
       <div class="relative w-full h-0 pointer-events-none">
@@ -137,9 +133,6 @@ const authStore = useAuthStore();
 // slide-over (suppressed in edit mode, where ContributePanel renders the selection inline).
 const { detailVisible, activeTab } = useDetailPanel();
 
-const isVisible = defineModel<boolean>("visible", { default: false });
-
-// Drawer height management
 const drawerHeight = computed({
   get: () => uiStore.mobileDrawerHeightPercent,
   set: (value) => {

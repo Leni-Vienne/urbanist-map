@@ -82,11 +82,7 @@
           >
             <div ref="contentRef" class="flex flex-row items-start gap-3">
               <div class="flex-1 min-w-0">
-                <ProjectMetadataCard
-                  :project="project"
-                  :show-name="false"
-                  :show-description="true"
-                />
+                <ProjectMetadataCard :project="project" />
 
                 <!-- Wikidata main image (P18) shown at the bottom of the metadata section. Click to zoom. -->
                 <div v-if="wikidataEntity?.imageUrl" class="mt-3 pt-3 border-t border-surface">
@@ -179,14 +175,13 @@ import { useMapStore } from "@/stores/mapStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
 
-import { navigateToOverlay } from "@/services/overlay/actions";
+import { navigateToOverlay } from "@/services/overlay/navigation";
 import { flyToGeometry, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { computeShapeBounds } from "@/services/map/shapes/rendering";
-import { selectProject } from "@/services/map/projectSelection";
+import { selectProject, hydrateProjectDetail } from "@/services/map/projectSelection";
 
 import { buildImageUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { createProjectObject } from "@/utils/typeFactories";
-import { trpc } from "@/client";
 import type { OverlayData, Project } from "@/types/index";
 
 import ProjectMetadataCard from "@/components/map/popups/ProjectMetadataCard.vue";
@@ -295,17 +290,7 @@ watch(
     const current = project.value;
     if (!id || !current || current.status === null || current.render !== undefined) return;
 
-    try {
-      const fresh = await trpc.project.getById.query({ id });
-      if (fresh)
-        projectStore.updateProject(id, {
-          render: fresh.render ?? null,
-          ownerUsername: fresh.ownerUsername ?? null,
-          boundaryPath: fresh.boundaryPath ?? [],
-        });
-    } catch (error) {
-      console.error("Failed to hydrate project render:", error);
-    }
+    await hydrateProjectDetail(id);
   },
   { immediate: true },
 );
@@ -323,13 +308,9 @@ const renderImageCrossorigin = computed(() =>
 );
 
 // Wikidata entity for the current project (logo, description, height)
-const wikidataId = computed(() => {
-  const p = project.value?.externalProperties;
-  if (!p || typeof p !== "object") return null;
-  const id = (p as Record<string, unknown>)["wikidata"];
-  return typeof id === "string" ? id : null;
-});
-const { entity: wikidataEntity } = useWikidataEntity(wikidataId);
+const { entity: wikidataEntity } = useWikidataEntity(
+  computed(() => project.value?.externalProperties),
+);
 
 // A neutral header block anchors the panel on desktop; on mobile the drawer already frames it.
 const showHeaderBand = computed(() => !isMobile.value);
@@ -368,7 +349,7 @@ async function handleEdit() {
   if (!target) return;
 
   if (!authStore.isAuthenticated) {
-    uiStore.authModalVisible = true;
+    uiStore.openAuthModal();
     return;
   }
 
@@ -384,7 +365,7 @@ function handleBack() {
 
 async function handleViewOriginalOverlay(originalOverlayId: string) {
   try {
-    const success = await navigateToOverlay(originalOverlayId, true);
+    const success = await navigateToOverlay(originalOverlayId);
     if (!success) {
       toastError(t("overlay.failedToNavigate"), t("overlay.navigationFailed"));
     }

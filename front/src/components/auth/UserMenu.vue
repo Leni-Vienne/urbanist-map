@@ -122,9 +122,9 @@
 <script setup lang="ts">
 import { toastSuccess, toastError } from "@/services/core/toast";
 
-import { ref, computed, watch, onMounted, onUnmounted, defineAsyncComponent } from "vue";
+import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from "vue";
 import { isSyntheticEmail } from "@shared/types";
-import { hasUnsavedChanges } from "@/utils/unsavedState";
+import { hasUnsavedChanges } from "@/services/overlay/unsavedState";
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
 
@@ -141,8 +141,8 @@ const authStore = useAuthStore();
 const uiStore = useUiStore();
 
 const { t } = useI18n();
-const isMenuOpen = ref(false);
 const userPopover = ref();
+const isMenuOpen = computed<boolean>(() => userPopover.value?.visible ?? false);
 
 // OSM accounts have a synthetic, non-routable email, so show the username instead.
 const isOsmAccount = computed(() =>
@@ -152,12 +152,10 @@ const isOsmAccount = computed(() =>
 // Toggle menu visibility using Popover
 function toggleMenu(event: Event) {
   userPopover.value.toggle(event);
-  isMenuOpen.value = !isMenuOpen.value;
 }
 
 function openAuthModal() {
-  uiStore.authModalInitialMode = "login";
-  uiStore.authModalVisible = true;
+  uiStore.openAuthModal("login");
 }
 
 async function handleSignOut() {
@@ -165,7 +163,6 @@ async function handleSignOut() {
     // Use a generic warning about unsaved data (reusing existing key)
     if (!confirm(t("navigation.unsavedOverlaysWarning"))) {
       userPopover.value.hide();
-      isMenuOpen.value = false;
       return;
     }
   }
@@ -177,29 +174,18 @@ async function handleSignOut() {
     toastError(result.error ?? undefined, t("auth.error.signOutFailed"));
   }
   userPopover.value.hide();
-  isMenuOpen.value = false;
 }
 
 // Handle opening moderation results (closes menu)
 function openModerationResults() {
   uiStore.moderatedContributionsDialogVisible = true;
   userPopover.value.hide();
-  isMenuOpen.value = false;
 }
 
-// Watch for popover visibility changes
-watch(
-  () => userPopover.value?.visible,
-  (visible) => {
-    isMenuOpen.value = visible ?? false;
-  },
-);
-
-// Close menu on window resize to prevent positioning issues
+// Close the menu on resize, including on touch devices where the Popover keeps itself open
 function handleResize() {
-  if (isMenuOpen.value && userPopover.value) {
+  if (isMenuOpen.value) {
     userPopover.value.hide();
-    isMenuOpen.value = false;
   }
 }
 

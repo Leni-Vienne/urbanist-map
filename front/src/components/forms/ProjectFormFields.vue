@@ -62,11 +62,7 @@
   </div>
 
   <!-- Timeline status selector -->
-  <TimelineStatusSelector
-    v-model="localTimelineStatus"
-    :id-prefix="idPrefix"
-    @change="handleTimelineStatusChange"
-  />
+  <TimelineStatusSelector v-model="localTimelineStatus" :id-prefix="idPrefix" />
   <ChangeIndicator
     :show="showChangeIndicators && hasChanged?.('timelineStatus')"
     :original-value="originalData?.timelineStatus"
@@ -79,7 +75,6 @@
       <FlexibleDatePicker
         v-model="flexibleStartDate"
         :label="$t('project.startDate')"
-        unique-id="start-date"
         :error="getFieldError('startDate') ?? undefined"
         @blur="validateFieldHelper('startDate')"
       />
@@ -94,7 +89,6 @@
       <FlexibleDatePicker
         v-model="flexibleEndDate"
         :label="$t('project.endDate')"
-        unique-id="end-date"
         :error="getFieldError('endDate') ?? undefined"
         @blur="validateFieldHelper('endDate')"
       />
@@ -114,7 +108,6 @@
           v-model="flexibleProposalDate"
           :label="$t('project.proposalDate')"
           :max-date="new Date()"
-          unique-id="proposal-date"
           :error="getFieldError('proposalDate') ?? undefined"
           @blur="validateFieldHelper('proposalDate')"
         />
@@ -247,8 +240,10 @@ const { t, te } = useI18n();
 
 const { getFieldError, hasFieldError, validateField } = useFieldValidation(projectSchema);
 
-// Local timelineStatus state synced with parent
-const localTimelineStatus = ref(props.timelineStatus);
+const localTimelineStatus = computed({
+  get: () => props.timelineStatus,
+  set: (value: TimelineStatus) => emit("update:timelineStatus", value),
+});
 
 // Local copy of formData to avoid mutating props
 const localFormData = ref<ProjectFormData>({
@@ -354,18 +349,6 @@ function validateFieldHelper(fieldPath: string) {
 function getInputClass(fieldName: string) {
   const errorClass = hasFieldError(fieldName) ? "p-invalid" : "";
   return [{ "w-full": true }, errorClass];
-}
-
-watch(
-  () => props.timelineStatus,
-  (newValue) => {
-    localTimelineStatus.value = newValue;
-  },
-);
-
-function handleTimelineStatusChange(newStatus: TimelineStatus) {
-  localTimelineStatus.value = newStatus;
-  emit("update:timelineStatus", newStatus);
 }
 
 function formatFlexibleDateFromProp(date: Date | null | undefined): string {

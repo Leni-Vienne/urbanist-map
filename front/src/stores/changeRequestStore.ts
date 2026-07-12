@@ -1,6 +1,11 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import type { RouterOutput } from "@/client";
+import { useFocusStore } from "@/stores/focusStore";
+import { useMapStore } from "@/stores/mapStore";
+import { useModerationStore } from "@/stores/moderationStore";
+import { useOverlayStore } from "@/stores/overlayStore";
+import type { PendingChangeRequest } from "@/types/index";
 
 export type ChangeRequest = RouterOutput["changes"]["getMyChangeRequests"][number];
 
@@ -9,20 +14,84 @@ export type ChangeRequest = RouterOutput["changes"]["getMyChangeRequests"][numbe
 type PreviewState =
   | { type: "none" }
   | { type: "current"; changeId: string; overlayId: string }
-  | {
-      type: "suggested";
-      changeId: string;
-      overlayId: string;
-      corners: { lat: number; lng: number }[];
-    }
-  | { type: "project-current"; changeId: string; projectId: string }
-  | { type: "project-suggested"; changeId: string; projectId: string };
+  | { type: "suggested"; changeId: string; overlayId: string }
+  | { type: "project-current"; changeId: string }
+  | { type: "project-suggested"; changeId: string };
+
+// The side of a change request the user explicitly asked to preview. Stale intent (its change
+// request resolved, or its entity no longer selected) is inert rather than cleared: previewState
+// falls back to the selection's default derivation.
+type PreviewIntent = { changeId: string; side: "current" | "suggested" } | null;
+
+function isOverlayGeometryChange(cr: PendingChangeRequest, overlayId: string): boolean {
+  return (
+    cr.entityType === "overlay" &&
+    cr.entityId === overlayId &&
+    (cr.fieldName === "corners" || cr.fieldName === "centroid")
+  );
+}
+
+function isProjectShapesChange(cr: PendingChangeRequest): boolean {
+  return cr.entityType === "project" && cr.fieldName === "geometry";
+}
 
 export const useChangeRequestStore = defineStore("changeRequest", () => {
   const pendingChangeRequests = ref<ChangeRequest[]>([]);
   const loaded = ref(false);
 
-  const previewState = ref<PreviewState>({ type: "none" });
+  const previewIntent = ref<PreviewIntent>(null);
+
+  // The change requests previews can target in the current mode: the country's pending
+  // submissions in moderation mode, the user's own change requests otherwise.
+  function relevantChangeRequests(): PendingChangeRequest[] {
+    if (useMapStore().mode === "moderation") {
+      return useModerationStore().changeRequests;
+    }
+    return pendingChangeRequests.value;
+  }
+
+  // Effective preview: intent × selection × change requests. The intent applies while its change
+  // request still targets the selected entity; otherwise the selection's default applies. Edit
+  // mode reads the shown side off the overlay's positionState (the side the reconciler renders,
+  // so button state and image stay consistent); other modes default to the approved side.
+  const previewState = computed<PreviewState>(() => {
+    const requests = relevantChangeRequests();
+    const intent = previewIntent.value;
+    const intentChange = intent ? requests.find((cr) => cr.id === intent.changeId) : undefined;
+
+    const overlayId = useFocusStore().selectedOverlayId;
+    if (overlayId) {
+      const geometryChange =
+        intentChange && isOverlayGeometryChange(intentChange, overlayId)
+          ? intentChange
+          : requests.find((cr) => isOverlayGeometryChange(cr, overlayId));
+      if (!geometryChange) return { type: "none" };
+
+      let side: "current" | "suggested";
+      if (useMapStore().mode === "edit") {
+        const positionState = useOverlayStore().liveOverlays[overlayId]?.positionState;
+        side = positionState === "approved-toggled" ? "current" : "suggested";
+        // The suggested position can't be shown without corners, so no preview is active.
+        if (side === "suggested" && !Array.isArray(geometryChange.newValue)) {
+          return { type: "none" };
+        }
+      } else {
+        side = intent && geometryChange === intentChange ? intent.side : "current";
+      }
+      return { type: side, changeId: geometryChange.id, overlayId };
+    }
+
+    const shapesChange =
+      intentChange && isProjectShapesChange(intentChange)
+        ? intentChange
+        : requests.find(isProjectShapesChange);
+    if (!shapesChange) return { type: "none" };
+    const side = intent && shapesChange === intentChange ? intent.side : "current";
+    return {
+      type: side === "suggested" ? "project-suggested" : "project-current",
+      changeId: shapesChange.id,
+    };
+  });
 
   function setPendingChangeRequests(items: ChangeRequest[]) {
     pendingChangeRequests.value = items;
@@ -46,12 +115,13 @@ export const useChangeRequestStore = defineStore("changeRequest", () => {
   function clearAllState() {
     pendingChangeRequests.value = [];
     loaded.value = false;
-    previewState.value = { type: "none" };
+    previewIntent.value = null;
   }
 
   return {
     pendingChangeRequests,
     loaded,
+    previewIntent,
     previewState,
     setPendingChangeRequests,
     removeChangeRequest,
@@ -61,7 +131,7 @@ export const useChangeRequestStore = defineStore("changeRequest", () => {
   };
 });
 
-// eslint-disable @typescript-eslint/no-unnecessary-condition @typescript-eslint/strict-void-return
+// eslint-disable no-unnecessary-condition strict-void-return
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useChangeRequestStore, import.meta.hot));
 }

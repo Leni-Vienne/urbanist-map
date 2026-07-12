@@ -39,7 +39,7 @@ export const bootedFromDeeplinkView = ref(false);
 
 // Exported as non-null MaplibreMap to satisfy TypeScript, though it is technically null before map initialization.
 // This allows callers to safely use map.value without strict null checking boilerplate.
-// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+// eslint-disable-next-line no-unsafe-type-assertion
 export const map = shallowRef<MaplibreMap>(null as unknown as MaplibreMap);
 export const currentZoomLevel = ref(12);
 export const currentBearing = ref(0);
@@ -61,7 +61,7 @@ export function onMlMapReady(cb: () => void): void {
   }
 }
 
-/** Mark the style ready and flush queued onMlMapReady callbacks. Called once on first style load. */
+/** Mark the style ready and flush queued onMlMapReady callbacks. Called on each instance's first style load. */
 export function markMlMapReady(): void {
   styleReady = true;
   for (const cb of mlMapReadyCallbacks) cb();
@@ -94,7 +94,7 @@ function transformMapRequest(url: string): RequestParameters | undefined {
 // This reaches into the handler's private `_aroundPoint`, as there is no public API for it.
 function enableCursorTrackingScrollZoom(targetMap: MaplibreMap): void {
   /* eslint-disable no-underscore-dangle -- mirrors MapLibre's private fields */
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+  // eslint-disable-next-line no-unsafe-type-assertion
   const handler = targetMap.scrollZoom as unknown as {
     wheel: (e: WheelEvent) => void;
     _aroundPoint?: { x: number; y: number };
@@ -119,6 +119,14 @@ function enableCursorTrackingScrollZoom(targetMap: MaplibreMap): void {
 }
 
 export function initializeMap() {
+  // Re-initialization builds a fresh instance: release the previous one's WebGL context and requeue
+  // onMlMapReady callers behind the new style load.
+  // oxlint-disable-next-line no-unnecessary-condition
+  if (map.value) {
+    map.value.remove();
+    styleReady = false;
+  }
+
   const hasMapHash = globalThis.location.hash.startsWith("#map=");
   // An explicit map-state hash wins over the deep-link view (e.g. a shared link with both).
   const deeplinkBounds = hasMapHash ? null : parseDeeplinkBounds();
@@ -214,7 +222,7 @@ export function initializeMap() {
   });
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+// eslint-disable-next-line no-unnecessary-condition
 if (import.meta.hot) {
   import.meta.hot.dispose((data) => {
     data.styleReady = styleReady;

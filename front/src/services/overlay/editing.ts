@@ -25,6 +25,9 @@ import { useMapStore } from "@/stores/mapStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
 import { validateOverlaySize } from "@shared/overlayValidation";
+import { onModeTransition } from "@/services/map/modeTransition";
+import { registerOnce } from "@/utils/registerOnce";
+import type { AppMode } from "@shared/types";
 
 import { t } from "@/locales";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
@@ -175,68 +178,6 @@ export function addOverlay(
   return id;
 }
 
-export function undo() {
-  applyHistoryAction("undo");
-}
-
-export function redo() {
-  applyHistoryAction("redo");
-}
-
-function applyHistoryAction(action: "undo" | "redo") {
-  const overlayStore = useOverlayStore();
-
-  const id = useFocusStore().selectedOverlayId;
-  if (!id || !registry.getImageHandle(id)) return;
-
-  const target = action === "undo" ? overlayStore.undoHistory(id) : overlayStore.redoHistory(id);
-  if (!target) return;
-
-  // A step from before a crop carries a different image; sync the canonical imageUrl so the
-  // reconciler swaps the source. Position and marker convergence follow from the moved history top.
-  const overlay = overlayStore.liveOverlays[id];
-  if (overlay && overlay.imageUrl !== target.imageUrl) {
-    overlayStore.updateOverlay(id, {
-      imageUrl: target.imageUrl,
-      filename: deriveOverlayFilename(id, target.imageUrl, overlay.filename),
-    });
-  }
-
-  registry.scheduleOverlayReconcile();
-}
-
-// Guard against duplicate keyboard shortcut registration
-let keyboardShortcutsRegistered = false;
-
-function isEditableTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  if (target.isContentEditable) return true;
-  return ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
-}
-
-function handleKeyDown(event: KeyboardEvent) {
-  // Let the browser's native undo/redo win while typing in a field, otherwise the global
-  // capture-phase handler would also revert the selected overlay's position.
-  if (isEditableTarget(event.target)) return;
-
-  // Ctrl+Z
-  if (event.ctrlKey && !event.shiftKey && event.key.toLowerCase() === "z") {
-    undo();
-    // Ctrl+Y (AZERTY) or Ctrl+Shift+Z (QWERTY)
-  } else if (
-    event.ctrlKey &&
-    (event.key.toLowerCase() === "y" || (event.shiftKey && event.key.toLowerCase() === "z"))
-  ) {
-    redo();
-  }
-}
-
-export function setupKeyboardShortcuts() {
-  if (keyboardShortcutsRegistered) return;
-  globalThis.addEventListener("keydown", handleKeyDown, true);
-  keyboardShortcutsRegistered = true;
-}
-
 interface CornerDragState {
   ax: number;
   ay: number;
@@ -295,7 +236,7 @@ function syncSvgOutline(): void {
   if (!session?.svgPath) return;
   const mlMap = map.value;
   const transform = getCurrentTransform(session.id);
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  // eslint-disable-next-line no-unnecessary-condition
   if (!transform) return;
 
   const threshold = getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
@@ -328,7 +269,7 @@ function refreshEditHandlesGeometry(skipCorner = -1): void {
   if (!session) return;
   const mlMap = map.value;
   const transform = getCurrentTransform(session.id);
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  // eslint-disable-next-line no-unnecessary-condition
   if (!transform) return;
 
   const corners = transformToCorners(transform);
@@ -496,7 +437,7 @@ function wireSurfaceDrag(s: EditSession): void {
 export function showEditHandles(overlayObject: OverlayObject): void {
   const mlMap = map.value;
   const handle = getImageHandle(overlayObject.id);
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  // eslint-disable-next-line no-unnecessary-condition
   if (!handle) return;
 
   hideEditHandles();
@@ -577,7 +518,7 @@ export function reattachEditHandlesAfterStyleSwitch(): void {
   if (!session) return;
   const mlMap = map.value;
   const transform = getCurrentTransform(session.id);
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  // eslint-disable-next-line no-unnecessary-condition
   if (!transform) return;
 
   const corners = transformToCorners(transform);
@@ -628,37 +569,47 @@ export function hideEditHandles(): void {
   if (mlMap.getLayer(s.fillLayerId)) mlMap.removeLayer(s.fillLayerId);
   if (mlMap.getSource(s.fillSourceId)) mlMap.removeSource(s.fillSourceId);
 }
-let editorWatcherInitialized = false;
 
-export function initializeEditorTriggers(): void {
-  if (editorWatcherInitialized) return;
-  editorWatcherInitialized = true;
+/**
+ * Converge the edit handles to the (selection, mode) pair: handles exist only for the selected
+ * overlay in edit mode. hideEditHandles() no-ops when nothing is shown, and the image may not be
+ * on the map yet, so the show is deferred until it is (and re-checks the mode by then).
+ */
+function syncEditHandles(selectedId: string | null, mode: AppMode): void {
+  hideEditHandles();
 
+  if (!selectedId || mode !== "edit") return;
+
+  const overlay = useOverlayStore().liveOverlays[selectedId];
+  if (!overlay) return;
+
+  whenImageReadyIfSelected(selectedId, () => {
+    if (useMapStore().mode === "edit") showEditHandles(overlay);
+  });
+}
+
+function registerEditorTriggers(): void {
   // Let the reconciler refresh the active edit session's handles after it moves an image.
   registry.registerEditHandleSync(refreshEditHandlesGeometry);
 
-  const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
   const focus = useFocusStore();
 
   watch(
-    [() => focus.selectedOverlayId, () => mapStore.mode],
-    ([newId, newMode], [oldId, oldMode]) => {
-      // Clean up old handles if selection or mode changed
-      if (oldId && (newId !== oldId || oldMode !== "edit" || newMode !== "edit")) {
-        hideEditHandles();
-      }
-
-      // Show handles for new selection in edit mode
-      if (newId && newMode === "edit") {
-        const overlay = overlayStore.liveOverlays[newId];
-        if (overlay) {
-          whenImageReadyIfSelected(newId, () => {
-            if (mapStore.mode === "edit") showEditHandles(overlay);
-          });
-        }
-      }
+    () => focus.selectedOverlayId,
+    (selectedId) => {
+      syncEditHandles(selectedId, mapStore.mode);
     },
     { immediate: true },
   );
+
+  onModeTransition("editHandles", (newMode) => {
+    syncEditHandles(focus.selectedOverlayId, newMode);
+  });
 }
+
+/**
+ * The edit-handle show/hide triggers (overlay selection and map mode) and the reconciler's
+ * handle-sync callback.
+ */
+export const initializeEditorTriggers = registerOnce(registerEditorTriggers);

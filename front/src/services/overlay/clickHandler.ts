@@ -1,17 +1,14 @@
 import { nextTick } from "vue";
 import { navigateToProject } from "@/services/navigation/projectNavigation";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
-import { navigateToOverlay } from "@/services/overlay/actions";
+import { navigateToOverlay } from "@/services/overlay/navigation";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useMapStore } from "@/stores/mapStore";
 
 import { t } from "@/locales";
 import { trpc } from "@/client";
 import type { Overlay, LatestContribution } from "@/types/index";
-import {
-  canModerateCountry,
-  syncModerationCountry,
-} from "@/services/moderation/moderationCountrySync";
+import { canModerateCountry } from "@/services/moderation/moderationCountrySync";
 import { loadOrNull } from "@/services/core/errorHandling";
 import { isValidQuad } from "@/services/overlay/transform";
 import { toastWarn, toastInfo, toastError } from "@/services/core/toast";
@@ -27,7 +24,6 @@ type NavigableOverlay = Overlay | LatestContribution;
 export async function handleOverlayClickNavigation(
   overlay: NavigableOverlay,
   shouldToggleEditMode = false,
-  autoSelect = true,
 ): Promise<void> {
   try {
     const overlayStore = useOverlayStore();
@@ -48,7 +44,7 @@ export async function handleOverlayClickNavigation(
         return;
       }
       // Auto-select the country so ModerationPanel loads its pending submissions
-      syncModerationCountry(overlay.countryCode);
+      mapStore.setSelectedCountryCode(overlay.countryCode);
     }
 
     // Only switch to edit mode if currently in view mode
@@ -70,7 +66,7 @@ export async function handleOverlayClickNavigation(
       await nextTick();
     }
 
-    await navigateToOverlay(overlay.id, autoSelect);
+    await navigateToOverlay(overlay.id);
   } catch (error) {
     console.error("Failed to navigate to overlay:", error);
     toastError(
@@ -96,7 +92,6 @@ async function navigateToReplacedOrRejectedOverlay(
   // First try to get centroid from overlay store (has full overlay data)
   const storeCorners = overlayStore.liveOverlays[overlay.id]?.baselineCorners;
   if (isValidQuad(storeCorners)) {
-    // Calculate centroid from corners
     const centroidLat = storeCorners.reduce((sum, c) => sum + c.lat, 0) / storeCorners.length;
     const centroidLng = storeCorners.reduce((sum, c) => sum + c.lng, 0) / storeCorners.length;
 

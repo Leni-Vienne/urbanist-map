@@ -1,11 +1,9 @@
 import { watch } from "vue";
-import { trpc } from "@/client";
+import { hydrateProjectDetail } from "@/services/map/projectSelection";
 import { useUiStore } from "@/stores/uiStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { highlightProjectShapes, unhighlightProjectShapes } from "@/services/map/shapes/registry";
-
-let isWatcherInitialized = false;
 
 // Permanent slugs never change once assigned, so a session-lifetime cache is always valid and saves
 // refetching the slug of a project selected more than once.
@@ -46,15 +44,11 @@ function initializeProjectUrlSync() {
       }
 
       // Slug wasn't loaded with the project (e.g. it came from the viewport payload). Resolve it once.
-      try {
-        const fresh = await trpc.project.getById.query({ id: projectId });
-        if (!fresh?.slug) return;
-        slugCache.set(projectId, fresh.slug);
-        // A fast re-selection may have moved on while awaiting; only write if still the active project.
-        if (focus.selectedProjectId === projectId) writeProjectPath(fresh.slug);
-      } catch (error) {
-        console.error("Failed to resolve project slug for URL sync:", error);
-      }
+      const fresh = await hydrateProjectDetail(projectId);
+      if (!fresh?.slug) return;
+      slugCache.set(projectId, fresh.slug);
+      // A fast re-selection may have moved on while awaiting; only write if still the active project.
+      if (focus.selectedProjectId === projectId) writeProjectPath(fresh.slug);
     },
   );
 }
@@ -97,12 +91,9 @@ function initializeShapeHighlightWatcher() {
 
 /**
  * Drives all focus-driven side effects (URL slug sync, accordion cleanup, GeoJSON shape highlight)
- * so click handlers only need to write the focus store. Call once at app boot after Pinia is installed.
+ * so click handlers only need to write the focus store. Requires Pinia to be installed.
  */
-export function initializeDetailWatcher() {
-  if (isWatcherInitialized) return;
-  isWatcherInitialized = true;
-
+export function initializeDetailWatcher(): void {
   initializeProjectUrlSync();
   initializeSelectedPanelCleanup();
   initializeShapeHighlightWatcher();

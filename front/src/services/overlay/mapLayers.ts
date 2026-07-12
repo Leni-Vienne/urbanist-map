@@ -1,3 +1,4 @@
+import { reactive } from "vue";
 import type {
   Marker as MaplibreMarker,
   ImageSource,
@@ -7,6 +8,7 @@ import type {
 import { map } from "@/services/core/map";
 import {
   cornersToTransform,
+  isValidQuad,
   transformToCorners,
   type OverlayTransform,
 } from "@/services/overlay/transform";
@@ -342,8 +344,9 @@ function getVectorLayersBottomId(mlMap: MaplibreMap): string | undefined {
 
 // Overlay IDs the user pinned to the front (above the geometry); otherwise inter-image order follows
 // selection (clicked image rises to its band top). Held off the handle so the choice survives handle
-// re-creation (zoom threshold crossing, style switch, viewport re-entry).
-const frontOverlayIds = new Set<string>();
+// re-creation (zoom threshold crossing, style switch, viewport re-entry). Reactive so UI state
+// (front/back toggle) can be computed from it.
+const frontOverlayIds = reactive(new Set<string>());
 
 // Per-overlay raster opacity (0..1), held off the handle for the same reason. Absent = full opacity.
 const overlayOpacities = new Map<string, number>();
@@ -435,7 +438,7 @@ export function createOverlayImage(
   corners: LatLng[],
 ): OverlayImageHandle | null {
   const mlMap = map.value;
-  if (corners.length !== 4) return null;
+  if (!isValidQuad(corners)) return null;
 
   const sourceId = overlaySourceId(overlayObject.id);
   const rasterLayerId = overlayRasterLayerId(overlayObject.id);
@@ -492,7 +495,7 @@ export function getLastAppliedCorners(id: string): LatLng[] | null {
 // position). Also refreshes the stored rigid transform so the next edit starts from here.
 export function setOverlayImageCorners(id: string, corners: LatLng[]): void {
   const handle = getImageHandle(id);
-  if (!handle || corners.length !== 4) return;
+  if (!handle || !isValidQuad(corners)) return;
   getImageSource(handle.sourceId)?.setCoordinates(cornersToImageCoordinates(corners));
   handle.transform = cornersToTransform(corners);
   recordAppliedCorners(id, corners);
@@ -561,11 +564,16 @@ export function getCurrentTransform(id: string): OverlayTransform | null {
   return corners ? cornersToTransform(corners) : null;
 }
 
-// Live corners of the overlay's current rigid transform. The edited position during editing.
-export function getOverlayImageCorners(id: string): LatLng[] | null {
+// Corners of the rendered GL image, or null when the overlay's raster is not on the map.
+export function getRenderedOverlayCorners(id: string): LatLng[] | null {
   const handle = getImageHandle(id);
-  if (handle) return transformToCorners(handle.transform);
-  return lastHistoryCorners(id);
+  return handle ? transformToCorners(handle.transform) : null;
+}
+
+// Live corners of the overlay's current rigid transform: from the rendered image when present,
+// else the last history entry. The edited position during editing.
+export function getOverlayImageCorners(id: string): LatLng[] | null {
+  return getRenderedOverlayCorners(id) ?? lastHistoryCorners(id);
 }
 
 // Set raster opacity (0..1) for one overlay, persisting it on the handle.

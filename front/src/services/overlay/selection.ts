@@ -1,9 +1,7 @@
 import { useOverlayStore } from "@/stores/overlayStore";
-import { useProjectStore } from "@/stores/projectStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useMapStore } from "@/stores/mapStore";
-import { trpc } from "@/client";
-import { createProjectObject } from "@/utils/typeFactories";
+import { ensureProjectLoaded } from "@/services/map/projectSelection";
 import {
   getMarker,
   getRenderedOverlayIds,
@@ -11,24 +9,11 @@ import {
   whenImageReady,
   raiseOverlayImage,
 } from "@/services/overlay/mapLayers";
-import { syncPreviewStateOnNavigation } from "@/services/overlay/changeRequestPreviewSync";
-import type { OverlayObject, LatLng } from "@/types/index";
+import type { LatLng } from "@/types/index";
 import { syncModerationCountryFromMapClick } from "@/services/moderation/moderationCountrySync";
 import { resolveOverlayCorners } from "@/services/overlay/data";
 import { showsSuggestedState } from "@/services/overlay/transform";
-import { isOverlayUnsaved } from "@/utils/unsavedState";
-
-function setupNewSelection(newlySelected: OverlayObject, overlayId: string): void {
-  // Raise the clicked image above its siblings so the one the user picked is never hidden.
-  raiseOverlayImage(overlayId);
-
-  // Sync preview state for reactive button highlighting in change request UI. Edit mode displays
-  // the suggested position of an open change request by default (only the explicit toggle views
-  // the approved one); non-edit modes always start on the approved position.
-  const isViewingApproved =
-    useMapStore().mode !== "edit" || newlySelected.positionState === "approved-toggled";
-  syncPreviewStateOnNavigation(overlayId, isViewingApproved);
-}
+import { isOverlayUnsaved } from "@/services/overlay/unsavedState";
 
 /**
  * Select an overlay. The map highlight (sister overlays + footprint) follows the focus store
@@ -52,36 +37,16 @@ export function selectOverlay(overlayId: string | null): void {
   // Pin the overlay; this replaces any open project detail (mutual exclusivity is free).
   focus.selectOverlay(overlayId);
 
-  setupNewSelection(newlySelected, overlayId);
+  // Raise the clicked image above its siblings so the one the user picked is never hidden.
+  raiseOverlayImage(overlayId);
 
   // In moderation mode, switch the panel to this overlay's country so its pending submissions load.
   syncModerationCountryFromMapClick(newlySelected.project?.countryCode);
 
-  // Fetch the overlay's project if the selection came from the map (vector tiles don't always
-  // carry the full project) so the docked detail can resolve it.
-  void hydrateOverlayProject(overlayId);
-}
-
-// The docked overlay detail needs the overlay's full Project. Map (vector tile) selections only
-// carry minimal data, so fetch and cache the project when neither the store nor the overlay has it.
-async function hydrateOverlayProject(overlayId: string): Promise<void> {
-  const overlayStore = useOverlayStore();
-  const overlay = overlayStore.liveOverlays[overlayId];
-  if (!overlay?.projectId) return;
-
-  const projectStore = useProjectStore();
-  if (projectStore.projects[overlay.projectId] || overlay.project) return;
-
-  try {
-    const result = await trpc.project.getById.query({ id: overlay.projectId });
-    if (result) {
-      projectStore.updateProject(
-        overlay.projectId,
-        createProjectObject({ ...result, tags: result.tags ?? [], overlayIds: [] }),
-      );
-    }
-  } catch (error) {
-    console.error("Failed to fetch project for overlay detail:", error);
+  // The docked overlay detail needs the overlay's full Project. Map (vector tile) selections only
+  // carry minimal data, so load it when the overlay doesn't already hold it.
+  if (newlySelected.projectId && !newlySelected.project) {
+    void ensureProjectLoaded(newlySelected.projectId);
   }
 }
 

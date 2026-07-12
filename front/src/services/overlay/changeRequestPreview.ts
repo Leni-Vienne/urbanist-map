@@ -2,14 +2,18 @@ import { nextTick } from "vue";
 import { LngLat, LngLatBounds } from "maplibre-gl";
 import { t } from "@/locales";
 
-import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useMapStore } from "@/stores/mapStore";
 import { getOverlayBounds } from "@/services/overlay/markers";
 import * as registry from "@/services/overlay/mapLayers";
-import { isValidQuad, getEditModeRestingCorners } from "@/services/overlay/transform";
+import {
+  isValidQuad,
+  parsePointValue,
+  parseQuadValue,
+  getEditModeRestingCorners,
+} from "@/services/overlay/transform";
 import { selectOverlay } from "@/services/overlay/selection";
-import { clearAllMapContent } from "@/services/overlay/lifecycle";
+import { clearAllMapContent } from "@/services/overlay/teardown";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import type { LatLng, Overlay, PendingChangeRequest } from "@/types/index";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
@@ -22,40 +26,11 @@ interface PreviewGeometryOptions {
   type: "old" | "new";
 }
 
-// Type guard for coordinate object
-function isCoordinate(value: unknown): value is { lat: number; lng: number } {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "lat" in value &&
-    "lng" in value &&
-    typeof value.lat === "number" &&
-    typeof value.lng === "number"
-  );
-}
-
-// Type guard for coordinate array
-function isCoordinateArray(value: unknown): value is { lat: number; lng: number }[] {
-  return Array.isArray(value) && value.length > 0 && value.every(isCoordinate);
-}
-
-// Parse geometry value into corner coordinates (single coord or coordinate array from JSONB)
-function parseGeometry(geometryValue: unknown): { lat: number; lng: number }[] {
-  if (!geometryValue || typeof geometryValue !== "object") {
-    return [];
-  }
-
-  // Single coordinate (centerCoordinate, centroid)
-  if (isCoordinate(geometryValue)) {
-    return [geometryValue];
-  }
-
-  // Array of coordinates (corners)
-  if (isCoordinateArray(geometryValue)) {
-    return geometryValue;
-  }
-
-  return [];
+// Parse a change-request geometry value: a single coordinate (centroid) or a 4-corner quad.
+function parseGeometry(geometryValue: unknown): LatLng[] {
+  const point = parsePointValue(geometryValue);
+  if (point) return [point];
+  return parseQuadValue(geometryValue) ?? [];
 }
 
 export function isPreviewingChange(changeId: string): boolean {
@@ -65,11 +40,7 @@ export function isPreviewingChange(changeId: string): boolean {
 }
 
 // Navigate to position, combining new and previous bounds for a smooth unzoom effect
-function navigateToPosition(
-  targetLatLngs: LngLat[],
-  previousBounds: LngLatBounds | null,
-  overlayId: string,
-): void {
+function navigateToPosition(targetLatLngs: LngLat[], previousBounds: LngLatBounds | null): void {
   const targetBounds = new LngLatBounds();
   for (const pt of targetLatLngs) {
     targetBounds.extend(pt);
@@ -82,11 +53,6 @@ function navigateToPosition(
   }
 
   mobileAwareFlyToBounds(targetBounds);
-
-  // Select overlay after flyTo completes
-  void map.value.once("moveend", () => {
-    selectOverlay(overlayId);
-  });
 }
 
 export function getPreviewType(changeId: string): "current" | "suggested" | null {
@@ -123,7 +89,7 @@ async function ensureOverlayLoaded(
 
   // Clear map and navigate to the overlay's country
   clearAllMapContent();
-  mapStore.selectedCountryCode = overlayForModeration.countryCode;
+  mapStore.setSelectedCountryCode(overlayForModeration.countryCode);
 
   // Step 4: Navigate to overlay position
   const targetBounds = new LngLatBounds();
@@ -168,20 +134,12 @@ function applyPositionPreview(
     previousBounds = getOverlayBounds(overlayObject);
   }
 
-  // A "new" preview asserts the overlay has an open change request; record its suggested position
-  // so resolveOverlayCorners renders the image there.
-  if (type === "new") {
-    overlayObject.hasPendingChanges = true;
-    if (isValidQuad(targetCorners)) {
-      overlayObject.suggestedCorners = targetCorners;
-    }
-  }
-
   // In edit mode the toggle moves an unedited overlay's resting position, so its history seed
   // follows it (the first undo returns to the shown position). A staged overlay keeps its edits and
-  // undo target. Moderation resolves the preview from changeRequestStore.previewState, so it needs
-  // no position-state mutation here. Either way the reconciler converges the image, marker and (in
-  // edit mode) the edit handles to the resolved position.
+  // undo target. Moderation resolves the preview entirely from changeRequestStore.previewState (the
+  // previewed request's own corners), so it never mutates the overlay object. Either way the
+  // reconciler converges the image, marker and (in edit mode) the edit handles to the resolved
+  // position.
   if (useMapStore().mode === "edit") {
     const isUnedited =
       overlayObject.positionState !== "staged" && overlayObject.redoStack.length === 0;
@@ -197,7 +155,7 @@ function applyPositionPreview(
   registry.scheduleOverlayReconcile();
 
   const targetLatLngs = targetCorners.map((c) => new LngLat(c.lng, c.lat));
-  navigateToPosition(targetLatLngs, previousBounds, overlayId);
+  navigateToPosition(targetLatLngs, previousBounds);
 }
 
 export async function previewOverlayGeometry(options: PreviewGeometryOptions): Promise<void> {
@@ -224,22 +182,13 @@ export async function previewOverlayGeometry(options: PreviewGeometryOptions): P
       return;
     }
 
-    // Set the preview state before converging: the reconciler resolves the moderation preview
-    // position from it.
-    if (type === "new") {
-      changeRequestStore.previewState = {
-        type: "suggested",
-        changeId: change.id,
-        overlayId: change.entityId,
-        corners,
-      };
-    } else {
-      changeRequestStore.previewState = {
-        type: "current",
-        changeId: change.id,
-        overlayId: change.entityId,
-      };
-    }
+    // The effective preview derives from intent × selection, so record the intent and select the
+    // overlay before converging: the reconciler resolves the moderation preview position from it.
+    changeRequestStore.previewIntent = {
+      changeId: change.id,
+      side: type === "new" ? "suggested" : "current",
+    };
+    selectOverlay(change.entityId);
 
     // Don't pass previousBounds when toggling, both positions are already visible
     applyPositionPreview(

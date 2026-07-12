@@ -1,6 +1,6 @@
 ﻿<template>
   <div :class="['mt-4', containerClass]">
-    <div v-if="showHeader" class="mb-2.5">
+    <div class="mb-2.5">
       <div class="flex items-center gap-1.5">
         <i class="pi pi-info-circle text-amber-700 dark:text-amber-400 text-[11px]"></i>
         <span class="text-[13px] font-medium text-amber-800 dark:text-amber-400">
@@ -43,7 +43,6 @@
               </div>
               <ChangeValueDisplay
                 :change="group.change"
-                :projects="projects"
                 :is-preview-active="isPreviewActive"
                 :show-user-stats-link="showUserStatsLink"
                 @preview-geometry="previewGeometry"
@@ -82,7 +81,6 @@
                 <div class="flex items-center gap-2 mb-1"></div>
                 <ChangeValueDisplay
                   :change="change"
-                  :projects="projects"
                   :is-preview-active="isPreviewActive"
                   :show-user-stats-link="showUserStatsLink"
                   @preview-geometry="previewGeometry"
@@ -101,9 +99,7 @@
 </template>
 
 <script setup lang="ts">
-import { toastError } from "@/services/core/toast";
-
-import { computed, watchEffect } from "vue";
+import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 
 import {
@@ -112,34 +108,26 @@ import {
   previewOverlayGeometry,
 } from "@/services/overlay/changeRequestPreview";
 import { previewShapes } from "@/services/overlay/shapeChangeRequestPreview";
-import {
-  syncPreviewStateOnNavigation,
-  syncProjectShapePreviewState,
-} from "@/services/overlay/changeRequestPreviewSync";
-import { useOverlayStore } from "@/stores/overlayStore";
-import { useFocusStore } from "@/stores/focusStore";
-import { useMapStore } from "@/stores/mapStore";
 import type { Project, Overlay, PendingChangeRequest } from "@/types/index";
 import ChangeValueDisplay from "@/components/layout/ChangeValueDisplay.vue";
 
 interface Props {
   changes: PendingChangeRequest[];
-  allChangeRequests: PendingChangeRequest[];
-  projects: Project[];
+  overlay?: Overlay | null;
+  project?: Project | null;
   isMyContributions?: boolean;
   isOverlayChanges?: boolean;
   entityName?: string;
-  showHeader?: boolean;
   containerClass?: string;
-  onNavigateToOverlay?: (overlayId: string) => Promise<void>;
   showUserStatsLink?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  overlay: null,
+  project: null,
   isMyContributions: false,
   isOverlayChanges: false,
   entityName: "",
-  showHeader: true,
   containerClass: "",
   showUserStatsLink: false,
 });
@@ -157,29 +145,6 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
-
-const overlayStore = useOverlayStore();
-const focusStore = useFocusStore();
-const mapStore = useMapStore();
-
-// Sync preview button state reactively. The sync functions read the mode's change request
-// store internally, so this effect tracks both the focus selection and the store contents.
-// IMPORTANT: do NOT read previewState inside this effect, it would create a read→write cycle.
-watchEffect(() => {
-  const selectedId = focusStore.selectedOverlayId;
-  if (selectedId) {
-    // Sync "view approved position" button for the currently selected overlay
-    const sel = overlayStore.liveOverlays[selectedId];
-    if (sel) {
-      const isViewingApproved =
-        mapStore.mode !== "edit" || sel.positionState === "approved-toggled";
-      syncPreviewStateOnNavigation(selectedId, isViewingApproved);
-    }
-  } else {
-    // No overlay selected: sync "view current shapes" button for project geometry changes
-    syncProjectShapePreviewState();
-  }
-});
 
 function isPreviewActive(changeId: string, type: "old" | "new"): boolean {
   if (!isPreviewingChange(changeId)) return false;
@@ -266,45 +231,18 @@ function formatFieldName(fieldName: string): string {
   return translated !== translationKey ? translated : fieldName;
 }
 
-// Wrapper function to handle preview with proper error handling
-async function previewGeometry(geometryValue: unknown, type: "old" | "new", changeId: string) {
-  // Find the change request
-  const change = props.allChangeRequests.find((c) => c.id === changeId);
-  if (!change) {
-    toastError(t("overlay.couldNotFindChange"), t("overlay.changeNotFound"));
-    return;
-  }
+async function previewGeometry(change: PendingChangeRequest, type: "old" | "new") {
+  const geometryValue = type === "old" ? change.oldValue : change.newValue;
 
-  if (change.entityType === "overlay") {
-    // Find the overlay data
-    let overlayForModeration: Overlay | null = null;
-    for (const project of props.projects) {
-      if (project.overlays) {
-        overlayForModeration =
-          project.overlays.find((o: Overlay) => o.id === change.entityId) ?? null;
-        if (overlayForModeration) break;
-      }
-    }
-
-    if (!overlayForModeration) {
-      toastError(t("overlay.couldNotFindOverlay"), t("overlay.overlayNotFound"));
-      return;
-    }
-
+  if (change.entityType === "overlay" && props.overlay) {
     await previewOverlayGeometry({
       change,
-      overlayForModeration,
+      overlayForModeration: props.overlay,
       geometryValue,
       type,
     });
-  } else if (change.entityType === "project") {
-    const project = props.projects.find((p) => p.id === change.entityId);
-    if (!project) {
-      toastError(t("overlay.couldNotFindChange"), t("overlay.changeNotFound"));
-      return;
-    }
-
-    await previewShapes({ change, project, geometryValue, type });
+  } else if (change.entityType === "project" && props.project) {
+    await previewShapes({ change, project: props.project, geometryValue, type });
   }
 }
 </script>

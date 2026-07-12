@@ -11,21 +11,15 @@ import {
 } from "@/services/overlay/visibility";
 import type { OverlayObject, OverlayData } from "@/types/index";
 import { visibleStates, selectedProjectTags } from "@/services/map/filters";
-import {
-  createOverlayMarker,
-  updateMarkerPosition,
-  initializeMarkerColorTriggers,
-} from "@/services/overlay/markers";
+import { createOverlayMarker, updateMarkerPosition } from "@/services/overlay/markers";
 import { resolveOverlayCorners } from "@/services/overlay/data";
 import { getApprovedOverlayDataFromTiles } from "@/services/map/tiles/approvedOverlayCache";
 import { isValidQuad, sameCorners } from "@/services/overlay/transform";
 import * as registry from "@/services/overlay/mapLayers";
 import { createRafBatchQueue } from "@/utils/rafBatchQueue";
 import { cornersIntersectBounds } from "@/utils/cornersBounds";
-import {
-  renderAllProjectShapes,
-  initializeShapeRenderTriggers,
-} from "@/services/map/shapes/renderLoop";
+import { registerOnce } from "@/utils/registerOnce";
+import { renderAllProjectShapes } from "@/services/map/shapes/renderLoop";
 
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 interface ViewportBounds {
@@ -36,8 +30,7 @@ interface ViewportBounds {
 }
 
 // Current viewport padded by 10% per axis, so content just past the edge isn't destroyed only to
-// be re-created on the next small pan. Shared by the prune loop and the bbox marker passes in
-// viewportTriggers so creation and destruction agree on viewport membership.
+// be re-created on the next small pan.
 function getPaddedViewportBounds(): ViewportBounds {
   const mlBounds = map.value.getBounds();
   const sw = mlBounds.getSouthWest();
@@ -136,7 +129,7 @@ function convergeOverlayDisplay(overlayObject: OverlayObject): boolean {
  *
  * Candidate ids come from every set that can want an overlay on the map:
  *   - approvedOverlayDataCache: approved overlays vetted by tile sync (filters + viewport applied).
- *   - viewModeOverlays: pending + session change-request overlays (edit/moderation only).
+ *   - renderLoopOverlays: pending + session change-request overlays (edit/moderation only).
  *   - liveOverlays(status === null): local/unsaved overlays.
  *   - current registry ids: so entries that left every live set get destroyed.
  *
@@ -149,25 +142,23 @@ function reconcileOverlayExistence(bounds: ViewportBounds) {
   const authStore = useAuthStore();
   const mode = mapStore.mode;
   const userId = authStore.user?.id;
-  // Edit/moderation show a clickable status pin per overlay; view mode relies on the
-  // overlay-footprints MVT layer for clicks, so approved images get no DOM marker there.
-  const createMarkers = mode !== "view";
-  // Position/image convergence runs in edit and moderation: view-mode approved overlays never leave
-  // baseline. In moderation only the change-request preview target resolves away from baseline.
-  const converge = mode === "edit" || mode === "moderation";
+  // Edit/moderation show a clickable status pin per overlay, and converge each image onto its
+  // store-derived position. View mode relies on the overlay-footprints MVT layer for clicks (so
+  // approved images get no DOM marker) and leaves approved overlays at their baseline footprint.
+  const isSessionMode = mode !== "view";
   let handlesNeedSync = false;
 
   const tileManaged = getApprovedOverlayDataFromTiles();
-  // viewModeOverlays holds only pending + session change-request overlays, delivered in edit and
+  // renderLoopOverlays holds only pending + session change-request overlays, delivered in edit and
   // moderation; view mode leaves the last edit session's list stale, so it is ignored there.
-  const viewModeById = new Map<string, OverlayData>();
-  if (mode !== "view") {
-    for (const data of overlayStore.viewModeOverlays) viewModeById.set(data.id, data);
+  const sessionById = new Map<string, OverlayData>();
+  if (isSessionMode) {
+    for (const data of overlayStore.renderLoopOverlays) sessionById.set(data.id, data);
   }
 
   const candidateIds = new Set<string>();
   for (const id of tileManaged.keys()) candidateIds.add(id);
-  for (const id of viewModeById.keys()) candidateIds.add(id);
+  for (const id of sessionById.keys()) candidateIds.add(id);
   for (const [id, overlay] of Object.entries(overlayStore.liveOverlays)) {
     if (overlay.status === null) candidateIds.add(id);
   }
@@ -191,7 +182,7 @@ function reconcileOverlayExistence(bounds: ViewportBounds) {
       if (shouldDisplayOverlay(liveObject, mode, userId)) {
         destructionQueue.delete(id);
         if (!hasImage) localToRender.push(liveObject);
-        else if (converge && convergeOverlayDisplay(liveObject)) handlesNeedSync = true;
+        else if (isSessionMode && convergeOverlayDisplay(liveObject)) handlesNeedSync = true;
         if (!hasMarker) createOverlayMarker(liveObject);
       } else if (hasImage || hasMarker) {
         queueForDestruction(id);
@@ -211,7 +202,7 @@ function reconcileOverlayExistence(bounds: ViewportBounds) {
       // dragged away from its footprint): membership then keys on the resolved "marker" position, so
       // an overlay whose image sits away from its tile footprint stays alive while that position is
       // in view.
-      const data = viewModeById.get(id) ?? liveObject ?? null;
+      const data = sessionById.get(id) ?? liveObject ?? null;
       desired =
         data !== null &&
         isOverlayVisible(liveObject ?? data, mode, userId) &&
@@ -231,10 +222,10 @@ function reconcileOverlayExistence(bounds: ViewportBounds) {
       // Markers only need the canonical store object, not the image, so create as soon as one
       // exists. A tile-delivered overlay has none until its first render (below) upserts it; its
       // pin lands on the reconcile that render schedules.
-      if (createMarkers && !hasMarker && liveObject) createOverlayMarker(liveObject);
+      if (isSessionMode && !hasMarker && liveObject) createOverlayMarker(liveObject);
       if (!hasImage) {
         backendToRender.push(renderData);
-      } else if (converge && liveObject && convergeOverlayDisplay(liveObject)) {
+      } else if (isSessionMode && liveObject && convergeOverlayDisplay(liveObject)) {
         handlesNeedSync = true;
       }
     } else if (hasImage || hasMarker) {
@@ -245,8 +236,8 @@ function reconcileOverlayExistence(bounds: ViewportBounds) {
   if (handlesNeedSync) registry.runEditHandleSync();
 
   if (backendToRender.length > 0) {
-    void import("@/services/overlay/rendering").then(({ renderViewModeOverlays }) => {
-      renderViewModeOverlays(backendToRender);
+    void import("@/services/overlay/rendering").then(({ renderBackendOverlays }) => {
+      renderBackendOverlays(backendToRender);
     });
   }
   if (localToRender.length > 0) {
@@ -256,14 +247,7 @@ function reconcileOverlayExistence(bounds: ViewportBounds) {
   }
 }
 
-// Data-load / filter triggers that re-run the render loop.
-// Shape-specific triggers live in initializeShapeRenderTriggers; marker color triggers in markers.ts.
-let renderTriggersInitialized = false;
-export function initializeRenderTriggers() {
-  // MapView can remount; the watchers below tie to global state so once is enough.
-  if (renderTriggersInitialized) return;
-  renderTriggersInitialized = true;
-
+function registerRenderTriggers(): void {
   // Store writers schedule a reconcile through mapLayers (the shared leaf) to avoid a cycle.
   registry.registerOverlayReconcileScheduler(runViewportRenderLoop);
 
@@ -283,7 +267,10 @@ export function initializeRenderTriggers() {
       runViewportRenderLoop();
     },
   );
-
-  initializeShapeRenderTriggers();
-  initializeMarkerColorTriggers();
 }
+
+/**
+ * Data-load / filter triggers that re-run the render loop. Shape-specific triggers live in
+ * initializeShapeRenderTriggers; marker color triggers in markers.ts.
+ */
+export const initializeRenderTriggers = registerOnce(registerRenderTriggers);

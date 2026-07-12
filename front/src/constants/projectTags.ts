@@ -1,5 +1,5 @@
 // Colors are expressed as inline style values so they work without Tailwind purging.
-interface ProjectTag {
+export interface ProjectTag {
   slug: string;
   /** hex or CSS color string used for the chip background */
   color: string;

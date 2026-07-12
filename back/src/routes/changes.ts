@@ -195,7 +195,6 @@ async function checkModeratorChangeRequestPermission(
 
   const { entityType, entityId } = request;
 
-  // Get country code for the entity
   if (!isSupportedEntityType(entityType)) {
     throw new TRPCError({
       code: "INTERNAL_SERVER_ERROR",
@@ -204,7 +203,6 @@ async function checkModeratorChangeRequestPermission(
     });
   }
 
-  // Get country code for the entity
   const countryCode = await getEntityCountryCode(entityType, entityId);
 
   if (!countryCode) {

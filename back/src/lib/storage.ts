@@ -9,7 +9,7 @@ export async function streamToBuffer(stream: ReadableStream): Promise<Uint8Array
   const chunks: Uint8Array[] = [];
   let totalLength = 0;
 
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  // eslint-disable-next-line no-unnecessary-condition
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;

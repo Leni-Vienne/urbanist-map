@@ -11,14 +11,14 @@ import { useProjectStore } from "@/stores/projectStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useMapStore } from "@/stores/mapStore";
-import { isOverlayUnsaved, isProjectUnsaved } from "@/utils/unsavedState";
+import { isOverlayUnsaved, isProjectUnsaved } from "@/services/overlay/unsavedState";
 import { startShapeEditing } from "@/services/shape/shapeEditorLazy";
 import { selectProject } from "@/services/map/projectSelection";
 import { flyToGeometry } from "@/services/map/mapNavigation";
 import { clearStagedRender } from "@/services/submission/stagedRenderState";
 import type { ChangeRequest } from "@/stores/changeRequestStore";
 import type { Project, Overlay } from "@/types/index";
-import { toastSuccess, toastWarn } from "@/services/core/toast";
+import { toastError, toastSuccess, toastWarn } from "@/services/core/toast";
 
 // A render staged in the upload dialog but not yet submitted: kind 'render' with no status. Real
 // renders always carry a server status, so this uniquely identifies a still-staged one.
@@ -36,7 +36,7 @@ function handleNewProjectClick(): boolean {
   const uiStore = useUiStore();
 
   if (!authStore.isAuthenticated) {
-    uiStore.authModalVisible = true;
+    uiStore.openAuthModal();
     return false;
   }
 
@@ -96,6 +96,8 @@ export function useContributeActions(
     const result = await deleteChangeRequest(change.id);
     if (result) {
       toastSuccess(t("contribute.changeRequestDeleted"));
+    } else {
+      toastError(t("contribute.changeRequestDeleteError"));
     }
   }
 

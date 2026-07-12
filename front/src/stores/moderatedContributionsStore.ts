@@ -48,18 +48,20 @@ export const useModeratedContributionsStore = defineStore("moderatedContribution
   async function acknowledgeContributions(contributionIds: string[]) {
     if (contributionIds.length === 0) return { success: false };
 
-    const result = await loadOrNull(
-      async () => trpc.overlay.acknowledgeModeratedContributions.mutate({ contributionIds }),
-      { errorMessage: "Failed to acknowledge contributions" },
-    );
+    try {
+      const result = await trpc.overlay.acknowledgeModeratedContributions.mutate({
+        contributionIds,
+      });
 
-    if (result) {
       moderatedContributions.value = moderatedContributions.value.filter(
         (item) => !contributionIds.includes(item.id),
       );
-    }
 
-    return result ?? { success: false };
+      return result;
+    } catch (error) {
+      console.error("Failed to acknowledge contributions:", error);
+      return { success: false };
+    }
   }
 
   async function acknowledgeAll() {
@@ -84,7 +86,7 @@ export const useModeratedContributionsStore = defineStore("moderatedContribution
   };
 });
 
-// eslint-disable @typescript-eslint/no-unnecessary-condition @typescript-eslint/strict-void-return
+// eslint-disable no-unnecessary-condition strict-void-return
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useModeratedContributionsStore, import.meta.hot));
 }

@@ -1,7 +1,8 @@
 {
   "ignorePatterns": ["**/*tests*/**", "**shim.ts", "**/scripts/**"],
   // Enable all of these plugins (which are enabled by default):
-  //"plugins": ["unicorn", "typescript", "oxc"],
+  //"plugins": ["import"],
+  "plugins": ["vue"],
   "categories": {
     "suspicious": "warn", // mostly type assertion stuff that can't easily be fixed
     "correctness": "warn",
@@ -23,6 +24,11 @@
         "case": "camelCase"
       }
     ],*/ // vue files are in pascal case, composables in camel case.....
+    // vue rules
+    "vue/max-props": "off",
+    // import rules
+    "import/group-exports": "off",
+    // the rest
     "prefer-object-spread": "off", // conflicts with oxc "no spread in map"
     "typescript/no-namespace": "off", // conflicts with prefer-namespace-keyword
     "no-continue": "off", // warns about early continues which is odd

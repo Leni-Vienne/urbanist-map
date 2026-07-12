@@ -123,7 +123,6 @@ uploadsApp.post("/api/upload-image", async (c) => {
       return c.json({ error: "No file provided" }, 400);
     }
 
-    // Validate file with Zod
     const validationResult = imageFileSchema.safeParse({
       size: file.size,
       type: file.type,

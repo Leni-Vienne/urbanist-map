@@ -138,7 +138,6 @@ async function signUp(email: string, password: string, username: string, captcha
   }
 }
 
-// Verify email
 async function verifyEmail(token: string) {
   try {
     const result = await trpc.account.verifyEmail.mutate({ token });
@@ -386,7 +385,7 @@ export const useAuthStore = defineStore("auth", () => {
 });
 
 // Enable HMR for this store
-// oxlint-disable @typescript-eslint/no-unnecessary-condition @typescript-eslint/strict-void-return
+// oxlint-disable no-unnecessary-condition strict-void-return
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useAuthStore, import.meta.hot));
 }

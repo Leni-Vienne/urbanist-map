@@ -14,9 +14,9 @@ import type { OverlayObject, OverlayData } from "@/types/index";
  * Render backend CDN overlay images on the map. Markers are owned by the viewport reconciler; a
  * reconcile is scheduled afterwards so each freshly-created image gets its status pin.
  */
-export function renderViewModeOverlays(viewModeOverlays: OverlayData[]): void {
+export function renderBackendOverlays(overlaysData: OverlayData[]): void {
   // renderSingleOverlay's beginCreation gate handles "already rendered" and "in flight".
-  for (const cdnOverlay of viewModeOverlays) {
+  for (const cdnOverlay of overlaysData) {
     renderSingleOverlay(cdnOverlay);
   }
   registry.scheduleOverlayReconcile();

@@ -1,4 +1,4 @@
-// Shared Zod validation schemas
+// Shared Zod validation schemas between frontend and backend
 import * as z from "zod";
 import { GeoJSONGeometryCollectionSchema } from "zod-geojson";
 import { validateOverlaySize } from "../overlayValidation";
@@ -6,7 +6,6 @@ import { validateOverlaySize } from "../overlayValidation";
 // From Zod doc, way safer than plain z.url(). https://zod.dev/api?id=urls
 const safeUrl = z.url({ protocol: /^https?$/, message: "validation.invalidUrl" });
 
-// Project validation schema
 export const projectSchema = z
   .object({
     id: z.uuid().optional(),
@@ -62,7 +61,6 @@ export const projectSchema = z
     }
   });
 
-// Overlay validation schema
 const overlayBaseSchema = z.object({
   id: z.uuid(),
   filename: z.string().min(1, "validation.filenameRequired").max(255, "validation.filenameTooLong"),
@@ -111,7 +109,6 @@ export const overlaySchema = withOverlaySizeCheck(overlayBaseSchema);
 // Client-side pre-upload check. A brand-new overlay has no filename yet
 export const overlayClientSchema = withOverlaySizeCheck(overlayBaseSchema.omit({ filename: true }));
 
-// Auth validation schemas
 export const registerSchema = z.object({
   email: z.email("validation.invalidEmail"),
   password: z.string().min(8, "validation.passwordTooShort"),
@@ -157,7 +154,6 @@ const OVERLAY_FIELD_VALIDATORS: Record<string, z.ZodTypeAny> = {
   corners: overlayCornersSchema,
 };
 
-// Change request validation schema
 export const submitChangeRequestSchema = z
   .object({
     entityType: z.enum(["project", "overlay"]),

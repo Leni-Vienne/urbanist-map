@@ -33,12 +33,10 @@ import { useUiStore } from "@/stores/uiStore";
 const uiStore = useUiStore();
 
 function openSignUp() {
-  uiStore.authModalInitialMode = "signup";
-  uiStore.authModalVisible = true;
+  uiStore.openAuthModal("signup");
 }
 
 function openSignIn() {
-  uiStore.authModalInitialMode = "login";
-  uiStore.authModalVisible = true;
+  uiStore.openAuthModal("login");
 }
 </script>

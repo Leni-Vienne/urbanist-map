@@ -4,10 +4,10 @@
     "back": "Back",
     "cancel": "Cancel",
     "edit": "Edit",
-    "delete": "Delete",
     "add": "New",
     "loading": "Loading...",
     "error": "Error",
+    "warn": "Warning",
     "success": "Success",
     "confirm": "Confirm",
     "close": "Close",
@@ -26,8 +26,7 @@
     "email": "Email",
     "actions": "Actions",
     "approved": "Approved",
-    "confirmDelete": "Are you sure you want to delete \"{name}\"? This action cannot be undone.",
-    "addField": "add"
+    "confirmDelete": "Are you sure you want to delete \"{name}\"? This action cannot be undone."
   },
   "relativeTime": {
     "justNow": "just now",
@@ -76,13 +75,11 @@
     "create": "Create Project",
     "unnamed": "Unnamed project",
     "osmName": "OpenStreetMap project",
-    "recenter": "Recenter map on this project",
     "name": "Project Name",
     "noLocation": "No Location",
     "timelineStatus": "Timeline Status",
     "proposalDate": "Proposal Date",
     "proposalDateHelp": "When was this project first proposed or announced?",
-    "country": "Country",
     "location": "Location",
     "startDate": "Construction Start Date",
     "endDate": "Construction End Date",
@@ -93,8 +90,6 @@
     "fullDate": "Full date",
     "clearDate": "Remove date",
     "clickMapToPlace": "Click on the map to place your project",
-    "edit": "Edit Project",
-    "publish": "Submit",
     "submitChangeRequest": "Submit",
     "period": "Dates",
     "estimatedCompletion": "Estimated Completion",
@@ -151,14 +146,7 @@
     "planned": "Planned",
     "under_construction": "Under Construction"
   },
-  "help": {
-    "filters": {
-      "showPending": "Show Pending",
-      "showApproved": "Show Approved"
-    }
-  },
   "contribute": {
-    "myContributions": "My Contributions",
     "noProjectsMatchFilter": "No projects match the current filter.",
     "tryChangingFilters": "Try changing your filter settings.",
     "noProjectsFound": "No projects found.",
@@ -174,7 +162,9 @@
     "overlayDeleted": "Image deleted successfully",
     "projectDeleted": "Project deleted successfully",
     "changeRequestDeleted": "Change request deleted successfully",
+    "deleteOverlayError": "Failed to delete image. Please try again.",
     "deleteProjectError": "Failed to delete project. Please try again.",
+    "changeRequestDeleteError": "Failed to delete change request. Please try again.",
     "loadContributionsError": "Failed to load contributions. Please try again.",
     "guest": {
       "title": "Contribute to the map",
@@ -204,12 +194,10 @@
     "changedFrom": "Changed from",
     "untitled": "Untitled image",
     "imageAlt": "Overlay image",
-    "unknownLocation": "Unknown Location",
     "loadingProjects": "Loading projects...",
     "navigationFailed": "Navigation Failed",
     "failedToNavigate": "Failed to navigate to image",
     "publishFailedDetail": "Failed to save image to the backend",
-    "publishOverlay": "Submit",
     "viewCurrentPosition": "View Current Position",
     "viewSuggestedPosition": "View Suggested Position",
     "publishErrorNoFilename": "Could not determine the image filename",
@@ -220,6 +208,10 @@
     "couldNotParseCoordinates": "Could not parse geometry coordinates",
     "previewFailed": "Preview Failed",
     "couldNotPreviewCoordinates": "Could not preview coordinates on map",
+    "loadFailed": "Load Failed",
+    "couldNotLoadOverlay": "Could not load the image on the map",
+    "missingData": "Missing Data",
+    "missingCityOrCountry": "The image has no country information",
     "coordinatesViewOnMap": "Coordinates (view on map)",
     "replaces": "Replaces",
     "viewOriginalOverlay": "View Original Image",
@@ -277,9 +269,6 @@
     },
     "rotation": {
       "label": "Map rotation"
-    },
-    "altLayer": {
-      "label": "New map"
     }
   },
   "search": {
@@ -361,7 +350,6 @@
     "github": "GitHub"
   },
   "submission": {
-    "updateProject": "Update Project",
     "confirmTitle": "Confirm Submission",
     "requiresModeration": "Requires Moderation",
     "immediateUpdate": "Immediate Update",
@@ -373,15 +361,10 @@
     "overlayPosition": "Image Position",
     "previousPosition": "(Current position)",
     "newPosition": "(New position)",
-    "submitChangeRequest": "Submit Change Request",
-    "updateOverlays": "Update Images",
     "removeChange": "Remove this change",
     "changesLabel": "Changes",
     "noChangesToSubmit": "No changes to submit",
-    "newOverlay": "New image",
-    "createAction": "New submission",
-    "updatePendingAction": "Update submission",
-    "updateApprovedAction": "Suggest changes"
+    "newOverlay": "New image"
   },
   "pages": {
     "home": {
@@ -494,7 +477,6 @@
     "approveProjectFirst": "Approve the project first to moderate its images"
   },
   "toolbar": {
-    "info": "Info",
     "previousOverlay": "Go to previous image",
     "nextOverlay": "Go to next image",
     "undo": "Undo (ctrl + z)",
@@ -521,13 +503,6 @@
       "modified": "modified",
       "hasPendingChanges": "has pending changes",
       "viewingSuggested": "viewing suggested"
-    },
-    "project": {
-      "pendingApproval": "Pending approval",
-      "rejected": "Rejected project",
-      "localProject": "Local project",
-      "newProject": "New project",
-      "modified": "modified"
     }
   },
   "forms": {
@@ -541,8 +516,7 @@
     "maximumSizeOnMap": "Maximum size is 1km × 1km",
     "fileTooLarge": "File is too large. Maximum size is {maxSize}MB.",
     "error": {
-      "uploadFailed": "Failed to upload image to server.",
-      "storageQuotaExceeded": "You have reached your pending upload storage limit. Please wait for your existing submissions to be reviewed before uploading more."
+      "uploadFailed": "Failed to upload image to server."
     }
   },
   "imageUpload": {
@@ -573,8 +547,6 @@
   },
   "render": {
     "label": "Artist's impression",
-    "pendingReview": "Pending review",
-    "notSubmitted": "Not submitted yet, send your changes for review",
     "imageChange": "New image"
   },
   "toast": {
@@ -615,6 +587,7 @@
     "checkConflictsFailed": "Failed to check for conflicts",
     "noChangesDetected": "No changes detected to submit",
     "preparingSubmission": "Failed to prepare submission",
+    "submissionFailed": "Failed to submit the changes",
     "mapInitFailed": "Map failed to load"
   },
   "moderation": {
@@ -623,6 +596,7 @@
     "by": "by",
     "noAccessToThisCountry": "You do not have permission to moderate this country.",
     "refreshCountsFailed": "Could not refresh pending counts",
+    "unknownUser": "Unknown user",
     "projectApproved": "Project Approved",
     "projectApprovedDetail": "The project has been approved successfully",
     "projectUpdated": "Project Updated",
@@ -637,8 +611,6 @@
     "switchedToViewMode": "Switched to View Mode",
     "switchedToModerationMode": "Switched to Moderation Mode",
     "clickAgainToAdd": "Click the button again to add an image",
-    "modeSwitchError": "Mode Switch Error",
-    "modeSwitchErrorDetail": "Failed to switch mode. Please try again.",
     "undoAction": "Undo {action} {entity}: {name}",
     "changeApproved": "Change Approved",
     "changeApprovedDetail": "The change has been applied successfully",
@@ -721,6 +693,8 @@
       "acknowledgeAll": "Clear All",
       "acknowledgeSuccess": "Acknowledged",
       "acknowledgeSuccessDetail": "Contribution updates have been cleared",
+      "acknowledgeError": "Clearing failed",
+      "acknowledgeErrorDetail": "Failed to clear contribution updates. Please try again.",
       "viewResults": "View Results"
     },
     "userStats": {
@@ -765,8 +739,7 @@
     "rejectAllOverlays": "Also reject all {count} pending image(s)"
   },
   "location": {
-    "navigationFailed": "Navigation Failed",
-    "failedToNavigate": "Failed to navigate to location"
+    "navigationFailed": "Navigation Failed"
   },
   "projectSelector": {
     "suggestChanges": "Suggest Changes"

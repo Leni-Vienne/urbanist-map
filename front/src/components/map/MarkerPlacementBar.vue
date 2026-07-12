@@ -42,22 +42,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, onUnmounted } from "vue";
+import { ref, watch, onUnmounted } from "vue";
 import { useMapStore } from "@/stores/mapStore";
 import { map } from "@/services/core/map";
 import { getMarkerSvg } from "@/services/map/markersSvg";
 
-interface Props {
-  visible: boolean;
-}
-
 type Emits = {
-  (e: "update:visible", value: boolean): void;
   (e: "marker-coordinates", coordinates: { lat: number; lng: number }): void;
   (e: "marker-mode-enabled"): void;
 };
 
-const props = defineProps<Props>();
+const visible = defineModel<boolean>("visible", { default: false });
 const emit = defineEmits<Emits>();
 
 const markerCoordinates = ref<{ lat: number; lng: number } | null>(null);
@@ -76,12 +71,15 @@ function onMouseMove(e: MouseEvent) {
 }
 
 watch(
-  () => props.visible,
+  visible,
   (newVisible) => {
     if (newVisible) {
       document.addEventListener("mousemove", onMouseMove);
+      markerPlacementMode.value = true;
+      emit("marker-mode-enabled");
     } else {
       document.removeEventListener("mousemove", onMouseMove);
+      resetState();
     }
   },
   { immediate: true },
@@ -91,30 +89,12 @@ onUnmounted(() => {
   document.removeEventListener("mousemove", onMouseMove);
 });
 
-const visible = computed({
-  get: () => props.visible,
-  set: (value) => emit("update:visible", value),
-});
-
-watch(
-  () => props.visible,
-  (newVisible) => {
-    if (newVisible) {
-      markerPlacementMode.value = true;
-      emit("marker-mode-enabled");
-    } else {
-      resetState();
-    }
-  },
-  { immediate: true },
-);
-
 function setMarkerCoordinates(coordinates: { lat: number; lng: number }) {
   markerCoordinates.value = coordinates;
 }
 
 function onCancel() {
-  emit("update:visible", false);
+  visible.value = false;
 }
 
 function onContinue() {
@@ -122,7 +102,7 @@ function onContinue() {
     emit("marker-coordinates", markerCoordinates.value);
   }
   resetState();
-  emit("update:visible", false);
+  visible.value = false;
 }
 
 function resetState() {

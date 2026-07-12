@@ -1,7 +1,7 @@
 import { useProjectStore } from "@/stores/projectStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
-import { trpc } from "@/client";
+import { trpc, getApiUrl } from "@/client";
 import { uploadImageFile } from "@/utils/uploadImageFile";
 import { clearStagedRender } from "@/services/submission/stagedRenderState";
 import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
@@ -24,7 +24,7 @@ import {
   getProjectValidationErrors,
   prepareOverlayValidationData,
 } from "@/utils/validationHelpers";
-import { publishOverlay, getCornersFromOverlay } from "@/services/overlay/actions";
+import { resolveOverlayCorners } from "@/services/overlay/data";
 import { applyOverlayBackendFields } from "@/services/overlay/sync";
 import { refreshMapSessionData } from "@/services/map/viewportTriggers";
 import type { SubmissionChange, SubmissionChangeType, SubmissionContext } from "./submissionTypes";
@@ -156,7 +156,7 @@ function newOverlayContext(
     entityId: overlayId,
     changeType: "create",
     proposed: {
-      corners: getCornersFromOverlay(overlayObj) ?? undefined,
+      corners: resolveOverlayCorners(overlayObj, "publish") ?? undefined,
     },
   };
 }
@@ -347,6 +347,117 @@ async function submitProject(
   } else {
     await publishProjectDirect(context.entity, context.changeType);
   }
+}
+
+// Resolve the stored filename for the overlay's image: upload a local data-URL image (local
+// storage first, R2 after moderator approval), or reuse the filename from an existing server URL.
+async function prepareImageForServer(overlay: OverlayObject): Promise<string> {
+  if (overlay.imageUrl.startsWith("data:")) {
+    const response = await fetch(overlay.imageUrl);
+    const blob = await response.blob();
+
+    // Name the file from its real type so the backend records the correct source extension
+    // (it stores the pre-compression original under this extension, and a wrong .webp name on
+    // PNG/JPEG bytes would mislabel a kept-as-is original).
+    const type = blob.type || "image/webp";
+    let extension = "webp";
+    if (type === "image/png") extension = "png";
+    else if (type === "image/jpeg") extension = "jpg";
+    const file = new File([blob], `overlay-image.${extension}`, { type });
+
+    return uploadImageFile(file);
+  }
+
+  const urlParts = overlay.imageUrl.split("/");
+  const filename = urlParts[urlParts.length - 1];
+
+  if (!filename) {
+    throw new Error(t("overlay.publishErrorNoFilename"));
+  }
+
+  return filename;
+}
+
+async function ensureProjectOnServer(project: Project): Promise<void> {
+  const projectStore = useProjectStore();
+  const projectResult = await trpc.project.publishProject.mutate(projectSchema.parse(project));
+
+  // The backend upserts on the supplied UUID, so projectResult.id always matches project.id.
+  // Newly-inserted projects (exists === false) need their local status flipped to pending and
+  // a contributions-cache entry so the sidebar reflects the submission.
+  if (projectResult.id && !projectResult.exists) {
+    projectStore.updateProject(project.id, { status: "pending" });
+    const updatedProject = projectStore.projects[project.id];
+    if (updatedProject) {
+      projectStore.addProjectToUserContributions(updatedProject);
+    }
+  }
+}
+
+function handlePostPublishUpdates(
+  overlay: OverlayObject,
+  project: Project | null,
+  filename: string,
+): void {
+  if (project) {
+    const projectStore = useProjectStore();
+    const authStore = useAuthStore();
+    const overlayStore = useOverlayStore();
+    const existingOverlays = Object.values(overlayStore.liveOverlays).filter(
+      (o) => o.projectId === project.id && o.id !== overlay.id,
+    );
+
+    projectStore.addOverlayToUserContributions(
+      overlay,
+      project,
+      filename,
+      authStore.user?.username ?? null,
+      existingOverlays,
+    );
+  }
+}
+
+async function publishOverlay(overlay: OverlayObject, project: Project | null): Promise<void> {
+  // For brand-new projects, publish the project first so the overlay can reference it.
+  if (project?.status === null) {
+    await ensureProjectOnServer(project);
+  }
+
+  const filename = await prepareImageForServer(overlay);
+
+  if (!overlay.projectId) {
+    throw new Error(t("overlay.publishErrorNoProjectId"));
+  }
+
+  const corners = resolveOverlayCorners(overlay, "publish");
+  if (!corners) {
+    throw new Error(t("overlay.publishErrorNoCorners"));
+  }
+  const payload = {
+    id: overlay.id,
+    filename,
+    caption: overlay.caption ?? undefined,
+    projectId: overlay.projectId,
+    replacesOverlayId: overlay.replacesOverlayId ?? undefined,
+    corners: corners.map((c) => ({ lat: c.lat, lng: c.lng })),
+  };
+
+  const publishResult = await trpc.overlay.publishOverlay.mutate(payload);
+
+  if (publishResult.id) {
+    overlay.status = publishResult.status;
+    overlay.authorId = publishResult.authorId ?? null;
+
+    // Point to the server URL so the image isn't re-uploaded on the next save.
+    // The backend serves uploads under /uploads/ (no /api/images endpoint exists).
+    overlay.imageUrl = `${getApiUrl()}/uploads/${filename}`;
+    overlay.filename = filename;
+
+    handlePostPublishUpdates(overlay, project, filename);
+  }
+
+  // Don't reload city overlays immediately, the local state already reflects the
+  // publish response and a refetch would overwrite it with stale backend data.
 }
 
 async function submitOverlay(

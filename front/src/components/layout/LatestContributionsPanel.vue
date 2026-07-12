@@ -102,10 +102,7 @@ import { toastWarn } from "@/services/core/toast";
 
 import { ref, computed, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
-import {
-  canModerateCountry,
-  syncModerationCountry,
-} from "@/services/moderation/moderationCountrySync";
+import { canModerateCountry } from "@/services/moderation/moderationCountrySync";
 import {
   contributions,
   isLoading,
@@ -212,7 +209,7 @@ async function handleContributionClick(contribution: LatestContribution) {
       toastWarn(t("moderation.noAccessToThisCountry"), t("moderation.title"));
       return;
     }
-    syncModerationCountry(contribution.countryCode);
+    mapStore.setSelectedCountryCode(contribution.countryCode);
   }
 
   if (contribution.type === "overlay") {

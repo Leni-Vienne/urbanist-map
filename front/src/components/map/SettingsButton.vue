@@ -20,21 +20,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, computed } from "vue";
 import SettingsMenuItems from "@/components/map/SettingsMenuItems.vue";
 import { isMobile } from "@/services/core/viewport";
 
 const settingsPopover = ref();
-const isOpen = ref(false);
+const isOpen = computed<boolean>(() => settingsPopover.value?.visible ?? false);
 
 function toggleSettings(event: Event) {
   settingsPopover.value.toggle(event);
 }
-
-watch(
-  () => settingsPopover.value?.visible,
-  (visible) => {
-    isOpen.value = visible ?? false;
-  },
-);
 </script>
