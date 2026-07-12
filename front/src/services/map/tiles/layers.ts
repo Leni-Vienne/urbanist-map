@@ -54,7 +54,7 @@ const TILE_URL = `${getApiUrl()}/api/tiles/projects/{z}/{x}/{y}`;
 
 // ── Zoom level constants (native MapLibre zoom) ─────────────────────────────
 /** Source/layer minzoom for project points. Per-zoom thinning is done server-side via the
- *  quality-score gate in tiles-alt.sql, so this stays at 0. */
+ *  quality-score gate */
 const PROJECT_POINTS_MIN_ZOOM = 0;
 /** Zoom level at which project shapes (MVT) become visible.
  *  Large shapes appear earlier via getShapeZoomVisibilityFilter, see that function for the full table. */
@@ -266,7 +266,6 @@ function mergeZoomHoverState(
 
 /**
  * Zoom-dependent size gate for the project-shapes layer.
- * Mirrors the server-side logic in tiles-alt.sql (all values are native MapLibre zoom):
  *   z13+ → all shapes
  *   z12  → geometry_size_m >= 50 m
  *   z11  → geometry_size_m >= 100 m

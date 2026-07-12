@@ -84,9 +84,7 @@ interface Props {
   showUserStatsLink?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  showUserStatsLink: false,
-});
+const { showUserStatsLink = false } = defineProps<Props>();
 
 const emit = defineEmits<{
   "preview-geometry": [change: PendingChangeRequest, type: "old" | "new"];

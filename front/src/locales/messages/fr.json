@@ -98,6 +98,8 @@
     "createdBy": "Créé par",
     "modifyOn": "Modifier sur {name}",
     "altName": "Autre nom",
+    "from": "De",
+    "to": "À",
     "website": "Site web",
     "architect": "Architecte",
     "addImages": "Ajouter",

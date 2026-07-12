@@ -250,46 +250,33 @@ const externalImageUrl = computed<string | null>(() => {
   return String(p["image"] ?? "").trim() || null;
 });
 
+// Rendered in this order, skipping keys absent from the imported properties. Proper nouns
+// (Wikipedia, Wikidata) carry a literal label; every other label comes from the locale files.
 const externalEntries = computed<ExternalEntry[]>(() => {
   const p = externalProperties.value;
   if (!p) return [];
+
+  const specs: { key: string; label: string; buildHref?: (value: string) => string }[] = [
+    { key: "alt_name", label: $t("project.altName") },
+    { key: "from", label: $t("project.from") },
+    { key: "to", label: $t("project.to") },
+    { key: "website", label: $t("project.website"), buildHref: (value) => value },
+    { key: "architect", label: $t("project.architect") },
+    { key: "wikipedia", label: "Wikipedia", buildHref: buildWikipediaUrl },
+    { key: "wikidata", label: "Wikidata", buildHref: buildWikidataUrl },
+  ];
+
   const entries: ExternalEntry[] = [];
-
-  const altName = String(p["alt_name"] ?? "").trim();
-  if (altName) entries.push({ key: "alt_name", label: $t("project.altName"), display: altName });
-
-  const from = String(p["from"] ?? "").trim();
-  if (from) entries.push({ key: "from", label: "From", display: from });
-
-  const to = String(p["to"] ?? "").trim();
-  if (to) entries.push({ key: "to", label: "To", display: to });
-
-  const website = String(p["website"] ?? "").trim();
-  if (website)
-    entries.push({ key: "website", label: $t("project.website"), display: website, href: website });
-
-  const architect = String(p["architect"] ?? "").trim();
-  if (architect)
-    entries.push({ key: "architect", label: $t("project.architect"), display: architect });
-
-  const wikipedia = String(p["wikipedia"] ?? "").trim();
-  if (wikipedia)
+  for (const spec of specs) {
+    const value = String(p[spec.key] ?? "").trim();
+    if (!value) continue;
     entries.push({
-      key: "wikipedia",
-      label: "Wikipedia",
-      display: wikipedia,
-      href: buildWikipediaUrl(wikipedia),
+      key: spec.key,
+      label: spec.label,
+      display: value,
+      href: spec.buildHref?.(value),
     });
-
-  const wikidata = String(p["wikidata"] ?? "").trim();
-  if (wikidata)
-    entries.push({
-      key: "wikidata",
-      label: "Wikidata",
-      display: wikidata,
-      href: buildWikidataUrl(wikidata),
-    });
-
+  }
   return entries;
 });
 

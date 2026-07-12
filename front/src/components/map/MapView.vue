@@ -126,9 +126,11 @@ async function initializeMapAndOverlays() {
       addTileLayer();
       initVectorTileSync();
 
-      setTimeout(() => {
-        void refreshViewport();
-      }, 100);
+      // The first render loop needs a settled camera and a loaded style: "idle" fires on the first
+      // clean frame, which satisfies both. Afterwards moveend drives the refreshes.
+      void map.value.once("idle", () => {
+        refreshViewport();
+      });
     } else {
       console.error("Map not available for camera bounds tracking");
     }

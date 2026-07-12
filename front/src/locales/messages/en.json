@@ -98,6 +98,8 @@
     "createdBy": "Created by",
     "modifyOn": "Modify on {name}",
     "altName": "Also known as",
+    "from": "From",
+    "to": "To",
     "website": "Website",
     "architect": "Architect",
     "addImages": "Add Images",
