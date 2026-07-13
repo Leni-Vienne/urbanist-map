@@ -22,8 +22,6 @@ interface ImageUploadDialogState {
 
 interface ShapeEditorState {
   project: Project | null;
-  // Whether to reopen the project's docked detail once shape editing ends.
-  reopen: boolean;
 }
 
 export const useUiStore = defineStore("ui", () => {
@@ -62,7 +60,7 @@ export const useUiStore = defineStore("ui", () => {
     projectId: null,
   });
 
-  const shapeEditor = ref<ShapeEditorState>({ project: null, reopen: false });
+  const shapeEditor = ref<ShapeEditorState>({ project: null });
 
   // Shared accordion state that persists across panels
   const activeAccordionPanels = ref<string[]>([]);
@@ -127,12 +125,12 @@ export const useUiStore = defineStore("ui", () => {
     };
   }
 
-  function openShapeEditor(project: Project, reopen = false) {
-    shapeEditor.value = { project, reopen };
+  function openShapeEditor(project: Project) {
+    shapeEditor.value = { project };
   }
 
   function closeShapeEditor() {
-    shapeEditor.value = { project: null, reopen: false };
+    shapeEditor.value = { project: null };
   }
 
   return {

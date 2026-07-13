@@ -87,7 +87,6 @@ import { showSubmissionDialog } from "@/services/submission/submissionDialogStat
 
 import { useTabNavigation } from "@/composables/layout/useTabNavigation";
 import { handleProjectDeepLink } from "@/services/project/projectDeepLink";
-import { selectProject } from "@/services/map/projectSelection";
 import { useModeratedContributionsStore } from "@/stores/moderatedContributionsStore";
 
 import MapView from "@/components/map/MapView.vue";
@@ -201,7 +200,6 @@ function updateWindowWidth() {
 
 async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
   const project = uiStore.shapeEditor.project;
-  const reopen = uiStore.shapeEditor.reopen;
   if (!project) return;
   // Ensure the project is in the store so updateProject doesn't fall back to a default with null status.
   projectStore.addProject(project);
@@ -216,9 +214,6 @@ async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
   }
   uiStore.closeShapeEditor();
   toastSuccess(t("shapes.savedLocally"));
-  if (reopen) {
-    selectProject(project);
-  }
 }
 
 function handleSuggestTags(suggestedTags: string[]) {
@@ -230,13 +225,8 @@ function handleSuggestTags(suggestedTags: string[]) {
 }
 
 async function handleShapesCancel() {
-  const project = uiStore.shapeEditor.project;
-  const reopen = uiStore.shapeEditor.reopen;
   await stopShapeEditing();
   uiStore.closeShapeEditor();
-  if (reopen && project) {
-    selectProject(project);
-  }
 }
 
 onMounted(async () => {
