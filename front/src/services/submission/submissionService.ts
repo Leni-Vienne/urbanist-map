@@ -418,13 +418,6 @@ function handlePostPublishUpdates(
 }
 
 async function publishOverlay(overlay: OverlayObject, project: Project | null): Promise<void> {
-  // For brand-new projects, publish the project first so the overlay can reference it.
-  if (project?.status === null) {
-    await ensureProjectOnServer(project);
-  }
-
-  const filename = await prepareImageForServer(overlay);
-
   if (!overlay.projectId) {
     throw new Error(t("overlay.publishErrorNoProjectId"));
   }
@@ -433,6 +426,14 @@ async function publishOverlay(overlay: OverlayObject, project: Project | null): 
   if (!corners) {
     throw new Error(t("overlay.publishErrorNoCorners"));
   }
+
+  // For brand-new projects, publish the project first so the overlay can reference it.
+  if (project?.status === null) {
+    await ensureProjectOnServer(project);
+  }
+
+  const filename = await prepareImageForServer(overlay);
+
   const payload = {
     id: overlay.id,
     filename,
