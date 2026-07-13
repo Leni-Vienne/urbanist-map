@@ -12,7 +12,7 @@ import {
 import type { LatLng } from "@/types/index";
 import { syncModerationCountryFromMapClick } from "@/services/moderation/moderationCountrySync";
 import { resolveOverlayCorners } from "@/services/overlay/data";
-import { showsSuggestedState } from "@/services/overlay/transform";
+import { hasOpenChangeRequest, showsSuggestedState } from "@/services/overlay/transform";
 import { isOverlayUnsaved } from "@/services/overlay/unsavedState";
 
 /**
@@ -150,7 +150,8 @@ export function handleBackgroundClick(lngLat: { lng: number; lat: number }): voi
     // Approved overlays at their backend position are clicked via the vector-tile path.
     // Point-in-polygon runs for overlays whose live image can sit elsewhere: staged edits, and an
     // open change request shown at its suggested position (the tile footprint stays at baseline).
-    const showsSuggested = overlay.hasPendingChanges === true && showsSuggestedState(overlay, mode);
+    const showsSuggested =
+      hasOpenChangeRequest(overlay, mode) && showsSuggestedState(overlay, mode);
     if (overlay.status === "approved" && !isOverlayUnsaved(overlay) && !showsSuggested) continue;
     // "marker" purpose resolves the live image position, which is where a click must hit.
     const corners = resolveOverlayCorners(overlay, "marker");

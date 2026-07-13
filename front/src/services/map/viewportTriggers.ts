@@ -19,7 +19,7 @@ import {
   clearOverlayRenderState,
 } from "@/services/overlay/teardown";
 import * as registry from "@/services/overlay/mapLayers";
-import { upsertOverlayFromWire } from "@/services/overlay/sync";
+import { clearOverlayChangeRequestState, upsertOverlayFromWire } from "@/services/overlay/sync";
 import { overlayWireToData } from "@/utils/typeFactories";
 import { loadOrNull } from "@/services/core/errorHandling";
 import { trpc, type RouterOutput } from "@/client";
@@ -35,6 +35,19 @@ type ModerationProjects = RouterOutput["viewport"]["getModerationMapData"]["proj
 function hydrateOverlayStoreObjects(overlaysData: OverlayData[]): void {
   for (const overlayData of overlaysData) {
     upsertOverlayFromWire(overlayData);
+  }
+}
+
+// The edit-session set contains every overlay the user has an open change request on, so an
+// overlay carrying change-request state but absent from it has none anymore (it was resolved).
+function clearResolvedChangeRequestState(sessionOverlays: OverlayData[]): void {
+  const sessionIds = new Set(sessionOverlays.map((overlay) => overlay.id));
+  const overlayStore = useOverlayStore();
+
+  for (const overlay of Object.values(overlayStore.liveOverlays)) {
+    if (overlay.hasPendingChanges === true && !sessionIds.has(overlay.id)) {
+      clearOverlayChangeRequestState(overlay);
+    }
   }
 }
 
@@ -93,6 +106,7 @@ async function refreshEditSessionData(): Promise<void> {
   editSessionOverlays = rows.overlays.map(overlayWireToData);
   editSessionProjects = rows.projects;
   hydrateOverlayStoreObjects(editSessionOverlays);
+  clearResolvedChangeRequestState(editSessionOverlays);
   mergeProjectPointsForMode(editSessionOverlays, editSessionProjects, "edit");
   refreshViewport();
 }

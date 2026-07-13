@@ -144,6 +144,8 @@ export type OverlayData = Omit<
   // The immutable backend/approved caption, copied from the wire `caption` at ingest and never
   // overwritten by edits (the mirror of baselineCorners). The live edited caption stays on `caption`.
   baselineCaption: string | null;
+  // The current user's own open change request on this overlay: whether one exists, and the
+  // corners/caption they proposed. Never another requester's, in any mode.
   suggestedCorners?: LatLng[];
   suggestedCaption?: string | null;
   hasPendingChanges?: boolean;

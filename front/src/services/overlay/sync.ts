@@ -66,6 +66,16 @@ export function applyOverlayBackendFields(
   scheduleOverlayReconcile();
 }
 
+// Clearing the change-request fields makes the baseline the resting position/caption again and
+// snaps an unedited overlay back to it (staged edits are kept).
+export function clearOverlayChangeRequestState(overlayObject: OverlayObject): void {
+  applyOverlayBackendFields(overlayObject, {
+    hasPendingChanges: false,
+    suggestedCorners: undefined,
+    suggestedCaption: undefined,
+  });
+}
+
 // Single ingest path for backend-sourced overlay wire data. Produces exactly one canonical
 // OverlayObject per id: built once via the factory on first contact, then mutated in place on every
 // later delivery, never rebuilt. Returns the canonical (Pinia-reactive) object.

@@ -2,6 +2,7 @@ import maplibre from "maplibre-gl";
 import type { LatLng, OverlayPositionState } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
+import { useModerationStore } from "@/stores/moderationStore";
 
 // Web Mercator is undefined beyond ~±85.06°. A corner that is finite but out of range (or
 // otherwise malformed) projects to Infinity inside cameraForBounds and crashes the camera, so
@@ -55,8 +56,22 @@ export function sameCorners(a: LatLng[] | null, b: LatLng[] | null): boolean {
   return a.every((c, i) => c.lat === b[i]?.lat && c.lng === b[i].lng);
 }
 
+// Whether the overlay has an open change request as the mode defines it: any requester's in
+// moderation (the country's pending set), otherwise the current user's own (`hasPendingChanges`).
+export function hasOpenChangeRequest(
+  overlay: { id: string; hasPendingChanges?: boolean },
+  mode: AppMode,
+): boolean {
+  if (mode === "moderation") {
+    return useModerationStore().changeRequests.some(
+      (cr) => cr.entityType === "overlay" && cr.entityId === overlay.id,
+    );
+  }
+  return overlay.hasPendingChanges === true;
+}
+
 // The position an overlay shows in edit mode absent any staged edits: the suggested position of
-// its open change request when one exists, otherwise the backend baseline.
+// the user's own open change request when one exists, otherwise the backend baseline.
 function getEditModeDefaultCorners(overlay: {
   hasPendingChanges?: boolean;
   suggestedCorners?: LatLng[];
