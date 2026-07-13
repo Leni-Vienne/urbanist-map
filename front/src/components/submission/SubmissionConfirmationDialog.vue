@@ -123,8 +123,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useI18n } from "vue-i18n";
-import type { SubmissionSummary } from "@/services/submission/submissionTypes";
-import type { RemovableChange } from "@/types/index";
+import type { RemovableChange, SubmissionSummary } from "@/services/submission/submissionTypes";
 import { handleImageError } from "@/utils/imageErrorHandler";
 
 const { t: $t } = useI18n();

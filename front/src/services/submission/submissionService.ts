@@ -5,12 +5,7 @@ import { trpc, getApiUrl } from "@/client";
 import { uploadImageFile } from "@/utils/uploadImageFile";
 import { clearStagedRender } from "@/services/submission/stagedRenderState";
 import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
-import type {
-  Project,
-  OverlayObject,
-  RemovableChange,
-  PendingOverlayModification,
-} from "@/types/index";
+import type { Project, OverlayObject, PendingOverlayModification } from "@/types/index";
 import {
   projectSchema,
   overlayClientSchema,
@@ -27,7 +22,13 @@ import {
 import { resolveOverlayCorners } from "@/services/overlay/data";
 import { applyOverlayBackendFields } from "@/services/overlay/sync";
 import { refreshMapSessionData } from "@/services/map/viewportTriggers";
-import type { SubmissionChange, SubmissionChangeType, SubmissionContext } from "./submissionTypes";
+import {
+  PROJECT_CHANGE_FIELDS,
+  type ProjectChangeField,
+  type SubmissionChange,
+  type SubmissionChangeType,
+  type SubmissionContext,
+} from "./submissionTypes";
 
 // Internal single-entity payload used by buildSummary/validate/submitEntity.
 // Each public submission may produce several of these (project metadata + per-overlay updates).
@@ -194,28 +195,15 @@ export function createProjectContext(
   };
 }
 
-function detectProjectChanges(project: Project, customReason?: string): FieldChange[] {
-  const changes: FieldChange[] = [];
+type ProjectFieldChange = FieldChange & { fieldName: ProjectChangeField };
+
+function detectProjectChanges(project: Project, customReason?: string): ProjectFieldChange[] {
+  const changes: ProjectFieldChange[] = [];
   const originalProject = useProjectStore().getOriginalProject(project.id);
 
   if (!originalProject) return changes;
 
-  const fieldsToCheck: (keyof Project)[] = [
-    "name",
-    "description",
-    "sourceUrl",
-    "timelineStatus",
-    "proposalDate",
-    "startDate",
-    "endDate",
-    "endDatePrecision",
-    "proposalDatePrecision",
-    "startDatePrecision",
-    "geometry",
-    "tags",
-  ];
-
-  for (const field of fieldsToCheck) {
+  for (const field of PROJECT_CHANGE_FIELDS) {
     // oxlint-disable-next-line no-unsafe-type-assertion
     const oldValue = (originalProject as unknown as Record<string, unknown>)[field];
     const newValue = project[field];
@@ -254,8 +242,7 @@ export function formatEntityChanges(
   context: Extract<EntityUpdate, { entityType: "project" }>,
 ): SubmissionChange[] {
   return detectProjectChanges(context.entity).map((change) => ({
-    // oxlint-disable-next-line no-unsafe-type-assertion
-    field: change.fieldName as RemovableChange,
+    field: change.fieldName,
     oldValue: formatValueForDisplay(change.oldValue, change.fieldName),
     newValue: formatValueForDisplay(change.newValue, change.fieldName),
     displayLabel: t(`fields.${change.fieldName}`),

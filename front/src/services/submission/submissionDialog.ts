@@ -15,11 +15,16 @@ import { useProjectStore } from "@/stores/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 import { getStagedOverlayModifications } from "@/services/overlay/unsavedState";
 import { createProjectContext, formatEntityChanges, submitContext } from "./submissionService";
-import type {
-  SubmissionChange,
-  SubmissionChangeType,
-  SubmissionContext,
-  SubmissionSummary,
+import {
+  isOverlayChangeField,
+  isProjectChangeField,
+  type OverlayChangeField,
+  type ProjectChangeField,
+  type RemovableChange,
+  type SubmissionChange,
+  type SubmissionChangeType,
+  type SubmissionContext,
+  type SubmissionSummary,
 } from "./submissionTypes";
 import { toastError, toastSuccess, toastInfo } from "@/services/core/toast";
 import { t } from "@/locales";
@@ -30,7 +35,6 @@ import type {
   PendingOverlayModification,
   OverlayObject,
   Project,
-  RemovableChange,
   ModifiableField,
 } from "@/types/index";
 
@@ -328,7 +332,10 @@ export function cancelSubmission(): void {
   resetSubmissionState();
 }
 
-async function handleRemoveOverlayChange(overlayId: string, field: RemovableChange): Promise<void> {
+async function handleRemoveOverlayChange(
+  overlayId: string,
+  field: OverlayChangeField,
+): Promise<void> {
   const overlayObject = useOverlayStore().liveOverlays[overlayId];
 
   // Handle removing a NEW overlay completely
@@ -344,20 +351,16 @@ async function handleRemoveOverlayChange(overlayId: string, field: RemovableChan
     return;
   }
 
-  // Handle resetting a field modification (geometry is never an overlay field)
   if (overlayObject) {
-    // oxlint-disable-next-line no-unsafe-type-assertion
-    const modifiableField = field as ModifiableField;
-    revertOverlayFieldModification(overlayId, modifiableField, overlayObject);
-    removeOverlayFieldFromContext(overlayId, modifiableField);
+    revertOverlayFieldModification(overlayId, field, overlayObject);
+    removeOverlayFieldFromContext(overlayId, field);
   }
 }
 
-function handleRemoveProjectChange(field: string): void {
+function handleRemoveProjectChange(field: ProjectChangeField): void {
   const projectId = pendingSubmissionContext.value?.projectId;
   if (projectId) {
-    // oxlint-disable-next-line no-unsafe-type-assertion
-    useProjectStore().resetProjectField(projectId, field as keyof Project);
+    useProjectStore().resetProjectField(projectId, field);
   }
 
   // Close project edit form to force fresh data on reopen
@@ -378,9 +381,9 @@ export async function handleRemoveChange(
     const renderProjectId = pendingSubmissionContext.value?.projectId;
     if (renderProjectId) clearStagedRender(renderProjectId);
     if (pendingSubmissionContext.value) pendingSubmissionContext.value.pendingRender = undefined;
-  } else if (overlayId) {
+  } else if (overlayId && isOverlayChangeField(field)) {
     await handleRemoveOverlayChange(overlayId, field);
-  } else {
+  } else if (isProjectChangeField(field)) {
     handleRemoveProjectChange(field);
   }
 

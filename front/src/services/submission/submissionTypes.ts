@@ -1,4 +1,36 @@
-import type { RemovableChange, PendingOverlayModification } from "@/types/index";
+import type { Project, PendingOverlayModification } from "@/types/index";
+
+// The project fields compared for change detection, and the only ones a project row can name.
+export const PROJECT_CHANGE_FIELDS = [
+  "name",
+  "description",
+  "sourceUrl",
+  "timelineStatus",
+  "proposalDate",
+  "startDate",
+  "endDate",
+  "endDatePrecision",
+  "proposalDatePrecision",
+  "startDatePrecision",
+  "geometry",
+  "tags",
+] as const satisfies readonly (keyof Project)[];
+
+const OVERLAY_CHANGE_FIELDS = ["caption", "corners", "new_overlay"] as const;
+
+export type ProjectChangeField = (typeof PROJECT_CHANGE_FIELDS)[number];
+export type OverlayChangeField = (typeof OVERLAY_CHANGE_FIELDS)[number];
+
+// Every row kind the confirmation dialog can display and remove.
+export type RemovableChange = ProjectChangeField | OverlayChangeField | "render";
+
+export function isOverlayChangeField(field: RemovableChange): field is OverlayChangeField {
+  return (OVERLAY_CHANGE_FIELDS as readonly string[]).includes(field);
+}
+
+export function isProjectChangeField(field: RemovableChange): field is ProjectChangeField {
+  return (PROJECT_CHANGE_FIELDS as readonly string[]).includes(field);
+}
 
 export type SubmissionChangeType = "create" | "update_pending" | "update_approved";
 

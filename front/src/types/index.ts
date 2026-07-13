@@ -3,7 +3,6 @@ import type { DBProject, DBImportSource, ApprovalStatus } from "../../../back/sr
 
 // Type definitions for field modifications in submission dialogs
 export type ModifiableField = "caption" | "corners";
-export type RemovableChange = ModifiableField | "new_overlay" | "geometry" | "render";
 
 export type LatLng = { lat: number; lng: number };
 
