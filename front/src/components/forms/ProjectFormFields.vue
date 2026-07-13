@@ -14,7 +14,7 @@
       <!-- @vue-expect-error PrimeVue v-model type mismatch -->
       <InputText
         id="project-name-input"
-        v-model="localFormData.name"
+        v-model="projectName"
         :class="getInputClass('name')"
         required
         minlength="8"
@@ -41,7 +41,7 @@
     <FloatLabel class="w-full" variant="in">
       <Textarea
         id="project-description-input"
-        v-model="localFormData.description"
+        v-model="projectDescription"
         :class="getInputClass('description')"
         rows="2"
         dir="auto"
@@ -127,7 +127,7 @@
       <InputText
         id="source-url-input"
         type="url"
-        v-model="localFormData.sourceUrl"
+        v-model="sourceUrl"
         :class="getInputClass('sourceUrl')"
         autocomplete="off"
         @blur="validateFieldHelper('sourceUrl')"
@@ -197,7 +197,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, toRaw } from "vue";
+import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import type { ProjectFormData } from "@/types/index";
 import {
@@ -245,25 +245,32 @@ const localTimelineStatus = computed({
   set: (value: TimelineStatus) => emit("update:timelineStatus", value),
 });
 
-// Local copy of formData to avoid mutating props
-const localFormData = ref<ProjectFormData>({
-  ...props.formData,
-  proposalDatePrecision: props.formData.proposalDatePrecision ?? null,
-  startDatePrecision: props.formData.startDatePrecision ?? null,
-  endDatePrecision: props.formData.endDatePrecision ?? null,
-  tags: props.formData.tags,
-});
+// formData is owned by the parent: reads come from the prop, writes emit a merged snapshot.
+function patchFormData(patch: Partial<ProjectFormData>) {
+  emit("update:formData", { ...props.formData, ...patch });
+}
+
+function formDataField<K extends keyof ProjectFormData>(key: K) {
+  return computed<ProjectFormData[K]>({
+    get: () => props.formData[key],
+    set: (value) => patchFormData({ [key]: value } as Pick<ProjectFormData, K>),
+  });
+}
+
+const projectName = formDataField("name");
+const projectDescription = formDataField("description");
+const sourceUrl = formDataField("sourceUrl");
 
 const allTags = PROJECT_TAGS.filter((tag) => !tag.hidden);
 
 const selectedTags = computed(() =>
-  localFormData.value.tags
+  props.formData.tags
     .map((slug) => PROJECT_TAG_MAP.get(slug))
     .filter((tag): tag is (typeof PROJECT_TAGS)[number] => tag !== undefined),
 );
 
 const availableTags = computed(() =>
-  allTags.filter((tag) => !localFormData.value.tags.includes(tag.slug)),
+  allTags.filter((tag) => !props.formData.tags.includes(tag.slug)),
 );
 
 function tagLabel(slug: string) {
@@ -271,41 +278,41 @@ function tagLabel(slug: string) {
 }
 
 function addTag(slug: string) {
-  if (!localFormData.value.tags.includes(slug)) {
-    localFormData.value.tags = [...localFormData.value.tags, slug];
+  if (!props.formData.tags.includes(slug)) {
+    patchFormData({ tags: [...props.formData.tags, slug] });
   }
 }
 
 function removeTag(slug: string) {
-  localFormData.value.tags = localFormData.value.tags.filter((tag) => tag !== slug);
+  patchFormData({ tags: props.formData.tags.filter((tag) => tag !== slug) });
 }
 
 function makePrimary(slug: string) {
-  localFormData.value.tags = [slug, ...localFormData.value.tags.filter((tag) => tag !== slug)];
+  patchFormData({ tags: [slug, ...props.formData.tags.filter((tag) => tag !== slug)] });
 }
 
-// Computed flexible dates that automatically read/write to localFormData
 const flexibleProposalDate = computed({
   get() {
-    return dbToFlexibleDate(
-      localFormData.value.proposalDate,
-      localFormData.value.proposalDatePrecision,
-    );
+    return dbToFlexibleDate(props.formData.proposalDate, props.formData.proposalDatePrecision);
   },
   set(newVal) {
-    localFormData.value.proposalDate = flexibleDateToDb(newVal);
-    localFormData.value.proposalDatePrecision = newVal?.precision ?? null;
+    patchFormData({
+      proposalDate: flexibleDateToDb(newVal),
+      proposalDatePrecision: newVal?.precision ?? null,
+    });
     validateFieldHelper("proposalDate");
   },
 });
 
 const flexibleStartDate = computed({
   get() {
-    return dbToFlexibleDate(localFormData.value.startDate, localFormData.value.startDatePrecision);
+    return dbToFlexibleDate(props.formData.startDate, props.formData.startDatePrecision);
   },
   set(newVal) {
-    localFormData.value.startDate = flexibleDateToDb(newVal);
-    localFormData.value.startDatePrecision = newVal?.precision ?? null;
+    patchFormData({
+      startDate: flexibleDateToDb(newVal),
+      startDatePrecision: newVal?.precision ?? null,
+    });
     validateFieldHelper("startDate");
     validateFieldHelper("endDate");
   },
@@ -313,36 +320,20 @@ const flexibleStartDate = computed({
 
 const flexibleEndDate = computed({
   get() {
-    return dbToFlexibleDate(localFormData.value.endDate, localFormData.value.endDatePrecision);
+    return dbToFlexibleDate(props.formData.endDate, props.formData.endDatePrecision);
   },
   set(newVal) {
-    localFormData.value.endDate = flexibleDateToDb(newVal);
-    localFormData.value.endDatePrecision = newVal?.precision ?? null;
+    patchFormData({
+      endDate: flexibleDateToDb(newVal),
+      endDatePrecision: newVal?.precision ?? null,
+    });
     validateFieldHelper("startDate");
     validateFieldHelper("endDate");
   },
 });
 
-// Watch for external formData changes and sync local copy
-watch(
-  () => props.formData,
-  (newFormData) => {
-    localFormData.value = { ...newFormData };
-  },
-  { deep: true },
-);
-
-// Watch local formData changes and emit to parent
-watch(
-  localFormData,
-  (newFormData) => {
-    emit("update:formData", toRaw(newFormData));
-  },
-  { deep: true },
-);
-
 function validateFieldHelper(fieldPath: string) {
-  const validationData = prepareProjectValidationData(localFormData.value);
+  const validationData = prepareProjectValidationData(props.formData);
   validateField(fieldPath, validationData);
 }
 
