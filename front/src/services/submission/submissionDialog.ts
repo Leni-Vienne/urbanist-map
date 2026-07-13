@@ -31,13 +31,12 @@ import type {
   OverlayObject,
   Project,
   RemovableChange,
-  Overlay,
   ModifiableField,
 } from "@/types/index";
 
 function buildOverlayModificationChanges(
   mods: PendingOverlayModification[],
-  overlays: Record<string, OverlayObject | Overlay>,
+  overlays: Record<string, OverlayObject>,
 ): SubmissionChange[] {
   const changes: SubmissionChange[] = [];
 
@@ -71,14 +70,6 @@ function buildOverlayModificationChanges(
   return changes;
 }
 
-// Helper to get image URL for new overlays
-// A live OverlayObject carries imageUrl; a list Overlay may not, so fall back to thumbnail
-function getImageUrl(overlay: OverlayObject | Overlay) {
-  if ("imageUrl" in overlay && overlay.imageUrl) return overlay.imageUrl;
-  if (overlay.filename) return buildThumbnailUrl(overlay.filename, true);
-  return undefined;
-}
-
 function getSuccessMessage(changeType: SubmissionChangeType | undefined): string {
   if (changeType === "update_approved") return t("submission.changeRequestSubmitted");
   if (changeType === "update_pending") return t("submission.changesSaved");
@@ -110,7 +101,7 @@ function resetSubmissionState(): void {
 // Build changes for NEW overlays (status is null, never submitted to backend)
 function buildNewOverlayChanges(
   newOverlayIds: string[],
-  overlays: Record<string, OverlayObject | Overlay>,
+  overlays: Record<string, OverlayObject>,
 ): SubmissionChange[] {
   const changes: SubmissionChange[] = [];
 
@@ -118,60 +109,27 @@ function buildNewOverlayChanges(
     const overlay = overlays[overlayId];
     if (!overlay) continue;
 
-    const imageUrl = getImageUrl(overlay);
-    const overlayName = overlay.caption;
-
     changes.push({
       field: "new_overlay",
       oldValue: "",
-      newValue: overlayName ?? t("submission.newOverlay"),
+      newValue: overlay.caption ?? t("submission.newOverlay"),
       displayLabel: t("submission.newOverlay"),
       overlayId,
-      thumbnailUrl: imageUrl,
+      thumbnailUrl: overlay.imageUrl,
     });
   }
   return changes;
 }
 
-function buildOverlayInfoMap(
-  pendingMods: PendingOverlayModification[],
-  newOverlayIds: string[],
-  project: Project | undefined,
-  storeOverlays: Record<string, OverlayObject>,
-): Record<string, OverlayObject | Overlay> {
-  const overlayInfoMap: Record<string, OverlayObject | Overlay> = {};
-
-  for (const mod of pendingMods) {
-    const storeOverlay = storeOverlays[mod.overlayId];
-    if (storeOverlay) {
-      overlayInfoMap[mod.overlayId] = storeOverlay;
-    } else if (project?.overlays) {
-      const projOverlay = project.overlays.find((o) => o.id === mod.overlayId);
-      if (projOverlay) {
-        overlayInfoMap[mod.overlayId] = projOverlay;
-      }
-    }
-  }
-
-  for (const overlayId of newOverlayIds) {
-    const storeOverlay = storeOverlays[overlayId];
-    if (storeOverlay) {
-      overlayInfoMap[overlayId] = storeOverlay;
-    }
-  }
-
-  return overlayInfoMap;
-}
-
 function buildProjectWithOverlaysChanges(
   existingMods: PendingOverlayModification[],
   newOverlayIds: string[],
-  overlayInfoMap: Record<string, OverlayObject | Overlay>,
+  overlays: Record<string, OverlayObject>,
   projectChanges: SubmissionChange[],
 ): SubmissionChange[] {
   return [
-    ...buildNewOverlayChanges(newOverlayIds, overlayInfoMap),
-    ...buildOverlayModificationChanges(existingMods, overlayInfoMap),
+    ...buildNewOverlayChanges(newOverlayIds, overlays),
+    ...buildOverlayModificationChanges(existingMods, overlays),
     ...projectChanges,
   ];
 }
@@ -186,7 +144,7 @@ function buildSubmissionState(args: {
   pendingMods: PendingOverlayModification[];
   newOverlayIds: string[];
   projectChanges: SubmissionChange[];
-  overlayInfoMap: Record<string, OverlayObject | Overlay>;
+  overlays: Record<string, OverlayObject>;
   stagedRender: StagedRender | undefined;
 }): { summary: SubmissionSummary; context: SubmissionContext } {
   const { projectId, project, overlay, projectHasChanges, pendingMods, newOverlayIds } = args;
@@ -198,7 +156,7 @@ function buildSubmissionState(args: {
   const changes = buildProjectWithOverlaysChanges(
     existingOverlayMods,
     newOverlayIds,
-    args.overlayInfoMap,
+    args.overlays,
     args.projectChanges,
   );
 
@@ -316,12 +274,7 @@ export function prepareSubmission(project: Project | null, overlay?: OverlayObje
       pendingMods,
       newOverlayIds,
       projectChanges: projectHasChanges ? collectProjectMetadataChanges(projectId) : [],
-      overlayInfoMap: buildOverlayInfoMap(
-        pendingMods,
-        newOverlayIds,
-        project ?? undefined,
-        useOverlayStore().liveOverlays,
-      ),
+      overlays: useOverlayStore().liveOverlays,
       stagedRender: getStagedRender(projectId),
     });
 

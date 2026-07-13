@@ -10,7 +10,7 @@ type ProjectLike = Pick<Project, "id" | "status" | "isModified">;
 
 // Staged (unsubmitted) corners delta, derived from edit history: history beyond the seed step
 // means the user moved/resized the overlay since its last-submitted position.
-export function getStagedCornersDelta(
+function getStagedCornersDelta(
   overlay: Pick<OverlayObject, "status" | "history" | "baselineCorners" | "positionState">,
 ): { current: LatLng[]; original: LatLng[] } | null {
   if (overlay.status === null) return null; // new overlays: position lives only in history
@@ -32,7 +32,7 @@ export function getEditModeDefaultCaption(
 }
 
 // Staged (unsubmitted) caption delta, derived: the live caption differs from the edit-mode default.
-export function getStagedCaptionDelta(
+function getStagedCaptionDelta(
   overlay: Pick<
     OverlayObject,
     "status" | "caption" | "hasPendingChanges" | "suggestedCaption" | "baselineCaption"
