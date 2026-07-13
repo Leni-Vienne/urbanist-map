@@ -104,8 +104,7 @@ function getOverlayMarkerColor(
   const isReplacement = Boolean(overlayData.replacesOverlayId);
   const status = overlayData.status;
 
-  // Size validation error: checkOverlaySizeAndWarn only runs on edit events, so isTooBig===true
-  // already implies the user resized the overlay (no need to also check hasBeenModified).
+  // Size validation error.
   if (mode === "edit" && isTooBig) return "red";
 
   // Local replacement overlay (before submission)
@@ -240,13 +239,8 @@ function registerMarkerColorTriggers(): void {
 }
 
 /**
- * A single watchEffect that keeps every overlay marker's color in sync with its Pinia state
- * (status, staged pending modifications, hasPendingChanges, positionState, isTooBig,
- * replacesOverlayId) and the current map mode. Data mutations that go through
- * overlayStore.updateOverlay (or direct reactive writes) trigger this automatically.
- *
- * Initial color is set by createOverlayMarker / createMarker on creation; this effect
- * only handles subsequent changes. The _cmorgColor cache on each marker short-circuits
- * no-op setIcon calls.
+ * A single watchEffect that keeps every overlay marker's color and tooltip in sync with the
+ * overlay's reactive state and the current map mode. Runs on every change to those deps; the
+ * per-marker color repaint is itself a no-op when the color is unchanged.
  */
 export const initializeMarkerColorTriggers = registerOnce(registerMarkerColorTriggers);

@@ -1,5 +1,4 @@
 // Lazy chunk, only imported when a user activates the shape editor in edit mode.
-// Same pattern as overlayRendering.ts.
 import {
   TerraDraw,
   TerraDrawLineStringMode,

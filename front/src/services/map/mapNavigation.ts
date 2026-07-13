@@ -440,9 +440,8 @@ export function flyToGeometry(
     mobileAwareFlyTo(target, targetZoom);
     return true;
   }
-  // Same zoom: pan to recenter the feature (panTo self-skips if already framed). Drawer-aware
-  // padding centers it in the map area above the mobile drawer. Desktop map clicks never reach here
-  // (fromMapClick returns above), so this path only recenters list/drawer navigation.
+  // Same zoom: recenter the feature with drawer-aware padding, so it lands in the map area left
+  // visible above the mobile drawer.
   mobileAwarePanTo(target);
   return true;
 }

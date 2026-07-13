@@ -110,7 +110,6 @@ function enableCursorTrackingScrollZoom(targetMap: MaplibreMap): void {
     originalWheel(e);
     // _aroundCenter means zoom-to-center is requested, so the cursor is irrelevant.
     if (handler._aroundCenter || !handler._aroundPoint) return;
-    // Matches DOM.mousePos for an unscaled canvas (the basemap canvas has no CSS transform).
     const rect = canvas.getBoundingClientRect();
     handler._aroundPoint.x = e.clientX - rect.left - canvas.clientLeft;
     handler._aroundPoint.y = e.clientY - rect.top - canvas.clientTop;

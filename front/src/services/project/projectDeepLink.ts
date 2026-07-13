@@ -13,9 +13,8 @@ import { toastInfo } from "@/services/core/toast";
 // in the live app focused on the project. Resolves the slug to a project (or a deletion tombstone),
 // then flies the map and opens the detail panel once the map is ready.
 //
-// `slug` and `t` are passed in (not read via useRoute/useI18n here) because the caller invokes this
-// after an await, by which point the active component instance is gone and those composables would
-// return undefined. useToast is safe to call here (it only emits on an event bus).
+// `slug` and `t` are passed in (not read via useRoute/useI18n here) because this runs after an
+// await, with no active component instance, so those composables would return undefined.
 export async function handleProjectDeepLink(
   slug: string | string[] | undefined,
   t: (key: string) => string,

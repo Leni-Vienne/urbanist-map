@@ -104,9 +104,8 @@ async function loadOverlay(overlayId: string): Promise<LoadOverlayResult> {
     throw new Error("Overlay not found");
   }
 
-  // Lazy-loaded as its own chunk: overlayRendering is dynamically imported here and in
-  // vectorTileSync / viewportRenderLoop. A static import would merge it into this chunk and
-  // defeat that split (INEFFECTIVE_DYNAMIC_IMPORT).
+  // The overlay rendering module is lazy-loaded as its own shared chunk. A static import would
+  // merge it into this chunk and defeat that split (INEFFECTIVE_DYNAMIC_IMPORT).
   const { renderBackendOverlays } = await import("@/services/overlay/rendering");
 
   renderBackendOverlays([overlayWireToData(result.overlay)]);

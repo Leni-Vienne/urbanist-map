@@ -151,9 +151,6 @@ export type OverlayData = Omit<
   source: OverlayDataSource;
 };
 
-// Frontend overlay type - extends OverlayData with editor state
-// Map layer references (image overlay + marker) live in overlayRenderRegistry,
-// not on this type. OverlayObject is pure domain data.
 // A normalized sub-rectangle of an image, u left->right, v top->bottom, each in [0, 1].
 export interface NormalizedRect {
   u0: number;

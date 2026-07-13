@@ -1,8 +1,7 @@
 import type { ExpressionSpecification } from "maplibre-gl";
 
-// Shared project-shape stroke styling. Used by both the view-mode MVT layers
-// (projectVectorLayers) and the edit/moderation GeoJSON layers (shapeRendering)
-// so a shape renders identically across modes.
+// Shared project-shape stroke styling. Used by both the view-mode MVT layers and the
+// edit/moderation GeoJSON layers so a shape renders identically across modes.
 
 // Line width scales with zoom to avoid the "blobby" antialiasing artifact at low zoom.
 export const SHAPE_LINE_WIDTH: ExpressionSpecification = [

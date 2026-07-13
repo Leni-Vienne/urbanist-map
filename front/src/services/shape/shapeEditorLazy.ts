@@ -4,7 +4,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useProjectStore } from "@/stores/projectStore";
 
 // Single boundary for the heavy shape-editing chunk (Terra Draw). The dynamic
-// imports live here so every caller shares one split, same pattern as overlayRendering.
+// imports live here so every caller shares one split.
 
 /**
  * Resolve the best available geometry to pre-load into the editor.

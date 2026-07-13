@@ -76,7 +76,7 @@ function initializeSelectedPanelCleanup() {
 
 // Drive the GeoJSON project-shape outline (edit/moderation layers) off the focused project: light
 // the newly focused project's shapes and revert the previously focused one. The vector tile
-// "selected" feature-state is handled separately in projectVectorLayers.
+// "selected" feature-state is handled separately.
 function initializeShapeHighlightWatcher() {
   const focus = useFocusStore();
 

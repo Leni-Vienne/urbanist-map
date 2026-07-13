@@ -30,7 +30,7 @@ import {
   type SubmissionContext,
 } from "./submissionTypes";
 
-// Internal single-entity payload used by buildSummary/validate/submitEntity.
+// Internal single-entity payload for summary, validation and submission.
 // Each public submission may produce several of these (project metadata + per-overlay updates).
 type EntityUpdate =
   | {
@@ -566,7 +566,7 @@ function buildOverlayModificationContext(
   };
 }
 
-// Submit a single overlay modification (used for both allProjectModifications and pendingOverlayModifications).
+// Submit a single overlay modification.
 async function submitOverlayModification(
   overlayId: string,
   mod: Pick<PendingOverlayModification, "caption" | "corners">,

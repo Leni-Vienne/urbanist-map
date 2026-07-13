@@ -100,8 +100,8 @@ export function upsertOverlayFromWire(data: OverlayData): OverlayObject {
   }
   applyOverlayBackendFields(existing, fields);
 
-  // Approved overlays first loaded via vectorTileSync lack project data; attach it when a later
-  // (bbox) delivery carries it, so the detail panel can resolve activeProject.
+  // Approved overlays first loaded from vector tiles lack project data; attach it when a later
+  // (bbox) delivery carries it, so the detail panel can resolve the active project.
   if (data.project) existing.project = data.project;
 
   return existing;

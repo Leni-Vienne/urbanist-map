@@ -451,7 +451,6 @@ async function switchToStyle(style: StyleSpecification | string): Promise<void> 
         if (lastPendingProjectShapesGeojson) {
           updatePendingProjectShapesSource(lastPendingProjectShapesGeojson);
         }
-        // Drop overlay image handles so vectorTileSync re-creates them on the next idle.
         dropImageHandlesForStyleSwitch();
         // Re-add the selected overlay's edit-handle layer so it stays draggable.
         reattachEditHandlesAfterStyleSwitch();

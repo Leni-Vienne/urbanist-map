@@ -240,8 +240,7 @@ function syncAnchor() {
   if (!anchorMarker || !selectedId.value) return;
   const lngLat = getAnchorLngLat();
   if (!lngLat) {
-    // Image removed from registry while still selected (e.g. zoom-out unload with
-    // preserveStoreData=true, which leaves the focus selection in place).
+    // The image left the registry (e.g. unloaded on zoom-out) while still selected.
     selectOverlay(null);
     return;
   }

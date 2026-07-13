@@ -25,8 +25,8 @@ export interface ShapeEntry {
 }
 
 // Single source of truth for rendered project-shape MapLibre layers/sources.
-// Kept as a leaf so anything that needs to read/highlight/clear shape layers can
-// import here without pulling in shapeRendering (and its selection deps).
+// Kept as a leaf: reading, highlighting or clearing shape layers must not require
+// importing the shape renderer and its selection deps.
 const shapeLayerMap = new Map<string, ShapeEntry>();
 
 export function setShapeEntry(projectId: string, entry: ShapeEntry): void {
@@ -57,7 +57,7 @@ export function clearProjectShapes(projectId: string): void {
   }
 }
 
-/** Remove all rendered shape layers. Preview state (in shapeRendering) is cleared separately. */
+/** Remove all rendered shape layers. Preview state is cleared separately. */
 export function clearAllShapeEntries(): void {
   for (const entry of shapeLayerMap.values()) {
     removeEntryFromMap(entry);

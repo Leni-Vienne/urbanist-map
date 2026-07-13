@@ -154,7 +154,7 @@ function projectsChanged(prev: VisibleProject[], next: VisibleProject[]): boolea
   return false;
 }
 
-/** Tags are encoded as JSON strings in the SQL via array_to_json()::text; parse them back here. */
+/** Tile features carry tags as a JSON-encoded string; parse them back into an array. */
 function parseMvtTags(raw: unknown): string[] {
   try {
     if (Array.isArray(raw)) return raw.filter((item): item is string => typeof item === "string");

@@ -230,8 +230,7 @@ export function getImageHandle(id: string): OverlayImageHandle | null {
   return entries.get(id)?.imageHandle ?? null;
 }
 
-// IDs of overlays currently rendered as MapLibre image layers. Used by vectorTileSync to
-// evict approved overlays that have left the rendered tile feature set.
+// IDs of overlays currently rendered as MapLibre image layers.
 export function getRenderedOverlayIds(): string[] {
   const ids: string[] = [];
   for (const [id, entry] of entries) {
@@ -251,8 +250,8 @@ export function getMarkedOverlayIds(): string[] {
 }
 
 // setStyle() (satellite switch) wipes every source and layer, including overlay image
-// sources, but leaves DOM markers untouched. Drop the now-dangling image handles so
-// vectorTileSync re-creates them once the new style loads. No map removal needed here.
+// sources, but leaves DOM markers untouched. Drops the now-dangling image handles so they are
+// re-created once the new style loads. No map removal needed here.
 export function dropImageHandlesForStyleSwitch(): void {
   for (const [id, entry] of entries) {
     entry.imageHandle = null;

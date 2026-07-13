@@ -1,5 +1,5 @@
 // Viewport-based content manager
-// View mode: vectorTileSync + cluster source handle rendering (no data loading)
+// View mode: the vector tile sync and cluster source handle rendering (no data loading)
 // Edit: session-scoped fetch (own pending + own open-CR + own projects), once per entry
 // Moderation: country-scoped fetch, once per country selection
 // moveend re-runs the render loop off the in-memory list; it performs NO network fetch.
@@ -183,8 +183,8 @@ export function refreshViewport(): void {
     return;
   }
 
-  // View mode: vectorTileSync and the cluster source handle rendering; the loop prunes local
-  // overlays and renders shapes.
+  // View mode: the vector tile sync and the cluster source handle rendering; the loop prunes
+  // local overlays and renders shapes.
   if (mapStore.mode === "view") {
     runViewportRenderLoop();
     return;

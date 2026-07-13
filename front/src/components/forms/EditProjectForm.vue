@@ -63,15 +63,14 @@ const projectStore = useProjectStore();
 
 const timelineStatus = ref<TimelineStatus>(props.project.timelineStatus ?? "proposed");
 
-// Get original backend project if available (for comparison baseline)
-// Uses centralized helper that checks both originalBackendProjects and originalUserContributions
+// Comparison baseline for the diff sent to the backend.
 const originalProject = computed(() => {
   return projectStore.getOriginalProject(props.project.id) ?? props.project;
 });
 
 const projectData = computed(() => projectToFormData(originalProject.value));
 const currentProjectData = computed(() => {
-  // Prefer the map store version if locally modified (updated by handleLocalOnlyUpdate)
+  // Prefer the map store version if locally modified
   const storeProject = projectStore.projects[props.project.id];
   if (storeProject?.isModified) {
     return projectToFormData(storeProject);

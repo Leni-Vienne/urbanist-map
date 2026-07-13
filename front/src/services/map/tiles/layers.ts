@@ -714,8 +714,8 @@ function getHiddenOverlayIds(): string[] {
 }
 
 // Footprint border/fill filter: locally hidden/edited overlays + the tag, status, name, and date
-// filters (kept in sync with the images, which vectorTileSync applies the same filters to
-// separately). Size and image filters don't apply: footprints carry no geometry size and always
+// filters. The same filters are applied to the overlay images separately, and must stay in sync
+// with these. Size and image filters don't apply: footprints carry no geometry size and always
 // have an image.
 function applyFootprintLayerFilters(mlMap: MaplibreMap): void {
   const hiddenIds = getHiddenOverlayIds();
