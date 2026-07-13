@@ -15,11 +15,7 @@ import {
   reconcilePositionState,
   sameCorners,
 } from "@/services/overlay/transform";
-import {
-  getStagedCornersDelta,
-  getStagedCaptionDelta,
-  getEditModeDefaultCaption,
-} from "@/services/overlay/unsavedState";
+import { getEditModeDefaultCaption } from "@/services/overlay/unsavedState";
 import { createOverlayObject } from "@/utils/typeFactories";
 import type { ModifiableField, OverlayData, OverlayObject } from "@/types/index";
 
@@ -119,7 +115,7 @@ export function revertOverlayFieldModification(
   overlayId: string,
   field: ModifiableField,
   overlayObject: OverlayObject,
-): boolean {
+): void {
   if (field === "corners") {
     // Collapse to the resting position (store-only); the reconciler converges the image/marker.
     const restingCorners = getEditModeRestingCorners(overlayObject);
@@ -127,11 +123,10 @@ export function revertOverlayFieldModification(
       useOverlayStore().resetHistoryBaseline(overlayId, restingCorners);
     }
     scheduleOverlayReconcile();
-    return getStagedCaptionDelta(overlayObject) !== null; // caption still staged?
+    return;
   }
 
   useOverlayStore().updateOverlay(overlayId, {
     caption: getEditModeDefaultCaption(overlayObject),
   });
-  return getStagedCornersDelta(overlayObject) !== null; // corners still staged?
 }

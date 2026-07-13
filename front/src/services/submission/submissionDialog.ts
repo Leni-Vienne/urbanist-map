@@ -85,14 +85,20 @@ function getSuccessMessage(changeType: SubmissionChangeType | undefined): string
   return t("submission.submissionSuccessful");
 }
 
-function updateExtendedContextAfterOverlayRemoval(overlayId: string): void {
+// The context holds the staged mods snapshotted when the dialog opened, so a field reverted in the
+// store must be dropped from that snapshot too, or the submit would rewrite the removed value. A
+// mod left with neither field is dropped entirely.
+function removeOverlayFieldFromContext(overlayId: string, field: ModifiableField): void {
   const ctx = pendingSubmissionContext.value;
-  if (!ctx) return;
-  if (ctx.existingOverlayModifications) {
-    ctx.existingOverlayModifications = ctx.existingOverlayModifications.filter(
-      (mod) => mod.overlayId !== overlayId,
-    );
-  }
+  if (!ctx?.existingOverlayModifications) return;
+
+  ctx.existingOverlayModifications = ctx.existingOverlayModifications.flatMap((mod) => {
+    if (mod.overlayId !== overlayId) return [mod];
+    const next: PendingOverlayModification = { ...mod };
+    if (field === "corners") delete next.corners;
+    else delete next.caption;
+    return next.corners || next.caption ? [next] : [];
+  });
 }
 
 function resetSubmissionState(): void {
@@ -388,15 +394,9 @@ async function handleRemoveOverlayChange(overlayId: string, field: RemovableChan
   // Handle resetting a field modification (geometry is never an overlay field)
   if (overlayObject) {
     // oxlint-disable-next-line no-unsafe-type-assertion
-    const hasRemainingMods = revertOverlayFieldModification(
-      overlayId,
-      // oxlint-disable-next-line no-unsafe-type-assertion
-      field as ModifiableField,
-      overlayObject,
-    );
-    if (!hasRemainingMods) {
-      updateExtendedContextAfterOverlayRemoval(overlayId);
-    }
+    const modifiableField = field as ModifiableField;
+    revertOverlayFieldModification(overlayId, modifiableField, overlayObject);
+    removeOverlayFieldFromContext(overlayId, modifiableField);
   }
 }
 
