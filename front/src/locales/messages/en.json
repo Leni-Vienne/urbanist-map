@@ -588,7 +588,6 @@
     "projectRequired": "Project Required: A project must be selected to add an image",
     "checkConflictsFailed": "Failed to check for conflicts",
     "noChangesDetected": "No changes detected to submit",
-    "preparingSubmission": "Failed to prepare submission",
     "submissionFailed": "Failed to submit the changes",
     "mapInitFailed": "Map failed to load"
   },

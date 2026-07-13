@@ -58,17 +58,17 @@ function normalizeFieldValue(
   value: unknown,
   projectSource: Partial<Project>,
 ): unknown {
-  const fieldStr = field;
-  if (["proposalDate", "startDate", "endDate"].includes(fieldStr)) {
+  if (["proposalDate", "startDate", "endDate"].includes(field)) {
     return normalizeDate(value);
   }
-  if (fieldStr === "geometry") {
+  if (field === "geometry") {
     return hasShapes(value) ? JSON.stringify(value) : null;
   }
-  if (getPrecisionDateField(field) !== null) {
-    return normalizeDatePrecision(field, value, projectSource);
+  const precisionDateField = getPrecisionDateField(field);
+  if (precisionDateField) {
+    return normalizeDatePrecision(precisionDateField, value, projectSource);
   }
-  if (fieldStr === "tags") {
+  if (field === "tags") {
     return JSON.stringify(
       // oxlint-disable-next-line no-unsafe-type-assertion
       Array.isArray(value) ? (value as string[]).toSorted((a, b) => a.localeCompare(b)) : [],
@@ -107,16 +107,13 @@ function getPrecisionDateField(field: keyof Project): keyof Project | null {
   }
 }
 
+// A precision only means something next to a date: with no date set, the precision stays as-is,
+// otherwise a missing precision defaults to "day".
 function normalizeDatePrecision(
-  field: keyof Project,
+  dateField: keyof Project,
   precisionValue: unknown,
   projectValueSource: Partial<Project>,
 ): unknown {
-  const dateField = getPrecisionDateField(field);
-  if (!dateField) {
-    return precisionValue ?? null;
-  }
-
   const dateValue = projectValueSource[dateField];
   if (!dateValue) {
     return precisionValue ?? null;
@@ -177,13 +174,10 @@ function formatValueForDisplay(value: unknown, fieldName?: string): string {
   if (Array.isArray(value)) {
     return `[${value.length} items]`;
   }
-  if (typeof value === "object") {
-    return JSON.stringify(value);
-  }
   return String(value);
 }
 
-export function createProjectContext(
+function createProjectContext(
   project: Project,
   changeType?: SubmissionChangeType,
 ): Extract<EntityUpdate, { entityType: "project" }> {
@@ -238,10 +232,8 @@ function detectProjectChanges(project: Project, customReason?: string): ProjectF
 }
 
 // Build human-readable formatted changes for confirmation dialog
-export function formatEntityChanges(
-  context: Extract<EntityUpdate, { entityType: "project" }>,
-): SubmissionChange[] {
-  return detectProjectChanges(context.entity).map((change) => ({
+export function formatProjectChanges(project: Project): SubmissionChange[] {
+  return detectProjectChanges(project).map((change) => ({
     field: change.fieldName,
     oldValue: formatValueForDisplay(change.oldValue, change.fieldName),
     newValue: formatValueForDisplay(change.newValue, change.fieldName),
@@ -366,18 +358,13 @@ async function prepareImageForServer(overlay: OverlayObject): Promise<string> {
 }
 
 async function ensureProjectOnServer(project: Project): Promise<void> {
-  const projectStore = useProjectStore();
   const projectResult = await trpc.project.publishProject.mutate(projectSchema.parse(project));
 
   // The backend upserts on the supplied UUID, so projectResult.id always matches project.id.
-  // Newly-inserted projects (exists === false) need their local status flipped to pending and
-  // a contributions-cache entry so the sidebar reflects the submission.
+  // Repeat calls for the same project report exists === true and skip the aftermath, which the
+  // inserting call already applied.
   if (projectResult.id && !projectResult.exists) {
-    projectStore.updateProject(project.id, { status: "pending" });
-    const updatedProject = projectStore.projects[project.id];
-    if (updatedProject) {
-      projectStore.addProjectToUserContributions(updatedProject);
-    }
+    applyOptimisticPublishedProject(project, "create");
   }
 }
 
@@ -433,19 +420,17 @@ async function publishOverlay(overlay: OverlayObject, project: Project | null): 
   const publishResult = await trpc.overlay.publishOverlay.mutate(payload);
 
   if (publishResult.id) {
-    overlay.status = publishResult.status;
-    overlay.authorId = publishResult.authorId ?? null;
-
-    // Point to the server URL so the image isn't re-uploaded on the next save.
-    // The backend serves uploads under /uploads/ (no /api/images endpoint exists).
-    overlay.imageUrl = `${getApiUrl()}/uploads/${filename}`;
-    overlay.filename = filename;
+    useOverlayStore().updateOverlay(overlay.id, {
+      status: publishResult.status,
+      authorId: publishResult.authorId ?? null,
+      // Point to the server URL so the image isn't re-uploaded on the next save.
+      // The backend serves uploads under /uploads/ (no /api/images endpoint exists).
+      imageUrl: `${getApiUrl()}/uploads/${filename}`,
+      filename,
+    });
 
     handlePostPublishUpdates(overlay, project, filename);
   }
-
-  // Don't reload city overlays immediately, the local state already reflects the
-  // publish response and a refetch would overwrite it with stale backend data.
 }
 
 async function submitOverlay(
@@ -599,22 +584,22 @@ async function submitOverlayModification(
   }
 }
 
-async function publishNewOverlays(overlayIds: string[], project: Project | null): Promise<void> {
+async function publishNewOverlay(overlayId: string, project: Project | null): Promise<void> {
   const overlayStore = useOverlayStore();
-  for (const overlayId of overlayIds) {
-    const overlayObj = overlayStore.liveOverlays[overlayId];
-    if (!overlayObj) continue;
-    await publishOverlay(overlayObj, project);
-    // Collapse history so the just-published state is the new baseline, and snapshot the published
-    // caption as the baseline so the just-published overlay reads as clean.
-    const publishedState = overlayObj.history.at(-1);
-    if (publishedState) {
-      overlayStore.updateOverlay(overlayId, {
-        baselineCorners: publishedState.corners,
-        baselineCaption: overlayObj.caption,
-      });
-      overlayStore.resetHistoryBaseline(overlayId, publishedState.corners);
-    }
+  const overlayObj = overlayStore.liveOverlays[overlayId];
+  if (!overlayObj) return;
+
+  await publishOverlay(overlayObj, project);
+
+  // Collapse history so the just-published state is the new baseline, and snapshot the published
+  // caption as the baseline so the just-published overlay reads as clean.
+  const publishedState = overlayObj.history.at(-1);
+  if (publishedState) {
+    overlayStore.updateOverlay(overlayId, {
+      baselineCorners: publishedState.corners,
+      baselineCaption: overlayObj.caption,
+    });
+    overlayStore.resetHistoryBaseline(overlayId, publishedState.corners);
   }
 }
 
@@ -660,7 +645,8 @@ function collectOverlayContexts(
 
 // Project metadata change and brand-new project are mutually exclusive (status set vs null);
 // a single context drives both validation and the write. detectProjectChanges runs once here and
-// is threaded through as changedFields so validate/submitEntity don't recompute it.
+// is threaded through as changedFields so validate/submitEntity don't recompute it. A brand-new
+// project carries no changedFields: it is published whole, not as a field delta.
 function buildProjectContext(
   ctx: SubmissionContext,
   project: Project | null,
@@ -668,14 +654,15 @@ function buildProjectContext(
   reason: string,
 ): Extract<EntityUpdate, { entityType: "project" }> | null {
   if (!project) return null;
+
+  if (project.status === null) {
+    return newOverlayIds.length === 0 ? createProjectContext(project, "create") : null;
+  }
+
+  if (!ctx.projectModified) return null;
   const projectChanges = detectProjectChanges(project, reason);
-  if (project.status === null && newOverlayIds.length === 0) {
-    return { ...createProjectContext(project, "create"), changedFields: projectChanges };
-  }
-  if (ctx.projectModified && project.status !== null && projectChanges.length) {
-    return { ...createProjectContext(project), changedFields: projectChanges };
-  }
-  return null;
+  if (projectChanges.length === 0) return null;
+  return { ...createProjectContext(project), changedFields: projectChanges };
 }
 
 export async function submitContext(ctx: SubmissionContext, reason: string): Promise<void> {
@@ -699,15 +686,28 @@ export async function submitContext(ctx: SubmissionContext, reason: string): Pro
   }
   if (errors.size > 0) throw new Error([...errors].join(", "));
 
-  // Writes run only after the whole batch validated.
+  // Writes run only after the whole batch validated, and each one is dropped from the context as
+  // soon as it lands: a failure mid-batch leaves the dialog open on the remaining work only, so
+  // re-confirming can't submit an entity twice.
   for (const mod of existingMods) {
     await submitOverlayModification(mod.overlayId, mod, reason);
+    ctx.existingOverlayModifications = (ctx.existingOverlayModifications ?? []).filter(
+      (pending) => pending.overlayId !== mod.overlayId,
+    );
   }
-  await publishNewOverlays(newOverlayIds, project);
+
+  for (const overlayId of newOverlayIds) {
+    await publishNewOverlay(overlayId, project);
+    ctx.newOverlayIds = (ctx.newOverlayIds ?? []).filter((id) => id !== overlayId);
+  }
+
   if (projectContext) {
     await submitEntity(projectContext);
+    ctx.projectModified = false;
   }
+
   if (ctx.pendingRender && ctx.projectId) {
     await publishStagedRender(ctx.projectId, ctx.pendingRender.file);
+    ctx.pendingRender = undefined;
   }
 }

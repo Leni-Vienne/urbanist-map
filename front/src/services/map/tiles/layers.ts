@@ -97,9 +97,6 @@ type RenderedMapFeature = {
   geometry?: {
     coordinates?: unknown;
   };
-  layer?: {
-    id: string;
-  };
   id?: string | number;
 };
 

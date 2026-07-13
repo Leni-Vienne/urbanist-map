@@ -265,11 +265,12 @@ export const useProjectStore = defineStore("project", () => {
     projects.value[projectId] = current ? { ...current, ...updates } : createProjectObject(updates);
   }
 
-  // Stores the current project state as baseline for future change detection.
+  // Overwrites the change-detection baseline with the project's current state, which callers
+  // guarantee to match the backend.
   function cacheProjectBackendState(projectId: string) {
     const project = projects.value[projectId];
     if (project) {
-      snapshotOriginal(project);
+      originalProjects.value[projectId] = { ...project };
     }
   }
 
