@@ -15,6 +15,7 @@ import { createOverlayMarker, updateMarkerPosition } from "@/services/overlay/ma
 import { resolveOverlayCorners } from "@/services/overlay/data";
 import { getApprovedOverlayDataFromTiles } from "@/services/map/tiles/approvedOverlayCache";
 import { isValidQuad, sameCorners } from "@/services/overlay/transform";
+import { upsertOverlayFromWire } from "@/services/overlay/sync";
 import * as registry from "@/services/overlay/mapLayers";
 import { createRafBatchQueue } from "@/utils/rafBatchQueue";
 import { cornersIntersectBounds } from "@/utils/cornersBounds";
@@ -135,6 +136,8 @@ function convergeOverlayDisplay(overlayObject: OverlayObject): boolean {
  *
  * Desired existence = mode/user visibility ∧ map filters ∧ resolved corners intersect bounds; local
  * overlays are exempt from the bounds test (only explicit deletion or a mode switch removes them).
+ * Image creation additionally requires the image zoom threshold; below it only markers are created,
+ * and already-existing images are left alone (their raster layer's minzoom hides them natively).
  */
 function reconcileOverlayExistence(bounds: ViewportBounds) {
   const overlayStore = useOverlayStore();
@@ -146,6 +149,8 @@ function reconcileOverlayExistence(bounds: ViewportBounds) {
   // store-derived position. View mode relies on the overlay-footprints MVT layer for clicks (so
   // approved images get no DOM marker) and leaves approved overlays at their baseline footprint.
   const isSessionMode = mode !== "view";
+  const imagesAllowed =
+    map.value.getZoom() >= getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
   let handlesNeedSync = false;
 
   const tileManaged = getApprovedOverlayDataFromTiles();
@@ -181,8 +186,9 @@ function reconcileOverlayExistence(bounds: ViewportBounds) {
       if (!isValidQuad(liveObject.baselineCorners)) continue;
       if (shouldDisplayOverlay(liveObject, mode, userId)) {
         destructionQueue.delete(id);
-        if (!hasImage) localToRender.push(liveObject);
-        else if (isSessionMode && convergeOverlayDisplay(liveObject)) handlesNeedSync = true;
+        if (!hasImage) {
+          if (imagesAllowed) localToRender.push(liveObject);
+        } else if (isSessionMode && convergeOverlayDisplay(liveObject)) handlesNeedSync = true;
         if (!hasMarker) createOverlayMarker(liveObject);
       } else if (hasImage || hasMarker) {
         queueForDestruction(id);
@@ -219,12 +225,13 @@ function reconcileOverlayExistence(bounds: ViewportBounds) {
 
     if (desired && renderData) {
       destructionQueue.delete(id);
-      // Markers only need the canonical store object, not the image, so create as soon as one
-      // exists. A tile-delivered overlay has none until its first render (below) upserts it; its
-      // pin lands on the reconcile that render schedules.
-      if (isSessionMode && !hasMarker && liveObject) createOverlayMarker(liveObject);
+      // Markers only need the canonical store object, not the image; a tile-delivered overlay
+      // absent from the store is ingested here so its pin doesn't wait for image creation.
+      if (isSessionMode && !hasMarker) {
+        createOverlayMarker(liveObject ?? upsertOverlayFromWire(renderData));
+      }
       if (!hasImage) {
-        backendToRender.push(renderData);
+        if (imagesAllowed) backendToRender.push(renderData);
       } else if (isSessionMode && liveObject && convergeOverlayDisplay(liveObject)) {
         handlesNeedSync = true;
       }

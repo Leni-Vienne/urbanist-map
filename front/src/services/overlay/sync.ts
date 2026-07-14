@@ -31,15 +31,29 @@ type OverlayBackendFields = Partial<
   >
 >;
 
+// True when every provided field already equals the overlay's current value, making the write
+// (and its display consequences) a no-op.
+function fieldsAlreadyApplied(overlayObject: OverlayObject, fields: OverlayBackendFields): boolean {
+  for (const key of Object.keys(fields) as (keyof OverlayBackendFields)[]) {
+    if (key === "baselineCorners" || key === "suggestedCorners") {
+      if (!sameCorners(fields[key] ?? null, overlayObject[key] ?? null)) return false;
+    } else if (fields[key] !== overlayObject[key]) return false;
+  }
+  return true;
+}
+
 // Single write path for backend-owned overlay fields (approved baseline + open change-request
 // state). It writes the fields and the store-side consequences (positionState, caption, and an
 // unedited overlay's history seed when its resting position changed), then schedules a reconcile;
 // the viewport render loop converges the image/marker to the new resolved position. Overlays with
-// staged edits or pending redo state keep the user's position and seed.
+// staged edits or pending redo state keep the user's position and seed. A delivery that changes
+// nothing returns without writing or scheduling.
 export function applyOverlayBackendFields(
   overlayObject: OverlayObject,
   fields: OverlayBackendFields,
 ): void {
+  if (fieldsAlreadyApplied(overlayObject, fields)) return;
+
   const previousDefaultCaption = getEditModeDefaultCaption(overlayObject);
   const previousRestingCorners = getEditModeRestingCorners(overlayObject);
   const captionWasUntouched = overlayObject.caption === previousDefaultCaption;
