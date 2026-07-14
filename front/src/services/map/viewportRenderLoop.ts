@@ -3,7 +3,7 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useMapStore } from "@/stores/mapStore";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
-import { map } from "@/services/core/map";
+import { getMap, getMapOrNull } from "@/services/core/map";
 import {
   isOverlayVisible,
   matchesMapFilters,
@@ -33,7 +33,7 @@ interface ViewportBounds {
 // Current viewport padded by 10% per axis, so content just past the edge isn't destroyed only to
 // be re-created on the next small pan.
 function getPaddedViewportBounds(): ViewportBounds {
-  const mlBounds = map.value.getBounds();
+  const mlBounds = getMap().getBounds();
   const sw = mlBounds.getSouthWest();
   const ne = mlBounds.getNorthEast();
   const latPad = (ne.lat - sw.lat) * 0.1;
@@ -62,7 +62,23 @@ export function runViewportRenderLoop() {
   });
 }
 
+/**
+ * Drop the pending reconcile and the queued teardown batches, so a frame scheduled against the
+ * outgoing map cannot run once it is gone. Store writers may keep scheduling; the pass they get is
+ * the next map's.
+ */
+export function stopViewportRenderLoop(): void {
+  if (renderLoopRafId !== null) {
+    cancelAnimationFrame(renderLoopRafId);
+    renderLoopRafId = null;
+  }
+  destructionQueue.clear();
+}
+
 function runViewportRenderLoopNow() {
+  // Scheduled work can survive into a frame where MapView has already unmounted.
+  if (!getMapOrNull()) return;
+
   reconcileOverlayExistence(getPaddedViewportBounds());
 
   // Render shapes for all visible projects (both overlay-bearing and standalone)
@@ -151,7 +167,7 @@ function reconcileOverlayExistence(bounds: ViewportBounds) {
 
   // Below the threshold the map holds no overlay content: tear down every entry and skip the pass.
   // Crossing back up re-creates images and markers from the store and the tile cache.
-  if (map.value.getZoom() < getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS)) {
+  if (getMap().getZoom() < getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS)) {
     for (const id of registry.getEntryIds()) {
       if (!registry.isGestureOwned(id)) queueForDestruction(id);
     }

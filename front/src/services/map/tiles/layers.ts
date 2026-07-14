@@ -5,7 +5,7 @@ import type {
   FilterSpecification,
   ExpressionSpecification,
 } from "maplibre-gl";
-import { map } from "@/services/core/map";
+import { getMap, getMapOrNull } from "@/services/core/map";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";
 import { handleBackgroundClick, selectOverlay } from "@/services/overlay/selection";
@@ -677,8 +677,8 @@ function registerHiddenProjectsWatcher(): void {
     () => computeHiddenProjectIds().toSorted().join("|"),
     (key) => {
       hiddenProjectIdsCache = key ? key.split("|") : [];
-      const mlMap = map.value;
-      applyTagFiltersToVectorLayers(mlMap);
+      const mlMap = getMapOrNull();
+      if (mlMap) applyTagFiltersToVectorLayers(mlMap);
     },
     { immediate: true },
   );
@@ -736,8 +736,8 @@ function registerHiddenOverlaysWatcher(): void {
     () => computeHiddenOverlayIds().toSorted().join("|"),
     (key) => {
       hiddenOverlayIdsCache = key ? key.split("|") : [];
-      const mlMap = map.value;
-      applyFootprintLayerFilters(mlMap);
+      const mlMap = getMapOrNull();
+      if (mlMap) applyFootprintLayerFilters(mlMap);
     },
   );
 }
@@ -899,7 +899,7 @@ async function handlePointFeatureClick(pointFeature: RenderedMapFeature): Promis
   // expand gesture, and open no detail since a cluster has no single project.
   const cellCount = Number(props.cell_count ?? 1);
   if (hasCoords && cellCount > 1) {
-    mobileAwareFlyTo([lat, lng], map.value.getZoom() + CLUSTER_EXPAND_ZOOM_STEP);
+    mobileAwareFlyTo([lat, lng], getMap().getZoom() + CLUSTER_EXPAND_ZOOM_STEP);
     return;
   }
 
@@ -911,11 +911,12 @@ async function handlePointFeatureClick(pointFeature: RenderedMapFeature): Promis
 function registerSelectedHoverWatcher(): void {
   const focusStore = useFocusStore();
   watch([() => focusStore.highlightedProjectId, () => focusStore.highlightedOverlayId], () => {
-    setSelectedHoverState(map.value);
+    const mlMap = getMapOrNull();
+    if (mlMap) setSelectedHoverState(mlMap);
   });
 }
 
-// Reads map.value inside its callback, so it follows a map instance swap.
+// Resolves the map inside its callback, so it follows a map instance swap.
 const initializeSelectedHoverWatcher = registerOnce(registerSelectedHoverWatcher);
 
 function registerMapInteractionListeners(mlMap: MaplibreMap): void {
@@ -1040,7 +1041,7 @@ let interactionListenersMap: MaplibreMap | null = null;
 export function initializeHybridInteractionHandlers(): void {
   initializeSelectedHoverWatcher();
 
-  const mlMap = map.value;
+  const mlMap = getMap();
   if (interactionListenersMap === mlMap) return;
   interactionListenersMap = mlMap;
   registerMapInteractionListeners(mlMap);

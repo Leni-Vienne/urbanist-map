@@ -1,7 +1,7 @@
 import { type ExpressionSpecification, type MapMouseEvent, LngLatBounds } from "maplibre-gl";
 import type { Feature } from "geojson";
 import type { Project } from "@/types/index";
-import { map } from "@/services/core/map";
+import { getMap, getMapOrNull } from "@/services/core/map";
 import { useFocusStore } from "@/stores/focusStore";
 import { selectProject } from "@/services/map/projectSelection";
 import { forEachPosition } from "@/utils/geojson";
@@ -22,7 +22,7 @@ import {
 } from "@/services/map/shapes/styleConstants";
 import { getProjectTagColor } from "@/constants/projectTags";
 
-type MapLibreMap = NonNullable<typeof map.value>;
+type MapLibreMap = ReturnType<typeof getMap>;
 
 const HOVER_FILL_OPACITY = 0.35;
 
@@ -245,7 +245,7 @@ function wireShapeInteraction(
   fillLayerId: string | null,
   hitLayerId: string | null,
 ): ShapeEventBinding[] {
-  const mlMap = map.value;
+  const mlMap = getMap();
   // When a line crosses this project's own polygon, one click hits both the fill and hit
   // layers, firing onClick twice. Dedupe on the source DOM event so it is handled once.
   let lastClickTimeStamp = -1;
@@ -280,7 +280,7 @@ export function renderProjectShapes(
 ): void {
   if (hasProjectShapes(project.id)) return;
 
-  const mlMap = map.value;
+  const mlMap = getMap();
   const color = getProjectTagColor(project.tags);
 
   const features = buildFeatureDiff(project.geometry, oldGeometry, color);
@@ -358,7 +358,7 @@ export function renderPreviewShapes(
 ): void {
   clearPreviewShapes();
 
-  const mlMap = map.value;
+  const mlMap = getMap();
   // Temporarily hide this project's regular shapes so they don't overlap the preview.
   setProjectShapesVisible(project.id, false);
   previewHiddenProjectId = project.id;
@@ -394,7 +394,7 @@ function wirePreviewInteraction(
   hitLayerId: string | null,
   onShapeClick: (latlng: { lat: number; lng: number }) => void,
 ): ShapeEventBinding[] {
-  const mlMap = map.value;
+  const mlMap = getMap();
   function onEnter(): void {
     mlMap.getCanvas().style.cursor = "pointer";
     if (mlMap.getLayer(lineLayerId)) mlMap.setPaintProperty(lineLayerId, "line-width", 6);
@@ -412,8 +412,8 @@ function wirePreviewInteraction(
 
 /** Remove the preview layers and restore any hidden project shapes. */
 function clearPreviewShapes(): void {
-  const mlMap = map.value;
-  if (preview) {
+  const mlMap = getMapOrNull();
+  if (preview && mlMap) {
     for (const binding of preview.eventBindings) {
       mlMap.off(binding.type, binding.layerId, binding.handler);
     }

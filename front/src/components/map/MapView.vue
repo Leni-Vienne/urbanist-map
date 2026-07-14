@@ -60,19 +60,17 @@
 import { toastError } from "@/services/core/toast";
 
 import { ref, onMounted, onUnmounted, nextTick, defineAsyncComponent } from "vue";
+import type { Map as MaplibreMap } from "maplibre-gl";
 
-import { initializeMap, map } from "@/services/core/map";
+import { createMap, destroyMap, onMapReady } from "@/services/core/map";
+import { startMapRuntime } from "@/services/map/mapRuntime";
 import { addTileLayer } from "@/services/map/tiles/basemap";
 import { initVectorTileSync } from "@/services/map/tiles/sync";
 import { initializeMapGlobalWatchers } from "@/services/map/globalWatchers";
-import { clearOverlayRenderState } from "@/services/overlay/teardown";
+import { syncEditHandlesForCurrentState } from "@/services/overlay/editing";
 
 import { useI18n } from "vue-i18n";
-import {
-  refreshViewport,
-  setupEventListeners,
-  cleanupEventListeners,
-} from "@/services/map/viewportTriggers";
+import { refreshViewport, refreshMapSessionData } from "@/services/map/viewportTriggers";
 import { useMapStore } from "@/stores/mapStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -98,48 +96,67 @@ const authStore = useAuthStore();
 const { t } = useI18n();
 const isLoading = ref(true);
 
+// MapView owns exactly one MapLibre instance, from creation to removal. Leaving Home destroys it;
+// returning builds a clean one.
+let mountedMap: MaplibreMap | null = null;
+let stopMapRuntime: (() => void) | null = null;
+let stopWaitingForMap: (() => void) | null = null;
+
 onMounted(async () => {
   await initializeMapAndOverlays();
   isLoading.value = false;
 });
 
-onUnmounted(() => {
-  cleanupEventListeners();
-  // Drop layers/markers off the outgoing map instance while it is still alive, so the registry is
-  // empty when the reconciler rebuilds them on the next map. Overlay store data is kept.
-  clearOverlayRenderState();
-});
+onUnmounted(handleMapViewUnmount);
 
 async function initializeMapAndOverlays() {
   try {
-    initializeMap();
+    const target = createMap();
+    mountedMap = target;
+    stopMapRuntime = startMapRuntime(target);
 
-    setupEventListeners();
-
+    // Settle the canvas to the container size before wiring layers, so MapLibre doesn't
+    // fetch tiles twice (once per view change) when the dimensions correct.
     await nextTick();
-    if (map.value !== null) {
-      // Settle the canvas to the container size before wiring layers, so MapLibre doesn't
-      // fetch tiles twice (once per view change) when the dimensions correct.
-      map.value.resize();
+    if (mountedMap !== target) return;
+    target.resize();
 
-      // Initialize tile layers after dimensions are settled to avoid a redundant tile fetch.
-      addTileLayer();
-      initVectorTileSync();
+    // Initialize tile layers after dimensions are settled to avoid a redundant tile fetch.
+    addTileLayer();
+    initVectorTileSync();
 
-      // The first render loop needs a settled camera and a loaded style: "idle" fires on the first
-      // clean frame, which satisfies both. Afterwards moveend drives the refreshes.
-      void map.value.once("idle", () => {
-        refreshViewport();
-      });
-    } else {
-      console.error("Map not available for camera bounds tracking");
-    }
+    // The first render loop needs a settled camera and a loaded style: "idle" fires on the first
+    // clean frame, which satisfies both. Afterwards moveend drives the refreshes.
+    void target.once("idle", () => {
+      refreshViewport();
+    });
 
     initializeMapGlobalWatchers();
+
+    // Neither the mode nor the selection changes across a remount, so no transition or selection
+    // watcher rebuilds their map state: project both onto this map once it is ready. The handles
+    // wait internally for the image the session fetch is about to produce.
+    stopWaitingForMap = onMapReady(() => {
+      syncEditHandlesForCurrentState();
+      void refreshMapSessionData();
+    });
   } catch (error) {
     console.error("Error initializing map and overlays:", error);
     toastError(t("pages.home.errors.initializationError"));
   }
+}
+
+function handleMapViewUnmount(): void {
+  const target = mountedMap;
+  mountedMap = null;
+  if (!target) return;
+
+  stopWaitingForMap?.();
+  stopWaitingForMap = null;
+  // Runs while the map is still alive: it hands every registry entry, marker and listener back.
+  stopMapRuntime?.();
+  stopMapRuntime = null;
+  destroyMap(target);
 }
 </script>
 

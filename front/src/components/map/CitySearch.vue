@@ -39,7 +39,7 @@
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { trpc } from "@/client";
-import { map } from "@/services/core/map";
+import { getMap } from "@/services/core/map";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useMapStore } from "@/stores/mapStore";
 import { LngLatBounds } from "maplibre-gl";
@@ -115,7 +115,7 @@ async function onSearch(event: { query: string }) {
     const searchId = ++latestSearchId;
     isLoading.value = true;
     try {
-      const center = map.value.getCenter();
+      const center = getMap().getCenter();
       if (!center) {
         console.warn("Map center not available for boundary search");
         suggestions.value = [];

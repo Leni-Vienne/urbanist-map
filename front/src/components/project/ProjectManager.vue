@@ -52,7 +52,7 @@ import { useProjectStore } from "@/stores/projectStore";
 import { useMapStore } from "@/stores/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 
-import { map } from "@/services/core/map";
+import { getMap, getMapOrNull } from "@/services/core/map";
 import { createProjectPinElement } from "@/services/map/markersSvg";
 import { createProject } from "@/services/project/projectMutations";
 import { selectProject } from "@/services/map/projectSelection";
@@ -102,7 +102,7 @@ function handleMapClick(e: MapMouseEvent) {
   const element = createProjectPinElement("orange");
   tempMarker.value = new maplibregl.Marker({ element, anchor: "bottom" })
     .setLngLat([coordinates.lng, coordinates.lat])
-    .addTo(map.value);
+    .addTo(getMap());
 
   if (markerPlacementBar.value) {
     markerPlacementBar.value.setMarkerCoordinates(coordinates);
@@ -111,7 +111,7 @@ function handleMapClick(e: MapMouseEvent) {
 
 function onMarkerModeEnabled() {
   mapClickHandler.value = handleMapClick;
-  map.value.on("click", handleMapClick);
+  getMap().on("click", handleMapClick);
 }
 
 function onDialogVisibilityChange(visible: boolean) {
@@ -122,7 +122,7 @@ function onDialogVisibilityChange(visible: boolean) {
     }
 
     if (mapClickHandler.value) {
-      map.value.off("click", mapClickHandler.value);
+      getMapOrNull()?.off("click", mapClickHandler.value);
       mapClickHandler.value = null;
     }
   }

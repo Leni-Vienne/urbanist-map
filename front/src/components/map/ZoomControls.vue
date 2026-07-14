@@ -32,24 +32,26 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from "vue";
 import { useI18n } from "vue-i18n";
-import { map, currentZoomLevel } from "@/services/core/map";
+import { getMap, getMapOrNull, currentZoomLevel } from "@/services/core/map";
 
 const { t } = useI18n();
 
 // currentZoomLevel updates on zoomend, so the disabled bounds settle once a zoom finishes.
-const atMaxZoom = computed(
-  () => map.value !== null && currentZoomLevel.value >= map.value.getMaxZoom() - 0.001,
-);
-const atMinZoom = computed(
-  () => map.value !== null && currentZoomLevel.value <= map.value.getMinZoom() + 0.001,
-);
+const atMaxZoom = computed(() => {
+  const mlMap = getMapOrNull();
+  return mlMap !== null && currentZoomLevel.value >= mlMap.getMaxZoom() - 0.001;
+});
+const atMinZoom = computed(() => {
+  const mlMap = getMapOrNull();
+  return mlMap !== null && currentZoomLevel.value <= mlMap.getMinZoom() + 0.001;
+});
 
 function zoomIn() {
-  map.value.zoomIn();
+  getMap().zoomIn();
 }
 
 function zoomOut() {
-  map.value.zoomOut();
+  getMap().zoomOut();
 }
 
 // Don't steal +/- while the user is typing, or while a modal dialog/drawer is open.

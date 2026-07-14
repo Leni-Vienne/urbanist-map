@@ -147,7 +147,7 @@ import { useFocusStore } from "@/stores/focusStore";
 import { useMapStore } from "@/stores/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import type { OverlayObject } from "@/types";
-import { map } from "@/services/core/map";
+import { onMapReady } from "@/services/core/map";
 import {
   getOverlayImageCorners,
   setOverlayImageOpacity,
@@ -189,6 +189,9 @@ const isCropActive = ref(false);
 
 let anchorMarker: maplibregl.Marker | null = null;
 let cancelImageWait: (() => void) | null = null;
+// The map this toolbar attached its listeners and marker to, so teardown detaches from that exact
+// instance. Null until it becomes ready (the toolbar can mount while MapView is still wiring up).
+let toolbarMap: maplibregl.Map | null = null;
 
 // Top-center of the overlay ([lng, lat]) where the toolbar anchors.
 function getAnchorLngLat(): [number, number] | null {
@@ -220,12 +223,12 @@ function refreshCanStack() {
 }
 
 function createMarker(lngLat: [number, number]) {
-  const mlMap = map.value;
+  if (!toolbarMap) return;
   const el = document.createElement("div");
   el.style.zIndex = "620";
   anchorMarker = new maplibregl.Marker({ element: el, anchor: "center" })
     .setLngLat(lngLat)
-    .addTo(mlMap);
+    .addTo(toolbarMap);
   markerIconEl.value = el;
 }
 
@@ -254,15 +257,14 @@ function syncAnchor() {
 }
 
 function startAnchorSync() {
-  const mlMap = map.value;
-  if (anchorSyncActive) return;
-  mlMap.on("render", syncAnchor);
+  if (anchorSyncActive || !toolbarMap) return;
+  toolbarMap.on("render", syncAnchor);
   anchorSyncActive = true;
 }
 
 function stopAnchorSync() {
   if (!anchorSyncActive) return;
-  map.value.off("render", syncAnchor);
+  toolbarMap?.off("render", syncAnchor);
   anchorSyncActive = false;
 }
 
@@ -295,28 +297,25 @@ watch(
   { immediate: true },
 );
 
-// Edge case: selectedId set before MapView's onMounted initializes the map
-watch(
-  map,
-  (newMap, oldMap) => {
-    oldMap?.off("moveend", refreshCanStack);
-    if (newMap) {
-      newMap.on("moveend", refreshCanStack);
-      if (selectedId.value && !anchorMarker) initForSelection();
-    }
-  },
-  { immediate: true },
-);
+// The toolbar can mount before MapView finishes wiring the map up, so it anchors on readiness
+// rather than assuming a map is already there.
+const stopWaitingForMap = onMapReady((mlMap) => {
+  toolbarMap = mlMap;
+  mlMap.on("moveend", refreshCanStack);
+  if (selectedId.value && !anchorMarker) initForSelection();
+});
 
 watch(isEditMode, (editing) => {
   if (!editing) abandonCrop();
 });
 
 onUnmounted(() => {
+  stopWaitingForMap();
   stopAnchorSync();
   destroyMarker();
   abandonCrop();
-  map.value.off("moveend", refreshCanStack);
+  toolbarMap?.off("moveend", refreshCanStack);
+  toolbarMap = null;
 });
 
 function readOpacity(): number {

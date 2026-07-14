@@ -1,6 +1,6 @@
 import { watchEffect } from "vue";
 import maplibregl, { type LngLatBounds } from "maplibre-gl";
-import { map } from "@/services/core/map";
+import { getMap } from "@/services/core/map";
 import { createOverlayMarkerElement, updateOverlayMarkerColor } from "@/services/map/markersSvg";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useOverlayStore } from "@/stores/overlayStore";
@@ -26,7 +26,7 @@ import { registerOnce } from "@/utils/registerOnce";
 export function createOverlayMarker(overlay: OverlayObject): void {
   const mode = useMapStore().mode;
   if (mode === "view") return;
-  const mlMap = map.value;
+  const mlMap = getMap();
   // The replacement sits at the same spot, so a marker for the replaced one would confuse.
   if (overlay.status === "replaced") return;
   if (registry.getMarker(overlay.id)) return;

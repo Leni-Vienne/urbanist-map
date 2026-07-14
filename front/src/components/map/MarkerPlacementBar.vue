@@ -44,7 +44,7 @@
 <script setup lang="ts">
 import { ref, watch, onUnmounted } from "vue";
 import { useMapStore } from "@/stores/mapStore";
-import { map } from "@/services/core/map";
+import { getMap } from "@/services/core/map";
 import { getMarkerSvg } from "@/services/map/markersSvg";
 
 type Emits = {
@@ -62,7 +62,7 @@ const cursorMarkerSvg = getMarkerSvg("orange");
 
 function onMouseMove(e: MouseEvent) {
   if (markerCoordinates.value) return;
-  const mapContainer = map.value.getContainer();
+  const mapContainer = getMap().getContainer();
   const rect = mapContainer.getBoundingClientRect();
   cursorPosition.value = {
     x: e.clientX - rect.left,

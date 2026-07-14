@@ -4,7 +4,7 @@ import { useProjectStore } from "@/stores/projectStore";
 import { createProjectObject } from "@/utils/typeFactories";
 import { selectProject } from "@/services/map/projectSelection";
 import { flyToGeometry } from "@/services/map/mapNavigation";
-import { onMlMapReady, bootedFromDeeplinkView } from "@/services/core/map";
+import { onMapReady, bootedFromDeeplinkView } from "@/services/core/map";
 
 import { loadOrNull } from "@/services/core/errorHandling";
 import { toastInfo } from "@/services/core/toast";
@@ -40,7 +40,7 @@ export async function handleProjectDeepLink(
     // coords), so set the final zoom instantly instead of flying in from the default view. On the
     // dev server, where no coords are injected, it falls back to the animated fly.
     const instant = bootedFromDeeplinkView.value;
-    onMlMapReady(() => {
+    onMapReady(() => {
       if (typeof lat === "number" && typeof lng === "number") {
         flyToGeometry([lat, lng], project.geometrySizeM ?? 0, { instant });
       }
@@ -55,7 +55,7 @@ export async function handleProjectDeepLink(
     if (typeof result.lat === "number" && typeof result.lng === "number") {
       const lat = result.lat;
       const lng = result.lng;
-      onMlMapReady(() => {
+      onMapReady(() => {
         flyToGeometry([lat, lng], 0);
       });
     }

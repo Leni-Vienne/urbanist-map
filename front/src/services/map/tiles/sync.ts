@@ -11,7 +11,7 @@
  * delivered via tiles, the bbox tRPC fetch only returns pending content.
  */
 
-import { map, onMlMapReady } from "@/services/core/map";
+import { getMapOrNull, onMapReady } from "@/services/core/map";
 import { throttle } from "@/utils/throttle";
 import { useOverlayStore } from "@/stores/overlayStore";
 import type { OverlayData } from "@/types/index";
@@ -115,9 +115,9 @@ function decodeFootprint(feat: maplibregl.GeoJSONFeature): DecodedFootprint {
 }
 
 export function syncOverlaysFromTiles(): void {
-  const mlMap = map.value;
-  // During style reloads/HMR, the layer can be absent when a listener fires.
-  if (!mlMap.getLayer("overlay-footprints")) return;
+  const mlMap = getMapOrNull();
+  // During style reloads, the layer can be absent when a listener fires.
+  if (!mlMap?.getLayer("overlay-footprints")) return;
 
   try {
     // querySourceFeatures (not queryRenderedFeatures) is used to also catch overlays whose
@@ -190,8 +190,7 @@ export function syncOverlaysFromTiles(): void {
  * from hover feature-state, so it would call the sync on plain cursor movement.
  */
 export function initVectorTileSync(): void {
-  onMlMapReady(() => {
-    const mlMap = map.value;
+  onMapReady((mlMap) => {
     const runSync = throttle(syncOverlaysFromTiles, 150);
 
     mlMap.on("move", runSync);

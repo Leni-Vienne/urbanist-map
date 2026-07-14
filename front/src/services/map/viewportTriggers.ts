@@ -6,7 +6,7 @@
 // zoom decisions: the reconciler owns what exists on the map at the current zoom.
 // All state is module-scoped: every consumer drives the same single map viewport.
 import { watch } from "vue";
-import { map } from "@/services/core/map";
+import type { Map as MaplibreMap } from "maplibre-gl";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useMapStore } from "@/stores/mapStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -71,7 +71,11 @@ function beginSessionFetch(): number {
   return sessionFetchToken;
 }
 
-function clearMapSessionLists(): void {
+/**
+ * Drop the mode-session sets and invalidate any fetch in flight for them. The mode being entered,
+ * or the next map mount, fetches its own.
+ */
+export function clearMapSessionLists(): void {
   sessionFetchToken += 1;
   editSessionOverlays = [];
   editSessionProjects = [];
@@ -176,22 +180,19 @@ export function refreshViewport(): void {
 
 const debouncedRefreshViewport = debounce(refreshViewport, 100);
 
-// MapLibre's off() needs the exact handler reference to remove a listener.
-let viewportMoveEndHandler: (() => void) | null = null;
-
-// Zooming is a camera move in MapLibre, so moveend also fires after zooms.
-export function setupEventListeners() {
-  viewportMoveEndHandler = () => {
+/**
+ * Re-render the viewport whenever `target`'s camera settles. Zooming is a camera move in MapLibre,
+ * so moveend also fires after zooms. Returns the disposer.
+ */
+export function setupEventListeners(target: MaplibreMap): () => void {
+  function onMoveEnd(): void {
     debouncedRefreshViewport();
-  };
-  map.value.on("moveend", viewportMoveEndHandler);
-}
-
-export function cleanupEventListeners() {
-  if (viewportMoveEndHandler) {
-    map.value.off("moveend", viewportMoveEndHandler);
-    viewportMoveEndHandler = null;
   }
+  target.on("moveend", onMoveEnd);
+
+  return function stopViewportMoveListener(): void {
+    target.off("moveend", onMoveEnd);
+  };
 }
 
 async function syncSessionDataForMode(newMode: AppMode, oldMode: AppMode): Promise<void> {

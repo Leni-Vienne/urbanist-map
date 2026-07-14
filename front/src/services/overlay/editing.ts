@@ -2,7 +2,7 @@ import * as registry from "@/services/overlay/mapLayers";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import maplibregl, { type GeoJSONSource, type MapMouseEvent, LngLat } from "maplibre-gl";
 import type { Feature, Polygon } from "geojson";
-import { map, currentZoomLevel } from "@/services/core/map";
+import { getMap, currentZoomLevel } from "@/services/core/map";
 import {
   getImageHandle,
   setOverlayImageTransform,
@@ -75,7 +75,7 @@ async function loadImageAspect(imageUrl: string): Promise<number> {
 // Place a new overlay as a rectangle centered on the current view, sized from the image aspect.
 async function defaultCornersForNewOverlay(imageUrl: string): Promise<LatLng[]> {
   const aspect = await loadImageAspect(imageUrl);
-  const center = map.value.getCenter();
+  const center = getMap().getCenter();
   const widthMeters = 100;
   return transformToCorners({
     center: { lat: center.lat, lng: center.lng },
@@ -164,7 +164,7 @@ export function addOverlay(
     mobileAwareFlyTo(new LngLat(project.lng, project.lat), targetZoom);
 
     // Wait for zoom to complete before creating overlay
-    void map.value.once("zoomend", () => {
+    void getMap().once("zoomend", () => {
       void createAndSetupOverlay();
     });
   } else {
@@ -230,7 +230,7 @@ function cornerHandleElement(): HTMLElement {
 
 function syncSvgOutline(): void {
   if (!session?.svgPath) return;
-  const mlMap = map.value;
+  const mlMap = getMap();
   const transform = getCurrentTransform(session.id);
   // eslint-disable-next-line no-unnecessary-condition
   if (!transform) return;
@@ -263,7 +263,7 @@ function syncSvgOutline(): void {
 // skipCorner leaves the actively-dragged marker on the cursor until dragend.
 function refreshEditHandlesGeometry(skipCorner = -1): void {
   if (!session) return;
-  const mlMap = map.value;
+  const mlMap = getMap();
   const transform = getCurrentTransform(session.id);
   // eslint-disable-next-line no-unnecessary-condition
   if (!transform) return;
@@ -356,7 +356,7 @@ function wireCornerDrag(s: EditSession): void {
 }
 
 function wireSurfaceDrag(s: EditSession): void {
-  const mlMap = map.value;
+  const mlMap = getMap();
   const overlayObject = s.overlayObject;
 
   s.onEnter = () => {
@@ -431,7 +431,7 @@ function wireSurfaceDrag(s: EditSession): void {
  * transparent whole-surface drag layer, and 4 aspect-locked corner handles.
  */
 export function showEditHandles(overlayObject: OverlayObject): void {
-  const mlMap = map.value;
+  const mlMap = getMap();
   const handle = getImageHandle(overlayObject.id);
   // eslint-disable-next-line no-unnecessary-condition
   if (!handle) return;
@@ -512,7 +512,7 @@ export function showEditHandles(overlayObject: OverlayObject): void {
 // fire while their fill layer exists, so the overlay stays draggable only once the layer is back.
 export function reattachEditHandlesAfterStyleSwitch(): void {
   if (!session) return;
-  const mlMap = map.value;
+  const mlMap = getMap();
   const transform = getCurrentTransform(session.id);
   // eslint-disable-next-line no-unnecessary-condition
   if (!transform) return;
@@ -537,7 +537,7 @@ export function reattachEditHandlesAfterStyleSwitch(): void {
 
 export function hideEditHandles(): void {
   if (!session) return;
-  const mlMap = map.value;
+  const mlMap = getMap();
   const s = session;
   session = null;
 
@@ -582,6 +582,15 @@ function syncEditHandles(selectedId: string | null, mode: AppMode): void {
   whenImageReadyIfSelected(selectedId, () => {
     if (useMapStore().mode === "edit") showEditHandles(overlay);
   });
+}
+
+/**
+ * Project the already-current (selection, mode) onto a freshly mounted map. The selection survives a
+ * map teardown but does not change across it, so the selection watcher never fires and cannot be
+ * what rebuilds the handles.
+ */
+export function syncEditHandlesForCurrentState(): void {
+  syncEditHandles(useFocusStore().selectedOverlayId, useMapStore().mode);
 }
 
 function registerEditorTriggers(): void {

@@ -1,7 +1,7 @@
 import { ref, computed, onUnmounted, onActivated, onDeactivated } from "vue";
 import type * as maplibregl from "maplibre-gl";
 import { useFocusStore } from "@/stores/focusStore";
-import { map, onMlMapReady } from "@/services/core/map";
+import { getMap, getMapOrNull, onMapReady } from "@/services/core/map";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";
 import { VECTOR_QUERY_LAYERS } from "@/services/map/tiles/queryLayers";
 import { flyToGeometry } from "@/services/map/mapNavigation";
@@ -259,7 +259,7 @@ function accumulateFeatures(
  * closest to the center of the screen (midLat) to prevent the card from appearing visually detached.
  */
 function showHoverCardForProject(project: VisibleProject): void {
-  const mlMap = map.value;
+  const mlMap = getMap();
   const rect = mlMap.getContainer().getBoundingClientRect();
   const INSET = 100;
 
@@ -349,7 +349,8 @@ export function useVisibleProjects() {
 
   function refresh() {
     if (!isActive || !isReady.value) return;
-    const mlMap = map.value;
+    const mlMap = getMapOrNull();
+    if (!mlMap) return;
     // Skip if the map is still animating, or if tiles for the current viewport
     // haven't finished loading yet (e.g. mid-zoom). Both states resolve into a
     // later `idle`, which calls back in.
@@ -377,8 +378,11 @@ export function useVisibleProjects() {
   }
 
   let hoverClearTimeout: ReturnType<typeof setTimeout> | null = null;
+  // The map this composable attached its `idle` listener to, so unmount detaches from that exact
+  // instance rather than from whichever map happens to be current by then.
+  let listeningMap: maplibregl.Map | null = null;
 
-  onMlMapReady(() => {
+  const stopWaitingForMap = onMapReady((mlMap) => {
     isReady.value = true;
     // maplibre fires `idle` at the end of every rendered frame that ends with the camera
     // still and all source tiles loaded; any change (camera move, tile arrival, data or
@@ -387,7 +391,8 @@ export function useVisibleProjects() {
     // queryRenderedFeatures inside it sees the fully-painted frame. The handler must not
     // trigger a repaint: the forced frame would end clean, fire `idle` again, and sustain
     // an endless render loop.
-    map.value.on("idle", refresh);
+    listeningMap = mlMap;
+    mlMap.on("idle", refresh);
 
     // Covers the map already sitting idle (no `idle` fires until something changes).
     refresh();
@@ -395,8 +400,9 @@ export function useVisibleProjects() {
 
   onUnmounted(() => {
     if (hoverClearTimeout) clearTimeout(hoverClearTimeout);
-    // oxlint-disable-next-line no-unnecessary-condition
-    if (map.value) map.value.off("idle", refresh);
+    stopWaitingForMap();
+    listeningMap?.off("idle", refresh);
+    listeningMap = null;
   });
 
   // Suppresses hover updates while the camera is flying after a project click.
@@ -414,7 +420,7 @@ export function useVisibleProjects() {
       if (project.lat !== null && project.lng !== null) {
         return { lat: project.lat, lng: project.lng };
       }
-      const center = map.value.getCenter();
+      const center = getMap().getCenter();
       return { lat: center.lat, lng: center.lng };
     }
     const latlng = resolveAnchor();
@@ -424,7 +430,7 @@ export function useVisibleProjects() {
     // (MapLibre idle → refresh → Vue re-render). A short delay after moveend
     // ensures the DOM has settled before hover is re-enabled.
     suppressHover = true;
-    void map.value.once("moveend", () => {
+    void getMap().once("moveend", () => {
       setTimeout(() => {
         suppressHover = false;
       }, 200);

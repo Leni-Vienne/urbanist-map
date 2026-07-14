@@ -1,6 +1,6 @@
 import { ref } from "vue";
 import type { Map as MaplibreMap, ExpressionSpecification } from "maplibre-gl";
-import { map } from "@/services/core/map";
+import { getMapOrNull } from "@/services/core/map";
 
 const STORAGE_KEY = "urbanist-map-label-lang";
 
@@ -133,5 +133,6 @@ export function applyMapLabelLanguage(
 export function setMapLabelLanguage(preference: MapLabelLanguage): void {
   mapLabelLanguageRef.value = preference;
   localStorage.setItem(STORAGE_KEY, preference);
-  applyMapLabelLanguage(map.value, preference);
+  const mlMap = getMapOrNull();
+  if (mlMap) applyMapLabelLanguage(mlMap, preference);
 }
