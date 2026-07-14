@@ -4,7 +4,8 @@ import { selectOverlay } from "@/services/overlay/selection";
 
 /**
  * Remove only the overlay image layers, keeping the markers on the map and the overlay store
- * data intact. Used at zoom-threshold crossings so markers don't flicker.
+ * data intact. Used entering edit mode, where the images are re-created at their edit-session
+ * position rather than the view-mode baseline footprint.
  */
 export function clearOverlayImagesOnly(): void {
   registry.clearAll(true);

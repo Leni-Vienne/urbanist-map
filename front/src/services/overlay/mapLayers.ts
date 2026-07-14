@@ -239,14 +239,10 @@ export function getRenderedOverlayIds(): string[] {
   return ids;
 }
 
-// IDs of overlays currently represented by a DOM marker (with or without an image layer).
-// Used by the viewport render loop to sweep markers that no pruning set covers.
-export function getMarkedOverlayIds(): string[] {
-  const ids: string[] = [];
-  for (const [id, entry] of entries) {
-    if (entry.marker !== null) ids.push(id);
-  }
-  return ids;
+// IDs of every overlay holding a registry entry (image layer, DOM marker, or both).
+// The viewport render loop sweeps these so entries no live set covers get destroyed.
+export function getEntryIds(): string[] {
+  return [...entries.keys()];
 }
 
 // setStyle() (satellite switch) wipes every source and layer, including overlay image
@@ -289,9 +285,9 @@ export function clearEntry(id: string): void {
 
 /**
  * Clear all entries from the registry.
- * @param preserveMarkers - If true (zoom threshold crossing), only remove image layers
- *                          and keep marker refs + markers on map.
- *                          If false (default, full reset), remove both layers and markers.
+ * @param preserveMarkers - If true, only remove the image layers and keep the marker refs +
+ *                          markers on the map, so the pins don't flicker while the images are
+ *                          re-created. If false (default, full reset), remove both.
  */
 export function clearAll(preserveMarkers = false): void {
   creating.clear();
@@ -302,8 +298,6 @@ export function clearAll(preserveMarkers = false): void {
     }
 
     if (preserveMarkers) {
-      // Zoom threshold: null the image refs but keep the marker alive on the map.
-      // This prevents marker flicker when crossing the zoom 13/14 boundary.
       entry.imageHandle = null;
       if (entry.marker === null) entries.delete(id);
     } else {

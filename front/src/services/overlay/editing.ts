@@ -8,7 +8,6 @@ import {
   setOverlayImageTransform,
   getCurrentTransform,
   raiseOverlayImage,
-  createOverlayImage,
   deriveOverlayFilename,
 } from "@/services/overlay/mapLayers";
 import {
@@ -18,7 +17,7 @@ import {
   SIGN,
   type OverlayTransform,
 } from "@/services/overlay/transform";
-import { updateMarkerPosition, createOverlayMarker } from "@/services/overlay/markers";
+import { updateMarkerPosition } from "@/services/overlay/markers";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useMapStore } from "@/stores/mapStore";
@@ -145,12 +144,9 @@ export function addOverlay(
     overlayObject.history = [makeHistoryState(corners, overlayObject.imageUrl)];
 
     overlayStore.addOverlay(id, overlayObject);
-
-    const handle = createOverlayImage(overlayObject, corners);
-    if (!handle) return;
-    registry.setImageHandle(id, handle);
-
-    createOverlayMarker(overlayObject);
+    // The reconciler owns the image + marker for the new local overlay, and creates them as soon
+    // as the zoom allows.
+    registry.scheduleOverlayReconcile();
 
     // Add to project AFTER storing in overlays to avoid "not found" error.
     addOverlayToProjectWithId(projectId, id);

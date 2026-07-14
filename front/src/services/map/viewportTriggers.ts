@@ -2,14 +2,14 @@
 // View mode: the vector tile sync and cluster source handle rendering (no data loading)
 // Edit: session-scoped fetch (own pending + own open-CR + own projects), once per entry
 // Moderation: country-scoped fetch, once per country selection
-// moveend re-runs the render loop off the in-memory list; it performs NO network fetch.
+// moveend re-runs the render loop off the in-memory list; it performs NO network fetch, and no
+// zoom decisions: the reconciler owns what exists on the map at the current zoom.
 // All state is module-scoped: every consumer drives the same single map viewport.
 import { watch } from "vue";
 import { map } from "@/services/core/map";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useMapStore } from "@/stores/mapStore";
 import { useAuthStore } from "@/stores/authStore";
-import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { debounce } from "@/utils/debounce";
 import { isOverlayVisible } from "@/services/overlay/visibility";
 import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
@@ -153,64 +153,23 @@ export async function refreshMapSessionData(): Promise<void> {
   else if (mode === "moderation") await refreshModerationMapData();
 }
 
-function renderFullOverlays(overlaysData: OverlayData[]): void {
-  useOverlayStore().setRenderLoopOverlays(overlaysData);
-
-  // The reconciler owns image + marker existence for the render-loop list it just received.
-  runViewportRenderLoop();
-}
-
-/**
- * Render overlay markers only (low-to-mid zoom in edit/moderation).
- */
-function renderMarkersOnly(overlaysData: OverlayData[]): void {
-  clearOverlayImagesOnly();
-  useOverlayStore().setRenderLoopOverlays(overlaysData);
-
-  // The reconciler owns marker existence for the render-loop list it just received.
-  runViewportRenderLoop();
-}
-
-/**
- * Below the load threshold: drop render state but keep the overlay store, so an
- * in-progress edit session survives zooming out. Edit mode keeps its markers on the map.
- * The pending cluster source is left intact so its dots still cluster the in-memory set from afar.
- */
-function handleLowZoomViewport(): void {
-  const mapStore = useMapStore();
-  if (mapStore.mode === "edit") clearOverlayImagesOnly();
-  else clearOverlayRenderState();
-}
-
 /**
  * Re-render the current viewport off the in-memory session/country list. Runs on moveend and after
- * a fetch. Performs no network request; the render loop and reconciler own per-viewport rendering.
+ * a fetch. Performs no network request, and no point re-merge; the render loop and its reconciler
+ * own which overlays hold an image/marker at the current viewport and zoom.
+ *
+ * View mode has no session list: approved overlays reach the reconciler through the vector tile
+ * sync, so it only hands the loop the pending set of edit/moderation.
  */
 export function refreshViewport(): void {
   const mapStore = useMapStore();
-  const zoom = map.value.getZoom();
-  const loadThreshold = getEffectiveThreshold(MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD);
-  const overlayThreshold = getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
 
-  if (zoom < loadThreshold) {
-    handleLowZoomViewport();
-    return;
+  if (mapStore.mode !== "view") {
+    const list = mapStore.mode === "edit" ? editSessionOverlays : moderationOverlays;
+    useOverlayStore().setRenderLoopOverlays(list);
   }
 
-  // View mode: the vector tile sync and the cluster source handle rendering; the loop prunes
-  // local overlays and renders shapes.
-  if (mapStore.mode === "view") {
-    runViewportRenderLoop();
-    return;
-  }
-
-  // Edit/moderation: render from the static session/country list. No fetch, no point re-merge.
-  const list = mapStore.mode === "edit" ? editSessionOverlays : moderationOverlays;
-  if (zoom >= overlayThreshold) {
-    renderFullOverlays(list);
-  } else {
-    renderMarkersOnly(list);
-  }
+  runViewportRenderLoop();
 }
 
 // ── Event listeners ─────────────────────────────────────────────────────

@@ -63,7 +63,6 @@ export function runViewportRenderLoop() {
 }
 
 function runViewportRenderLoopNow() {
-  if (map.value.getZoom() < getEffectiveThreshold(MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD)) return;
   reconcileOverlayExistence(getPaddedViewportBounds());
 
   // Render shapes for all visible projects (both overlay-bearing and standalone)
@@ -134,10 +133,9 @@ function convergeOverlayDisplay(overlayObject: OverlayObject): boolean {
  *   - liveOverlays(status === null): local/unsaved overlays.
  *   - current registry ids: so entries that left every live set get destroyed.
  *
- * Desired existence = mode/user visibility ∧ map filters ∧ resolved corners intersect bounds; local
- * overlays are exempt from the bounds test (only explicit deletion or a mode switch removes them).
- * Image creation additionally requires the image zoom threshold; below it only markers are created,
- * and already-existing images are left alone (their raster layer's minzoom hides them natively).
+ * Desired existence = zoom ≥ MIN_ZOOM_FOR_OVERLAYS ∧ mode/user visibility ∧ map filters ∧ resolved
+ * corners intersect bounds; local overlays are exempt from the bounds test (only explicit deletion,
+ * a mode switch or the zoom gate removes them).
  */
 function reconcileOverlayExistence(bounds: ViewportBounds) {
   const overlayStore = useOverlayStore();
@@ -149,9 +147,16 @@ function reconcileOverlayExistence(bounds: ViewportBounds) {
   // store-derived position. View mode relies on the overlay-footprints MVT layer for clicks (so
   // approved images get no DOM marker) and leaves approved overlays at their baseline footprint.
   const isSessionMode = mode !== "view";
-  const imagesAllowed =
-    map.value.getZoom() >= getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
   let handlesNeedSync = false;
+
+  // Below the threshold the map holds no overlay content: tear down every entry and skip the pass.
+  // Crossing back up re-creates images and markers from the store and the tile cache.
+  if (map.value.getZoom() < getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS)) {
+    for (const id of registry.getEntryIds()) {
+      if (!registry.isGestureOwned(id)) queueForDestruction(id);
+    }
+    return;
+  }
 
   const tileManaged = getApprovedOverlayDataFromTiles();
   // renderLoopOverlays holds only pending + session change-request overlays, delivered in edit and
@@ -167,8 +172,7 @@ function reconcileOverlayExistence(bounds: ViewportBounds) {
   for (const [id, overlay] of Object.entries(overlayStore.liveOverlays)) {
     if (overlay.status === null) candidateIds.add(id);
   }
-  for (const id of registry.getMarkedOverlayIds()) candidateIds.add(id);
-  for (const id of registry.getRenderedOverlayIds()) candidateIds.add(id);
+  for (const id of registry.getEntryIds()) candidateIds.add(id);
 
   const backendToRender: OverlayData[] = [];
   const localToRender: OverlayObject[] = [];
@@ -186,9 +190,8 @@ function reconcileOverlayExistence(bounds: ViewportBounds) {
       if (!isValidQuad(liveObject.baselineCorners)) continue;
       if (shouldDisplayOverlay(liveObject, mode, userId)) {
         destructionQueue.delete(id);
-        if (!hasImage) {
-          if (imagesAllowed) localToRender.push(liveObject);
-        } else if (isSessionMode && convergeOverlayDisplay(liveObject)) handlesNeedSync = true;
+        if (!hasImage) localToRender.push(liveObject);
+        else if (isSessionMode && convergeOverlayDisplay(liveObject)) handlesNeedSync = true;
         if (!hasMarker) createOverlayMarker(liveObject);
       } else if (hasImage || hasMarker) {
         queueForDestruction(id);
@@ -231,7 +234,7 @@ function reconcileOverlayExistence(bounds: ViewportBounds) {
         createOverlayMarker(liveObject ?? upsertOverlayFromWire(renderData));
       }
       if (!hasImage) {
-        if (imagesAllowed) backendToRender.push(renderData);
+        backendToRender.push(renderData);
       } else if (isSessionMode && liveObject && convergeOverlayDisplay(liveObject)) {
         handlesNeedSync = true;
       }

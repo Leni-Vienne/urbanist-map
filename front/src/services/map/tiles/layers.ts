@@ -6,7 +6,7 @@ import type {
   ExpressionSpecification,
 } from "maplibre-gl";
 import { map } from "@/services/core/map";
-import { getEffectiveThreshold } from "@/constants/mapConstants";
+import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";
 import { handleBackgroundClick, selectOverlay } from "@/services/overlay/selection";
 import { VECTOR_QUERY_LAYERS } from "@/services/map/tiles/queryLayers";
@@ -59,16 +59,13 @@ const PROJECT_POINTS_MIN_ZOOM = 0;
 /** Zoom level at which project shapes (MVT) become visible.
  *  Large shapes appear earlier via getShapeZoomVisibilityFilter, see that function for the full table. */
 const PROJECT_SHAPES_MIN_ZOOM = 3;
-/** Base zoom level at which overlay footprints and point geometries become visible.
- *  Wrapped in getEffectiveThreshold per layer so mobile reveals one level earlier,
- *  matching the raster overlay images. */
-const OVERLAY_FOOTPRINTS_MIN_ZOOM = 13;
 /** Max zoom for MVT tile source */
 const MVT_SOURCE_MAX_ZOOM = 14;
 
 // ── Line styling constants ──────────────────────────────────────────────────
 // Overlay footprints use double width because half the stroke is covered by the overlay image.
-// They only render at z12+, where the old zoom ramp had already reached its max, so width is flat.
+// They only render from MIN_ZOOM_FOR_OVERLAYS up, where a zoom ramp would already sit at its max,
+// so the width is flat.
 const FOOTPRINT_LINE_WIDTH = 2;
 
 // ── Interaction constants ───────────────────────────────────────────────────
@@ -1295,7 +1292,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       type: "fill",
       source: "project-sources",
       "source-layer": "overlay-footprints",
-      minzoom: getEffectiveThreshold(OVERLAY_FOOTPRINTS_MIN_ZOOM),
+      minzoom: getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS),
       ...(hiddenFilter ? { filter: hiddenFilter } : {}),
       paint: {
         "fill-color": getProjectLineColorExpression(),
@@ -1313,7 +1310,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       type: "line",
       source: "project-sources",
       "source-layer": "overlay-footprints",
-      minzoom: getEffectiveThreshold(OVERLAY_FOOTPRINTS_MIN_ZOOM),
+      minzoom: getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS),
       paint: { "line-width": 0 },
     },
     FOOTPRINT_BAND_BEFORE_ID,
@@ -1330,7 +1327,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       type: "line",
       source: "project-sources",
       "source-layer": "overlay-footprints",
-      minzoom: getEffectiveThreshold(OVERLAY_FOOTPRINTS_MIN_ZOOM),
+      minzoom: getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS),
       layout: { "line-cap": "round" },
       ...(hiddenFilter ? { filter: hiddenFilter } : {}),
       paint: {
