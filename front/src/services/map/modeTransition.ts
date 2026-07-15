@@ -6,7 +6,6 @@
 // having finished. A throwing hook is logged and does not block the ones behind it.
 import { watch } from "vue";
 import { useMapStore } from "@/stores/mapStore";
-import { registerOnce } from "@/utils/registerOnce";
 import type { AppMode } from "@shared/types";
 
 type ModeTransitionHook = (newMode: AppMode, oldMode: AppMode) => void | Promise<void>;
@@ -14,8 +13,14 @@ type ModeTransitionHook = (newMode: AppMode, oldMode: AppMode) => void | Promise
 const hooks: { name: string; run: ModeTransitionHook }[] = [];
 
 /** Register a mode-transition step. Call order defines run order. */
-export function onModeTransition(name: string, run: ModeTransitionHook): void {
-  hooks.push({ name, run });
+export function onModeTransition(name: string, run: ModeTransitionHook): () => void {
+  const hook = { name, run };
+  hooks.push(hook);
+
+  return function unregisterModeTransition(): void {
+    const index = hooks.indexOf(hook);
+    if (index !== -1) hooks.splice(index, 1);
+  };
 }
 
 async function runModeTransition(newMode: AppMode, oldMode: AppMode): Promise<void> {
@@ -29,18 +34,12 @@ async function runModeTransition(newMode: AppMode, oldMode: AppMode): Promise<vo
   }
 }
 
-function registerModeTransitionWatcher(): void {
+export function watchModeTransitions(): () => void {
   const mapStore = useMapStore();
-  watch(
+  return watch(
     () => mapStore.mode,
     (newMode, oldMode) => {
       void runModeTransition(newMode, oldMode);
     },
   );
 }
-
-/**
- * The single mapStore.mode watch. Register it ahead of any other mode-reactive watcher, so a
- * transition has run its hooks before those watchers observe the new mode.
- */
-export const initializeModeTransitions = registerOnce(registerModeTransitionWatcher);

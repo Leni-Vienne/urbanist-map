@@ -19,7 +19,6 @@ import { upsertOverlayFromWire } from "@/services/overlay/sync";
 import * as registry from "@/services/overlay/mapLayers";
 import { createRafBatchQueue } from "@/utils/rafBatchQueue";
 import { cornersIntersectBounds } from "@/utils/cornersBounds";
-import { registerOnce } from "@/utils/registerOnce";
 import { renderAllProjectShapes } from "@/services/map/shapes/renderLoop";
 
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
@@ -273,11 +272,11 @@ function reconcileOverlayExistence(bounds: ViewportBounds) {
   }
 }
 
-function registerRenderTriggers(): void {
+export function watchOverlayReconciliation(): () => void {
   // Store writers schedule a reconcile through mapLayers (the shared leaf) to avoid a cycle.
-  registry.registerOverlayReconcileScheduler(runViewportRenderLoop);
+  const unregisterScheduler = registry.registerOverlayReconcileScheduler(runViewportRenderLoop);
 
-  watch(
+  const stopFilterWatch = watch(
     () => ({ status: visibleStates.value, tags: selectedProjectTags.value }),
     () => {
       runViewportRenderLoop();
@@ -287,16 +286,15 @@ function registerRenderTriggers(): void {
 
   // A moderation change-request preview resolves position from previewState; a change to it (set,
   // toggle, clear) must re-run convergence so the previewed overlay follows or returns to baseline.
-  watch(
+  const stopPreviewWatch = watch(
     () => useChangeRequestStore().previewState,
     () => {
       runViewportRenderLoop();
     },
   );
+  return function stopOverlayReconciliationWatchers(): void {
+    stopPreviewWatch();
+    stopFilterWatch();
+    unregisterScheduler();
+  };
 }
-
-/**
- * Data-load / filter triggers that re-run the render loop. Shape-specific triggers live in
- * initializeShapeRenderTriggers; marker color triggers in markers.ts.
- */
-export const initializeRenderTriggers = registerOnce(registerRenderTriggers);

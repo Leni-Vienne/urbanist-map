@@ -430,8 +430,11 @@ export function useVisibleProjects() {
     // (MapLibre idle → refresh → Vue re-render). A short delay after moveend
     // ensures the DOM has settled before hover is re-enabled.
     suppressHover = true;
-    void getMap().once("moveend", () => {
+    const target = getMap();
+    void target.once("moveend", () => {
+      if (getMapOrNull() !== target) return;
       setTimeout(() => {
+        if (getMapOrNull() !== target) return;
         suppressHover = false;
       }, 200);
     });

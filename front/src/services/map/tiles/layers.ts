@@ -15,7 +15,6 @@ import { useMapStore } from "@/stores/mapStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 import { isOverlayUnsaved } from "@/services/overlay/unsavedState";
-import { registerOnce } from "@/utils/registerOnce";
 import { watch } from "vue";
 
 import { useFocusStore } from "@/stores/focusStore";
@@ -672,8 +671,8 @@ function getHiddenProjectIds(): string[] {
   return hiddenProjectIdsCache;
 }
 
-function registerHiddenProjectsWatcher(): void {
-  watch(
+function watchHiddenProjects(): () => void {
+  return watch(
     () => computeHiddenProjectIds().toSorted().join("|"),
     (key) => {
       hiddenProjectIdsCache = key ? key.split("|") : [];
@@ -683,8 +682,6 @@ function registerHiddenProjectsWatcher(): void {
     { immediate: true },
   );
 }
-
-const initHiddenProjectsWatcher = registerOnce(registerHiddenProjectsWatcher);
 
 function computeHiddenOverlayIds(): string[] {
   const store = useOverlayStore();
@@ -729,20 +726,19 @@ function applyFootprintLayerFilters(mlMap: MaplibreMap): void {
   }
 }
 
-function registerHiddenOverlaysWatcher(): void {
+function watchHiddenOverlays(): () => void {
   // Watch a canonical string key (not the array) so the callback only fires when the hidden-id
   // SET actually changes, instead of on every reactive read that rebuilds an identical array.
-  watch(
+  return watch(
     () => computeHiddenOverlayIds().toSorted().join("|"),
     (key) => {
       hiddenOverlayIdsCache = key ? key.split("|") : [];
       const mlMap = getMapOrNull();
       if (mlMap) applyFootprintLayerFilters(mlMap);
     },
+    { immediate: true },
   );
 }
-
-const initHiddenOverlaysWatcher = registerOnce(registerHiddenOverlaysWatcher);
 
 const VECTOR_SOURCE = "project-sources";
 const PENDING_POINTS_SOURCE = "pending-project-points-source";
@@ -908,16 +904,29 @@ async function handlePointFeatureClick(pointFeature: RenderedMapFeature): Promis
   await handleProjectClickFromTile(projectId);
 }
 
-function registerSelectedHoverWatcher(): void {
+function watchSelectedHoverState(): () => void {
   const focusStore = useFocusStore();
-  watch([() => focusStore.highlightedProjectId, () => focusStore.highlightedOverlayId], () => {
-    const mlMap = getMapOrNull();
-    if (mlMap) setSelectedHoverState(mlMap);
-  });
+  return watch(
+    [() => focusStore.highlightedProjectId, () => focusStore.highlightedOverlayId],
+    () => {
+      const mlMap = getMapOrNull();
+      if (mlMap) setSelectedHoverState(mlMap);
+    },
+  );
 }
 
-// Resolves the map inside its callback, so it follows a map instance swap.
-const initializeSelectedHoverWatcher = registerOnce(registerSelectedHoverWatcher);
+export function watchTileLayerState(): () => void {
+  const stops = [watchHiddenProjects(), watchHiddenOverlays(), watchSelectedHoverState()];
+
+  return function stopTileLayerStateWatchers(): void {
+    for (const stop of stops.toReversed()) stop();
+  };
+}
+
+export function syncTileLayerState(): void {
+  const mlMap = getMapOrNull();
+  if (mlMap) setSelectedHoverState(mlMap);
+}
 
 function registerMapInteractionListeners(mlMap: MaplibreMap): void {
   // queryRenderedFeatures is synchronous and walks MapLibre's internal feature tree.
@@ -1037,10 +1046,12 @@ function registerMapInteractionListeners(mlMap: MaplibreMap): void {
 // needs its own set.
 let interactionListenersMap: MaplibreMap | null = null;
 
+export function clearHybridInteractionHandlers(target: MaplibreMap): void {
+  if (interactionListenersMap === target) interactionListenersMap = null;
+}
+
 /** Hover/click handlers for the vector tile layers. */
 export function initializeHybridInteractionHandlers(): void {
-  initializeSelectedHoverWatcher();
-
   const mlMap = getMap();
   if (interactionListenersMap === mlMap) return;
   interactionListenersMap = mlMap;
@@ -1572,7 +1583,4 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
   );
 
   applyTagFiltersToVectorLayers(mlMap);
-
-  initHiddenProjectsWatcher();
-  initHiddenOverlaysWatcher();
 }

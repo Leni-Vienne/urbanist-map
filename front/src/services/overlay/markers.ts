@@ -18,7 +18,6 @@ import { resolveOverlayCorners } from "@/services/overlay/data";
 import { hasOpenChangeRequest, showsSuggestedState } from "@/services/overlay/transform";
 import { isOverlayUnsaved } from "@/services/overlay/unsavedState";
 import { buildLngLatBounds } from "@/utils/cornersBounds";
-import { registerOnce } from "@/utils/registerOnce";
 
 /**
  * Create the marker for an overlay. Overlay markers exist only in edit and moderation modes.
@@ -221,11 +220,11 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
   }
 }
 
-function registerMarkerColorTriggers(): void {
+export function watchMarkerColors(): () => void {
   const mapStore = useMapStore();
   const overlayStore = useOverlayStore();
 
-  watchEffect(() => {
+  return watchEffect(() => {
     const mode = mapStore.mode;
     // On the switch to view mode every overlay marker is torn down, so there is nothing to recolor.
     if (mode === "view") return;
@@ -236,10 +235,3 @@ function registerMarkerColorTriggers(): void {
     }
   });
 }
-
-/**
- * A single watchEffect that keeps every overlay marker's color and tooltip in sync with the
- * overlay's reactive state and the current map mode. Runs on every change to those deps; the
- * per-marker color repaint is itself a no-op when the color is unchanged.
- */
-export const initializeMarkerColorTriggers = registerOnce(registerMarkerColorTriggers);

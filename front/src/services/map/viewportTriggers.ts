@@ -25,7 +25,6 @@ import { loadOrNull } from "@/services/core/errorHandling";
 import { trpc, type RouterOutput } from "@/client";
 import { mergeProjectPointsForMode } from "@/services/map/tiles/pendingSources";
 import { onModeTransition } from "@/services/map/modeTransition";
-import { registerOnce } from "@/utils/registerOnce";
 import type { OverlayData } from "@/types/index";
 import type { AppMode } from "@shared/types";
 
@@ -229,19 +228,20 @@ async function syncSessionDataForMode(newMode: AppMode, oldMode: AppMode): Promi
   runViewportRenderLoop();
 }
 
-function registerModeTriggers(): void {
+export function watchViewportModeData(): () => void {
   const mapStore = useMapStore();
 
-  onModeTransition("viewportSessionData", syncSessionDataForMode);
+  const unregisterModeTransition = onModeTransition("viewportSessionData", syncSessionDataForMode);
 
   // Moderation follows the selected country: refetch its pending set when the code changes.
-  watch(
+  const stopCountryWatch = watch(
     () => mapStore.selectedCountryCode,
     () => {
       if (mapStore.mode === "moderation") void refreshModerationMapData();
     },
   );
+  return function stopViewportModeDataWatchers(): void {
+    stopCountryWatch();
+    unregisterModeTransition();
+  };
 }
-
-/** The session-data mode-transition hook plus the moderation country watcher. */
-export const initializeModeTriggers = registerOnce(registerModeTriggers);

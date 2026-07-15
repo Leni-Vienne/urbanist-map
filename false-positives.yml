@@ -20,7 +20,6 @@ rules:
         - "services/overlay/mapLayers.ts settled -> latch"
         - "services/map/tiles/layers.ts hoverThrottlePending -> TIMING-COUPLED LATCH"
         - "utils/rafBatchQueue.ts isRunning -> TIMING-COUPLED LATCH"
-        - "utils/registerOnce.ts hasRegistered -> latch"
         - "OverlayFloatingToolbar.vue anchorSyncActive -> TIMING-COUPLED LATCH"
         - "services/map/tiles/basemap.ts ran"
     - triaged_at: "2026-07-13"
@@ -49,6 +48,10 @@ rules:
       reason: "Per-gesture drag-threshold flag scoped to one onDown closure."
       patterns:
         - "services/overlay/editing.ts didMove"
+    - triaged_at: "2026-07-15"
+      reason: "The MapView-owned coordinator disposer is explicitly idempotent."
+      patterns:
+        - "services/map/globalWatchers.ts stopped -> latch"
   state.boolean-density:
     - triaged_at: "2026-07-13"
       reason: "The four booleans are the ray-casting flags and a style-load once-guard already ruled out in state.boolean-latch; density is an artifact of the file hosting a geometry algorithm, not a state machine."
@@ -79,6 +82,10 @@ rules:
       patterns:
         - "components/map/SatellitePreview.vue watch [ctx:MODULE-TOP] STRONG"
         - "FlexibleDatePicker.vue watch [ctx:MODULE-TOP] weak source=() => props.modelValue?.precision"
+    - triaged_at: "2026-07-15"
+      reason: "Selection transition removes only the newly selected project from user-controlled accordion state."
+      patterns:
+        - "services/map/projectDetailWatcher.ts watch [ctx:watchSelectedPanelCleanup] weak, source=() => focus.selectedProjectId"
     - triaged_at: "2026-07-13"
       reason: "The prop watch is one of six writers; the drag handlers own the value the rest of the time."
       patterns:
@@ -88,7 +95,6 @@ rules:
       patterns:
         - "ModerationPanel.vue watch [ctx:MODULE-TOP] weak source=showReportDialog"
         - "composables/layout/useTabNavigation.ts watch [ctx:useTabNavigation] weak"
-        - "services/map/projectDetailWatcher.ts watch [ctx:initializeSelectedPanelCleanup]"
         - "pages/Home.vue watch [ctx:MODULE-TOP] weak"
   vue.reactivity.shared-target:
     - triaged_at: "2026-07-13"
@@ -163,7 +169,6 @@ rules:
         - "services/map/shapes/rendering.ts renderProjectShapes parameter oldGeometry always receives (omitted)"
         - "services/overlay/history.ts makeHistoryState parameter cropRect always receives (omitted)"
         - "services/overlay/history.ts commitOverlayEdit parameter cropRect always receives (omitted)"
-        - "services/overlay/mapLayers.ts whenImageReady parameter options always receives (omitted)"
         - "services/overlay/mapLayers.ts deriveOverlayFilename parameter fallback always receives (omitted)"
         - "services/overlay/visibility.ts isOverlayVisible parameter currentUserId always receives (omitted)"
         - "services/submission/submissionDialog.ts prepareSubmission parameter overlay always receives (omitted)"
@@ -201,13 +206,6 @@ rules:
       reason: "Replacement mode is set before the dialog opens and must be initialized on the open edge only, not re-derived when the target changes."
       patterns:
         - "components/common/ImageUploadDialog.vue watch{immediate}"
-    - triaged_at: "2026-07-13"
-      reason: "The reads fetch the current MapLibre instance at fire time so MapView remounts replace it without adding lifecycle watcher edges."
-      patterns:
-        - "services/map/tiles/basemap.ts watch [ctx:MODULE-TOP] source=[ selectedProjectTags"
-        - "services/map/tiles/layers.ts watch [ctx:registerSelectedHoverWatcher]"
-        - "services/map/tiles/layers.ts watch{immediate} [ctx:registerHiddenProjectsWatcher]"
-        - "services/map/tiles/layers.ts watch [ctx:registerHiddenOverlaysWatcher]"
   vue.reactivity.stale-dependency.branch:
     - triaged_at: "2026-07-13"
       reason: "Latch cancel on mode change; the latch's own edges are the user starting/finishing placement, so sourcing it would re-fire the watcher on its own state."
@@ -217,11 +215,6 @@ rules:
       reason: "Dedupe check on an array the watcher itself appends to; watching it would loop."
       patterns:
         - "components/layout/ModerationPanel.vue watch{deep} [ctx:MODULE-TOP] source=() => changeRequestStore.previewState"
-  vue.reactivity.stale-dependency.explained:
-    - triaged_at: "2026-07-13"
-      reason: "Complementary watcher edges: the map watcher covers map creation with an existing selection, the selection watcher covers later changes."
-      patterns:
-        - "components/map/OverlayFloatingToolbar.vue watch{immediate} [ctx:MODULE-TOP] source=map"
   async.post-await-write.function:
     - triaged_at: "2026-07-13"
       reason: "Single-shot per user gesture while its loading or dialog state is active; the post-await writes are the operation's result."

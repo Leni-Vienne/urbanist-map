@@ -66,11 +66,13 @@ import { createMap, destroyMap, onMapReady } from "@/services/core/map";
 import { startMapRuntime } from "@/services/map/mapRuntime";
 import { addTileLayer } from "@/services/map/tiles/basemap";
 import { initVectorTileSync } from "@/services/map/tiles/sync";
-import { initializeMapGlobalWatchers } from "@/services/map/globalWatchers";
-import { syncEditHandlesForCurrentState } from "@/services/overlay/editing";
+import {
+  startMapStateCoordinator,
+  activateMapStateCoordinator,
+} from "@/services/map/globalWatchers";
 
 import { useI18n } from "vue-i18n";
-import { refreshViewport, refreshMapSessionData } from "@/services/map/viewportTriggers";
+import { refreshViewport } from "@/services/map/viewportTriggers";
 import { useMapStore } from "@/stores/mapStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -100,6 +102,7 @@ const isLoading = ref(true);
 // returning builds a clean one.
 let mountedMap: MaplibreMap | null = null;
 let stopMapRuntime: (() => void) | null = null;
+let stopMapStateCoordinator: (() => void) | null = null;
 let stopWaitingForMap: (() => void) | null = null;
 
 onMounted(async () => {
@@ -128,17 +131,15 @@ async function initializeMapAndOverlays() {
     // The first render loop needs a settled camera and a loaded style: "idle" fires on the first
     // clean frame, which satisfies both. Afterwards moveend drives the refreshes.
     void target.once("idle", () => {
+      if (mountedMap !== target) return;
       refreshViewport();
     });
 
-    initializeMapGlobalWatchers();
+    stopMapStateCoordinator = startMapStateCoordinator();
 
-    // Neither the mode nor the selection changes across a remount, so no transition or selection
-    // watcher rebuilds their map state: project both onto this map once it is ready. The handles
-    // wait internally for the image the session fetch is about to produce.
-    stopWaitingForMap = onMapReady(() => {
-      syncEditHandlesForCurrentState();
-      void refreshMapSessionData();
+    stopWaitingForMap = onMapReady((readyMap) => {
+      if (mountedMap !== readyMap) return;
+      void activateMapStateCoordinator();
     });
   } catch (error) {
     console.error("Error initializing map and overlays:", error);
@@ -153,6 +154,8 @@ function handleMapViewUnmount(): void {
 
   stopWaitingForMap?.();
   stopWaitingForMap = null;
+  stopMapStateCoordinator?.();
+  stopMapStateCoordinator = null;
   // Runs while the map is still alive: it hands every registry entry, marker and listener back.
   stopMapRuntime?.();
   stopMapRuntime = null;

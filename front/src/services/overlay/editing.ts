@@ -1,8 +1,13 @@
 import * as registry from "@/services/overlay/mapLayers";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
-import maplibregl, { type GeoJSONSource, type MapMouseEvent, LngLat } from "maplibre-gl";
+import maplibregl, {
+  type GeoJSONSource,
+  type Map as MaplibreMap,
+  type MapMouseEvent,
+  LngLat,
+} from "maplibre-gl";
 import type { Feature, Polygon } from "geojson";
-import { getMap, currentZoomLevel } from "@/services/core/map";
+import { getMap, getMapOrNull, currentZoomLevel } from "@/services/core/map";
 import {
   getImageHandle,
   setOverlayImageTransform,
@@ -25,7 +30,6 @@ import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
 import { validateOverlaySize } from "@shared/overlayValidation";
 import { onModeTransition } from "@/services/map/modeTransition";
-import { registerOnce } from "@/utils/registerOnce";
 import type { AppMode } from "@shared/types";
 
 import { t } from "@/locales";
@@ -73,9 +77,12 @@ async function loadImageAspect(imageUrl: string): Promise<number> {
 }
 
 // Place a new overlay as a rectangle centered on the current view, sized from the image aspect.
-async function defaultCornersForNewOverlay(imageUrl: string): Promise<LatLng[]> {
+async function defaultCornersForNewOverlay(
+  imageUrl: string,
+  target: MaplibreMap,
+): Promise<LatLng[]> {
   const aspect = await loadImageAspect(imageUrl);
-  const center = getMap().getCenter();
+  const center = target.getCenter();
   const widthMeters = 100;
   return transformToCorners({
     center: { lat: center.lat, lng: center.lng },
@@ -111,6 +118,7 @@ export function addOverlay(
   }
 
   const id = crypto.randomUUID();
+  const target = getMap();
 
   // Create overlay object using proper schema structure
   const overlayObject = createNewOverlayObject(id, imageUrl, projectId);
@@ -138,8 +146,9 @@ export function addOverlay(
     }
   }
 
-  async function createAndSetupOverlay() {
-    const corners = await defaultCornersForNewOverlay(imageUrl);
+  async function createAndSetupOverlay(): Promise<void> {
+    const corners = await defaultCornersForNewOverlay(imageUrl, target);
+    if (getMapOrNull() !== target) return;
     overlayObject.baselineCorners = corners;
     overlayObject.history = [makeHistoryState(corners, overlayObject.imageUrl)];
 
@@ -164,7 +173,8 @@ export function addOverlay(
     mobileAwareFlyTo(new LngLat(project.lng, project.lat), targetZoom);
 
     // Wait for zoom to complete before creating overlay
-    void getMap().once("zoomend", () => {
+    void target.once("zoomend", () => {
+      if (getMapOrNull() !== target) return;
       void createAndSetupOverlay();
     });
   } else {
@@ -593,14 +603,14 @@ export function syncEditHandlesForCurrentState(): void {
   syncEditHandles(useFocusStore().selectedOverlayId, useMapStore().mode);
 }
 
-function registerEditorTriggers(): void {
+export function watchEditHandles(): () => void {
   // Let the reconciler refresh the active edit session's handles after it moves an image.
-  registry.registerEditHandleSync(refreshEditHandlesGeometry);
+  const unregisterEditHandleSync = registry.registerEditHandleSync(refreshEditHandlesGeometry);
 
   const mapStore = useMapStore();
   const focus = useFocusStore();
 
-  watch(
+  const stopSelectionWatch = watch(
     () => focus.selectedOverlayId,
     (selectedId) => {
       syncEditHandles(selectedId, mapStore.mode);
@@ -608,13 +618,13 @@ function registerEditorTriggers(): void {
     { immediate: true },
   );
 
-  onModeTransition("editHandles", (newMode) => {
+  const unregisterModeTransition = onModeTransition("editHandles", (newMode) => {
     syncEditHandles(focus.selectedOverlayId, newMode);
   });
-}
 
-/**
- * The edit-handle show/hide triggers (overlay selection and map mode) and the reconciler's
- * handle-sync callback.
- */
-export const initializeEditorTriggers = registerOnce(registerEditorTriggers);
+  return function stopEditHandleWatchers(): void {
+    unregisterModeTransition();
+    stopSelectionWatch();
+    unregisterEditHandleSync();
+  };
+}

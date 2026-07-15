@@ -34,11 +34,11 @@ function writeProjectPath(slug: string | null): void {
 // /project/<slug> deep link, and reverts to "/" when nothing is selected. No `immediate`: on a
 // deep-link load the URL already carries the slug and the project is selected asynchronously, so
 // reacting only to changes avoids wiping the slug back to "/" before it loads.
-function initializeProjectUrlSync() {
+function watchProjectUrlSync(): () => void {
   const projectStore = useProjectStore();
   const focus = useFocusStore();
 
-  watch(
+  return watch(
     () => focus.selectedProjectId,
     async (projectId) => {
       if (!projectId) {
@@ -67,11 +67,11 @@ function initializeProjectUrlSync() {
 // project" card and filtered out of the accordion list. Drop it from the expanded accordion set so
 // it returns collapsed (not expanded) when it later falls back into the list on deselection, while
 // leaving manually-expanded panels untouched.
-function initializeSelectedPanelCleanup() {
+function watchSelectedPanelCleanup(): () => void {
   const uiStore = useUiStore();
   const focus = useFocusStore();
 
-  watch(
+  return watch(
     () => focus.selectedProjectId,
     (projectId) => {
       if (!projectId) return;
@@ -87,10 +87,10 @@ function initializeSelectedPanelCleanup() {
 // Drive the GeoJSON project-shape outline (edit/moderation layers) off the focused project: light
 // the newly focused project's shapes and revert the previously focused one. The vector tile
 // "selected" feature-state is handled separately.
-function initializeShapeHighlightWatcher() {
+export function watchShapeHighlighting(): () => void {
   const focus = useFocusStore();
 
-  watch(
+  return watch(
     () => focus.highlightedProjectId,
     (newProjectId, oldProjectId) => {
       if (oldProjectId && oldProjectId !== newProjectId) unhighlightProjectShapes(oldProjectId);
@@ -100,11 +100,12 @@ function initializeShapeHighlightWatcher() {
 }
 
 /**
- * Drives all focus-driven side effects (URL slug sync, accordion cleanup, GeoJSON shape highlight)
- * so click handlers only need to write the focus store. Requires Pinia to be installed.
+ * Install the app-lifetime focus projections that do not require a MapLibre instance.
  */
-export function initializeDetailWatcher(): void {
-  initializeProjectUrlSync();
-  initializeSelectedPanelCleanup();
-  initializeShapeHighlightWatcher();
+export function startDetailWatcher(): () => void {
+  const stops = [watchProjectUrlSync(), watchSelectedPanelCleanup()];
+
+  return function stopDetailWatcher(): void {
+    for (const stop of stops.toReversed()) stop();
+  };
 }

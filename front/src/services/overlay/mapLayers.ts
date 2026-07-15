@@ -71,8 +71,12 @@ export function isGestureOwned(id: string): boolean {
 // refresh itself only acts on the currently-edited overlay.
 let editHandleSync: (() => void) | null = null;
 
-export function registerEditHandleSync(fn: () => void): void {
+export function registerEditHandleSync(fn: () => void): () => void {
   editHandleSync = fn;
+
+  return function unregisterEditHandleSync(): void {
+    if (editHandleSync === fn) editHandleSync = null;
+  };
 }
 
 export function runEditHandleSync(): void {
@@ -85,8 +89,12 @@ export function runEditHandleSync(): void {
 // viewportRenderLoop registers its RAF-coalescing scheduler here on init.
 let overlayReconcileScheduler: (() => void) | null = null;
 
-export function registerOverlayReconcileScheduler(fn: () => void): void {
+export function registerOverlayReconcileScheduler(fn: () => void): () => void {
   overlayReconcileScheduler = fn;
+
+  return function unregisterOverlayReconcileScheduler(): void {
+    if (overlayReconcileScheduler === fn) overlayReconcileScheduler = null;
+  };
 }
 
 export function scheduleOverlayReconcile(): void {

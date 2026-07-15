@@ -15,7 +15,7 @@ import {
   setI18nInstance,
 } from "./locales";
 import { initializeKeyboardShortcuts } from "./services/overlay/history";
-import { initializeDetailWatcher } from "./services/map/projectDetailWatcher";
+import { startDetailWatcher } from "./services/map/projectDetailWatcher";
 
 // importing Aura Theme has a 5 kB gzipped impact over manual imports, worth the DX improvement
 const UrbanistmapPreset = definePreset(Aura, {
@@ -99,7 +99,7 @@ app.use(createPinia());
 
 // Detail watcher drives detail-state-driven side effects across the map. Initialize once
 // after Pinia is installed so click handlers only need to toggle detail state.
-initializeDetailWatcher();
+startDetailWatcher();
 
 // Keyboard shortcuts (undo/redo) are document-level and only act when an overlay is selected,
 // so register them once at boot rather than re-installing on every mode switch.

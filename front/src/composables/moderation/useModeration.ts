@@ -160,7 +160,7 @@ export function useModeration() {
       const overlayObject = overlayStore.liveOverlays[id];
 
       if (overlayObject) {
-        // updateOverlay mutates the Pinia proxy, picked up by initializeMarkerColorTriggers.
+        // updateOverlay mutates the Pinia proxy, picked up by the marker color watcher.
         overlayStore.updateOverlay(id, { status });
       }
 
