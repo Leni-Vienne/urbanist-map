@@ -27,7 +27,7 @@ import {
   type ProjectChangeField,
   type SubmissionChange,
   type SubmissionChangeType,
-  type SubmissionContext,
+  type SubmissionWriteContext,
 } from "./submissionTypes";
 
 // Internal single-entity payload for summary, validation and submission.
@@ -648,7 +648,7 @@ function collectOverlayContexts(
 // is threaded through as changedFields so validate/submitEntity don't recompute it. A brand-new
 // project carries no changedFields: it is published whole, not as a field delta.
 function buildProjectContext(
-  ctx: SubmissionContext,
+  ctx: SubmissionWriteContext,
   project: Project | null,
   newOverlayIds: string[],
   reason: string,
@@ -665,7 +665,7 @@ function buildProjectContext(
   return { ...createProjectContext(project), changedFields: projectChanges };
 }
 
-export async function submitContext(ctx: SubmissionContext, reason: string): Promise<void> {
+export async function submitContext(ctx: SubmissionWriteContext, reason: string): Promise<void> {
   const project = ctx.projectId ? useProjectStore().getProjectById(ctx.projectId) : null;
   const newOverlayIds = ctx.newOverlayIds ?? [];
   const existingMods = ctx.existingOverlayModifications ?? [];

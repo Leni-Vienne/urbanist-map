@@ -9,6 +9,11 @@
 #         - "Component.vue watch [ctx:setup]"
 version: 2
 rules:
+  async.swallowed-write-error-contract:
+    - triaged_at: "2026-07-15"
+      reason: "The project and overlay deletes are mutually exclusive branches; a project deletion failure reaches the end of executeDelete without another write."
+      patterns:
+        - "pages/AdminUserContributionsPage.vue executeDelete continues to durable-write after ignored adminDeleteProject failure contract"
   state.boolean-latch:
     - triaged_at: "2026-07-13"
       reason: "KeepAlive activation guard: CurrentLocationPanel sits inside PanelContent's KeepAlive."
@@ -58,10 +63,6 @@ rules:
       patterns:
         - "services/map/tiles/basemap.ts 4 mutable booleans"
   comments.hedge:
-    - triaged_at: "2026-07-13"
-      reason: "The scheduler is injected rather than imported because mapLayers is the shared leaf of the store/render graph; the comment states a real acyclic-DI constraint."
-      patterns:
-        - "viewportRenderLoop.ts [avoid a cycle]"
     - triaged_at: "2026-07-13"
       reason: "Describes the history-corners fallback for when a modified overlay's raster is off the map."
       patterns:
@@ -348,6 +349,10 @@ rules:
         - "roots p in projectToFormData"
         - "roots f in formDataToProjectFields"
         - "roots formData in prepareProjectValidationData"
+    - triaged_at: "2026-07-15"
+      reason: "The classification patch explicitly supplies every SubmissionClassificationInput field; its fields are consumed across two classifier helpers rather than by one key enumeration."
+      patterns:
+        - "mirror patch roots ctx authority=SubmissionClassificationInput in recomputeSummaryClassification"
   typescript.field-enumeration.key-list:
     - triaged_at: "2026-07-13"
       reason: "An intentional subset naming only the date-valued project fields."

@@ -178,6 +178,8 @@ function buildSubmissionState(args: {
     },
     context: {
       projectId,
+      projectIsNew,
+      projectStatus: project?.status ?? null,
       projectModified: projectHasChanges,
       existingOverlayModifications: pendingMods,
       newOverlayIds,
@@ -338,19 +340,19 @@ async function handleRemoveOverlayChange(
   if (field === "new_overlay") {
     if (overlayObject) {
       await deleteOverlayDirect(overlayId);
+    }
 
-      const ctx = pendingSubmissionContext.value;
-      if (ctx?.newOverlayIds) {
-        ctx.newOverlayIds = ctx.newOverlayIds.filter((id) => id !== overlayId);
-      }
+    const ctx = pendingSubmissionContext.value;
+    if (ctx?.newOverlayIds) {
+      ctx.newOverlayIds = ctx.newOverlayIds.filter((id) => id !== overlayId);
     }
     return;
   }
 
   if (overlayObject) {
     revertOverlayFieldModification(overlayId, field, overlayObject);
-    removeOverlayFieldFromContext(overlayId, field);
   }
+  removeOverlayFieldFromContext(overlayId, field);
 }
 
 function handleRemoveProjectChange(field: ProjectChangeField): void {
@@ -361,6 +363,28 @@ function handleRemoveProjectChange(field: ProjectChangeField): void {
 
   // Close project edit form to force fresh data on reopen
   useUiStore().closeProjectEditForm();
+}
+
+// Re-derive the batch rollup (moderation pill + changeType) from what remains after a row removal,
+// so the header and success message match the reduced set (e.g. dropping the sole approved edit
+// turns a change request back into a direct update).
+function recomputeSummaryClassification(): void {
+  const ctx = pendingSubmissionContext.value;
+  const summary = submissionSummary.value;
+  if (!ctx || !summary) return;
+
+  ctx.projectModified = summary.changes.some((change) => isProjectChangeField(change.field));
+
+  const { changeType, requiresModeration } = classifySubmission({
+    projectIsNew: ctx.projectIsNew,
+    projectStatus: ctx.projectStatus,
+    projectHasChanges: ctx.projectModified ?? false,
+    overlayMods: ctx.existingOverlayModifications ?? [],
+    newOverlayIds: ctx.newOverlayIds ?? [],
+  });
+
+  summary.changeType = changeType;
+  summary.requiresModeration = requiresModeration || Boolean(ctx.pendingRender);
 }
 
 export async function handleRemoveChange(
@@ -387,5 +411,8 @@ export async function handleRemoveChange(
   if (submissionSummary.value.changes.length === 0) {
     resetSubmissionState();
     toastInfo(t("submission.noChangesToSubmit"));
+    return;
   }
+
+  recomputeSummaryClassification();
 }
