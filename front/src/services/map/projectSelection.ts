@@ -13,7 +13,7 @@ import { loadOrNull } from "@/services/core/errorHandling";
  * Detail-state side effects (vector hover, accordion scroll, marker opacity, overlay
  * deselect) are handled by the detail watcher initialized at boot in main.ts.
  */
-export function selectProject(project: Project): void {
+export function openProjectDetail(project: Project): void {
   const projectStore = useProjectStore();
   const focus = useFocusStore();
 
@@ -23,7 +23,8 @@ export function selectProject(project: Project): void {
   // is shown in the docked panel's "Selected project" card (not the accordion); the detail watcher
   // keeps it out of the expanded accordion set so it returns collapsed when deselected.
   projectStore.updateProject(project.id, project);
-  focus.selectProject(project.id);
+  focus.setSelectionTarget({ kind: "project", projectId: project.id });
+  focus.setHoverTarget(null);
 
   // In moderation mode, switch the panel to this project's country so its pending
   // submissions load and the detail watcher's scroll request can resolve.
@@ -98,11 +99,11 @@ async function fetchProjectDetail(projectId: string): Promise<Project | null> {
 
 /**
  * Handle a MapLibre tile click given only a project ID.
- * Looks up the project, then delegates to selectProject.
+ * Looks up the project, then opens its detail.
  */
 export async function handleProjectClickFromTile(projectId: string): Promise<void> {
   const project = await ensureProjectLoaded(projectId);
   if (!project) return;
 
-  selectProject(project);
+  openProjectDetail(project);
 }

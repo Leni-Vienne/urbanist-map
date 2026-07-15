@@ -178,7 +178,8 @@ import { useAuthStore } from "@/stores/authStore";
 import { navigateToOverlay } from "@/services/overlay/navigation";
 import { flyToGeometry, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { computeShapeBounds } from "@/services/map/shapes/rendering";
-import { selectProject, hydrateProjectDetail } from "@/services/map/projectSelection";
+import { openProjectDetail, hydrateProjectDetail } from "@/services/map/projectSelection";
+import { closeDetail } from "@/services/overlay/selection";
 
 import { buildImageUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { createProjectObject } from "@/utils/typeFactories";
@@ -355,12 +356,12 @@ async function handleEdit() {
 
   mapStore.setMode("edit");
   await nextTick();
-  selectProject(target);
+  openProjectDetail(target);
 }
 
 // Back returns to the panel's tab list, closing whichever detail is open.
 function handleBack() {
-  focusStore.clearSelection();
+  closeDetail();
 }
 
 async function handleViewOriginalOverlay(originalOverlayId: string) {

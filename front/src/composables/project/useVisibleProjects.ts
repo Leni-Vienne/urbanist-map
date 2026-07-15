@@ -459,7 +459,7 @@ export function useVisibleProjects() {
     if (projectId && projectId === lastHoveredProjectId) return;
 
     if (project && projectId) {
-      focusStore.setHover({ kind: "project", projectId });
+      focusStore.setHoverTarget({ kind: "project", projectId });
       lastHoveredProjectId = projectId;
       showHoverCardForProject(project);
     } else if (lastHoveredProjectId) {
@@ -467,7 +467,7 @@ export function useVisibleProjects() {
       // instantly moves from one row to another (mouseleave -> mouseenter).
       hoverClearTimeout = setTimeout(() => {
         lastHoveredProjectId = null;
-        focusStore.setHover(null);
+        focusStore.setHoverTarget(null);
         clearHoverPreview();
       }, 20);
     }

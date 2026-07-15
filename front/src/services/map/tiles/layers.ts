@@ -8,7 +8,7 @@ import type {
 import { getMap, getMapOrNull } from "@/services/core/map";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";
-import { handleBackgroundClick, selectOverlay } from "@/services/overlay/selection";
+import { handleBackgroundClick, openOverlayDetail } from "@/services/overlay/selection";
 import { VECTOR_QUERY_LAYERS } from "@/services/map/tiles/queryLayers";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useMapStore } from "@/stores/mapStore";
@@ -872,12 +872,12 @@ function handleVectorFeatureClick(feature: RenderedMapFeature): void {
   if (isFootprint) {
     const overlayId = getFeaturePropertyAsString(feature, "id");
     if (overlayId) {
-      selectOverlay(overlayId);
+      openOverlayDetail(overlayId);
     }
   } else {
     // Pin the vector highlight immediately so mousemove cannot clear it during the async project
-    // fetch inside handleProjectClickFromTile; selectProject replaces the hover with the selection.
-    useFocusStore().setHover({ kind: "project", projectId });
+    // fetch inside handleProjectClickFromTile; opening the detail replaces hover with selection.
+    useFocusStore().setHoverTarget({ kind: "project", projectId });
     void handleProjectClickFromTile(projectId);
   }
 }

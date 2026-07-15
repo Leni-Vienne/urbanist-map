@@ -1,5 +1,5 @@
 import { LngLat, LngLatBounds } from "maplibre-gl";
-import { selectOverlay } from "@/services/overlay/selection";
+import { openOverlayDetail } from "@/services/overlay/selection";
 import { getMap } from "@/services/core/map";
 import * as registry from "@/services/overlay/mapLayers";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
@@ -52,7 +52,7 @@ export function zoomToOverlayAndSelect(
   // settles). Give up after ~5s for overlays that never render.
   function selectWhenReady(): void {
     function select(): void {
-      if (autoSelect) selectOverlay(overlayId);
+      if (autoSelect) openOverlayDetail(overlayId);
     }
     function onReadyTimeout(): void {
       console.warn("Overlay did not render in time, aborting auto-select", overlayId);

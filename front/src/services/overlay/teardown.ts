@@ -1,6 +1,6 @@
 import { useOverlayStore } from "@/stores/overlayStore";
 import * as registry from "@/services/overlay/mapLayers";
-import { selectOverlay } from "@/services/overlay/selection";
+import { closeDetail } from "@/services/overlay/selection";
 
 /**
  * Remove only the overlay image layers, keeping the markers on the map and the overlay store
@@ -28,7 +28,7 @@ export function clearOverlayRenderObjects(): void {
  * without losing work.
  */
 export function clearOverlayRenderState(): void {
-  selectOverlay(null);
+  closeDetail();
   registry.clearAll(false);
 }
 
@@ -36,7 +36,7 @@ export function clearOverlayRenderState(): void {
  * Full wipe: deselect, tear down all image layers and markers, and drop the overlay store data.
  */
 export function clearAllOverlays(): void {
-  selectOverlay(null);
+  closeDetail();
   registry.clearAll(false);
   useOverlayStore().clearLiveOverlays();
 }

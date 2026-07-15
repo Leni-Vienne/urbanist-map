@@ -10,7 +10,6 @@ import {
   type StagedRender,
 } from "@/services/submission/stagedRenderState";
 import { useOverlayStore } from "@/stores/overlayStore";
-import { useFocusStore } from "@/stores/focusStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 import { getStagedOverlayModifications } from "@/services/overlay/unsavedState";
@@ -30,6 +29,7 @@ import { toastError, toastSuccess, toastInfo } from "@/services/core/toast";
 import { t } from "@/locales";
 import { buildThumbnailUrl } from "@/utils/imageUrl";
 import { deleteOverlayDirect } from "@/services/core/entityRemoval";
+import { closeDetail } from "@/services/overlay/selection";
 import { revertOverlayFieldModification } from "@/services/overlay/sync";
 import type {
   PendingOverlayModification,
@@ -310,7 +310,7 @@ export async function confirmSubmission(reason: string): Promise<void> {
   try {
     isSubmitting.value = true;
     await submitContext(context, reason);
-    useFocusStore().clearSelection();
+    closeDetail();
     handleSubmissionSuccess();
   } catch (error: unknown) {
     console.error("Error submitting:", error);

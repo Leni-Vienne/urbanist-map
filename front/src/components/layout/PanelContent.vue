@@ -29,7 +29,7 @@
 import { computed, defineAsyncComponent, watch } from "vue";
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
-import { useFocusStore } from "@/stores/focusStore";
+import { closeDetail } from "@/services/overlay/selection";
 
 import LatestContributionsPanel from "./LatestContributionsPanel.vue";
 
@@ -43,7 +43,6 @@ const ContributeGuestPanel = defineAsyncComponent(() => import("./ContributeGues
 
 const authStore = useAuthStore();
 const uiStore = useUiStore();
-const focusStore = useFocusStore();
 
 // Tab is read straight from the store (single source of truth, see mapStore.mode).
 const activeTab = computed(() => uiStore.activeTab);
@@ -52,7 +51,7 @@ const activeTab = computed(() => uiStore.activeTab);
 // pinned card in edit). Switching tabs drops it so a stale selection can't surface in another mode
 // (e.g. an edit-mode selection reappearing as a slide-over in moderation).
 watch(activeTab, () => {
-  focusStore.clearSelection();
+  closeDetail();
 });
 
 defineProps<{

@@ -55,7 +55,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { getMap, getMapOrNull } from "@/services/core/map";
 import { createProjectPinElement } from "@/services/map/markersSvg";
 import { createProject } from "@/services/project/projectMutations";
-import { selectProject } from "@/services/map/projectSelection";
+import { openProjectDetail } from "@/services/map/projectSelection";
 import { mergeProjectPointsForMode } from "@/services/map/tiles/pendingSources";
 import type { Project } from "@/types/index";
 
@@ -142,7 +142,7 @@ async function handleNewProjectCreation(project: Partial<Project>): Promise<void
   if (hasNoOverlays && typeof project.lat === "number" && typeof project.lng === "number") {
     const storedProject = projectStore.projects[projectId];
     if (storedProject) {
-      selectProject(storedProject);
+      openProjectDetail(storedProject);
     }
     toastSuccess($t("toasts.projectCreatedSuccess"));
   }

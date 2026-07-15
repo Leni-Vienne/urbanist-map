@@ -2,7 +2,7 @@ import { trpc } from "@/client";
 
 import { useProjectStore } from "@/stores/projectStore";
 import { createProjectObject } from "@/utils/typeFactories";
-import { selectProject } from "@/services/map/projectSelection";
+import { openProjectDetail } from "@/services/map/projectSelection";
 import { flyToGeometry } from "@/services/map/mapNavigation";
 import { onMapReady, bootedFromDeeplinkView } from "@/services/core/map";
 
@@ -44,7 +44,7 @@ export async function handleProjectDeepLink(
       if (typeof lat === "number" && typeof lng === "number") {
         flyToGeometry([lat, lng], project.geometrySizeM ?? 0, { instant });
       }
-      selectProject(project);
+      openProjectDetail(project);
     });
     return;
   }

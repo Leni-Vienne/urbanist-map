@@ -3,7 +3,7 @@ import type { Feature } from "geojson";
 import type { Project } from "@/types/index";
 import { getMap, getMapOrNull } from "@/services/core/map";
 import { useFocusStore } from "@/stores/focusStore";
-import { selectProject } from "@/services/map/projectSelection";
+import { openProjectDetail } from "@/services/map/projectSelection";
 import { forEachPosition } from "@/utils/geojson";
 import {
   setShapeEntry,
@@ -252,17 +252,17 @@ function wireShapeInteraction(
 
   const focus = useFocusStore();
   function onEnter(): void {
-    focus.setHover({ kind: "project", projectId: project.id });
+    focus.setHoverTarget({ kind: "project", projectId: project.id });
     mlMap.getCanvas().style.cursor = "pointer";
   }
   function onLeave(): void {
     mlMap.getCanvas().style.cursor = "";
-    focus.setHover(null);
+    focus.setHoverTarget(null);
   }
   function onClick(e: MapMouseEvent): void {
     if (e.originalEvent.timeStamp === lastClickTimeStamp) return;
     lastClickTimeStamp = e.originalEvent.timeStamp;
-    selectProject(project);
+    openProjectDetail(project);
   }
 
   return bindLayerEvents(mlMap, [fillLayerId, hitLayerId], { onEnter, onLeave, onClick });

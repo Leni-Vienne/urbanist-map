@@ -37,7 +37,7 @@ import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import type { OverlayObject, LatLng } from "@/types/index";
 import { createOverlayObject, createProjectObject } from "@/utils/typeFactories";
 import { addOverlayToProjectWithId } from "@/services/project/projectMutations";
-import { selectOverlay, whenImageReadyIfSelected } from "@/services/overlay/selection";
+import { openOverlayDetail, whenImageReadyIfSelected } from "@/services/overlay/selection";
 import { resolveOverlayCorners } from "@/services/overlay/data";
 import { makeHistoryState, commitOverlayEdit } from "@/services/overlay/history";
 import { watch } from "vue";
@@ -159,7 +159,7 @@ export function addOverlay(
 
     // Add to project AFTER storing in overlays to avoid "not found" error.
     addOverlayToProjectWithId(projectId, id);
-    selectOverlay(id);
+    openOverlayDetail(id);
   }
 
   // If zoom level is too low, zoom to project location first, then create overlay

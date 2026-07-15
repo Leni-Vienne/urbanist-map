@@ -5,7 +5,7 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useFocusStore } from "@/stores/focusStore";
 import type { OverlayObject } from "@/types/index";
 import { trpc } from "@/client";
-import { selectOverlay, raiseSelectedOverlayWhenReady } from "@/services/overlay/selection";
+import { openOverlayDetail, raiseSelectedOverlayWhenReady } from "@/services/overlay/selection";
 import { getMarker } from "@/services/overlay/mapLayers";
 import { getOverlayBounds } from "@/services/overlay/markers";
 import { isValidQuad } from "@/services/overlay/transform";
@@ -151,10 +151,10 @@ function selectAndCenterOverlay(overlayId: string) {
     return false;
   }
 
-  selectOverlay(overlayId);
+  openOverlayDetail(overlayId);
   zoomToOverlayBounds(overlay);
   // When selecting from the side panel while zoomed out, the image layer isn't rendered yet, so
-  // the raise from selectOverlay no-ops. Re-raise once the flight renders it.
+  // the initial raise no-ops. Re-raise once the flight renders it.
   raiseSelectedOverlayWhenReady(overlayId);
 
   return true;

@@ -11,7 +11,7 @@ import type { OverlayObject, OverlayData, MarkerColor } from "@/types/index";
 import type { ApprovalStatus } from "@shared/types";
 import { t } from "@/locales";
 import * as registry from "@/services/overlay/mapLayers";
-import { selectOverlay } from "@/services/overlay/selection";
+import { closeDetail, openOverlayDetail } from "@/services/overlay/selection";
 import { useFocusStore } from "@/stores/focusStore";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { resolveOverlayCorners } from "@/services/overlay/data";
@@ -54,8 +54,10 @@ export function createOverlayMarker(overlay: OverlayObject): void {
   const projectId = overlay.projectId;
   if (projectId) {
     const focus = useFocusStore();
-    element.addEventListener("mouseenter", () => focus.setHover({ kind: "project", projectId }));
-    element.addEventListener("mouseleave", () => focus.setHover(null));
+    element.addEventListener("mouseenter", () =>
+      focus.setHoverTarget({ kind: "project", projectId }),
+    );
+    element.addEventListener("mouseleave", () => focus.setHoverTarget(null));
   }
 
   registry.setMarker(overlay.id, marker);
@@ -72,11 +74,11 @@ function onMarkerClick(overlayId: string): void {
 
   // Second click on the selected marker deselects.
   if (useFocusStore().selectedOverlayId === overlayId) {
-    selectOverlay(null);
+    closeDetail();
     return;
   }
 
-  selectOverlay(overlayId);
+  openOverlayDetail(overlayId);
 
   const bounds = getOverlayBounds(overlayObject);
   if (bounds) mobileAwareFlyToBounds(bounds);

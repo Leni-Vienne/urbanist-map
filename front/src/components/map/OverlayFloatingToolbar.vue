@@ -161,7 +161,7 @@ import {
   navigateOverlaySequence,
   getProjectSiblingOverlayIds,
 } from "@/services/overlay/navigation";
-import { selectOverlay } from "@/services/overlay/selection";
+import { closeDetail } from "@/services/overlay/selection";
 import { showEditHandles, hideEditHandles } from "@/services/overlay/editing";
 import { undo, redo } from "@/services/overlay/history";
 import { showCropHandles, hideCropHandles, applyCrop } from "@/services/overlay/cropHandles";
@@ -244,7 +244,7 @@ function syncAnchor() {
   const lngLat = getAnchorLngLat();
   if (!lngLat) {
     // The image left the registry (e.g. unloaded on zoom-out) while still selected.
-    selectOverlay(null);
+    closeDetail();
     return;
   }
   anchorMarker.setLngLat(lngLat);
