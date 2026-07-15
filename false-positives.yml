@@ -216,6 +216,10 @@ rules:
       patterns:
         - "components/layout/ModerationPanel.vue watch{deep} [ctx:MODULE-TOP] source=() => changeRequestStore.previewState"
   async.post-await-write.function:
+    - triaged_at: "2026-07-15"
+      reason: "After nextTick, the component verifies that it still owns the target map; the remaining map-runtime registrations are synchronous, so unmount cannot interleave after that guard."
+      patterns:
+        - "components/map/MapView.vue [async-fn] initializeMapAndOverlays"
     - triaged_at: "2026-07-13"
       reason: "Single-shot per user gesture while its loading or dialog state is active; the post-await writes are the operation's result."
       patterns:

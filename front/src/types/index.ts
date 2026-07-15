@@ -95,6 +95,14 @@ export interface Project extends Omit<DBProject, "status" | "tags" | "slug" | "i
   overlays?: Overlay[];
 }
 
+// Fields returned only by the project detail endpoints. `null` remains a meaningful loaded value;
+// the required properties distinguish it from an omitted summary field.
+export type ProjectDetailFields = Required<
+  Pick<Project, "slug" | "render" | "ownerUsername" | "boundaryPath">
+>;
+
+export type HydratedProject = Project & ProjectDetailFields;
+
 // A non-georeferenced project image (artist's impression). Stored as a kind='render' overlay.
 interface ProjectRender {
   filename: string;

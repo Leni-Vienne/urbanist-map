@@ -1,7 +1,7 @@
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useMapStore } from "@/stores/mapStore";
-import { ensureProjectLoaded } from "@/services/map/projectSelection";
+import { ensureProjectSummary } from "@/services/map/projectSelection";
 import {
   getMarker,
   getRenderedOverlayIds,
@@ -46,7 +46,7 @@ export function openOverlayDetail(overlayId: string): void {
   // The docked overlay detail needs the overlay's full Project. Map (vector tile) selections only
   // carry minimal data, so load it when the overlay doesn't already hold it.
   if (newlySelected.projectId && !newlySelected.project) {
-    void ensureProjectLoaded(newlySelected.projectId);
+    void ensureProjectSummary(newlySelected.projectId);
   }
 }
 

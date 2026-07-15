@@ -1,8 +1,19 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref, computed } from "vue";
-import type { Project, OverlayObject, Overlay, ContributionProject } from "@/types/index";
+import type {
+  Project,
+  ProjectDetailFields,
+  HydratedProject,
+  OverlayObject,
+  Overlay,
+  ContributionProject,
+} from "@/types/index";
 import type { ApprovalStatus } from "@shared/types";
-import { createProjectObject, createLocalOverlayContribution } from "@/utils/typeFactories";
+import {
+  createProjectObject,
+  createLocalOverlayContribution,
+  getProjectDetailFields,
+} from "@/utils/typeFactories";
 
 // Strips the inline overlay list off a contribution so only Project data lands in the project map.
 function toProject(contribution: Project): Project {
@@ -14,6 +25,7 @@ export const useProjectStore = defineStore("project", () => {
   // Single source of truth for project data. Contribution projects live here too; the
   // contribution list is membership (contributionIds) projected over this map.
   const projects = ref<Record<string, Project>>({});
+  const hydratedProjectIds = ref<Record<string, true>>({});
 
   // Membership: ids of projects the user has contributed to.
   const contributionIds = ref<Record<string, true>>({});
@@ -65,6 +77,49 @@ export const useProjectStore = defineStore("project", () => {
     return projects.value[projectId] ?? null;
   }
 
+  function getHydratedProject(projectId: string): HydratedProject | null {
+    if (!hydratedProjectIds.value[projectId]) return null;
+    const project = projects.value[projectId];
+    return project ? (project as HydratedProject) : null;
+  }
+
+  function upsertProjectSummary(project: Project): Project {
+    const current = projects.value[project.id];
+    let stored: Project;
+    if (!current) {
+      stored = project;
+    } else if (hydratedProjectIds.value[project.id]) {
+      stored = {
+        ...current,
+        ...project,
+        ...getProjectDetailFields(current),
+      };
+    } else {
+      stored = { ...current, ...project };
+    }
+    projects.value[project.id] = stored;
+    if (stored.status !== null) snapshotOriginal(stored);
+    return stored;
+  }
+
+  function applyProjectDetail(projectId: string, detail: ProjectDetailFields): HydratedProject {
+    const current = projects.value[projectId] ?? createProjectObject({ id: projectId });
+    const hydrated = { ...current, ...detail } as HydratedProject;
+    projects.value[projectId] = hydrated;
+    hydratedProjectIds.value[projectId] = true;
+    if (hydrated.status !== null) snapshotOriginal(hydrated);
+    return hydrated;
+  }
+
+  function removeProject(projectId: string): void {
+    // oxlint-disable-next-line no-dynamic-delete
+    delete projects.value[projectId];
+    // oxlint-disable-next-line no-dynamic-delete
+    delete hydratedProjectIds.value[projectId];
+    // oxlint-disable-next-line no-dynamic-delete
+    delete originalProjects.value[projectId];
+  }
+
   function setUserContributions(contributions: Project[]) {
     const ids: Record<string, true> = {};
     const overlays: Record<string, Overlay> = {};
@@ -73,8 +128,7 @@ export const useProjectStore = defineStore("project", () => {
       const incoming = toProject(contribution);
       // Keep locally edited projects; otherwise adopt the fresher backend payload.
       const existing = projects.value[contribution.id];
-      const stored = existing?.isModified ? existing : incoming;
-      projects.value[contribution.id] = stored;
+      const stored = existing?.isModified ? existing : upsertProjectSummary(incoming);
       snapshotOriginal(stored);
       for (const overlay of contribution.overlays ?? []) {
         overlays[overlay.id] = overlay;
@@ -249,8 +303,7 @@ export const useProjectStore = defineStore("project", () => {
   // change-detection baseline. No-op if it is already present.
   function addProject(project: Project) {
     if (projects.value[project.id]) return;
-    projects.value[project.id] = project;
-    if (project.status !== null) snapshotOriginal(project);
+    upsertProjectSummary(project);
   }
 
   // Updates a project in the store. Creates it if not present.
@@ -296,6 +349,7 @@ export const useProjectStore = defineStore("project", () => {
   // Clear user-specific state on logout or account switch.
   function clearAllState(): void {
     projects.value = {};
+    hydratedProjectIds.value = {};
     contributionIds.value = {};
     contributionOverlays.value = {};
     userContributionsLoading.value = false;
@@ -311,11 +365,15 @@ export const useProjectStore = defineStore("project", () => {
 
     // Local project actions
     addProject,
+    upsertProjectSummary,
+    applyProjectDetail,
+    removeProject,
     updateProject,
     cacheProjectBackendState,
     resetProjectField,
     getOriginalProject,
     getProjectById,
+    getHydratedProject,
 
     // User contributions actions
     setUserContributions,

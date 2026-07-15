@@ -1,7 +1,7 @@
 import { trpc } from "@/client";
 
 import { useProjectStore } from "@/stores/projectStore";
-import { createProjectObject } from "@/utils/typeFactories";
+import { createProjectObject, getProjectDetailFields } from "@/utils/typeFactories";
 import { openProjectDetail } from "@/services/map/projectSelection";
 import { flyToGeometry } from "@/services/map/mapNavigation";
 import { onMapReady, bootedFromDeeplinkView } from "@/services/core/map";
@@ -34,7 +34,8 @@ export async function handleProjectDeepLink(
       tags: result.project.tags ?? [],
       overlayIds: [],
     });
-    projectStore.updateProject(project.id, project);
+    projectStore.upsertProjectSummary(project);
+    projectStore.applyProjectDetail(project.id, getProjectDetailFields(project));
     const { lat, lng } = project;
     // In production the map already booted centered on this project (the SEO shell injected its
     // coords), so set the final zoom instantly instead of flying in from the default view. On the

@@ -78,10 +78,7 @@ function removeProject(
     }
   }
 
-  if (projectStore.projects[projectId]) {
-    // eslint-disable-next-line no-dynamic-delete
-    delete projectStore.projects[projectId];
-  }
+  projectStore.removeProject(projectId);
 
   if (options.updateUserContributions) {
     projectStore.removeProjectFromUserContributions(projectId);

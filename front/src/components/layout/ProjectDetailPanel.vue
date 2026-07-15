@@ -283,13 +283,12 @@ const project = computed<Project | undefined>(() => {
 // already scopes this to approved or the user's own pending render.
 const renderImage = computed(() => project.value?.render ?? null);
 
-// Marker-opened details load their project via getById (render included), but overlay-opened details build it from
-// the viewport payload, which omits render (undefined). Hydrate that one case via getById.
+// Summary selections render immediately, then fetch the detail capabilities needed by this panel.
 watch(
   () => project.value?.id,
   async (id) => {
     const current = project.value;
-    if (!id || !current || current.status === null || current.render !== undefined) return;
+    if (!id || !current || current.status === null || projectStore.getHydratedProject(id)) return;
 
     await hydrateProjectDetail(id);
   },
