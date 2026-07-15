@@ -139,7 +139,7 @@ async function initializeMapAndOverlays() {
 
     stopWaitingForMap = onMapReady((readyMap) => {
       if (mountedMap !== readyMap) return;
-      void activateMapStateCoordinator();
+      void activateMapStateCoordinator(readyMap);
     });
   } catch (error) {
     console.error("Error initializing map and overlays:", error);

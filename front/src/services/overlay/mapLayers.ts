@@ -84,9 +84,9 @@ export function runEditHandleSync(): void {
 }
 
 // Store writers (sync.ts, editing.ts) that change an overlay's resolved position schedule a
-// reconcile through this leaf rather than importing viewportRenderLoop directly: the loop
-// dynamically imports rendering.ts, which imports sync.ts, so a direct edge would form a cycle.
-// viewportRenderLoop registers its RAF-coalescing scheduler here on init.
+// reconcile through this low-level registry. They must not import viewportRenderLoop directly,
+// which would create a dependency cycle. The map coordinator installs the scheduler for each
+// MapView mount and removes it before the map is torn down.
 let overlayReconcileScheduler: (() => void) | null = null;
 
 export function registerOverlayReconcileScheduler(fn: () => void): () => void {

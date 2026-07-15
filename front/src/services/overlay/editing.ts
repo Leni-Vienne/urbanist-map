@@ -603,10 +603,12 @@ export function syncEditHandlesForCurrentState(): void {
   syncEditHandles(useFocusStore().selectedOverlayId, useMapStore().mode);
 }
 
-export function watchEditHandles(): () => void {
-  // Let the reconciler refresh the active edit session's handles after it moves an image.
-  const unregisterEditHandleSync = registry.registerEditHandleSync(refreshEditHandlesGeometry);
+/** Install the map-instance callback the reconciler uses after moving an overlay image. */
+export function installEditHandleSync(): () => void {
+  return registry.registerEditHandleSync(refreshEditHandlesGeometry);
+}
 
+export function watchEditHandles(): () => void {
   const mapStore = useMapStore();
   const focus = useFocusStore();
 
@@ -625,6 +627,5 @@ export function watchEditHandles(): () => void {
   return function stopEditHandleWatchers(): void {
     unregisterModeTransition();
     stopSelectionWatch();
-    unregisterEditHandleSync();
   };
 }

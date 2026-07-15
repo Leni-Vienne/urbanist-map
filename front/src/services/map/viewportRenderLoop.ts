@@ -17,6 +17,7 @@ import { getApprovedOverlayDataFromTiles } from "@/services/map/tiles/approvedOv
 import { isValidQuad, sameCorners } from "@/services/overlay/transform";
 import { upsertOverlayFromWire } from "@/services/overlay/sync";
 import * as registry from "@/services/overlay/mapLayers";
+import { createOverlayImageForObject, renderBackendOverlays } from "@/services/overlay/rendering";
 import { createRafBatchQueue } from "@/utils/rafBatchQueue";
 import { cornersIntersectBounds } from "@/utils/cornersBounds";
 import { renderAllProjectShapes } from "@/services/map/shapes/renderLoop";
@@ -53,7 +54,7 @@ let renderLoopRafId: number | null = null;
  * avoids redundant work when several triggers fire together (page load,
  * style switch, or a prune + full render within one viewport refresh).
  */
-export function runViewportRenderLoop() {
+export function runViewportRenderLoop(): void {
   if (renderLoopRafId !== null) return;
   renderLoopRafId = requestAnimationFrame(() => {
     renderLoopRafId = null;
@@ -74,7 +75,7 @@ export function stopViewportRenderLoop(): void {
   destructionQueue.clear();
 }
 
-function runViewportRenderLoopNow() {
+function runViewportRenderLoopNow(): void {
   // Scheduled work can survive into a frame where MapView has already unmounted.
   if (!getMapOrNull()) return;
 
@@ -88,7 +89,7 @@ function runViewportRenderLoopNow() {
 // Destruction is cheaper than creation, so the batch can be larger than the init queue.
 const destructionQueue = createRafBatchQueue<null>((_, id) => registry.clearEntry(id), 10);
 
-function queueForDestruction(id: string) {
+function queueForDestruction(id: string): void {
   destructionQueue.enqueue(id, null);
 }
 
@@ -152,7 +153,7 @@ function convergeOverlayDisplay(overlayObject: OverlayObject): boolean {
  * corners intersect bounds; local overlays are exempt from the bounds test (only explicit deletion,
  * a mode switch or the zoom gate removes them).
  */
-function reconcileOverlayExistence(bounds: ViewportBounds) {
+function reconcileOverlayExistence(bounds: ViewportBounds): void {
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
   const authStore = useAuthStore();
@@ -235,7 +236,7 @@ function reconcileOverlayExistence(bounds: ViewportBounds) {
       renderData = data;
     }
 
-    // Creation in flight (async import settling): don't fight it, just rescue from destruction.
+    // Creation in flight: don't fight it, just rescue from destruction.
     if (registry.isCreating(id)) {
       if (desired) destructionQueue.delete(id);
       continue;
@@ -261,21 +262,19 @@ function reconcileOverlayExistence(bounds: ViewportBounds) {
   if (handlesNeedSync) registry.runEditHandleSync();
 
   if (backendToRender.length > 0) {
-    void import("@/services/overlay/rendering").then(({ renderBackendOverlays }) => {
-      renderBackendOverlays(backendToRender);
-    });
+    renderBackendOverlays(backendToRender);
   }
   if (localToRender.length > 0) {
-    void import("@/services/overlay/rendering").then(({ createOverlayImageForObject }) => {
-      for (const overlay of localToRender) createOverlayImageForObject(overlay);
-    });
+    for (const overlay of localToRender) createOverlayImageForObject(overlay);
   }
 }
 
-export function watchOverlayReconciliation(): () => void {
-  // Store writers schedule a reconcile through mapLayers (the shared leaf) to avoid a cycle.
-  const unregisterScheduler = registry.registerOverlayReconcileScheduler(runViewportRenderLoop);
+/** Install the map-instance scheduler used by overlay store writers. */
+export function installViewportRenderLoop(): () => void {
+  return registry.registerOverlayReconcileScheduler(runViewportRenderLoop);
+}
 
+export function watchOverlayReconciliation(): () => void {
   const stopFilterWatch = watch(
     () => ({ status: visibleStates.value, tags: selectedProjectTags.value }),
     () => {
@@ -295,6 +294,5 @@ export function watchOverlayReconciliation(): () => void {
   return function stopOverlayReconciliationWatchers(): void {
     stopPreviewWatch();
     stopFilterWatch();
-    unregisterScheduler();
   };
 }
