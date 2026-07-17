@@ -81,10 +81,8 @@ function getSuggestedDisplayCorners(
 //             live image > suggested > history > backend corners.
 //   "publish" is the geometry sent to the backend: history > backend corners. It reads neither the
 //             map mode, the live image, nor the suggested position.
-// History is used for the image unless a view-mode approved overlay (which always renders at its
-// backend corners), and for the marker only while editing. The live read falls back to the last
-// history entry when the raster is not rendered, except for a view-mode approved overlay, whose
-// live position is the rendered raster only. The suggested position is the edit-mode
+// History is used for the image and marker only while editing. The live read falls back to the last
+// history entry when the raster is not rendered in edit mode. The suggested position is the edit-mode
 // default for an overlay with an open change request, and the moderation display while an explicit
 // suggested-position preview targets it. `history` is read off the passed object when
 // present (the image path resolves a freshly-built object before it is committed to the store) and
@@ -109,7 +107,7 @@ export function resolveOverlayCorners(
     ? getRenderedOverlayCorners(overlay.id)
     : getOverlayImageCorners(overlay.id);
 
-  const historyAllowed = purpose === "image" ? !viewApproved : mapStore.mode === "edit";
+  const historyAllowed = mapStore.mode === "edit";
   const fromHistory = historyAllowed && isValidQuad(historyCorners) ? historyCorners : null;
 
   const fromSuggested = getSuggestedDisplayCorners(overlay, mapStore.mode);

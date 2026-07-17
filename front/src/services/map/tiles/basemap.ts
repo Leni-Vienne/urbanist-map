@@ -6,7 +6,7 @@ import type {
   RasterSourceSpecification,
   StyleSpecification,
 } from "maplibre-gl";
-import { map, OPENFREEMAP_STYLE_URL, markMlMapReady } from "@/services/core/map";
+import { getMap, getMapOrNull, OPENFREEMAP_STYLE_URL, markMapReady } from "@/services/core/map";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import countryBboxes from "@/assets/country_bboxes.json";
 
@@ -132,7 +132,8 @@ const originalExtrusionPaint = new Map<string, { height: unknown; base: unknown 
  * buildings when zoomed in. Satellite styles have no fill-extrusion layers.
  */
 function applyBuildings3DState(extruded: boolean): void {
-  const mlMap = map.value;
+  const mlMap = getMapOrNull();
+  if (!mlMap) return;
   for (const layer of mlMap.getStyle().layers) {
     if (layer.type !== "fill-extrusion") continue;
 
@@ -297,9 +298,14 @@ function whenStyleLoaded(mlMap: MaplibreMap, cb: () => void): void {
   void mlMap.once("idle", runOnce);
 }
 
-/** Initialize the map's project data layers and interaction once the basemap style is ready. */
+/**
+ * Initialize the map's project data layers and interaction once the basemap style is ready. A fresh
+ * map always boots on the plan style, so the tile-layer selection resets with it.
+ */
 export function addTileLayer(): void {
-  const mlMap = map.value;
+  const mlMap = getMap();
+  currentTileLayer.value = "plan";
+
   // A dummy image prevents "styleimagemissing" errors for missing cluster icons.
   // Registered once; the handler persists across setStyle() satellite switches.
   mlMap.on("styleimagemissing", (e: { id: string }) => {
@@ -310,7 +316,16 @@ export function addTileLayer(): void {
     onFirstStyleReady(mlMap);
   });
 
-  initSatelliteMoveEndListener();
+  initSatelliteMoveEndListener(mlMap);
+}
+
+/**
+ * Drop the pending-source payloads replayed onto a new style, so a new map starts with empty
+ * pending sources instead of the previous mount's session content.
+ */
+export function clearPendingProjectSourceCache(): void {
+  lastPendingProjectPointsGeojson = null;
+  lastPendingProjectShapesGeojson = null;
 }
 
 /** Wire up project data + interaction on first style load, then mark the map ready. */
@@ -325,7 +340,7 @@ function onFirstStyleReady(mlMap: MaplibreMap): void {
 
     initializeHybridInteractionHandlers();
 
-    markMlMapReady();
+    markMapReady(mlMap);
 
     applyBuildings3DState(show3DBuildings.value);
 
@@ -352,7 +367,8 @@ watch(
     showOnlyWithImages,
   ],
   () => {
-    const mlMap = map.value;
+    const mlMap = getMapOrNull();
+    if (!mlMap) return;
     applyTagFiltersToVectorLayers(mlMap);
     // setFilter handles the vector layers; this evicts overlay images filtered out by the
     // tag/status/name/date filters (querySourceFeatures bypasses setFilter).
@@ -368,8 +384,7 @@ watch(show3DBuildings, (extruded) => {
 export function updatePendingProjectPointsSource(geojson: GeoJSON.FeatureCollection): void {
   lastPendingProjectPointsGeojson = geojson;
 
-  const mlMap = map.value;
-  const source = mlMap.getSource<GeoJSONSource>("pending-project-points-source");
+  const source = getMapOrNull()?.getSource<GeoJSONSource>("pending-project-points-source");
   if (source) {
     source.setData(geojson);
   }
@@ -379,8 +394,7 @@ export function updatePendingProjectPointsSource(geojson: GeoJSON.FeatureCollect
 export function updatePendingProjectShapesSource(geojson: GeoJSON.FeatureCollection): void {
   lastPendingProjectShapesGeojson = geojson;
 
-  const mlMap = map.value;
-  const source = mlMap.getSource<GeoJSONSource>("pending-project-shapes-source");
+  const source = getMapOrNull()?.getSource<GeoJSONSource>("pending-project-shapes-source");
   if (source) {
     source.setData(geojson);
   }
@@ -424,7 +438,7 @@ function buildSatelliteStyle(layerType: SatelliteLayerType): StyleSpecification 
 let styleSwitchGeneration = 0;
 
 async function switchToStyle(style: StyleSpecification | string): Promise<void> {
-  const mlMap = map.value;
+  const mlMap = getMap();
   const generation = (styleSwitchGeneration += 1);
   await new Promise<void>((resolve) => {
     void mlMap.once("style.load", () => {
@@ -451,7 +465,6 @@ async function switchToStyle(style: StyleSpecification | string): Promise<void> 
         if (lastPendingProjectShapesGeojson) {
           updatePendingProjectShapesSource(lastPendingProjectShapesGeojson);
         }
-        // Drop overlay image handles so vectorTileSync re-creates them on the next idle.
         dropImageHandlesForStyleSwitch();
         // Re-add the selected overlay's edit-handle layer so it stays draggable.
         reattachEditHandlesAfterStyleSwitch();
@@ -472,10 +485,11 @@ async function switchToStyle(style: StyleSpecification | string): Promise<void> 
  * zoomed in over a supported country, otherwise the generic Esri layer.
  */
 async function resolveSatelliteLayer(): Promise<SatelliteLayerType> {
-  if (map.value.getZoom() <= MAP_CONFIG.MIN_ZOOM_FOR_COUNTRY_LAYERS) {
+  const mlMap = getMap();
+  if (mlMap.getZoom() <= MAP_CONFIG.MIN_ZOOM_FOR_COUNTRY_LAYERS) {
     return "esri";
   }
-  const center = map.value.getCenter();
+  const center = mlMap.getCenter();
   const detectedCountry = await detectCountryFromCoordinates(center.lat, center.lng);
   return detectedCountry ?? "esri";
 }
@@ -519,8 +533,10 @@ const maxZoomCache = new Map<string, number>();
 async function checkEsriMaxZoom() {
   if (currentTileLayer.value !== "esri") return;
 
-  const center = map.value.getCenter();
-  const zoom = map.value.getZoom();
+  const mlMap = getMapOrNull();
+  if (!mlMap) return;
+  const center = mlMap.getCenter();
+  const zoom = mlMap.getZoom();
 
   if (zoom < 15) return;
 
@@ -536,6 +552,7 @@ async function checkEsriMaxZoom() {
   }
 
   debounceTimer = setTimeout(async () => {
+    if (!getMapOrNull()) return;
     try {
       const maxZoom = await fetchEsriMaxZoom(center.lat, center.lng);
       if (maxZoom) {
@@ -553,8 +570,8 @@ function applyEsriMaxZoom(zoomLevel: number) {
   if (currentEsriMaxZoom === zoomLevel) return;
   currentEsriMaxZoom = zoomLevel;
 
-  const mlMap = map.value;
-  if (!mlMap.getSource("satellite")) return;
+  const mlMap = getMapOrNull();
+  if (!mlMap?.getSource("satellite")) return;
 
   // MapLibre has no public setter for a source's maxzoom, so rebuild the satellite
   // source/layer with the refined value. Re-add the layer beneath the first project
@@ -578,7 +595,7 @@ interface EsriIdentifyResponse {
 
 /** Queries the ESRI Identify API to get the max native zoom level at the given location. */
 async function fetchEsriMaxZoom(lat: number, lng: number): Promise<number> {
-  const bounds = map.value.getBounds();
+  const bounds = getMap().getBounds();
   const extent = {
     xmin: bounds.getWest(),
     ymin: bounds.getSouth(),
@@ -639,8 +656,8 @@ async function checkAndAutoSwitchSatelliteLayer() {
 }
 
 /** Listen for map movements to maintain the satellite basemap (country switch + Esri max zoom). */
-function initSatelliteMoveEndListener() {
-  map.value.on("moveend", () => {
+function initSatelliteMoveEndListener(mlMap: MaplibreMap) {
+  mlMap.on("moveend", () => {
     void checkAndAutoSwitchSatelliteLayer();
     void checkEsriMaxZoom();
   });

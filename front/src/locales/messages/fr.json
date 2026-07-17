@@ -98,6 +98,8 @@
     "createdBy": "Créé par",
     "modifyOn": "Modifier sur {name}",
     "altName": "Autre nom",
+    "from": "De",
+    "to": "À",
     "website": "Site web",
     "architect": "Architecte",
     "addImages": "Ajouter",
@@ -586,7 +588,6 @@
     "projectRequired": "Projet requis : un projet doit être sélectionné pour ajouter une image",
     "checkConflictsFailed": "Échec de la vérification des conflits",
     "noChangesDetected": "Aucune modification détectée à soumettre",
-    "preparingSubmission": "Échec de la préparation de la soumission",
     "submissionFailed": "Échec de l'envoi des modifications",
     "mapInitFailed": "Échec du chargement de la carte"
   },

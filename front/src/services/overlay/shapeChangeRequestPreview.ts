@@ -5,7 +5,7 @@ import { t } from "@/locales";
 import { clearAllMapContent } from "@/services/overlay/teardown";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { renderPreviewShapes, computeShapeBounds } from "@/services/map/shapes/rendering";
-import { selectProject } from "@/services/map/projectSelection";
+import { openProjectDetail } from "@/services/map/projectSelection";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import type { PendingChangeRequest, Project } from "@/types/index";
 import { toastWarn } from "@/services/core/toast";
@@ -54,14 +54,14 @@ export async function previewShapes(options: PreviewShapesOptions): Promise<void
   const oldGeom = type === "new" ? (project.geometry ?? null) : null;
 
   renderPreviewShapes(project, newGeom, oldGeom, () => {
-    selectProject(project);
+    openProjectDetail(project);
   });
 
   mobileAwareFlyToBounds(bounds);
 
   // The effective preview derives from intent × selection: selecting the project (which replaces
   // any overlay selection) is what puts the intent in effect.
-  selectProject(project);
+  openProjectDetail(project);
   useChangeRequestStore().previewIntent = {
     changeId: change.id,
     side: type === "new" ? "suggested" : "current",

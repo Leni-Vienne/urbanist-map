@@ -5,7 +5,7 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
 import { clearEntry as clearRegistryEntry } from "@/services/overlay/mapLayers";
-import { selectOverlay } from "@/services/overlay/selection";
+import { closeDetail } from "@/services/overlay/selection";
 import { trpc } from "@/client";
 
 import { t } from "@/locales";
@@ -21,10 +21,9 @@ export function removeOverlayFromMapAndStore(overlayId: string) {
   const overlayObject = overlayStore.liveOverlays[overlayId];
   if (!overlayObject) return;
 
-  // Deselect before deleting from the store: selectOverlay(null) owns the full cleanup
-  // (edit handles, project highlight, docked detail) and needs the overlay still present.
+  // Close selected detail before removing the overlay it reads from live store state.
   if (useFocusStore().selectedOverlayId === overlayId) {
-    selectOverlay(null);
+    closeDetail();
   }
 
   clearRegistryEntry(overlayId);
@@ -79,10 +78,7 @@ function removeProject(
     }
   }
 
-  if (projectStore.projects[projectId]) {
-    // eslint-disable-next-line no-dynamic-delete
-    delete projectStore.projects[projectId];
-  }
+  projectStore.removeProject(projectId);
 
   if (options.updateUserContributions) {
     projectStore.removeProjectFromUserContributions(projectId);
@@ -194,7 +190,7 @@ export async function confirmAndDeleteProject(
 
   const focusStore = useFocusStore();
   if (focusStore.selectedProjectId === projectId) {
-    focusStore.clearSelection();
+    closeDetail();
   }
   return true;
 }

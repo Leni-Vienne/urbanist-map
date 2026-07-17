@@ -1,6 +1,6 @@
 import { watchEffect } from "vue";
 import maplibregl, { type LngLatBounds } from "maplibre-gl";
-import { map } from "@/services/core/map";
+import { getMap } from "@/services/core/map";
 import { createOverlayMarkerElement, updateOverlayMarkerColor } from "@/services/map/markersSvg";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { useOverlayStore } from "@/stores/overlayStore";
@@ -11,14 +11,13 @@ import type { OverlayObject, OverlayData, MarkerColor } from "@/types/index";
 import type { ApprovalStatus } from "@shared/types";
 import { t } from "@/locales";
 import * as registry from "@/services/overlay/mapLayers";
-import { selectOverlay } from "@/services/overlay/selection";
+import { closeDetail, openOverlayDetail } from "@/services/overlay/selection";
 import { useFocusStore } from "@/stores/focusStore";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { resolveOverlayCorners } from "@/services/overlay/data";
-import { showsSuggestedState } from "@/services/overlay/transform";
+import { hasOpenChangeRequest, showsSuggestedState } from "@/services/overlay/transform";
 import { isOverlayUnsaved } from "@/services/overlay/unsavedState";
 import { buildLngLatBounds } from "@/utils/cornersBounds";
-import { registerOnce } from "@/utils/registerOnce";
 
 /**
  * Create the marker for an overlay. Overlay markers exist only in edit and moderation modes.
@@ -26,7 +25,7 @@ import { registerOnce } from "@/utils/registerOnce";
 export function createOverlayMarker(overlay: OverlayObject): void {
   const mode = useMapStore().mode;
   if (mode === "view") return;
-  const mlMap = map.value;
+  const mlMap = getMap();
   // The replacement sits at the same spot, so a marker for the replaced one would confuse.
   if (overlay.status === "replaced") return;
   if (registry.getMarker(overlay.id)) return;
@@ -55,8 +54,10 @@ export function createOverlayMarker(overlay: OverlayObject): void {
   const projectId = overlay.projectId;
   if (projectId) {
     const focus = useFocusStore();
-    element.addEventListener("mouseenter", () => focus.setHover({ kind: "project", projectId }));
-    element.addEventListener("mouseleave", () => focus.setHover(null));
+    element.addEventListener("mouseenter", () =>
+      focus.setHoverTarget({ kind: "project", projectId }),
+    );
+    element.addEventListener("mouseleave", () => focus.setHoverTarget(null));
   }
 
   registry.setMarker(overlay.id, marker);
@@ -73,11 +74,11 @@ function onMarkerClick(overlayId: string): void {
 
   // Second click on the selected marker deselects.
   if (useFocusStore().selectedOverlayId === overlayId) {
-    selectOverlay(null);
+    closeDetail();
     return;
   }
 
-  selectOverlay(overlayId);
+  openOverlayDetail(overlayId);
 
   const bounds = getOverlayBounds(overlayObject);
   if (bounds) mobileAwareFlyToBounds(bounds);
@@ -98,14 +99,12 @@ function getOverlayMarkerColor(
 ): MarkerColor {
   // Extract overlay-specific properties (not present on all overlay types)
   const hasBeenModified = isOverlayUnsaved(overlayData);
-  const hasPendingChanges =
-    "hasPendingChanges" in overlayData ? overlayData.hasPendingChanges : false;
+  const hasChangeRequest = hasOpenChangeRequest(overlayData, mode);
   const isTooBig = "isTooBig" in overlayData && overlayData.isTooBig === true;
   const isReplacement = Boolean(overlayData.replacesOverlayId);
   const status = overlayData.status;
 
-  // Size validation error: checkOverlaySizeAndWarn only runs on edit events, so isTooBig===true
-  // already implies the user resized the overlay (no need to also check hasBeenModified).
+  // Size validation error.
   if (mode === "edit" && isTooBig) return "red";
 
   // Local replacement overlay (before submission)
@@ -113,7 +112,7 @@ function getOverlayMarkerColor(
 
   // Open change request without a staged local edit on top; a staged edit falls through to the
   // status colors below (orange in edit mode).
-  if (hasPendingChanges && !hasBeenModified) {
+  if (hasChangeRequest && !hasBeenModified) {
     if (showsSuggestedState(overlayData, mode)) return "yellow";
     if (status === "approved") return "green";
   }
@@ -141,7 +140,7 @@ function applyMarkerColorAndTooltip(
 
   function getTooltipTextForOverlay(): string {
     const hasBeenModified = isOverlayUnsaved(overlayObject);
-    const hasPendingChanges = overlayObject.hasPendingChanges ?? false;
+    const hasChangeRequest = hasOpenChangeRequest(overlayObject, mapStore.mode);
     const isReplacement = overlayObject.replacesOverlayId !== null;
     const isApproved = overlayObject.status === "approved";
     const isPending = overlayObject.status === "pending";
@@ -162,9 +161,9 @@ function applyMarkerColorAndTooltip(
       statusText = t("common.approved");
       if (hasBeenModified) {
         modifierText = t("markerTooltip.modifiers.modified");
-      } else if (hasPendingChanges && showsSuggestedState(overlayObject, mapStore.mode)) {
+      } else if (hasChangeRequest && showsSuggestedState(overlayObject, mapStore.mode)) {
         modifierText = t("markerTooltip.modifiers.viewingSuggested");
-      } else if (hasPendingChanges) {
+      } else if (hasChangeRequest) {
         modifierText = t("markerTooltip.modifiers.hasPendingChanges");
       }
     } else if (isRejected) {
@@ -223,11 +222,11 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
   }
 }
 
-function registerMarkerColorTriggers(): void {
+export function watchMarkerColors(): () => void {
   const mapStore = useMapStore();
   const overlayStore = useOverlayStore();
 
-  watchEffect(() => {
+  return watchEffect(() => {
     const mode = mapStore.mode;
     // On the switch to view mode every overlay marker is torn down, so there is nothing to recolor.
     if (mode === "view") return;
@@ -238,15 +237,3 @@ function registerMarkerColorTriggers(): void {
     }
   });
 }
-
-/**
- * A single watchEffect that keeps every overlay marker's color in sync with its Pinia state
- * (status, staged pending modifications, hasPendingChanges, positionState, isTooBig,
- * replacesOverlayId) and the current map mode. Data mutations that go through
- * overlayStore.updateOverlay (or direct reactive writes) trigger this automatically.
- *
- * Initial color is set by createOverlayMarker / createMarker on creation; this effect
- * only handles subsequent changes. The _cmorgColor cache on each marker short-circuits
- * no-op setIcon calls.
- */
-export const initializeMarkerColorTriggers = registerOnce(registerMarkerColorTriggers);

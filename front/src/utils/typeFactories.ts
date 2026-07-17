@@ -1,5 +1,5 @@
 // Factory functions for creating type instances to reduce duplication
-import type { Project, OverlayObject, Overlay, LatLng } from "@/types/index";
+import type { Project, ProjectDetailFields, OverlayObject, Overlay, LatLng } from "@/types/index";
 import type { ApprovalStatus } from "@shared/types";
 import { v4 as uuidv4 } from "uuid";
 import { buildImageUrl } from "@/utils/imageUrl";
@@ -49,7 +49,6 @@ export function createProjectObject(data: ProjectInput = {}): Project {
     createdAt: data.createdAt ?? new Date(),
     updatedAt: data.updatedAt ?? new Date(),
     ownerId: data.ownerId ?? "",
-    ownerUsername: data.ownerUsername ?? null,
     status: data.status ?? null,
     rejectionReason: data.rejectionReason ?? null,
     timelineStatus: data.timelineStatus ?? "proposed",
@@ -69,13 +68,22 @@ export function createProjectObject(data: ProjectInput = {}): Project {
     geometrySizeM: data.geometrySizeM ?? null,
     tags: data.tags ?? [],
     countryCode: data.countryCode ?? "",
-    slug: data.slug ?? null,
+    slug: data.slug,
     detachedAt: data.detachedAt ?? null,
     importLockedAt: data.importLockedAt ?? null,
-    // Left undefined when the source didn't carry it (e.g. viewport payload), so the detail panel knows
-    // to hydrate it via getById. null only after getById confirms there is no render.
+    // Detail fields remain omitted until their source has supplied them.
     render: data.render,
     boundaryPath: data.boundaryPath,
+    ownerUsername: data.ownerUsername,
+  };
+}
+
+export function getProjectDetailFields(project: Project): ProjectDetailFields {
+  return {
+    slug: project.slug ?? null,
+    render: project.render ?? null,
+    ownerUsername: project.ownerUsername ?? null,
+    boundaryPath: project.boundaryPath ?? null,
   };
 }
 

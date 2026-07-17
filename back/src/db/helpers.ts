@@ -408,70 +408,37 @@ export function buildOverlayVisibilityCondition(
   return eq(overlays.status, "approved");
 }
 
-async function fetchOverlayChangeRequests(
-  user: UserContext,
-  mode: AppMode,
-): Promise<
+// The caller's own open overlay change requests, grouped by overlay id.
+async function fetchOwnOverlayChangeRequests(user: UserContext): Promise<
   Map<
     string,
     {
-      id: string;
-      entityType: string;
-      entityId: string;
       fieldName: string;
       newValue: unknown;
-      requestedBy: string | null;
     }[]
   >
 > {
-  let changeRequestsData: {
-    id: string;
-    entityType: string;
-    entityId: string;
-    fieldName: string;
-    newValue: unknown;
-    requestedBy: string | null;
-  }[] = [];
+  const changeRequestsByOverlay = new Map<string, { fieldName: string; newValue: unknown }[]>();
+  if (!user) return changeRequestsByOverlay;
 
-  if (user) {
-    if (mode === "edit") {
-      changeRequestsData = await db
-        .select({
-          id: changeRequests.id,
-          entityType: changeRequests.entityType,
-          entityId: changeRequests.entityId,
-          fieldName: changeRequests.fieldName,
-          newValue: changeRequests.newValue,
-          requestedBy: changeRequests.requestedBy,
-        })
-        .from(changeRequests)
-        .where(
-          and(
-            eq(changeRequests.requestedBy, user.id),
-            eq(changeRequests.entityType, "overlay"),
-            eq(changeRequests.status, "pending"),
-          ),
-        );
-    } else if (mode === "moderation") {
-      changeRequestsData = await db
-        .select({
-          id: changeRequests.id,
-          entityType: changeRequests.entityType,
-          entityId: changeRequests.entityId,
-          fieldName: changeRequests.fieldName,
-          newValue: changeRequests.newValue,
-          requestedBy: changeRequests.requestedBy,
-        })
-        .from(changeRequests)
-        .where(and(eq(changeRequests.entityType, "overlay"), eq(changeRequests.status, "pending")));
-    }
-  }
+  const changeRequestsData = await db
+    .select({
+      entityId: changeRequests.entityId,
+      fieldName: changeRequests.fieldName,
+      newValue: changeRequests.newValue,
+    })
+    .from(changeRequests)
+    .where(
+      and(
+        eq(changeRequests.requestedBy, user.id),
+        eq(changeRequests.entityType, "overlay"),
+        eq(changeRequests.status, "pending"),
+      ),
+    );
 
-  // Group change requests by overlay ID for easy lookup
-  const changeRequestsByOverlay = new Map<string, typeof changeRequestsData>();
   for (const cr of changeRequestsData) {
     const existing = changeRequestsByOverlay.get(cr.entityId) ?? [];
-    existing.push(cr);
+    existing.push({ fieldName: cr.fieldName, newValue: cr.newValue });
     changeRequestsByOverlay.set(cr.entityId, existing);
   }
 
@@ -485,11 +452,8 @@ function transformOverlayDataWithChangeRequests(
     {
       fieldName: string;
       newValue: unknown;
-      requestedBy: string | null;
     }[]
   >,
-  mode: AppMode,
-  userId?: string,
 ) {
   return overlaysData.map((row) => {
     const approvedCorners = row.corners;
@@ -498,12 +462,10 @@ function transformOverlayDataWithChangeRequests(
     const overlayChangeRequests = changeRequestsByOverlay.get(row.overlayId) ?? [];
 
     const cornersChangeRequest = overlayChangeRequests.find((cr) => cr.fieldName === "corners");
-    const hasPendingCorners = Boolean(cornersChangeRequest);
     /* oxlint-disable no-unsafe-type-assertion */
-    const suggestedCorners =
-      hasPendingCorners && cornersChangeRequest?.newValue
-        ? (cornersChangeRequest.newValue as { lat: number; lng: number }[])
-        : null;
+    const suggestedCorners = cornersChangeRequest?.newValue
+      ? (cornersChangeRequest.newValue as { lat: number; lng: number }[])
+      : null;
     /* oxlint-enable */
 
     const captionChangeRequest = overlayChangeRequests.find((cr) => cr.fieldName === "caption");
@@ -511,9 +473,6 @@ function transformOverlayDataWithChangeRequests(
       captionChangeRequest && captionChangeRequest.newValue != null
         ? String(captionChangeRequest.newValue)
         : null;
-
-    const userHasPendingChanges =
-      mode === "edit" && overlayChangeRequests.some((cr) => cr.requestedBy === userId);
 
     return {
       id: row.overlayId,
@@ -536,7 +495,7 @@ function transformOverlayDataWithChangeRequests(
         ...row.project,
         importSource: row.importSource,
       },
-      hasPendingChanges: mode === "moderation" ? hasPendingCorners : userHasPendingChanges,
+      hasPendingChanges: overlayChangeRequests.length > 0,
     };
   });
 }
@@ -576,22 +535,13 @@ export async function fetchOverlaysWithLocation(whereConditions: SQL[]) {
     .orderBy(overlays.createdAt);
 }
 
-// Fetch overlays matching the given WHERE conditions and shape them for map rendering,
-// merging in each overlay's pending change requests. Shared by the city and viewport routers.
-export async function fetchOverlaysForMap(
-  whereConditions: SQL[],
-  user: UserContext,
-  mode: AppMode,
-) {
+// Fetch overlays matching the given WHERE conditions and shape them for map rendering, merging in
+// the caller's own open change requests (never another requester's, whatever mode is asking).
+export async function fetchOverlaysForMap(whereConditions: SQL[], user: UserContext) {
   const overlaysData = await fetchOverlaysWithLocation(whereConditions);
-  const changeRequestsByOverlay = await fetchOverlayChangeRequests(user, mode);
+  const changeRequestsByOverlay = await fetchOwnOverlayChangeRequests(user);
 
-  return transformOverlayDataWithChangeRequests(
-    overlaysData,
-    changeRequestsByOverlay,
-    mode,
-    user?.id,
-  );
+  return transformOverlayDataWithChangeRequests(overlaysData, changeRequestsByOverlay);
 }
 
 import { TRPCError } from "@trpc/server";

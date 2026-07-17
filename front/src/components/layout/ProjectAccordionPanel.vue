@@ -381,11 +381,11 @@ async function handleCardClick(project: Project) {
 }
 
 function handleProjectHighlight(project: Project) {
-  focusStore.setHover({ kind: "project", projectId: project.id });
+  focusStore.setHoverTarget({ kind: "project", projectId: project.id });
 }
 
 function handleProjectUnhighlight() {
-  focusStore.setHover(null);
+  focusStore.setHoverTarget(null);
 }
 
 async function handleOverlayCardClick(overlay: Overlay) {

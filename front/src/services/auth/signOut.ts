@@ -10,6 +10,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { clearAll as clearAllLayers, clearOverlayDisplayPrefs } from "@/services/overlay/mapLayers";
 import { clearAllStagedRenders } from "@/services/submission/stagedRenderState";
 import { clearLatestContributions } from "@/services/feed/latestContributions";
+import { closeDetail } from "@/services/overlay/selection";
 
 // Orchestrates sign-out: authStore handles the auth session itself, then all
 // user-scoped state is cleared here to prevent data leakage between accounts.
@@ -26,8 +27,8 @@ export async function signOut() {
   useProjectStore().clearAllState();
   useOverlayStore().clearAllState();
   const focusStore = useFocusStore();
-  focusStore.clearSelection();
-  focusStore.setHover(null);
+  closeDetail();
+  focusStore.setHoverTarget(null);
   clearAllLayers(false);
   clearOverlayDisplayPrefs();
   clearAllStagedRenders();

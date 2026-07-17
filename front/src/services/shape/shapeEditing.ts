@@ -1,5 +1,4 @@
 // Lazy chunk, only imported when a user activates the shape editor in edit mode.
-// Same pattern as overlayRendering.ts.
 import {
   TerraDraw,
   TerraDrawLineStringMode,
@@ -9,7 +8,7 @@ import {
   type GeoJSONStoreFeatures,
 } from "terra-draw";
 import { TerraDrawMapLibreGLAdapter } from "terra-draw-maplibre-gl-adapter";
-import { map } from "@/services/core/map";
+import { getMap } from "@/services/core/map";
 import { LngLatBounds } from "maplibre-gl";
 import { forEachPosition } from "@/utils/geojson";
 import { ref } from "vue";
@@ -87,7 +86,7 @@ function handleDrawingRightClick(event: MouseEvent): void {
 export async function initShapeEditor(
   existingGeometry?: GeoJSON.GeometryCollection,
 ): Promise<void> {
-  const mlMap = map.value;
+  const mlMap = getMap();
   if (draw) {
     // Double-init guard: clear existing features before re-initializing.
     draw.clear();
@@ -179,13 +178,13 @@ export function deleteSelectedShape(): void {
 export async function destroyShapeEditor(): Promise<void> {
   if (!draw) return;
   selectedShapeId.value = null;
-  map.value.getCanvasContainer().removeEventListener("contextmenu", handleDrawingRightClick);
+  getMap().getCanvasContainer().removeEventListener("contextmenu", handleDrawingRightClick);
   draw.clear();
   draw.stop();
   draw = null;
   // Terra Draw sets the canvas cursor to crosshair while drawing and does not
   // restore it on stop, so reset it here.
-  const canvas = map.value.getCanvas();
+  const canvas = getMap().getCanvas();
   // oxlint-disable-next-line no-unnecessary-condition
   if (canvas) canvas.style.cursor = "";
 }

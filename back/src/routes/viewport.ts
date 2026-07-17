@@ -49,7 +49,6 @@ export const viewportRouter = router({
       const overlaysData = await fetchOverlaysForMap(
         [overlayCondition, buildEditModeViewportProjectJoinCondition(userId)],
         ctx.user,
-        "edit",
       );
 
       const projectsData = await db
@@ -126,7 +125,6 @@ export const viewportRouter = router({
         const overlaysData = await fetchOverlaysForMap(
           [overlayPendingCondition, countryCondition],
           user,
-          "moderation",
         );
 
         const projectsData = await db

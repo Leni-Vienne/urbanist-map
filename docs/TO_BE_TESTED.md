@@ -164,6 +164,18 @@ Sections are grouped by feature area:
   3.  **Check**: No crashes or console errors.
   4.  **Check**: Image load events are properly cleaned up.
 
+### 2.10. Reconcile Queued Before Map Teardown
+
+- **Scenario**: A pending overlay reconcile cannot affect a replacement map instance.
+- **Steps**:
+  1.  In Edit Mode, make an overlay change that schedules reconciliation, such as undo, redo, or toggling its suggested position.
+  2.  Immediately navigate from Home to a non-map route before the next animation frame.
+  3.  Return to Home after the new route has rendered.
+- **Checks**:
+  1.  No console error references a removed MapLibre instance.
+  2.  The returned map renders the overlay once at the position derived from the retained store state.
+  3.  No duplicate image layer, marker, or edit-handle set is created.
+
 ## 3. Mode Switching & Content Visibility
 
 ### 3.1. Pending Overlays and Markers Hide in View Mode
@@ -362,13 +374,13 @@ Sections are grouped by feature area:
 
 ## 4.10 Overlay positionning and their markers
 
-- **Scenario**: Pan/zoom loads overlays via the viewport manager.
+- **Scenario**: Pan/zoom loads overlays and edit-mode status markers at the shared display threshold.
 - **Steps**:
   1.  Navigate to a known overlay position and zoom past **MIN_ZOOM_FOR_OVERLAYS** level.
-  2.  **Check**: Overlay images appear (not just dot markers).
+  2.  **Check**: Overlay images and edit-mode status markers appear.
   3.  **Check**: Overlay marker colors correctly reflect status (e.g., yellow for `hasPendingChanges`).
   4.  Zoom back out below threshold.
-  5.  **Check**: Images disappear, dot markers appear at centroids.
+  5.  **Check**: Images are hidden and existing status markers remain at their centroids.
   6.  Zoom in again.
   7.  **Check**: Images re-appear correctly (no blank map).
 
@@ -457,11 +469,11 @@ Sections are grouped by feature area:
 
 ### 5.2. Markers Persist at Low Zoom in Edit Mode
 
-- **Scenario**: Standalone project markers persist when zooming below the viewport threshold in edit mode.
+- **Scenario**: Standalone project markers persist when zooming below the overlay display threshold in edit mode.
 - **Steps**:
   1.  Enter **Edit Mode**.
   2.  Create or view standalone project markers.
-  3.  Zoom out beyond **VIEWPORT_LOAD_THRESHOLD** (zoom level 12 or lower).
+  3.  Zoom out below the overlay display threshold.
   4.  **Check**: Markers remain visible (not cleared).
   5.  Pan around at low zoom.
   6.  **Check**: Markers stay on map.
@@ -535,7 +547,21 @@ Sections are grouped by feature area:
   5.  **Regression**: Click different overlay in different city.
   6.  **Check**: Panel navigates to new city/project/overlay correctly.
 
-### 6.4. Camera Flies to Different City
+### 6.4. Detail Entry Paths Share Selection Effects
+
+- **Scenario**: Every user-facing way to open a project or overlay runs the same detail workflow.
+- **Steps**:
+  1. Open a project from a vector feature, then from the contributions panel.
+  2. Open an overlay from its marker, then from panel navigation.
+  3. In moderation mode, open a project and an overlay from their previews.
+  4. Close the detail, submit a change, then sign out while detail is open.
+- **Checks**:
+  1. Project detail always shows the supplied project and switches moderation country when needed.
+  2. Overlay detail always raises the selected raster and loads its parent project when absent.
+  3. Closing detail and submitting remove pinned detail without clearing unrelated hover state.
+  4. Signing out clears both pinned detail and hover with the other user-scoped state.
+
+### 6.5. Camera Flies to Different City
 
 - **Scenario**: Clicking a contribution in a different city triggers a camera flight.
 - **Steps**:
@@ -546,7 +572,7 @@ Sections are grouped by feature area:
   5.  **Check**: Target overlay is selected and visible.
   6.  **Check**: Map is zoomed to appropriate level for overlay.
 
-### 6.5. Same-City Navigation Preserves Zoom
+### 6.6. Same-City Navigation Preserves Zoom
 
 - **Scenario**: Navigating within same city respects current zoom level.
 - **Steps**:
@@ -557,7 +583,7 @@ Sections are grouped by feature area:
   5.  **Regression**: Click multiple overlays in same city.
   6.  **Check**: Navigation remains smooth without unnecessary zoom resets.
 
-### 6.6. Cross-Country Navigation
+### 6.7. Cross-Country Navigation
 
 - **Scenario**: Navigate between countries via side menu.
 - **Steps**:
@@ -571,15 +597,15 @@ Sections are grouped by feature area:
 
 ### 7.1. FilterControl Works at All Zoom Levels
 
-- **Scenario**: Completion status filters apply to both markers (low zoom) and full overlay images (high zoom).
+- **Scenario**: Completion status filters apply to project points at low zoom and full overlay images at high zoom.
 - **Steps**:
   1.  Navigate to a city with multiple overlays in **View Mode**.
   2.  Ensure map shows a mix of proposed, planned, in-progress, and completed overlays.
-  3.  Zoom to **marker level** (zoom < MIN_ZOOM_FOR_OVERLAYS).
+  3.  Zoom below **MIN_ZOOM_FOR_OVERLAYS**.
   4.  Click **Filter button** (pi-filter icon).
   5.  Uncheck **"Proposed"** (yellow) status.
-  6.  **Check**: Yellow markers disappear from map.
-  7.  **Check**: Other status markers remain visible.
+  6.  **Check**: Yellow project points disappear from map.
+  7.  **Check**: Other status project points remain visible.
   8.  Zoom to **overlay level** (zoom >= MIN_ZOOM_FOR_OVERLAYS).
   9.  **Check**: Full overlay images with "proposed" status are hidden.
   10. **Check**: Only overlays matching checked statuses are visible.
@@ -591,7 +617,7 @@ Sections are grouped by feature area:
 - **Scenario**: Filter selections persist when zooming in and out.
 - **Steps**:
   1.  Set filters to hide **"In Progress"** and **"Completed"** statuses.
-  2.  Verify filtered markers at low zoom.
+  2.  Verify filtered project points at low zoom.
   3.  Zoom in to overlay level.
   4.  **Check**: Filter state is preserved (same overlays hidden).
   5.  Zoom out and back in.
@@ -807,6 +833,9 @@ The layer menu exposes only **Plan** and **Satellite**. Country-specific satelli
   6.  **Check**: Overlay marker updates to show the approved location.
   7.  **Check**: Overlay marker turns from yellow to green.
   8.  **Regression**: Test with overlays loaded via side menu (original working case).
+  9.  **Regression**: As the request author, enter Edit Mode first so the suggested position is in
+      the overlay history, then enter Moderation Mode. The approved preview must still move both
+      image and marker to the approved position.
 
 ### 9.4. Change Request Lookups
 

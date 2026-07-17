@@ -13,7 +13,8 @@ import { useAuthStore } from "@/stores/authStore";
 import { useMapStore } from "@/stores/mapStore";
 import { isOverlayUnsaved, isProjectUnsaved } from "@/services/overlay/unsavedState";
 import { startShapeEditing } from "@/services/shape/shapeEditorLazy";
-import { selectProject } from "@/services/map/projectSelection";
+import { openProjectDetail } from "@/services/map/projectSelection";
+import { closeDetail } from "@/services/overlay/selection";
 import { flyToGeometry } from "@/services/map/mapNavigation";
 import { clearStagedRender } from "@/services/submission/stagedRenderState";
 import type { ChangeRequest } from "@/stores/changeRequestStore";
@@ -41,7 +42,7 @@ function handleNewProjectClick(): boolean {
   }
 
   // Close any open detail and clear selection for a clean slate
-  useFocusStore().clearSelection();
+  closeDetail();
 
   // Always switch to edit mode when contributing (no-op if already in edit mode)
   useMapStore().setMode("edit");
@@ -131,7 +132,7 @@ export function useContributeActions(
 
     const approvedGeometry = project.geometry ?? null;
 
-    focusStore.clearSelection();
+    closeDetail();
 
     uiStore.openShapeEditor(project);
     await startShapeEditing(project.id, approvedGeometry);
@@ -142,7 +143,7 @@ export function useContributeActions(
   function handleExternalProjectClick(_project: Project): void {
     const fullProject = focusStore.selectedProject;
     if (!fullProject) return;
-    selectProject(fullProject);
+    openProjectDetail(fullProject);
     if (typeof fullProject.lat === "number" && typeof fullProject.lng === "number") {
       flyToGeometry([fullProject.lat, fullProject.lng], fullProject.geometrySizeM ?? 0);
     }

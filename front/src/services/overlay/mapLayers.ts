@@ -5,7 +5,7 @@ import type {
   Map as MaplibreMap,
   PointLike,
 } from "maplibre-gl";
-import { map } from "@/services/core/map";
+import { getMap, getMapOrNull } from "@/services/core/map";
 import {
   cornersToTransform,
   isValidQuad,
@@ -71,8 +71,12 @@ export function isGestureOwned(id: string): boolean {
 // refresh itself only acts on the currently-edited overlay.
 let editHandleSync: (() => void) | null = null;
 
-export function registerEditHandleSync(fn: () => void): void {
+export function registerEditHandleSync(fn: () => void): () => void {
   editHandleSync = fn;
+
+  return function unregisterEditHandleSync(): void {
+    if (editHandleSync === fn) editHandleSync = null;
+  };
 }
 
 export function runEditHandleSync(): void {
@@ -80,13 +84,17 @@ export function runEditHandleSync(): void {
 }
 
 // Store writers (sync.ts, editing.ts) that change an overlay's resolved position schedule a
-// reconcile through this leaf rather than importing viewportRenderLoop directly: the loop
-// dynamically imports rendering.ts, which imports sync.ts, so a direct edge would form a cycle.
-// viewportRenderLoop registers its RAF-coalescing scheduler here on init.
+// reconcile through this low-level registry. They must not import viewportRenderLoop directly,
+// which would create a dependency cycle. The map coordinator installs the scheduler for each
+// MapView mount and removes it before the map is torn down.
 let overlayReconcileScheduler: (() => void) | null = null;
 
-export function registerOverlayReconcileScheduler(fn: () => void): void {
+export function registerOverlayReconcileScheduler(fn: () => void): () => void {
   overlayReconcileScheduler = fn;
+
+  return function unregisterOverlayReconcileScheduler(): void {
+    if (overlayReconcileScheduler === fn) overlayReconcileScheduler = null;
+  };
 }
 
 export function scheduleOverlayReconcile(): void {
@@ -152,7 +160,7 @@ export function setImageHandle(id: string, handle: OverlayImageHandle): void {
   if (waiters) {
     // Each fire() detaches its own waiter via cleanup(); deleting the current element mid-iteration
     // is well-defined for a Set, so no snapshot copy is needed.
-    for (const fire of waiters) fire();
+    for (const waiter of waiters) waiter.fire();
   }
 }
 
@@ -160,7 +168,12 @@ export function setImageHandle(id: string, handle: OverlayImageHandle): void {
 // The viewport loop creates an overlay's image layer asynchronously after a camera move, so
 // callers that act on a freshly-rendered overlay (auto-select, selection visuals, toolbar anchor)
 // wait for it here. setImageHandle is the single point where a layer comes online.
-const imageReadyWaiters = new Map<string, Set<() => void>>();
+interface ImageReadyWaiter {
+  fire: () => void;
+  cancel: () => void;
+}
+
+const imageReadyWaiters = new Map<string, Set<ImageReadyWaiter>>();
 
 /**
  * Run `onReady` once the overlay's image layer is ready: immediately if it already is, otherwise
@@ -181,7 +194,7 @@ export function whenImageReady(
   function cleanup(): void {
     const waiters = imageReadyWaiters.get(id);
     if (waiters) {
-      waiters.delete(fire);
+      waiters.delete(waiter);
       if (waiters.size === 0) imageReadyWaiters.delete(id);
     }
     if (timer !== undefined) clearTimeout(timer);
@@ -207,6 +220,8 @@ export function whenImageReady(
     options.onTimeout?.();
   }
 
+  const waiter: ImageReadyWaiter = { fire, cancel };
+
   if (hasReadyLayer(id)) {
     fire();
     return cancel;
@@ -217,7 +232,7 @@ export function whenImageReady(
     waiters = new Set();
     imageReadyWaiters.set(id, waiters);
   }
-  waiters.add(fire);
+  waiters.add(waiter);
 
   if (options.timeoutMs !== undefined) {
     timer = setTimeout(onExpire, options.timeoutMs);
@@ -226,12 +241,20 @@ export function whenImageReady(
   return cancel;
 }
 
+// Detach every pending waiter and clear its timeout. Their overlay's image layer is never going to
+// come online on the map they were registered against.
+function cancelImageReadyWaiters(): void {
+  for (const waiters of [...imageReadyWaiters.values()]) {
+    for (const waiter of [...waiters]) waiter.cancel();
+  }
+  imageReadyWaiters.clear();
+}
+
 export function getImageHandle(id: string): OverlayImageHandle | null {
   return entries.get(id)?.imageHandle ?? null;
 }
 
-// IDs of overlays currently rendered as MapLibre image layers. Used by vectorTileSync to
-// evict approved overlays that have left the rendered tile feature set.
+// IDs of overlays currently rendered as MapLibre image layers.
 export function getRenderedOverlayIds(): string[] {
   const ids: string[] = [];
   for (const [id, entry] of entries) {
@@ -240,19 +263,15 @@ export function getRenderedOverlayIds(): string[] {
   return ids;
 }
 
-// IDs of overlays currently represented by a DOM marker (with or without an image layer).
-// Used by the viewport render loop to sweep markers that no pruning set covers.
-export function getMarkedOverlayIds(): string[] {
-  const ids: string[] = [];
-  for (const [id, entry] of entries) {
-    if (entry.marker !== null) ids.push(id);
-  }
-  return ids;
+// IDs of every overlay holding a registry entry (image layer, DOM marker, or both).
+// The viewport render loop sweeps these so entries no live set covers get destroyed.
+export function getEntryIds(): string[] {
+  return [...entries.keys()];
 }
 
 // setStyle() (satellite switch) wipes every source and layer, including overlay image
-// sources, but leaves DOM markers untouched. Drop the now-dangling image handles so
-// vectorTileSync re-creates them once the new style loads. No map removal needed here.
+// sources, but leaves DOM markers untouched. Drops the now-dangling image handles so they are
+// re-created once the new style loads. No map removal needed here.
 export function dropImageHandlesForStyleSwitch(): void {
   for (const [id, entry] of entries) {
     entry.imageHandle = null;
@@ -262,9 +281,11 @@ export function dropImageHandlesForStyleSwitch(): void {
   }
 }
 
-// Remove an overlay's image source + raster layer from the MapLibre map.
+// Remove an overlay's image source + raster layer from the MapLibre map. Entries can outlive the
+// map (sign-out on a non-map route), and a removed map took its sources and layers with it.
 function removeImageFromMap(handle: OverlayImageHandle): void {
-  const mlMap = map.value;
+  const mlMap = getMapOrNull();
+  if (!mlMap) return;
   if (mlMap.getLayer(handle.rasterLayerId)) mlMap.removeLayer(handle.rasterLayerId);
   if (mlMap.getSource(handle.sourceId)) mlMap.removeSource(handle.sourceId);
 }
@@ -290,9 +311,9 @@ export function clearEntry(id: string): void {
 
 /**
  * Clear all entries from the registry.
- * @param preserveMarkers - If true (zoom threshold crossing), only remove image layers
- *                          and keep marker refs + markers on map.
- *                          If false (default, full reset), remove both layers and markers.
+ * @param preserveMarkers - If true, only remove the image layers and keep the marker refs +
+ *                          markers on the map, so the pins don't flicker while the images are
+ *                          re-created. If false (default, full reset), remove both.
  */
 export function clearAll(preserveMarkers = false): void {
   creating.clear();
@@ -303,8 +324,6 @@ export function clearAll(preserveMarkers = false): void {
     }
 
     if (preserveMarkers) {
-      // Zoom threshold: null the image refs but keep the marker alive on the map.
-      // This prevents marker flicker when crossing the zoom 13/14 boundary.
       entry.imageHandle = null;
       if (entry.marker === null) entries.delete(id);
     } else {
@@ -320,7 +339,18 @@ export function clearAll(preserveMarkers = false): void {
 export function clearOverlayDisplayPrefs(): void {
   frontOverlayIds.clear();
   overlayOpacities.clear();
-  imageReadyWaiters.clear();
+  cancelImageReadyWaiters();
+}
+
+/**
+ * Drop every map object and per-instance bookkeeping the registry holds, so nothing can refer to a
+ * map that is about to be removed. Runs while the map is still alive. Display preferences survive:
+ * they are user choices, not map objects.
+ */
+export function clearMapObjectRegistry(): void {
+  clearAll(false);
+  gestureOwned.clear();
+  cancelImageReadyWaiters();
 }
 
 function overlaySourceId(id: string): string {
@@ -367,7 +397,7 @@ function raiseToBandTop(mlMap: MaplibreMap, rasterLayerId: string, front: boolea
 // Bring the selected overlay's image above all others in its band, so it can't stay hidden under a
 // sibling the user is trying to work with.
 export function raiseOverlayImage(id: string): void {
-  const mlMap = map.value;
+  const mlMap = getMap();
   const handle = getImageHandle(id);
   if (!handle || !mlMap.getLayer(handle.rasterLayerId)) return;
   raiseToBandTop(mlMap, handle.rasterLayerId, frontOverlayIds.has(id));
@@ -377,7 +407,7 @@ export function setOverlayInFront(id: string, front: boolean): void {
   if (front) frontOverlayIds.add(id);
   else frontOverlayIds.delete(id);
 
-  const mlMap = map.value;
+  const mlMap = getMap();
   const handle = getImageHandle(id);
   if (!handle || !mlMap.getLayer(handle.rasterLayerId)) return;
   raiseToBandTop(mlMap, handle.rasterLayerId, front);
@@ -398,7 +428,7 @@ const PROJECT_SHAPE_QUERY_LAYERS = [
 // would produce a visible change. Queries the screen-space bounding box of the (possibly rotated)
 // footprint, which slightly over-covers, fine for gating a toolbar button.
 export function overlayOverlapsProjectShape(id: string): boolean {
-  const mlMap = map.value;
+  const mlMap = getMap();
   const corners = getOverlayImageCorners(id);
   if (!corners) return false;
 
@@ -428,7 +458,7 @@ function cornersToImageCoordinates(corners: LatLng[]): ImageCoordinates {
 }
 
 function getImageSource(sourceId: string): ImageSource | undefined {
-  return map.value.getSource<ImageSource>(sourceId);
+  return getMap().getSource<ImageSource>(sourceId);
 }
 
 // Add an image source + raster layer for one overlay. The raster layer's minzoom hides the image
@@ -437,7 +467,7 @@ export function createOverlayImage(
   overlayObject: OverlayObject,
   corners: LatLng[],
 ): OverlayImageHandle | null {
-  const mlMap = map.value;
+  const mlMap = getMap();
   if (!isValidQuad(corners)) return null;
 
   const sourceId = overlaySourceId(overlayObject.id);
@@ -525,7 +555,7 @@ export function deriveOverlayFilename(id: string, imageUrl: string, fallback = "
 // (crop apply, or undo/redo stepping across a crop), not just the position. Opacity and front/back
 // order are keyed by overlay id and so survive the rebuild.
 export function replaceOverlayImageSource(id: string, imageUrl: string, corners: LatLng[]): void {
-  const mlMap = map.value;
+  const mlMap = getMap();
   const handle = getImageHandle(id);
   if (handle) {
     if (mlMap.getLayer(handle.rasterLayerId)) mlMap.removeLayer(handle.rasterLayerId);
@@ -579,7 +609,7 @@ export function getOverlayImageCorners(id: string): LatLng[] | null {
 // Set raster opacity (0..1) for one overlay, persisting it on the handle.
 export function setOverlayImageOpacity(id: string, opacity: number): void {
   overlayOpacities.set(id, opacity);
-  const mlMap = map.value;
+  const mlMap = getMap();
   const handle = getImageHandle(id);
   if (!handle) return;
   handle.opacity = opacity;

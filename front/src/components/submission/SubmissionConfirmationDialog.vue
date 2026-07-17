@@ -2,6 +2,8 @@
   <Dialog
     v-model:visible="isVisible"
     modal
+    :closable="!isSubmitting"
+    :close-on-escape="!isSubmitting"
     :header="$t('submission.confirmTitle')"
     :style="{ width: '540px' }"
   >
@@ -70,6 +72,7 @@
               text
               rounded
               class="shrink-0"
+              :disabled="isSubmitting"
               @click="handleRemoveChange(index, change.field, change.overlayId)"
               v-tooltip.top="$t('submission.removeChange')"
             />
@@ -107,7 +110,12 @@
 
     <template #footer>
       <div class="flex justify-end gap-3">
-        <Button :label="$t('common.cancel')" severity="secondary" @click="handleCancel" />
+        <Button
+          :label="$t('common.cancel')"
+          severity="secondary"
+          :disabled="isSubmitting"
+          @click="handleCancel"
+        />
         <Button
           :label="$t('submission.confirmSubmit')"
           icon="pi pi-send"
@@ -123,8 +131,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useI18n } from "vue-i18n";
-import type { SubmissionSummary } from "@/services/submission/submissionTypes";
-import type { RemovableChange } from "@/types/index";
+import type { RemovableChange, SubmissionSummary } from "@/services/submission/submissionTypes";
 import { handleImageError } from "@/utils/imageErrorHandler";
 
 const { t: $t } = useI18n();
@@ -150,13 +157,22 @@ const emit = defineEmits<{
 
 const isVisible = computed({
   get: () => props.visible,
-  set: (value: boolean) => emit("update:visible", value),
+  set: (value: boolean) => {
+    if (!value) {
+      requestClose();
+      return;
+    }
+    emit("update:visible", value);
+  },
 });
 
-function handleCancel() {
+function requestClose() {
   changeReason.value = "";
   emit("cancel");
-  isVisible.value = false;
+}
+
+function handleCancel() {
+  requestClose();
 }
 
 function handleConfirm() {

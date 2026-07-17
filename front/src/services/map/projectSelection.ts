@@ -1,9 +1,9 @@
-import type { Project } from "@/types/index";
+import type { Project, HydratedProject } from "@/types/index";
 import { useProjectStore } from "@/stores/projectStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useModerationStore } from "@/stores/moderationStore";
 import { trpc } from "@/client";
-import { createProjectObject } from "@/utils/typeFactories";
+import { createProjectObject, getProjectDetailFields } from "@/utils/typeFactories";
 import { syncModerationCountryFromMapClick } from "@/services/moderation/moderationCountrySync";
 import { loadOrNull } from "@/services/core/errorHandling";
 
@@ -13,7 +13,7 @@ import { loadOrNull } from "@/services/core/errorHandling";
  * Detail-state side effects (vector hover, accordion scroll, marker opacity, overlay
  * deselect) are handled by the detail watcher initialized at boot in main.ts.
  */
-export function selectProject(project: Project): void {
+export function openProjectDetail(project: Project): void {
   const projectStore = useProjectStore();
   const focus = useFocusStore();
 
@@ -22,8 +22,9 @@ export function selectProject(project: Project): void {
   // project from the store by id, so seed it there before pinning the selection. The selected project
   // is shown in the docked panel's "Selected project" card (not the accordion); the detail watcher
   // keeps it out of the expanded accordion set so it returns collapsed when deselected.
-  projectStore.updateProject(project.id, project);
-  focus.selectProject(project.id);
+  projectStore.upsertProjectSummary(project);
+  focus.setSelectionTarget({ kind: "project", projectId: project.id });
+  focus.setHoverTarget(null);
 
   // In moderation mode, switch the panel to this project's country so its pending
   // submissions load and the detail watcher's scroll request can resolve.
@@ -36,14 +37,14 @@ export function selectProject(project: Project): void {
  * the moderation store (pending submissions the backend won't serve), then the backend.
  * Returns null when none has it.
  */
-export async function ensureProjectLoaded(projectId: string): Promise<Project | null> {
+export async function ensureProjectSummary(projectId: string): Promise<Project | null> {
   const projectStore = useProjectStore();
   const cached = projectStore.projects[projectId];
   if (cached) return cached;
 
   const pendingProject = useModerationStore().projects.find((p) => p.id === projectId);
   if (pendingProject) {
-    return cacheProject(
+    return cacheProjectSummary(
       createProjectObject({ ...pendingProject, tags: pendingProject.tags, overlayIds: [] }),
     );
   }
@@ -53,22 +54,31 @@ export async function ensureProjectLoaded(projectId: string): Promise<Project | 
   });
   if (!result) return null;
 
-  return cacheProject(createProjectObject({ ...result, tags: result.tags ?? [], overlayIds: [] }));
+  const project = createProjectObject({ ...result, tags: result.tags ?? [], overlayIds: [] });
+  return cacheHydratedProject(project);
 }
 
-function cacheProject(project: Project): Project {
-  useProjectStore().updateProject(project.id, project);
-  return project;
+function cacheProjectSummary(project: Project): Project {
+  return useProjectStore().upsertProjectSummary(project);
 }
 
-const detailHydrations = new Map<string, Promise<Project | null>>();
+function cacheHydratedProject(project: Project): HydratedProject {
+  const projectStore = useProjectStore();
+  projectStore.upsertProjectSummary(project);
+  return projectStore.applyProjectDetail(project.id, getProjectDetailFields(project));
+}
+
+const detailHydrations = new Map<string, Promise<HydratedProject | null>>();
 
 /**
  * Merge the fields getById adds on top of the viewport payload (slug, render, ownerUsername,
  * boundaryPath) into the cached project. Concurrent callers for the same id share one request.
  * Returns the merged project, or null when the fetch failed.
  */
-export async function hydrateProjectDetail(projectId: string): Promise<Project | null> {
+export async function hydrateProjectDetail(projectId: string): Promise<HydratedProject | null> {
+  const cached = useProjectStore().getHydratedProject(projectId);
+  if (cached) return cached;
+
   const inFlight = detailHydrations.get(projectId);
   if (inFlight) return inFlight;
 
@@ -81,28 +91,23 @@ export async function hydrateProjectDetail(projectId: string): Promise<Project |
   }
 }
 
-async function fetchProjectDetail(projectId: string): Promise<Project | null> {
+async function fetchProjectDetail(projectId: string): Promise<HydratedProject | null> {
   const fresh = await loadOrNull(async () => trpc.project.getById.query({ id: projectId }));
   if (!fresh) return null;
 
   const projectStore = useProjectStore();
-  projectStore.updateProject(projectId, {
-    slug: fresh.slug ?? null,
-    render: fresh.render ?? null,
-    ownerUsername: fresh.ownerUsername ?? null,
-    boundaryPath: fresh.boundaryPath ?? [],
-  });
-
-  return projectStore.projects[projectId] ?? null;
+  const project = createProjectObject({ ...fresh, tags: fresh.tags ?? [], overlayIds: [] });
+  projectStore.upsertProjectSummary(project);
+  return projectStore.applyProjectDetail(projectId, getProjectDetailFields(project));
 }
 
 /**
  * Handle a MapLibre tile click given only a project ID.
- * Looks up the project, then delegates to selectProject.
+ * Looks up the project, then opens its detail.
  */
 export async function handleProjectClickFromTile(projectId: string): Promise<void> {
-  const project = await ensureProjectLoaded(projectId);
+  const project = await ensureProjectSummary(projectId);
   if (!project) return;
 
-  selectProject(project);
+  openProjectDetail(project);
 }

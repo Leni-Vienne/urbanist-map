@@ -1,5 +1,5 @@
 import maplibregl from "maplibre-gl";
-import { map } from "@/services/core/map";
+import { getMap } from "@/services/core/map";
 import {
   getImageHandle,
   getCurrentTransform,
@@ -108,7 +108,7 @@ function ring(points: { x: number; y: number }[]): string {
 // frame outline. Hidden below the overlay zoom threshold, matching the image's own visibility.
 function syncCrop(): void {
   if (!session) return;
-  const mlMap = map.value;
+  const mlMap = getMap();
   const threshold = getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
   const visible = mlMap.getZoom() >= threshold;
   session.svgContainer.style.display = visible ? "block" : "none";
@@ -166,7 +166,7 @@ function wireHandle(edge: Edge): void {
  * image, with one draggable handle per edge. Mutually exclusive with the edit (resize) handles.
  */
 export function showCropHandles(overlayObject: OverlayObject): void {
-  const mlMap = map.value;
+  const mlMap = getMap();
   // eslint-disable-next-line no-unnecessary-condition
   if (!getImageHandle(overlayObject.id)) return;
 
@@ -242,7 +242,7 @@ export function showCropHandles(overlayObject: OverlayObject): void {
 
 export function hideCropHandles(): void {
   if (!session) return;
-  const mlMap = map.value;
+  const mlMap = getMap();
   const s = session;
   session = null;
 

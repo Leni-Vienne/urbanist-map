@@ -1,14 +1,18 @@
 import * as registry from "@/services/overlay/mapLayers";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
-import maplibregl, { type GeoJSONSource, type MapMouseEvent, LngLat } from "maplibre-gl";
+import maplibregl, {
+  type GeoJSONSource,
+  type Map as MaplibreMap,
+  type MapMouseEvent,
+  LngLat,
+} from "maplibre-gl";
 import type { Feature, Polygon } from "geojson";
-import { map, currentZoomLevel } from "@/services/core/map";
+import { getMap, getMapOrNull, currentZoomLevel } from "@/services/core/map";
 import {
   getImageHandle,
   setOverlayImageTransform,
   getCurrentTransform,
   raiseOverlayImage,
-  createOverlayImage,
   deriveOverlayFilename,
 } from "@/services/overlay/mapLayers";
 import {
@@ -18,7 +22,7 @@ import {
   SIGN,
   type OverlayTransform,
 } from "@/services/overlay/transform";
-import { updateMarkerPosition, createOverlayMarker } from "@/services/overlay/markers";
+import { updateMarkerPosition } from "@/services/overlay/markers";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useMapStore } from "@/stores/mapStore";
@@ -26,7 +30,6 @@ import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
 import { validateOverlaySize } from "@shared/overlayValidation";
 import { onModeTransition } from "@/services/map/modeTransition";
-import { registerOnce } from "@/utils/registerOnce";
 import type { AppMode } from "@shared/types";
 
 import { t } from "@/locales";
@@ -34,7 +37,7 @@ import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import type { OverlayObject, LatLng } from "@/types/index";
 import { createOverlayObject, createProjectObject } from "@/utils/typeFactories";
 import { addOverlayToProjectWithId } from "@/services/project/projectMutations";
-import { selectOverlay, whenImageReadyIfSelected } from "@/services/overlay/selection";
+import { openOverlayDetail, whenImageReadyIfSelected } from "@/services/overlay/selection";
 import { resolveOverlayCorners } from "@/services/overlay/data";
 import { makeHistoryState, commitOverlayEdit } from "@/services/overlay/history";
 import { watch } from "vue";
@@ -74,9 +77,12 @@ async function loadImageAspect(imageUrl: string): Promise<number> {
 }
 
 // Place a new overlay as a rectangle centered on the current view, sized from the image aspect.
-async function defaultCornersForNewOverlay(imageUrl: string): Promise<LatLng[]> {
+async function defaultCornersForNewOverlay(
+  imageUrl: string,
+  target: MaplibreMap,
+): Promise<LatLng[]> {
   const aspect = await loadImageAspect(imageUrl);
-  const center = map.value.getCenter();
+  const center = target.getCenter();
   const widthMeters = 100;
   return transformToCorners({
     center: { lat: center.lat, lng: center.lng },
@@ -112,6 +118,7 @@ export function addOverlay(
   }
 
   const id = crypto.randomUUID();
+  const target = getMap();
 
   // Create overlay object using proper schema structure
   const overlayObject = createNewOverlayObject(id, imageUrl, projectId);
@@ -139,22 +146,20 @@ export function addOverlay(
     }
   }
 
-  async function createAndSetupOverlay() {
-    const corners = await defaultCornersForNewOverlay(imageUrl);
+  async function createAndSetupOverlay(): Promise<void> {
+    const corners = await defaultCornersForNewOverlay(imageUrl, target);
+    if (getMapOrNull() !== target) return;
     overlayObject.baselineCorners = corners;
     overlayObject.history = [makeHistoryState(corners, overlayObject.imageUrl)];
 
     overlayStore.addOverlay(id, overlayObject);
-
-    const handle = createOverlayImage(overlayObject, corners);
-    if (!handle) return;
-    registry.setImageHandle(id, handle);
-
-    createOverlayMarker(overlayObject);
+    // The reconciler owns the image + marker for the new local overlay, and creates them as soon
+    // as the zoom allows.
+    registry.scheduleOverlayReconcile();
 
     // Add to project AFTER storing in overlays to avoid "not found" error.
     addOverlayToProjectWithId(projectId, id);
-    selectOverlay(id);
+    openOverlayDetail(id);
   }
 
   // If zoom level is too low, zoom to project location first, then create overlay
@@ -168,7 +173,8 @@ export function addOverlay(
     mobileAwareFlyTo(new LngLat(project.lng, project.lat), targetZoom);
 
     // Wait for zoom to complete before creating overlay
-    void map.value.once("zoomend", () => {
+    void target.once("zoomend", () => {
+      if (getMapOrNull() !== target) return;
       void createAndSetupOverlay();
     });
   } else {
@@ -234,7 +240,7 @@ function cornerHandleElement(): HTMLElement {
 
 function syncSvgOutline(): void {
   if (!session?.svgPath) return;
-  const mlMap = map.value;
+  const mlMap = getMap();
   const transform = getCurrentTransform(session.id);
   // eslint-disable-next-line no-unnecessary-condition
   if (!transform) return;
@@ -267,7 +273,7 @@ function syncSvgOutline(): void {
 // skipCorner leaves the actively-dragged marker on the cursor until dragend.
 function refreshEditHandlesGeometry(skipCorner = -1): void {
   if (!session) return;
-  const mlMap = map.value;
+  const mlMap = getMap();
   const transform = getCurrentTransform(session.id);
   // eslint-disable-next-line no-unnecessary-condition
   if (!transform) return;
@@ -360,7 +366,7 @@ function wireCornerDrag(s: EditSession): void {
 }
 
 function wireSurfaceDrag(s: EditSession): void {
-  const mlMap = map.value;
+  const mlMap = getMap();
   const overlayObject = s.overlayObject;
 
   s.onEnter = () => {
@@ -435,7 +441,7 @@ function wireSurfaceDrag(s: EditSession): void {
  * transparent whole-surface drag layer, and 4 aspect-locked corner handles.
  */
 export function showEditHandles(overlayObject: OverlayObject): void {
-  const mlMap = map.value;
+  const mlMap = getMap();
   const handle = getImageHandle(overlayObject.id);
   // eslint-disable-next-line no-unnecessary-condition
   if (!handle) return;
@@ -516,7 +522,7 @@ export function showEditHandles(overlayObject: OverlayObject): void {
 // fire while their fill layer exists, so the overlay stays draggable only once the layer is back.
 export function reattachEditHandlesAfterStyleSwitch(): void {
   if (!session) return;
-  const mlMap = map.value;
+  const mlMap = getMap();
   const transform = getCurrentTransform(session.id);
   // eslint-disable-next-line no-unnecessary-condition
   if (!transform) return;
@@ -541,7 +547,7 @@ export function reattachEditHandlesAfterStyleSwitch(): void {
 
 export function hideEditHandles(): void {
   if (!session) return;
-  const mlMap = map.value;
+  const mlMap = getMap();
   const s = session;
   session = null;
 
@@ -588,14 +594,25 @@ function syncEditHandles(selectedId: string | null, mode: AppMode): void {
   });
 }
 
-function registerEditorTriggers(): void {
-  // Let the reconciler refresh the active edit session's handles after it moves an image.
-  registry.registerEditHandleSync(refreshEditHandlesGeometry);
+/**
+ * Project the already-current (selection, mode) onto a freshly mounted map. The selection survives a
+ * map teardown but does not change across it, so the selection watcher never fires and cannot be
+ * what rebuilds the handles.
+ */
+export function syncEditHandlesForCurrentState(): void {
+  syncEditHandles(useFocusStore().selectedOverlayId, useMapStore().mode);
+}
 
+/** Install the map-instance callback the reconciler uses after moving an overlay image. */
+export function installEditHandleSync(): () => void {
+  return registry.registerEditHandleSync(refreshEditHandlesGeometry);
+}
+
+export function watchEditHandles(): () => void {
   const mapStore = useMapStore();
   const focus = useFocusStore();
 
-  watch(
+  const stopSelectionWatch = watch(
     () => focus.selectedOverlayId,
     (selectedId) => {
       syncEditHandles(selectedId, mapStore.mode);
@@ -603,13 +620,12 @@ function registerEditorTriggers(): void {
     { immediate: true },
   );
 
-  onModeTransition("editHandles", (newMode) => {
+  const unregisterModeTransition = onModeTransition("editHandles", (newMode) => {
     syncEditHandles(focus.selectedOverlayId, newMode);
   });
-}
 
-/**
- * The edit-handle show/hide triggers (overlay selection and map mode) and the reconciler's
- * handle-sync callback.
- */
-export const initializeEditorTriggers = registerOnce(registerEditorTriggers);
+  return function stopEditHandleWatchers(): void {
+    unregisterModeTransition();
+    stopSelectionWatch();
+  };
+}

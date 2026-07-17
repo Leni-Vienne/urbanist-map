@@ -1,5 +1,5 @@
 import type { LngLatLike, PaddingOptions } from "maplibre-gl";
-import { map } from "@/services/core/map";
+import { getMap } from "@/services/core/map";
 import { useUiStore } from "@/stores/uiStore";
 import { isMobile } from "@/services/core/viewport";
 
@@ -70,7 +70,7 @@ function shouldSkipMove(
   zoomDiff: number,
   offset?: [number, number],
 ): boolean {
-  const mlMap = map.value;
+  const mlMap = getMap();
   if (zoomDiff >= 0.1) return false;
 
   if (offset) {
@@ -98,7 +98,7 @@ function getMobileDrawerBottomPaddingPx(): number {
   const margin = 30; // margin above the drawer edge
   const drawer = document.querySelector(".draggable-drawer");
   if (drawer) {
-    const containerBottom = map.value.getContainer().getBoundingClientRect().bottom;
+    const containerBottom = getMap().getContainer().getBoundingClientRect().bottom;
     const drawerTop = drawer.getBoundingClientRect().top;
     return Math.max(0, containerBottom - drawerTop) + margin;
   }
@@ -109,7 +109,7 @@ function getMobileDrawerBottomPaddingPx(): number {
 // Caps padding so opposing insets never exceed the container; otherwise cameraForBounds produces
 // a negative numerator and returns a NaN scale (observed crash on small viewports + tight bounds).
 function capPaddingToContainer(padding: PaddingOptions | number): PaddingOptions | number {
-  const container = map.value.getContainer();
+  const container = getMap().getContainer();
   const w = container.clientWidth;
   const h = container.clientHeight;
   if (w <= 0 || h <= 0) return padding;
@@ -134,7 +134,7 @@ function capPaddingToContainer(padding: PaddingOptions | number): PaddingOptions
 // by the previous flight's padding option) on top of the padding they are given, double-counting
 // the insets. Subtract the persisted padding so the effective insets land on the resolved values.
 function compensatePersistedPadding(padding: PaddingOptions | number): PaddingOptions {
-  const persisted = map.value.getPadding();
+  const persisted = getMap().getPadding();
   const top = typeof padding === "number" ? padding : (padding.top ?? 0);
   const bottom = typeof padding === "number" ? padding : (padding.bottom ?? 0);
   const left = typeof padding === "number" ? padding : (padding.left ?? 0);
@@ -192,7 +192,7 @@ export function mobileAwareFlyTo(
   zoom?: number,
   options: FlyOptions = {},
 ): boolean {
-  const mlMap = map.value;
+  const mlMap = getMap();
   const target = toLatLng(latlng);
   if (!Number.isFinite(target.lat) || !Number.isFinite(target.lng)) return false;
   const center = mlMap.getCenter();
@@ -222,7 +222,7 @@ export function mobileAwareFlyTo(
  * the zoom-out arc that flyTo produces for same-zoom pans.
  */
 function mobileAwarePanTo(latlng: LatLngInput, options: FlyOptions = {}): void {
-  const mlMap = map.value;
+  const mlMap = getMap();
   const target = toLatLng(latlng);
   if (!Number.isFinite(target.lat) || !Number.isFinite(target.lng)) return;
 
@@ -247,7 +247,7 @@ function mobileAwarePanTo(latlng: LatLngInput, options: FlyOptions = {}): void {
  * animate from; only the zoom needs adjusting and that should not be visible.
  */
 function mobileAwareJumpTo(latlng: LatLngInput, zoom?: number, options: FlyOptions = {}): void {
-  const mlMap = map.value;
+  const mlMap = getMap();
   const target = toLatLng(latlng);
   if (!Number.isFinite(target.lat) || !Number.isFinite(target.lng)) return;
   const resolved = resolvePadding(undefined, options.mobileTopInset);
@@ -282,7 +282,7 @@ function mercatorZoomForBounds(
   padding: PaddingOptions | number,
   maxZoom?: number,
 ): number {
-  const container = map.value.getContainer();
+  const container = getMap().getContainer();
   // Shrink the usable viewport by the same padding the cameraForBounds path would have applied, so
   // the computed zoom fits the bounds in the area actually visible (e.g. above the mobile drawer).
   // Using a fixed inset here instead would over-zoom tall, height-limited bounds and clip them.
@@ -312,7 +312,7 @@ export function mobileAwareFlyToBounds(
   bounds: BoundsLike,
   options: FlyToBoundsOptions = {},
 ): boolean {
-  const mlMap = map.value;
+  const mlMap = getMap();
 
   const west = bounds.getWest();
   const south = bounds.getSouth();
@@ -402,11 +402,11 @@ function getZoomForGeometrySize(sizeMeters: number, lat: number, lng: number): n
   // 111320m per degree latitude is a standard geodesic constant.
   const halfDegLat = sizeMeters / 2 / 111_320;
   const halfDegLng = halfDegLat / Math.cos((lat * Math.PI) / 180);
-  const cam = map.value.cameraForBounds([
+  const cam = getMap().cameraForBounds([
     [lng - halfDegLng, lat - halfDegLat],
     [lng + halfDegLng, lat + halfDegLat],
   ]);
-  const zoom = cam?.zoom ?? map.value.getZoom();
+  const zoom = cam?.zoom ?? getMap().getZoom();
   return Math.max(7, Math.min(15, zoom));
 }
 
@@ -421,7 +421,7 @@ export function flyToGeometry(
   sizeM: number,
   options: { fromMapClick?: boolean; instant?: boolean } = {},
 ): boolean {
-  const mlMap = map.value;
+  const mlMap = getMap();
   if (options.fromMapClick && !isMobile.value) return false;
 
   const target = toLatLng(latlng);
@@ -440,9 +440,8 @@ export function flyToGeometry(
     mobileAwareFlyTo(target, targetZoom);
     return true;
   }
-  // Same zoom: pan to recenter the feature (panTo self-skips if already framed). Drawer-aware
-  // padding centers it in the map area above the mobile drawer. Desktop map clicks never reach here
-  // (fromMapClick returns above), so this path only recenters list/drawer navigation.
+  // Same zoom: recenter the feature with drawer-aware padding, so it lands in the map area left
+  // visible above the mobile drawer.
   mobileAwarePanTo(target);
   return true;
 }

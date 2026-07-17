@@ -47,7 +47,7 @@ import {
 import satelliteThumbnail from "@/assets/satellite_thumbnail.webp";
 import planThumbnail from "@/assets/plan_thumbnail.webp";
 
-const props = defineProps<{
+defineProps<{
   inDrawer?: boolean;
 }>();
 

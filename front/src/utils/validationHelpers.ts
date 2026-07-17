@@ -1,6 +1,4 @@
 import { projectSchema, getValidationErrorsMap } from "@shared/validation/schemas";
-import { t } from "@/locales";
-import { toastError } from "@/services/core/toast";
 import type { ProjectFormData } from "@/types/index";
 
 const DUMMY_UUID = "00000000-0000-0000-0000-000000000000";
@@ -28,32 +26,24 @@ export function getProjectValidationErrors(
   return result.success ? null : getValidationErrorsMap(result.error);
 }
 
-// Validates the project form and toasts the first error. Returns true when valid.
-export function validateProjectForm(
+// Validates a project form against the selected timeline status: a proposed project carries only a
+// proposal date, any other status carries only start/end dates. Returns the errors map, or null
+// when valid.
+export function getScopedProjectValidationErrors(
   formData: ProjectFormData,
-  timelineStatus: "proposed" | "planned" | "under_construction" | "completed" | "canceled",
-): boolean {
-  // Scope dates to the selected timeline status, then run the shared prep + schema parse.
-  const scopedFormData = {
+  timelineStatus: ProjectFormData["timelineStatus"],
+) {
+  const isProposed = timelineStatus === "proposed";
+  return getProjectValidationErrors({
     ...formData,
     timelineStatus,
-    proposalDate: timelineStatus === "proposed" ? formData.proposalDate : null,
-    proposalDatePrecision: timelineStatus === "proposed" ? formData.proposalDatePrecision : null,
-    startDate: timelineStatus === "proposed" ? null : formData.startDate,
-    startDatePrecision: timelineStatus === "proposed" ? null : formData.startDatePrecision,
-    endDate: timelineStatus === "proposed" ? null : formData.endDate,
-    endDatePrecision: timelineStatus === "proposed" ? null : formData.endDatePrecision,
-  };
-
-  const errors = getProjectValidationErrors(scopedFormData);
-  if (!errors) return true;
-
-  const firstError = Object.values(errors)[0];
-  if (!firstError) {
-    throw new Error("No error found");
-  }
-  toastError(t(firstError.key, firstError.params ?? {}), t("toast.validationError"));
-  return false;
+    proposalDate: isProposed ? formData.proposalDate : null,
+    proposalDatePrecision: isProposed ? formData.proposalDatePrecision : null,
+    startDate: isProposed ? null : formData.startDate,
+    startDatePrecision: isProposed ? null : formData.startDatePrecision,
+    endDate: isProposed ? null : formData.endDate,
+    endDatePrecision: isProposed ? null : formData.endDatePrecision,
+  });
 }
 
 export function prepareOverlayValidationData(overlay: {

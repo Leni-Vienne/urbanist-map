@@ -1,0 +1,37 @@
+# Triage ledger: every non-fine verdict lives here under its rule ID, so a candidate is
+# investigated once and never re-checked. Patterns are matched against the candidate's stable
+# text; commit identifies the baseline revision where the finding was confirmed. status is
+# open (confirmed, fix pending), fixed, unresolved, detector-bug, or suspect-join; entries
+# without a status are treated as open. Schema and workflow: code-rules/TRIAGE.md.
+version: 2
+rules:
+  async.swallowed-write-error-contract:
+    - triaged_at: "2026-07-15"
+      commit: "0604beb7498469607f1f098496c90dc30813e317"
+      status: "fixed"
+      reason: "A failed change-request rejection was converted to a null result, but the confirmation flow continued by reporting the user as though the rejection had succeeded."
+      patterns:
+        - "components/layout/ModerationPanel.vue handleRejectionConfirm continues to durable-write after ignored executeRejectChange failure contract"
+  state.boolean-latch:
+    - triaged_at: "2026-07-15"
+      commit: "0604beb7498469607f1f098496c90dc30813e317"
+      status: "fixed"
+      reason: "The rejection result was assigned exactly once across mutually exclusive branches and is now returned by a dedicated dispatch function into a const."
+      patterns:
+        - "components/layout/ModerationPanel.vue rejectionSucceeded -> constant"
+  pinia.snapshot-live-derive-split:
+    - triaged_at: "2026-07-15"
+      commit: "0604beb7498469607f1f098496c90dc30813e317"
+      status: "fixed"
+      reason: "Dialog classification mixed snapshotted rows and submission context with a live project status; the project classification is now captured with the dialog snapshot."
+      patterns:
+        - "ref submissionSummary [decl services/submission/submissionDialogState.ts] -> consumer recomputeSummaryClassification() in services/submission/submissionDialog.ts"
+        - "ref pendingSubmissionContext [decl services/submission/submissionDialogState.ts] -> consumer recomputeSummaryClassification() in services/submission/submissionDialog.ts"
+  typescript.unread-input-field:
+    - triaged_at: "2026-07-16"
+      commit: "df36a7be56152117c48d6b75fe65e74276955202"
+      status: "fixed"
+      reason: "Submission and moderation execution functions accepted state fields they never consume; their inputs now describe only the respective execution payloads."
+      patterns:
+        - "PendingRejection (3 fields, declared components/layout/ModerationPanel.vue)"
+        - "SubmissionContext (7 fields, declared services/submission/submissionTypes.ts)"

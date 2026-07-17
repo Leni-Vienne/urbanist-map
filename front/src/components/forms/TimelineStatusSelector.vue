@@ -47,9 +47,7 @@ interface Props {
 
 type Emits = (e: "update:modelValue", value: TimelineStatus) => void;
 
-const props = withDefaults(defineProps<Props>(), {
-  idPrefix: "timeline",
-});
+const { idPrefix = "timeline" } = defineProps<Props>();
 
 const emit = defineEmits<Emits>();
 const { t } = useI18n();

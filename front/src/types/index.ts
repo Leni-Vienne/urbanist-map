@@ -3,7 +3,6 @@ import type { DBProject, DBImportSource, ApprovalStatus } from "../../../back/sr
 
 // Type definitions for field modifications in submission dialogs
 export type ModifiableField = "caption" | "corners";
-export type RemovableChange = ModifiableField | "new_overlay" | "geometry" | "render";
 
 export type LatLng = { lat: number; lng: number };
 
@@ -96,6 +95,14 @@ export interface Project extends Omit<DBProject, "status" | "tags" | "slug" | "i
   overlays?: Overlay[];
 }
 
+// Fields returned only by the project detail endpoints. `null` remains a meaningful loaded value;
+// the required properties distinguish it from an omitted summary field.
+export type ProjectDetailFields = Required<
+  Pick<Project, "slug" | "render" | "ownerUsername" | "boundaryPath">
+>;
+
+export type HydratedProject = Project & ProjectDetailFields;
+
 // A non-georeferenced project image (artist's impression). Stored as a kind='render' overlay.
 interface ProjectRender {
   filename: string;
@@ -145,6 +152,8 @@ export type OverlayData = Omit<
   // The immutable backend/approved caption, copied from the wire `caption` at ingest and never
   // overwritten by edits (the mirror of baselineCorners). The live edited caption stays on `caption`.
   baselineCaption: string | null;
+  // The current user's own open change request on this overlay: whether one exists, and the
+  // corners/caption they proposed. Never another requester's, in any mode.
   suggestedCorners?: LatLng[];
   suggestedCaption?: string | null;
   hasPendingChanges?: boolean;
@@ -152,9 +161,6 @@ export type OverlayData = Omit<
   source: OverlayDataSource;
 };
 
-// Frontend overlay type - extends OverlayData with editor state
-// Map layer references (image overlay + marker) live in overlayRenderRegistry,
-// not on this type. OverlayObject is pure domain data.
 // A normalized sub-rectangle of an image, u left->right, v top->bottom, each in [0, 1].
 export interface NormalizedRect {
   u0: number;

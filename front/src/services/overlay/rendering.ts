@@ -11,15 +11,14 @@ import { createOverlayImage } from "@/services/overlay/mapLayers";
 import type { OverlayObject, OverlayData } from "@/types/index";
 
 /**
- * Render backend CDN overlay images on the map. Markers are owned by the viewport reconciler; a
- * reconcile is scheduled afterwards so each freshly-created image gets its status pin.
+ * Render backend CDN overlay images on the map. Markers are owned by the viewport reconciler,
+ * which creates them independently of image creation.
  */
 export function renderBackendOverlays(overlaysData: OverlayData[]): void {
   // renderSingleOverlay's beginCreation gate handles "already rendered" and "in flight".
   for (const cdnOverlay of overlaysData) {
     renderSingleOverlay(cdnOverlay);
   }
-  registry.scheduleOverlayReconcile();
 }
 
 /**

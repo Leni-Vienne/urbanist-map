@@ -11,7 +11,6 @@ import { useModerationStore } from "@/stores/moderationStore";
 import { getApprovedOverlayDataFromTiles } from "@/services/map/tiles/approvedOverlayCache";
 import { createProjectObject } from "@/utils/typeFactories";
 import { onModeTransition } from "@/services/map/modeTransition";
-import { registerOnce } from "@/utils/registerOnce";
 
 /** Shapes are rendered from store data only outside view mode, where vector tiles own them. */
 type ShapeRenderMode = Exclude<AppMode, "view">;
@@ -138,12 +137,12 @@ export function renderAllProjectShapes() {
   }
 }
 
-function registerShapeRenderTriggers(): void {
+export function watchShapeRendering(): () => void {
   const mapStore = useMapStore();
   const changeRequestStore = useChangeRequestStore();
   const moderationStore = useModerationStore();
 
-  watch(
+  const stopChangeRequestWatch = watch(
     () => changeRequestStore.pendingChangeRequests,
     () => {
       if (mapStore.mode === "view") return;
@@ -152,7 +151,7 @@ function registerShapeRenderTriggers(): void {
     },
   );
 
-  watch(
+  const stopModerationWatch = watch(
     () => moderationStore.moderationLoaded,
     (loaded) => {
       if (!loaded || mapStore.mode !== "moderation") return;
@@ -161,10 +160,13 @@ function registerShapeRenderTriggers(): void {
     },
   );
 
-  onModeTransition("clearProjectShapes", (newMode) => {
+  const unregisterModeTransition = onModeTransition("clearProjectShapes", (newMode) => {
     if (newMode === "view") clearAllProjectShapes();
   });
-}
 
-/** Shape-specific render triggers: change requests, moderation load, entering view mode. */
-export const initializeShapeRenderTriggers = registerOnce(registerShapeRenderTriggers);
+  return function stopShapeRenderingWatchers(): void {
+    unregisterModeTransition();
+    stopModerationWatch();
+    stopChangeRequestWatch();
+  };
+}

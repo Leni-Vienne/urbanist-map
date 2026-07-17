@@ -1,5 +1,5 @@
 import type { ExpressionSpecification, MapMouseEvent, LngLatBounds } from "maplibre-gl";
-import { map } from "@/services/core/map";
+import { getMapOrNull } from "@/services/core/map";
 
 type ShapeMapEvent = "click" | "mouseenter" | "mouseleave";
 
@@ -25,8 +25,8 @@ export interface ShapeEntry {
 }
 
 // Single source of truth for rendered project-shape MapLibre layers/sources.
-// Kept as a leaf so anything that needs to read/highlight/clear shape layers can
-// import here without pulling in shapeRendering (and its selection deps).
+// Kept as a leaf: reading, highlighting or clearing shape layers must not require
+// importing the shape renderer and its selection deps.
 const shapeLayerMap = new Map<string, ShapeEntry>();
 
 export function setShapeEntry(projectId: string, entry: ShapeEntry): void {
@@ -37,8 +37,11 @@ export function hasProjectShapes(projectId: string): boolean {
   return shapeLayerMap.has(projectId);
 }
 
+// Entries can outlive the map (sign-out on a non-map route), and a removed map took its sources,
+// layers and listeners with it.
 function removeEntryFromMap(entry: ShapeEntry): void {
-  const mlMap = map.value;
+  const mlMap = getMapOrNull();
+  if (!mlMap) return;
   for (const binding of entry.eventBindings) {
     mlMap.off(binding.type, binding.layerId, binding.handler);
   }
@@ -57,7 +60,7 @@ export function clearProjectShapes(projectId: string): void {
   }
 }
 
-/** Remove all rendered shape layers. Preview state (in shapeRendering) is cleared separately. */
+/** Remove all rendered shape layers. Preview state is cleared separately. */
 export function clearAllShapeEntries(): void {
   for (const entry of shapeLayerMap.values()) {
     removeEntryFromMap(entry);
@@ -73,8 +76,8 @@ export function getProjectShapeBounds(projectId: string): LngLatBounds | null {
 /** Apply the hover style to a project's shape layers. No-op when no entry exists. */
 export function highlightProjectShapes(projectId: string): void {
   const entry = shapeLayerMap.get(projectId);
-  const mlMap = map.value;
-  if (!entry) return;
+  const mlMap = getMapOrNull();
+  if (!entry || !mlMap) return;
   if (mlMap.getLayer(entry.lineLayerId)) {
     mlMap.setPaintProperty(entry.lineLayerId, "line-width", entry.hoverLineWidth);
   }
@@ -86,8 +89,8 @@ export function highlightProjectShapes(projectId: string): void {
 /** Revert a project's shape layers to their base style. No-op when no entry exists. */
 export function unhighlightProjectShapes(projectId: string): void {
   const entry = shapeLayerMap.get(projectId);
-  const mlMap = map.value;
-  if (!entry) return;
+  const mlMap = getMapOrNull();
+  if (!entry || !mlMap) return;
   if (mlMap.getLayer(entry.lineLayerId)) {
     mlMap.setPaintProperty(entry.lineLayerId, "line-width", entry.baseLineWidth);
   }
@@ -99,8 +102,8 @@ export function unhighlightProjectShapes(projectId: string): void {
 /** Show/hide a project's shape layers without removing them (used while previewing a change). */
 export function setProjectShapesVisible(projectId: string, visible: boolean): void {
   const entry = shapeLayerMap.get(projectId);
-  const mlMap = map.value;
-  if (!entry) return;
+  const mlMap = getMapOrNull();
+  if (!entry || !mlMap) return;
   for (const layerId of entry.layerIds) {
     if (mlMap.getLayer(layerId)) {
       mlMap.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");

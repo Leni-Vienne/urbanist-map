@@ -232,11 +232,23 @@ const userToReport = ref<string | null>(null);
 const showRejectConfirmDialog = ref(false);
 const isProcessingRejection = ref(false);
 
-const pendingRejection = ref<{
+interface PendingRejectionExecution {
   type: "project" | "overlay" | "change";
   id: string;
+}
+
+interface PendingRejection extends PendingRejectionExecution {
   userId: string | null;
-} | null>(null);
+}
+
+interface RejectionOptions {
+  rejectionReason: string;
+  rejectAllOverlays: boolean;
+  reportUser: boolean;
+  reportReason: string;
+}
+
+const pendingRejection = ref<PendingRejection | null>(null);
 
 const showUserStatsDialog = ref(false);
 const userStatsDialogData = ref({
@@ -337,7 +349,7 @@ async function executeRejectProject(
   id: string,
   rejectionReason?: string,
   rejectAllOverlays?: boolean,
-) {
+): Promise<boolean> {
   const result = await rejectProject(id, rejectionReason, rejectAllOverlays);
 
   if (result.success) {
@@ -345,6 +357,8 @@ async function executeRejectProject(
   } else {
     showErrorToast(result, "moderation.rejectionFailed");
   }
+
+  return result.success;
 }
 
 // Handle overlay approval with replacement conflict checking
@@ -446,7 +460,7 @@ function handleRejectOverlay(id: string, userId: string | null) {
   showRejectConfirmDialog.value = true;
 }
 
-async function executeRejectOverlay(id: string, rejectionReason?: string) {
+async function executeRejectOverlay(id: string, rejectionReason?: string): Promise<boolean> {
   const result = await rejectOverlay(id, rejectionReason);
 
   if (result.success) {
@@ -454,6 +468,8 @@ async function executeRejectOverlay(id: string, rejectionReason?: string) {
   } else {
     showErrorToast(result, "moderation.rejectionFailed");
   }
+
+  return result.success;
 }
 
 // Handle change request approval with toast notifications
@@ -468,32 +484,33 @@ async function handleApproveChange(changeId: string) {
   }
 }
 
-async function handleRejectionConfirm(options: {
-  rejectionReason: string;
-  rejectAllOverlays: boolean;
-  reportUser: boolean;
-  reportReason: string;
-}) {
+async function executePendingRejection(
+  rejection: PendingRejectionExecution,
+  options: RejectionOptions,
+): Promise<boolean> {
+  if (rejection.type === "project") {
+    return executeRejectProject(rejection.id, options.rejectionReason, options.rejectAllOverlays);
+  }
+  if (rejection.type === "overlay") {
+    return executeRejectOverlay(rejection.id, options.rejectionReason);
+  }
+  return executeRejectChange(rejection.id);
+}
+
+async function handleRejectionConfirm(options: RejectionOptions) {
   if (!pendingRejection.value) return;
 
   isProcessingRejection.value = true;
-  const { type, id, userId } = pendingRejection.value;
+  const rejection = pendingRejection.value;
 
   try {
-    // Execute the rejection with rejection reason and optional overlay cascade
-    if (type === "project") {
-      await executeRejectProject(id, options.rejectionReason, options.rejectAllOverlays);
-    } else if (type === "overlay") {
-      await executeRejectOverlay(id, options.rejectionReason);
-    } else if (type === "change") {
-      await executeRejectChange(id);
-    }
+    const rejectionSucceeded = await executePendingRejection(rejection, options);
+    if (!rejectionSucceeded) return;
 
-    // If user checked "report user" and we have a userId, report them
-    if (options.reportUser && userId) {
+    if (options.reportUser && rejection.userId) {
       try {
         await trpc.moderation.reportUser.mutate({
-          userId,
+          userId: rejection.userId,
           reason: options.reportReason || undefined,
         });
         toastInfo(
@@ -526,7 +543,7 @@ function handleRejectChange(changeId: string, userId: string | null) {
 }
 
 // Execute change request rejection after confirmation
-async function executeRejectChange(changeId: string) {
+async function executeRejectChange(changeId: string): Promise<boolean> {
   const result = await rejectChangeRequests([changeId]);
 
   if (result) {
@@ -535,5 +552,7 @@ async function executeRejectChange(changeId: string) {
   } else {
     toastError(t("moderation.rejectionFailedDetail"), t("moderation.rejectionFailed"));
   }
+
+  return result !== null;
 }
 </script>

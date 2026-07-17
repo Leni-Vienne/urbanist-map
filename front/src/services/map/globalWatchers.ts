@@ -1,23 +1,56 @@
-import { initializeModeTransitions } from "@/services/map/modeTransition";
-import { initializeEditorTriggers } from "@/services/overlay/editing";
-import { initializeMarkerColorTriggers } from "@/services/overlay/markers";
-import { initializeShapeRenderTriggers } from "@/services/map/shapes/renderLoop";
-import { initializeRenderTriggers } from "@/services/map/viewportRenderLoop";
-import { initializeModeTriggers } from "@/services/map/viewportTriggers";
+import { watchModeTransitions } from "@/services/map/modeTransition";
+import type { Map as MaplibreMap } from "maplibre-gl";
+import { getMapOrNull } from "@/services/core/map";
+import {
+  installEditHandleSync,
+  watchEditHandles,
+  syncEditHandlesForCurrentState,
+} from "@/services/overlay/editing";
+import { watchMarkerColors } from "@/services/overlay/markers";
+import { watchShapeRendering } from "@/services/map/shapes/renderLoop";
+import {
+  installViewportRenderLoop,
+  stopViewportRenderLoop,
+  watchOverlayReconciliation,
+} from "@/services/map/viewportRenderLoop";
+import { watchViewportModeData, refreshMapSessionData } from "@/services/map/viewportTriggers";
+import { watchTileLayerState, syncTileLayerState } from "@/services/map/tiles/layers";
+import { watchShapeHighlighting } from "@/services/map/projectDetailWatcher";
 
 /**
- * The map's module-scoped watchers. Each callee is idempotent, so a MapView remount re-runs this
- * list without duplicating registrations.
- *
- * Order is load-bearing: initializeModeTransitions creates the sole mapStore.mode watch and must
- * come first, then every onModeTransition hook below runs on a mode change in the order its
- * registrant appears here.
+ * Install the watchers and callback registrations owned by one MapView mount.
+ * MapLibre layers may not exist when these watchers first run, so callbacks must guard layer access.
  */
-export function initializeMapGlobalWatchers(): void {
-  initializeModeTransitions();
-  initializeEditorTriggers();
-  initializeRenderTriggers();
-  initializeShapeRenderTriggers();
-  initializeMarkerColorTriggers();
-  initializeModeTriggers();
+export function startMapStateCoordinator(): () => void {
+  const unregisterReconcile = installViewportRenderLoop();
+  const unregisterEditHandleSync = installEditHandleSync();
+  const stops = [
+    watchModeTransitions(),
+    watchEditHandles(),
+    watchOverlayReconciliation(),
+    watchShapeRendering(),
+    watchMarkerColors(),
+    watchViewportModeData(),
+    watchTileLayerState(),
+    watchShapeHighlighting(),
+  ];
+
+  let stopped = false;
+  return function stopMapStateCoordinator(): void {
+    if (stopped) return;
+    stopped = true;
+    for (const stop of stops.toReversed()) stop();
+    unregisterReconcile();
+    stopViewportRenderLoop();
+    unregisterEditHandleSync();
+  };
+}
+
+/** Project the retained application state onto a newly-ready map instance. */
+export async function activateMapStateCoordinator(target: MaplibreMap): Promise<void> {
+  if (getMapOrNull() !== target) return;
+  syncEditHandlesForCurrentState();
+  await refreshMapSessionData();
+  if (getMapOrNull() !== target) return;
+  syncTileLayerState();
 }

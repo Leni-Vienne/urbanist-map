@@ -60,19 +60,19 @@
 import { toastError } from "@/services/core/toast";
 
 import { ref, onMounted, onUnmounted, nextTick, defineAsyncComponent } from "vue";
+import type { Map as MaplibreMap } from "maplibre-gl";
 
-import { initializeMap, map } from "@/services/core/map";
+import { createMap, destroyMap, onMapReady } from "@/services/core/map";
+import { startMapRuntime } from "@/services/map/mapRuntime";
 import { addTileLayer } from "@/services/map/tiles/basemap";
 import { initVectorTileSync } from "@/services/map/tiles/sync";
-import { initializeMapGlobalWatchers } from "@/services/map/globalWatchers";
-import { clearOverlayRenderState } from "@/services/overlay/teardown";
+import {
+  startMapStateCoordinator,
+  activateMapStateCoordinator,
+} from "@/services/map/globalWatchers";
 
 import { useI18n } from "vue-i18n";
-import {
-  refreshViewport,
-  setupEventListeners,
-  cleanupEventListeners,
-} from "@/services/map/viewportTriggers";
+import { refreshViewport } from "@/services/map/viewportTriggers";
 import { useMapStore } from "@/stores/mapStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -98,46 +98,68 @@ const authStore = useAuthStore();
 const { t } = useI18n();
 const isLoading = ref(true);
 
+// MapView owns exactly one MapLibre instance, from creation to removal. Leaving Home destroys it;
+// returning builds a clean one.
+let mountedMap: MaplibreMap | null = null;
+let stopMapRuntime: (() => void) | null = null;
+let stopMapStateCoordinator: (() => void) | null = null;
+let stopWaitingForMap: (() => void) | null = null;
+
 onMounted(async () => {
   await initializeMapAndOverlays();
   isLoading.value = false;
 });
 
-onUnmounted(() => {
-  cleanupEventListeners();
-  // Drop layers/markers off the outgoing map instance while it is still alive, so the registry is
-  // empty when the reconciler rebuilds them on the next map. Overlay store data is kept.
-  clearOverlayRenderState();
-});
+onUnmounted(handleMapViewUnmount);
 
 async function initializeMapAndOverlays() {
   try {
-    initializeMap();
+    const target = createMap();
+    mountedMap = target;
+    stopMapRuntime = startMapRuntime(target);
 
-    setupEventListeners();
-
+    // Settle the canvas to the container size before wiring layers, so MapLibre doesn't
+    // fetch tiles twice (once per view change) when the dimensions correct.
     await nextTick();
-    if (map.value !== null) {
-      // Settle the canvas to the container size before wiring layers, so MapLibre doesn't
-      // fetch tiles twice (once per view change) when the dimensions correct.
-      map.value.resize();
+    if (mountedMap !== target) return;
+    target.resize();
 
-      // Initialize tile layers after dimensions are settled to avoid a redundant tile fetch.
-      addTileLayer();
-      initVectorTileSync();
+    // Initialize tile layers after dimensions are settled to avoid a redundant tile fetch.
+    addTileLayer();
+    initVectorTileSync();
 
-      setTimeout(() => {
-        void refreshViewport();
-      }, 100);
-    } else {
-      console.error("Map not available for camera bounds tracking");
-    }
+    // The first render loop needs a settled camera and a loaded style: "idle" fires on the first
+    // clean frame, which satisfies both. Afterwards moveend drives the refreshes.
+    void target.once("idle", () => {
+      if (mountedMap !== target) return;
+      refreshViewport();
+    });
 
-    initializeMapGlobalWatchers();
+    stopMapStateCoordinator = startMapStateCoordinator();
+
+    stopWaitingForMap = onMapReady((readyMap) => {
+      if (mountedMap !== readyMap) return;
+      void activateMapStateCoordinator(readyMap);
+    });
   } catch (error) {
     console.error("Error initializing map and overlays:", error);
     toastError(t("pages.home.errors.initializationError"));
   }
+}
+
+function handleMapViewUnmount(): void {
+  const target = mountedMap;
+  mountedMap = null;
+  if (!target) return;
+
+  stopWaitingForMap?.();
+  stopWaitingForMap = null;
+  stopMapStateCoordinator?.();
+  stopMapStateCoordinator = null;
+  // Runs while the map is still alive: it hands every registry entry, marker and listener back.
+  stopMapRuntime?.();
+  stopMapRuntime = null;
+  destroyMap(target);
 }
 </script>
 

@@ -178,7 +178,8 @@ import { useAuthStore } from "@/stores/authStore";
 import { navigateToOverlay } from "@/services/overlay/navigation";
 import { flyToGeometry, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { computeShapeBounds } from "@/services/map/shapes/rendering";
-import { selectProject, hydrateProjectDetail } from "@/services/map/projectSelection";
+import { openProjectDetail, hydrateProjectDetail } from "@/services/map/projectSelection";
+import { closeDetail } from "@/services/overlay/selection";
 
 import { buildImageUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { createProjectObject } from "@/utils/typeFactories";
@@ -282,13 +283,12 @@ const project = computed<Project | undefined>(() => {
 // already scopes this to approved or the user's own pending render.
 const renderImage = computed(() => project.value?.render ?? null);
 
-// Marker-opened details load their project via getById (render included), but overlay-opened details build it from
-// the viewport payload, which omits render (undefined). Hydrate that one case via getById.
+// Summary selections render immediately, then fetch the detail capabilities needed by this panel.
 watch(
   () => project.value?.id,
   async (id) => {
     const current = project.value;
-    if (!id || !current || current.status === null || current.render !== undefined) return;
+    if (!id || !current || current.status === null || projectStore.getHydratedProject(id)) return;
 
     await hydrateProjectDetail(id);
   },
@@ -355,12 +355,12 @@ async function handleEdit() {
 
   mapStore.setMode("edit");
   await nextTick();
-  selectProject(target);
+  openProjectDetail(target);
 }
 
 // Back returns to the panel's tab list, closing whichever detail is open.
 function handleBack() {
-  focusStore.clearSelection();
+  closeDetail();
 }
 
 async function handleViewOriginalOverlay(originalOverlayId: string) {

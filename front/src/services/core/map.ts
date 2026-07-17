@@ -1,6 +1,6 @@
 import maplibre, { type Map as MaplibreMap, type RequestParameters } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css"; // needed for maplibre controls and attribution styling
-import { ref, watch, shallowRef } from "vue";
+import { ref, shallowRef } from "vue";
 import { getApiUrl } from "@/client";
 import { mapRotationEnabled } from "@/services/map/settings";
 
@@ -37,35 +37,64 @@ function parseDeeplinkBounds(): [number, number, number, number] | null {
 // booted at the target.
 export const bootedFromDeeplinkView = ref(false);
 
-// Exported as non-null MaplibreMap to satisfy TypeScript, though it is technically null before map initialization.
-// This allows callers to safely use map.value without strict null checking boilerplate.
-// eslint-disable-next-line no-unsafe-type-assertion
-export const map = shallowRef<MaplibreMap>(null as unknown as MaplibreMap);
 export const currentZoomLevel = ref(12);
 export const currentBearing = ref(0);
 export const currentPitch = ref(0);
 
-// True once the basemap style has loaded and project data + interaction are wired up.
-// Preserved across Vite HMR so onMlMapReady callers don't wait for a `load` event that
-// already fired on the still-alive map instance.
-// oxlint-disable-next-line no-unnecessary-condition fails in preview/prod without the condition
-let styleReady = import.meta.hot?.data?.styleReady ?? false;
-const mlMapReadyCallbacks: (() => void)[] = [];
+// The MapLibre instance MapView currently owns, or null while no map is mounted (any non-map route).
+const currentMap = shallowRef<MaplibreMap | null>(null);
 
-/** Register a callback to run once (immediately if already ready) when the map is loaded. */
-export function onMlMapReady(cb: () => void): void {
-  if (styleReady) {
-    cb();
-  } else {
-    mlMapReadyCallbacks.push(cb);
-  }
+/** The mounted map. Throws when none is: use it only where MapView is known to be mounted. */
+export function getMap(): MaplibreMap {
+  const value = currentMap.value;
+  if (!value) throw new Error("Map is not mounted");
+  return value;
 }
 
-/** Mark the style ready and flush queued onMlMapReady callbacks. Called on each instance's first style load. */
-export function markMlMapReady(): void {
-  styleReady = true;
-  for (const cb of mlMapReadyCallbacks) cb();
-  mlMapReadyCallbacks.length = 0;
+/** The mounted map, or null. Use it in browser-session code that can run on a non-map route. */
+export function getMapOrNull(): MaplibreMap | null {
+  return currentMap.value;
+}
+
+// ── Readiness ────────────────────────────────────────────────────────────────
+// "Ready" is a property of one map instance, not of the module: a new map starts unready and must
+// never inherit the previous one's readiness. Callbacks queued for a map that gets destroyed before
+// it loads are dropped with it.
+let readyMap: MaplibreMap | null = null;
+const readyCallbacks = new Set<(target: MaplibreMap) => void>();
+
+/**
+ * Run `run` once the current map's style is loaded and its project layers are wired up, immediately
+ * if that already happened. Returns an unsubscribe function, which a component must call on unmount
+ * so its callback cannot run against a later map.
+ */
+export function onMapReady(run: (target: MaplibreMap) => void): () => void {
+  if (readyMap !== null && readyMap === currentMap.value) {
+    run(readyMap);
+    return function alreadyRan(): void {
+      /* nothing queued */
+    };
+  }
+
+  readyCallbacks.add(run);
+  return function unsubscribeMapReady(): void {
+    readyCallbacks.delete(run);
+  };
+}
+
+/** Mark `target` ready and flush the queued callbacks. Called on its first style load. */
+export function markMapReady(target: MaplibreMap): void {
+  if (currentMap.value !== target) return;
+  readyMap = target;
+
+  const pending = [...readyCallbacks];
+  readyCallbacks.clear();
+  for (const run of pending) run(target);
+}
+
+function resetMapReadiness(): void {
+  readyMap = null;
+  readyCallbacks.clear();
 }
 
 // Minimum zoom scales with display resolution to avoid black borders at the map edges.
@@ -110,7 +139,6 @@ function enableCursorTrackingScrollZoom(targetMap: MaplibreMap): void {
     originalWheel(e);
     // _aroundCenter means zoom-to-center is requested, so the cursor is irrelevant.
     if (handler._aroundCenter || !handler._aroundPoint) return;
-    // Matches DOM.mousePos for an unscaled canvas (the basemap canvas has no CSS transform).
     const rect = canvas.getBoundingClientRect();
     handler._aroundPoint.x = e.clientX - rect.left - canvas.clientLeft;
     handler._aroundPoint.y = e.clientY - rect.top - canvas.clientTop;
@@ -118,15 +146,7 @@ function enableCursorTrackingScrollZoom(targetMap: MaplibreMap): void {
   /* eslint-enable no-underscore-dangle */
 }
 
-export function initializeMap() {
-  // Re-initialization builds a fresh instance: release the previous one's WebGL context and requeue
-  // onMlMapReady callers behind the new style load.
-  // oxlint-disable-next-line no-unnecessary-condition
-  if (map.value) {
-    map.value.remove();
-    styleReady = false;
-  }
-
+function createMapOptions(): maplibre.MapOptions {
   const hasMapHash = globalThis.location.hash.startsWith("#map=");
   // An explicit map-state hash wins over the deep-link view (e.g. a shared link with both).
   const deeplinkBounds = hasMapHash ? null : parseDeeplinkBounds();
@@ -167,65 +187,69 @@ export function initializeMap() {
   // Lower sensitivity (default is 0.8).
   (mapOptions as Record<string, unknown>).rotateDegreesPerPixelMoved = 0.4;
 
-  const newMap = new maplibre.Map(mapOptions);
-  map.value = newMap;
+  return mapOptions;
+}
 
+// Interaction tuning, controls, and the camera refs mirroring the instance. Every listener here is
+// owned by MapLibre and dies with the map, so none needs an external disposer.
+function configureMap(target: MaplibreMap): void {
   // The map does not capture keystrokes, so typing into overlaid UI panels never
   // pans/zooms the map.
-  newMap.keyboard.disable();
+  target.keyboard.disable();
 
-  // Two-finger rotate on touch hijacks pinch-zoom, so it stays off unless the user opts into rotation.
-  // Pinch-zoom remains available either way.
+  // Two-finger rotate on touch hijacks pinch-zoom, so it stays off unless the user opts into
+  // rotation. Pinch-zoom remains available either way.
   if (mapRotationEnabled.value) {
-    newMap.touchZoomRotate.enableRotation();
+    target.touchZoomRotate.enableRotation();
   } else {
-    newMap.touchZoomRotate.disableRotation();
+    target.touchZoomRotate.disableRotation();
   }
 
-  enableCursorTrackingScrollZoom(newMap);
+  enableCursorTrackingScrollZoom(target);
   // Larger zoom step per mouse-wheel notch (MapLibre default is 1/450).
-  newMap.scrollZoom.setWheelZoomRate(1 / 250);
+  target.scrollZoom.setWheelZoomRate(1 / 250);
 
   // Attribution is collected automatically from each active style's source `attribution`
   // fields, so it switches correctly between the plan basemap and satellite layers.
-  newMap.addControl(new maplibre.AttributionControl({ compact: false }));
+  target.addControl(new maplibre.AttributionControl({ compact: false }));
 
-  currentZoomLevel.value = newMap.getZoom();
-  newMap.on("zoomend", () => {
-    currentZoomLevel.value = newMap.getZoom();
+  currentZoomLevel.value = target.getZoom();
+  target.on("zoomend", function syncZoom(): void {
+    currentZoomLevel.value = target.getZoom();
   });
 
   // Bearing/pitch drive the custom CompassControl (visibility + needle rotation). "move" fires
   // on every camera frame, including rotation inertia, so the needle stays locked to the map;
   // "moveend" guarantees it lands on the final bearing instead of drifting after a few gestures.
-  function syncCameraOrientation() {
-    currentBearing.value = newMap.getBearing();
-    currentPitch.value = newMap.getPitch();
+  function syncCameraOrientation(): void {
+    currentBearing.value = target.getBearing();
+    currentPitch.value = target.getPitch();
   }
   syncCameraOrientation();
-  newMap.on("move", syncCameraOrientation);
-  newMap.on("moveend", syncCameraOrientation);
-
-  // Toggling the rotation setting locks/unlocks drag-rotate, pitch-with-rotate and two-finger
-  // touch pitch; locking also snaps the camera back to north so the map never stays stuck at an angle.
-  watch(mapRotationEnabled, (enabled) => {
-    if (enabled) {
-      newMap.dragRotate.enable();
-      newMap.touchZoomRotate.enableRotation();
-      newMap.touchPitch.enable();
-    } else {
-      newMap.dragRotate.disable();
-      newMap.touchZoomRotate.disableRotation();
-      newMap.touchPitch.disable();
-      newMap.resetNorthPitch();
-    }
-  });
+  target.on("move", syncCameraOrientation);
+  target.on("moveend", syncCameraOrientation);
 }
 
-// eslint-disable-next-line no-unnecessary-condition
-if (import.meta.hot) {
-  import.meta.hot.dispose((data) => {
-    data.styleReady = styleReady;
-  });
-  import.meta.hot.accept();
+/**
+ * Build the MapLibre instance and publish it as the current map. Refuses to replace a live instance:
+ * a leftover map means the previous MapView never tore itself down.
+ */
+export function createMap(): MaplibreMap {
+  if (currentMap.value) throw new Error("Map is already mounted");
+
+  const target = new maplibre.Map(createMapOptions());
+  currentMap.value = target;
+  configureMap(target);
+  return target;
+}
+
+/**
+ * Remove `target` and expose no current map. The identity check keeps a late cleanup from an old
+ * MapView from destroying a newer map.
+ */
+export function destroyMap(target: MaplibreMap): void {
+  if (currentMap.value !== target) return;
+  target.remove();
+  currentMap.value = null;
+  resetMapReadiness();
 }

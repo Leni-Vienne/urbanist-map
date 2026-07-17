@@ -17,6 +17,7 @@ import { generateMissingThumbnails } from "./lib/startup";
 import { sessionStore, startSessionCleanup } from "./lib/drizzleSessionStore";
 import { requestLogger } from "./middleware/requestLogger";
 import { startErrorAlerter } from "./services/errorAlerter";
+import { startBotClassifier } from "./services/botClassifier";
 import { logger } from "./services/logger";
 import { startCleanupJob } from "./services/cleanupService";
 import { startR2MigrationService } from "./services/r2MigrationService";
@@ -158,6 +159,7 @@ if (process.env.NODE_ENV !== "development" || process.env.WARM_TILE_CACHE === "t
 
 // Start error alerting service
 startErrorAlerter();
+startBotClassifier();
 startCleanupJob();
 startR2MigrationService();
 startSessionCleanup();

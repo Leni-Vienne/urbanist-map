@@ -1,7 +1,7 @@
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useMapStore } from "@/stores/mapStore";
-import { ensureProjectLoaded } from "@/services/map/projectSelection";
+import { ensureProjectSummary } from "@/services/map/projectSelection";
 import {
   getMarker,
   getRenderedOverlayIds,
@@ -12,30 +12,30 @@ import {
 import type { LatLng } from "@/types/index";
 import { syncModerationCountryFromMapClick } from "@/services/moderation/moderationCountrySync";
 import { resolveOverlayCorners } from "@/services/overlay/data";
-import { showsSuggestedState } from "@/services/overlay/transform";
+import { hasOpenChangeRequest, showsSuggestedState } from "@/services/overlay/transform";
 import { isOverlayUnsaved } from "@/services/overlay/unsavedState";
 
 /**
- * Select an overlay. The map highlight (sister overlays + footprint) follows the focus store
- * reactively; this owns the non-reactive selection work (raised image, country sync, project hydration).
+ * Open overlay detail. The map highlight follows the focus store reactively; this owns the
+ * non-reactive work (raised image, country sync, and parent-project loading).
  */
-export function selectOverlay(overlayId: string | null): void {
+export function openOverlayDetail(overlayId: string): void {
   const overlayStore = useOverlayStore();
   const focus = useFocusStore();
 
   // Already selected: the detail is the selection, so it is already shown.
   if (overlayId === focus.selectedOverlayId) return;
 
-  if (!overlayId) {
-    focus.clearSelection();
-    return;
-  }
-
   const newlySelected = overlayStore.liveOverlays[overlayId];
   if (!newlySelected) return;
 
   // Pin the overlay; this replaces any open project detail (mutual exclusivity is free).
-  focus.selectOverlay(overlayId);
+  focus.setSelectionTarget({
+    kind: "overlay",
+    overlayId,
+    projectId: newlySelected.projectId ?? null,
+  });
+  focus.setHoverTarget(null);
 
   // Raise the clicked image above its siblings so the one the user picked is never hidden.
   raiseOverlayImage(overlayId);
@@ -46,8 +46,12 @@ export function selectOverlay(overlayId: string | null): void {
   // The docked overlay detail needs the overlay's full Project. Map (vector tile) selections only
   // carry minimal data, so load it when the overlay doesn't already hold it.
   if (newlySelected.projectId && !newlySelected.project) {
-    void ensureProjectLoaded(newlySelected.projectId);
+    void ensureProjectSummary(newlySelected.projectId);
   }
+}
+
+export function closeDetail(): void {
+  useFocusStore().setSelectionTarget(null);
 }
 
 // ~5s budget for an overlay's image layer to render before we stop waiting.
@@ -68,7 +72,7 @@ export function whenImageReadyIfSelected(overlayId: string, run: () => void): vo
 }
 
 /**
- * Raise the selected overlay's image once its layer renders. selectOverlay raises it immediately,
+ * Raise the selected overlay's image once its layer renders. Opening the detail raises it immediately,
  * but when selection is triggered from the side panel while zoomed out, the layer isn't rendered
  * yet and the raise no-ops. The camera then flies in and the layer renders later; this waits for
  * it and re-raises. No-op when the layer is already present at selection time.
@@ -150,17 +154,17 @@ export function handleBackgroundClick(lngLat: { lng: number; lat: number }): voi
     // Approved overlays at their backend position are clicked via the vector-tile path.
     // Point-in-polygon runs for overlays whose live image can sit elsewhere: staged edits, and an
     // open change request shown at its suggested position (the tile footprint stays at baseline).
-    const showsSuggested = overlay.hasPendingChanges === true && showsSuggestedState(overlay, mode);
+    const showsSuggested =
+      hasOpenChangeRequest(overlay, mode) && showsSuggestedState(overlay, mode);
     if (overlay.status === "approved" && !isOverlayUnsaved(overlay) && !showsSuggested) continue;
     // "marker" purpose resolves the live image position, which is where a click must hit.
     const corners = resolveOverlayCorners(overlay, "marker");
     if (corners && isPointInCorners(lngLat, corners)) {
-      selectOverlay(id);
+      openOverlayDetail(id);
       return;
     }
   }
 
   // No overlay under the click: clear whichever detail (overlay or project) is open.
-  const focus = useFocusStore();
-  if (focus.selection) focus.clearSelection();
+  closeDetail();
 }

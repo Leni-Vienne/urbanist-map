@@ -3,20 +3,8 @@ import { useModerationStore } from "@/stores/moderationStore";
 import { useChangeRequestStore, type ChangeRequest } from "@/stores/changeRequestStore";
 import { loadOrNull } from "@/services/core/errorHandling";
 import { useOverlayStore } from "@/stores/overlayStore";
-import type { OverlayObject } from "@/types";
-import { applyOverlayBackendFields } from "@/services/overlay/sync";
+import { clearOverlayChangeRequestState } from "@/services/overlay/sync";
 import { refreshMapSessionData } from "@/services/map/viewportTriggers";
-
-// Clearing the change-request fields makes the baseline the resting position/caption again;
-// applyOverlayBackendFields reconciles the position state to baseline and snaps an unedited overlay
-// back to it (staged edits are kept).
-function clearOverlayChangeRequestState(overlayObject: OverlayObject) {
-  applyOverlayBackendFields(overlayObject, {
-    hasPendingChanges: false,
-    suggestedCorners: undefined,
-    suggestedCaption: undefined,
-  });
-}
 
 /** Ensures the current user's pending change requests are loaded; `force` refetches even if already loaded. */
 export async function refreshPendingChangeRequests(options?: { force?: boolean }) {

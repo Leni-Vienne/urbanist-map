@@ -15,11 +15,7 @@ import {
   reconcilePositionState,
   sameCorners,
 } from "@/services/overlay/transform";
-import {
-  getStagedCornersDelta,
-  getStagedCaptionDelta,
-  getEditModeDefaultCaption,
-} from "@/services/overlay/unsavedState";
+import { getEditModeDefaultCaption } from "@/services/overlay/unsavedState";
 import { createOverlayObject } from "@/utils/typeFactories";
 import type { ModifiableField, OverlayData, OverlayObject } from "@/types/index";
 
@@ -35,15 +31,29 @@ type OverlayBackendFields = Partial<
   >
 >;
 
+// True when every provided field already equals the overlay's current value, making the write
+// (and its display consequences) a no-op.
+function fieldsAlreadyApplied(overlayObject: OverlayObject, fields: OverlayBackendFields): boolean {
+  for (const key of Object.keys(fields) as (keyof OverlayBackendFields)[]) {
+    if (key === "baselineCorners" || key === "suggestedCorners") {
+      if (!sameCorners(fields[key] ?? null, overlayObject[key] ?? null)) return false;
+    } else if (fields[key] !== overlayObject[key]) return false;
+  }
+  return true;
+}
+
 // Single write path for backend-owned overlay fields (approved baseline + open change-request
 // state). It writes the fields and the store-side consequences (positionState, caption, and an
 // unedited overlay's history seed when its resting position changed), then schedules a reconcile;
 // the viewport render loop converges the image/marker to the new resolved position. Overlays with
-// staged edits or pending redo state keep the user's position and seed.
+// staged edits or pending redo state keep the user's position and seed. A delivery that changes
+// nothing returns without writing or scheduling.
 export function applyOverlayBackendFields(
   overlayObject: OverlayObject,
   fields: OverlayBackendFields,
 ): void {
+  if (fieldsAlreadyApplied(overlayObject, fields)) return;
+
   const previousDefaultCaption = getEditModeDefaultCaption(overlayObject);
   const previousRestingCorners = getEditModeRestingCorners(overlayObject);
   const captionWasUntouched = overlayObject.caption === previousDefaultCaption;
@@ -68,6 +78,16 @@ export function applyOverlayBackendFields(
   }
 
   scheduleOverlayReconcile();
+}
+
+// Clearing the change-request fields makes the baseline the resting position/caption again and
+// snaps an unedited overlay back to it (staged edits are kept).
+export function clearOverlayChangeRequestState(overlayObject: OverlayObject): void {
+  applyOverlayBackendFields(overlayObject, {
+    hasPendingChanges: false,
+    suggestedCorners: undefined,
+    suggestedCaption: undefined,
+  });
 }
 
 // Single ingest path for backend-sourced overlay wire data. Produces exactly one canonical
@@ -104,8 +124,8 @@ export function upsertOverlayFromWire(data: OverlayData): OverlayObject {
   }
   applyOverlayBackendFields(existing, fields);
 
-  // Approved overlays first loaded via vectorTileSync lack project data; attach it when a later
-  // (bbox) delivery carries it, so the detail panel can resolve activeProject.
+  // Approved overlays first loaded from vector tiles lack project data; attach it when a later
+  // (bbox) delivery carries it, so the detail panel can resolve the active project.
   if (data.project) existing.project = data.project;
 
   return existing;
@@ -119,7 +139,7 @@ export function revertOverlayFieldModification(
   overlayId: string,
   field: ModifiableField,
   overlayObject: OverlayObject,
-): boolean {
+): void {
   if (field === "corners") {
     // Collapse to the resting position (store-only); the reconciler converges the image/marker.
     const restingCorners = getEditModeRestingCorners(overlayObject);
@@ -127,11 +147,10 @@ export function revertOverlayFieldModification(
       useOverlayStore().resetHistoryBaseline(overlayId, restingCorners);
     }
     scheduleOverlayReconcile();
-    return getStagedCaptionDelta(overlayObject) !== null; // caption still staged?
+    return;
   }
 
   useOverlayStore().updateOverlay(overlayId, {
     caption: getEditModeDefaultCaption(overlayObject),
   });
-  return getStagedCornersDelta(overlayObject) !== null; // corners still staged?
 }

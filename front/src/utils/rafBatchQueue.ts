@@ -11,8 +11,10 @@ export function createRafBatchQueue<T>(
 ) {
   const queue = new Map<string, T>();
   let isRunning = false;
+  let rafId: number | null = null;
 
   function drain() {
+    rafId = null;
     isRunning = true;
     let count = 0;
     for (const [key, value] of queue) {
@@ -21,7 +23,7 @@ export function createRafBatchQueue<T>(
       queue.delete(key);
       count += 1;
     }
-    if (queue.size > 0) requestAnimationFrame(drain);
+    if (queue.size > 0) rafId = requestAnimationFrame(drain);
     else isRunning = false;
   }
 
@@ -36,6 +38,15 @@ export function createRafBatchQueue<T>(
     },
     has(key: string): boolean {
       return queue.has(key);
+    },
+    /** Discard everything still queued and cancel the pending drain frame. */
+    clear() {
+      queue.clear();
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      isRunning = false;
     },
   };
 }

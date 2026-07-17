@@ -3,7 +3,7 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useMapStore } from "@/stores/mapStore";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
-import { map } from "@/services/core/map";
+import { getMap, getMapOrNull } from "@/services/core/map";
 import {
   isOverlayVisible,
   matchesMapFilters,
@@ -15,10 +15,11 @@ import { createOverlayMarker, updateMarkerPosition } from "@/services/overlay/ma
 import { resolveOverlayCorners } from "@/services/overlay/data";
 import { getApprovedOverlayDataFromTiles } from "@/services/map/tiles/approvedOverlayCache";
 import { isValidQuad, sameCorners } from "@/services/overlay/transform";
+import { upsertOverlayFromWire } from "@/services/overlay/sync";
 import * as registry from "@/services/overlay/mapLayers";
+import { createOverlayImageForObject, renderBackendOverlays } from "@/services/overlay/rendering";
 import { createRafBatchQueue } from "@/utils/rafBatchQueue";
 import { cornersIntersectBounds } from "@/utils/cornersBounds";
-import { registerOnce } from "@/utils/registerOnce";
 import { renderAllProjectShapes } from "@/services/map/shapes/renderLoop";
 
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
@@ -32,7 +33,7 @@ interface ViewportBounds {
 // Current viewport padded by 10% per axis, so content just past the edge isn't destroyed only to
 // be re-created on the next small pan.
 function getPaddedViewportBounds(): ViewportBounds {
-  const mlBounds = map.value.getBounds();
+  const mlBounds = getMap().getBounds();
   const sw = mlBounds.getSouthWest();
   const ne = mlBounds.getNorthEast();
   const latPad = (ne.lat - sw.lat) * 0.1;
@@ -53,7 +54,7 @@ let renderLoopRafId: number | null = null;
  * avoids redundant work when several triggers fire together (page load,
  * style switch, or a prune + full render within one viewport refresh).
  */
-export function runViewportRenderLoop() {
+export function runViewportRenderLoop(): void {
   if (renderLoopRafId !== null) return;
   renderLoopRafId = requestAnimationFrame(() => {
     renderLoopRafId = null;
@@ -61,8 +62,23 @@ export function runViewportRenderLoop() {
   });
 }
 
-function runViewportRenderLoopNow() {
-  if (map.value.getZoom() < getEffectiveThreshold(MAP_CONFIG.VIEWPORT_LOAD_THRESHOLD)) return;
+/**
+ * Drop the pending reconcile and the queued teardown batches, so a frame scheduled against the
+ * outgoing map cannot run once it is gone. Store writers may keep scheduling; the pass they get is
+ * the next map's.
+ */
+export function stopViewportRenderLoop(): void {
+  if (renderLoopRafId !== null) {
+    cancelAnimationFrame(renderLoopRafId);
+    renderLoopRafId = null;
+  }
+  destructionQueue.clear();
+}
+
+function runViewportRenderLoopNow(): void {
+  // Scheduled work can survive into a frame where MapView has already unmounted.
+  if (!getMapOrNull()) return;
+
   reconcileOverlayExistence(getPaddedViewportBounds());
 
   // Render shapes for all visible projects (both overlay-bearing and standalone)
@@ -73,7 +89,7 @@ function runViewportRenderLoopNow() {
 // Destruction is cheaper than creation, so the batch can be larger than the init queue.
 const destructionQueue = createRafBatchQueue<null>((_, id) => registry.clearEntry(id), 10);
 
-function queueForDestruction(id: string) {
+function queueForDestruction(id: string): void {
   destructionQueue.enqueue(id, null);
 }
 
@@ -133,10 +149,11 @@ function convergeOverlayDisplay(overlayObject: OverlayObject): boolean {
  *   - liveOverlays(status === null): local/unsaved overlays.
  *   - current registry ids: so entries that left every live set get destroyed.
  *
- * Desired existence = mode/user visibility ∧ map filters ∧ resolved corners intersect bounds; local
- * overlays are exempt from the bounds test (only explicit deletion or a mode switch removes them).
+ * Desired existence = zoom ≥ MIN_ZOOM_FOR_OVERLAYS ∧ mode/user visibility ∧ map filters ∧ resolved
+ * corners intersect bounds; local overlays are exempt from the bounds test (only explicit deletion,
+ * a mode switch or the zoom gate removes them).
  */
-function reconcileOverlayExistence(bounds: ViewportBounds) {
+function reconcileOverlayExistence(bounds: ViewportBounds): void {
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();
   const authStore = useAuthStore();
@@ -147,6 +164,15 @@ function reconcileOverlayExistence(bounds: ViewportBounds) {
   // approved images get no DOM marker) and leaves approved overlays at their baseline footprint.
   const isSessionMode = mode !== "view";
   let handlesNeedSync = false;
+
+  // Below the threshold the map holds no overlay content: tear down every entry and skip the pass.
+  // Crossing back up re-creates images and markers from the store and the tile cache.
+  if (getMap().getZoom() < getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS)) {
+    for (const id of registry.getEntryIds()) {
+      if (!registry.isGestureOwned(id)) queueForDestruction(id);
+    }
+    return;
+  }
 
   const tileManaged = getApprovedOverlayDataFromTiles();
   // renderLoopOverlays holds only pending + session change-request overlays, delivered in edit and
@@ -162,8 +188,7 @@ function reconcileOverlayExistence(bounds: ViewportBounds) {
   for (const [id, overlay] of Object.entries(overlayStore.liveOverlays)) {
     if (overlay.status === null) candidateIds.add(id);
   }
-  for (const id of registry.getMarkedOverlayIds()) candidateIds.add(id);
-  for (const id of registry.getRenderedOverlayIds()) candidateIds.add(id);
+  for (const id of registry.getEntryIds()) candidateIds.add(id);
 
   const backendToRender: OverlayData[] = [];
   const localToRender: OverlayObject[] = [];
@@ -211,7 +236,7 @@ function reconcileOverlayExistence(bounds: ViewportBounds) {
       renderData = data;
     }
 
-    // Creation in flight (async import settling): don't fight it, just rescue from destruction.
+    // Creation in flight: don't fight it, just rescue from destruction.
     if (registry.isCreating(id)) {
       if (desired) destructionQueue.delete(id);
       continue;
@@ -219,10 +244,11 @@ function reconcileOverlayExistence(bounds: ViewportBounds) {
 
     if (desired && renderData) {
       destructionQueue.delete(id);
-      // Markers only need the canonical store object, not the image, so create as soon as one
-      // exists. A tile-delivered overlay has none until its first render (below) upserts it; its
-      // pin lands on the reconcile that render schedules.
-      if (isSessionMode && !hasMarker && liveObject) createOverlayMarker(liveObject);
+      // Markers only need the canonical store object, not the image; a tile-delivered overlay
+      // absent from the store is ingested here so its pin doesn't wait for image creation.
+      if (isSessionMode && !hasMarker) {
+        createOverlayMarker(liveObject ?? upsertOverlayFromWire(renderData));
+      }
       if (!hasImage) {
         backendToRender.push(renderData);
       } else if (isSessionMode && liveObject && convergeOverlayDisplay(liveObject)) {
@@ -236,22 +262,20 @@ function reconcileOverlayExistence(bounds: ViewportBounds) {
   if (handlesNeedSync) registry.runEditHandleSync();
 
   if (backendToRender.length > 0) {
-    void import("@/services/overlay/rendering").then(({ renderBackendOverlays }) => {
-      renderBackendOverlays(backendToRender);
-    });
+    renderBackendOverlays(backendToRender);
   }
   if (localToRender.length > 0) {
-    void import("@/services/overlay/rendering").then(({ createOverlayImageForObject }) => {
-      for (const overlay of localToRender) createOverlayImageForObject(overlay);
-    });
+    for (const overlay of localToRender) createOverlayImageForObject(overlay);
   }
 }
 
-function registerRenderTriggers(): void {
-  // Store writers schedule a reconcile through mapLayers (the shared leaf) to avoid a cycle.
-  registry.registerOverlayReconcileScheduler(runViewportRenderLoop);
+/** Install the map-instance scheduler used by overlay store writers. */
+export function installViewportRenderLoop(): () => void {
+  return registry.registerOverlayReconcileScheduler(runViewportRenderLoop);
+}
 
-  watch(
+export function watchOverlayReconciliation(): () => void {
+  const stopFilterWatch = watch(
     () => ({ status: visibleStates.value, tags: selectedProjectTags.value }),
     () => {
       runViewportRenderLoop();
@@ -261,16 +285,14 @@ function registerRenderTriggers(): void {
 
   // A moderation change-request preview resolves position from previewState; a change to it (set,
   // toggle, clear) must re-run convergence so the previewed overlay follows or returns to baseline.
-  watch(
+  const stopPreviewWatch = watch(
     () => useChangeRequestStore().previewState,
     () => {
       runViewportRenderLoop();
     },
   );
+  return function stopOverlayReconciliationWatchers(): void {
+    stopPreviewWatch();
+    stopFilterWatch();
+  };
 }
-
-/**
- * Data-load / filter triggers that re-run the render loop. Shape-specific triggers live in
- * initializeShapeRenderTriggers; marker color triggers in markers.ts.
- */
-export const initializeRenderTriggers = registerOnce(registerRenderTriggers);

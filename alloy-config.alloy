@@ -20,21 +20,63 @@ loki.source.docker "backend_logs" {
 
 loki.process "json" {
   forward_to = [loki.write.default.receiver]
-  
+
   stage.json {
     expressions = {
-      level  = "level",
-      time   = "time",
-      msg    = "msg",
-      method = "method",
-      path   = "path",
-      status = "status",
+      level     = "level",
+      time      = "time",
+      msg       = "msg",
+      method    = "method",
+      path      = "path",
+      status    = "status",
+      cfCountry = "cfCountry",
+      botClass  = "botClass",
+      botKind   = "botKind",
     }
   }
-  
+
+  // cfCountry is a stream label so LogQL can filter on it without parsing every line, and so the
+  // counters below carry it. Cloudflare emits a two-letter code (plus XX for unknown and T1 for
+  // Tor), which keeps this bounded at a few hundred streams. Never promote ip or path: both are
+  // unbounded and would wreck the index.
+  //
+  // botClass is the request-time verdict from back/src/services/botClassifier.ts: 5 fixed values
+  // (official-range, scanner, declared-bot, human-likely, unknown). botKind collapses those to
+  // bot/human/unknown for the stacked bot-vs-human panel. Because botKind is determined by
+  // botClass, it creates no stream beyond the ones botClass already creates, so the convenience is
+  // free at the index. botOperator is NOT promoted: for declared bots it comes from the
+  // User-Agent, so a client picks its value and the cardinality is unbounded. Read it with | json.
+  //
+  // Only requests through the middleware carry these, which is what excludes health checks from
+  // every panel: /api/health is served before requestLogger and logs no verdict, so a
+  // botKind != "" filter drops it without a path match.
   stage.labels {
     values = {
-      level = "",
+      level     = "",
+      cfCountry = "",
+      botClass  = "",
+      botKind   = "",
+    }
+  }
+
+  // Health checks reach the container directly rather than through Cloudflare, so they carry no
+  // client IP and no country. They outnumber real traffic several times over and are excluded from
+  // the counter only, not from Loki.
+  stage.match {
+    selector = "{service=\"backend\"} != \"/api/health\""
+
+    // Aggregate counters exposed on Alloy's own /metrics endpoint. They hold no IP and no
+    // identifier, so they are anonymous data rather than personal data.
+    stage.metrics {
+      metric.counter {
+        name        = "requests_total"
+        description = "Backend requests, labelled by the stream's cfCountry, level, botClass and botKind"
+        source      = "status"
+        action      = "inc"
+        // Countries appear sparsely at this traffic level, so keep series alive well past the
+        // default 5m to stop them dropping out between requests.
+        max_idle_duration = "24h"
+      }
     }
   }
 }

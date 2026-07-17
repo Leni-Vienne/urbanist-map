@@ -5,17 +5,16 @@ import type {
   FilterSpecification,
   ExpressionSpecification,
 } from "maplibre-gl";
-import { map } from "@/services/core/map";
-import { getEffectiveThreshold } from "@/constants/mapConstants";
+import { getMap, getMapOrNull } from "@/services/core/map";
+import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";
-import { handleBackgroundClick, selectOverlay } from "@/services/overlay/selection";
+import { handleBackgroundClick, openOverlayDetail } from "@/services/overlay/selection";
 import { VECTOR_QUERY_LAYERS } from "@/services/map/tiles/queryLayers";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useMapStore } from "@/stores/mapStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 import { isOverlayUnsaved } from "@/services/overlay/unsavedState";
-import { registerOnce } from "@/utils/registerOnce";
 import { watch } from "vue";
 
 import { useFocusStore } from "@/stores/focusStore";
@@ -54,21 +53,18 @@ const TILE_URL = `${getApiUrl()}/api/tiles/projects/{z}/{x}/{y}`;
 
 // ── Zoom level constants (native MapLibre zoom) ─────────────────────────────
 /** Source/layer minzoom for project points. Per-zoom thinning is done server-side via the
- *  quality-score gate in tiles-alt.sql, so this stays at 0. */
+ *  quality-score gate */
 const PROJECT_POINTS_MIN_ZOOM = 0;
 /** Zoom level at which project shapes (MVT) become visible.
  *  Large shapes appear earlier via getShapeZoomVisibilityFilter, see that function for the full table. */
 const PROJECT_SHAPES_MIN_ZOOM = 3;
-/** Base zoom level at which overlay footprints and point geometries become visible.
- *  Wrapped in getEffectiveThreshold per layer so mobile reveals one level earlier,
- *  matching the raster overlay images. */
-const OVERLAY_FOOTPRINTS_MIN_ZOOM = 13;
 /** Max zoom for MVT tile source */
 const MVT_SOURCE_MAX_ZOOM = 14;
 
 // ── Line styling constants ──────────────────────────────────────────────────
 // Overlay footprints use double width because half the stroke is covered by the overlay image.
-// They only render at z12+, where the old zoom ramp had already reached its max, so width is flat.
+// They only render from MIN_ZOOM_FOR_OVERLAYS up, where a zoom ramp would already sit at its max,
+// so the width is flat.
 const FOOTPRINT_LINE_WIDTH = 2;
 
 // ── Interaction constants ───────────────────────────────────────────────────
@@ -96,9 +92,6 @@ type RenderedMapFeature = {
   sourceLayer?: string;
   geometry?: {
     coordinates?: unknown;
-  };
-  layer?: {
-    id: string;
   };
   id?: string | number;
 };
@@ -266,7 +259,6 @@ function mergeZoomHoverState(
 
 /**
  * Zoom-dependent size gate for the project-shapes layer.
- * Mirrors the server-side logic in tiles-alt.sql (all values are native MapLibre zoom):
  *   z13+ → all shapes
  *   z12  → geometry_size_m >= 50 m
  *   z11  → geometry_size_m >= 100 m
@@ -679,19 +671,17 @@ function getHiddenProjectIds(): string[] {
   return hiddenProjectIdsCache;
 }
 
-function registerHiddenProjectsWatcher(): void {
-  watch(
+function watchHiddenProjects(): () => void {
+  return watch(
     () => computeHiddenProjectIds().toSorted().join("|"),
     (key) => {
       hiddenProjectIdsCache = key ? key.split("|") : [];
-      const mlMap = map.value;
-      applyTagFiltersToVectorLayers(mlMap);
+      const mlMap = getMapOrNull();
+      if (mlMap) applyTagFiltersToVectorLayers(mlMap);
     },
     { immediate: true },
   );
 }
-
-const initHiddenProjectsWatcher = registerOnce(registerHiddenProjectsWatcher);
 
 function computeHiddenOverlayIds(): string[] {
   const store = useOverlayStore();
@@ -715,8 +705,8 @@ function getHiddenOverlayIds(): string[] {
 }
 
 // Footprint border/fill filter: locally hidden/edited overlays + the tag, status, name, and date
-// filters (kept in sync with the images, which vectorTileSync applies the same filters to
-// separately). Size and image filters don't apply: footprints carry no geometry size and always
+// filters. The same filters are applied to the overlay images separately, and must stay in sync
+// with these. Size and image filters don't apply: footprints carry no geometry size and always
 // have an image.
 function applyFootprintLayerFilters(mlMap: MaplibreMap): void {
   const hiddenIds = getHiddenOverlayIds();
@@ -736,20 +726,19 @@ function applyFootprintLayerFilters(mlMap: MaplibreMap): void {
   }
 }
 
-function registerHiddenOverlaysWatcher(): void {
+function watchHiddenOverlays(): () => void {
   // Watch a canonical string key (not the array) so the callback only fires when the hidden-id
   // SET actually changes, instead of on every reactive read that rebuilds an identical array.
-  watch(
+  return watch(
     () => computeHiddenOverlayIds().toSorted().join("|"),
     (key) => {
       hiddenOverlayIdsCache = key ? key.split("|") : [];
-      const mlMap = map.value;
-      applyFootprintLayerFilters(mlMap);
+      const mlMap = getMapOrNull();
+      if (mlMap) applyFootprintLayerFilters(mlMap);
     },
+    { immediate: true },
   );
 }
-
-const initHiddenOverlaysWatcher = registerOnce(registerHiddenOverlaysWatcher);
 
 const VECTOR_SOURCE = "project-sources";
 const PENDING_POINTS_SOURCE = "pending-project-points-source";
@@ -883,12 +872,12 @@ function handleVectorFeatureClick(feature: RenderedMapFeature): void {
   if (isFootprint) {
     const overlayId = getFeaturePropertyAsString(feature, "id");
     if (overlayId) {
-      selectOverlay(overlayId);
+      openOverlayDetail(overlayId);
     }
   } else {
     // Pin the vector highlight immediately so mousemove cannot clear it during the async project
-    // fetch inside handleProjectClickFromTile; selectProject replaces the hover with the selection.
-    useFocusStore().setHover({ kind: "project", projectId });
+    // fetch inside handleProjectClickFromTile; opening the detail replaces hover with selection.
+    useFocusStore().setHoverTarget({ kind: "project", projectId });
     void handleProjectClickFromTile(projectId);
   }
 }
@@ -906,7 +895,7 @@ async function handlePointFeatureClick(pointFeature: RenderedMapFeature): Promis
   // expand gesture, and open no detail since a cluster has no single project.
   const cellCount = Number(props.cell_count ?? 1);
   if (hasCoords && cellCount > 1) {
-    mobileAwareFlyTo([lat, lng], map.value.getZoom() + CLUSTER_EXPAND_ZOOM_STEP);
+    mobileAwareFlyTo([lat, lng], getMap().getZoom() + CLUSTER_EXPAND_ZOOM_STEP);
     return;
   }
 
@@ -915,15 +904,29 @@ async function handlePointFeatureClick(pointFeature: RenderedMapFeature): Promis
   await handleProjectClickFromTile(projectId);
 }
 
-function registerSelectedHoverWatcher(): void {
+function watchSelectedHoverState(): () => void {
   const focusStore = useFocusStore();
-  watch([() => focusStore.highlightedProjectId, () => focusStore.highlightedOverlayId], () => {
-    setSelectedHoverState(map.value);
-  });
+  return watch(
+    [() => focusStore.highlightedProjectId, () => focusStore.highlightedOverlayId],
+    () => {
+      const mlMap = getMapOrNull();
+      if (mlMap) setSelectedHoverState(mlMap);
+    },
+  );
 }
 
-// Reads map.value inside its callback, so it follows a map instance swap.
-const initializeSelectedHoverWatcher = registerOnce(registerSelectedHoverWatcher);
+export function watchTileLayerState(): () => void {
+  const stops = [watchHiddenProjects(), watchHiddenOverlays(), watchSelectedHoverState()];
+
+  return function stopTileLayerStateWatchers(): void {
+    for (const stop of stops.toReversed()) stop();
+  };
+}
+
+export function syncTileLayerState(): void {
+  const mlMap = getMapOrNull();
+  if (mlMap) setSelectedHoverState(mlMap);
+}
 
 function registerMapInteractionListeners(mlMap: MaplibreMap): void {
   // queryRenderedFeatures is synchronous and walks MapLibre's internal feature tree.
@@ -1043,11 +1046,13 @@ function registerMapInteractionListeners(mlMap: MaplibreMap): void {
 // needs its own set.
 let interactionListenersMap: MaplibreMap | null = null;
 
+export function clearHybridInteractionHandlers(target: MaplibreMap): void {
+  if (interactionListenersMap === target) interactionListenersMap = null;
+}
+
 /** Hover/click handlers for the vector tile layers. */
 export function initializeHybridInteractionHandlers(): void {
-  initializeSelectedHoverWatcher();
-
-  const mlMap = map.value;
+  const mlMap = getMap();
   if (interactionListenersMap === mlMap) return;
   interactionListenersMap = mlMap;
   registerMapInteractionListeners(mlMap);
@@ -1299,7 +1304,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       type: "fill",
       source: "project-sources",
       "source-layer": "overlay-footprints",
-      minzoom: getEffectiveThreshold(OVERLAY_FOOTPRINTS_MIN_ZOOM),
+      minzoom: getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS),
       ...(hiddenFilter ? { filter: hiddenFilter } : {}),
       paint: {
         "fill-color": getProjectLineColorExpression(),
@@ -1317,7 +1322,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       type: "line",
       source: "project-sources",
       "source-layer": "overlay-footprints",
-      minzoom: getEffectiveThreshold(OVERLAY_FOOTPRINTS_MIN_ZOOM),
+      minzoom: getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS),
       paint: { "line-width": 0 },
     },
     FOOTPRINT_BAND_BEFORE_ID,
@@ -1334,7 +1339,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       type: "line",
       source: "project-sources",
       "source-layer": "overlay-footprints",
-      minzoom: getEffectiveThreshold(OVERLAY_FOOTPRINTS_MIN_ZOOM),
+      minzoom: getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS),
       layout: { "line-cap": "round" },
       ...(hiddenFilter ? { filter: hiddenFilter } : {}),
       paint: {
@@ -1578,7 +1583,4 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
   );
 
   applyTagFiltersToVectorLayers(mlMap);
-
-  initHiddenProjectsWatcher();
-  initHiddenOverlaysWatcher();
 }

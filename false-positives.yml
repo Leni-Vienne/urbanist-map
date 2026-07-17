@@ -1,0 +1,334 @@
+# Add reviewed false positives under their rule ID. Patterns are matched against the
+# candidate's stable text, so keep them specific enough to avoid hiding new findings.
+#
+# Example:
+#   vue.reactivity.derived-watcher:
+#     - triaged_at: "YYYY-MM-DD"
+#       reason: "Why this candidate is intentional."
+#       patterns:
+#         - "Component.vue watch [ctx:setup]"
+version: 2
+rules:
+  state.boolean-latch:
+    - triaged_at: "2026-07-13"
+      reason: "KeepAlive activation guard: CurrentLocationPanel sits inside PanelContent's KeepAlive."
+      patterns:
+        - "useVisibleProjects.ts isActive -> latch"
+    - triaged_at: "2026-07-13"
+      reason: "Once, throttle, and settle idempotency guards on listeners and promise-like flows."
+      patterns:
+        - "services/overlay/mapLayers.ts settled -> latch"
+        - "services/map/tiles/layers.ts hoverThrottlePending -> TIMING-COUPLED LATCH"
+        - "utils/rafBatchQueue.ts isRunning -> TIMING-COUPLED LATCH"
+        - "OverlayFloatingToolbar.vue anchorSyncActive -> TIMING-COUPLED LATCH"
+        - "services/map/tiles/basemap.ts ran"
+    - triaged_at: "2026-07-13"
+      reason: "Timing-coupled DOM-settle latch with a documented rationale; only removable if hover handling becomes position-independent."
+      patterns:
+        - "useVisibleProjects.ts suppressHover -> TIMING-COUPLED LATCH"
+    - triaged_at: "2026-07-13"
+      reason: "Single-pass accumulator within one sync run, not a cross-frame latch."
+      patterns:
+        - "services/map/viewportRenderLoop.ts handlesNeedSync -> latch"
+    - triaged_at: "2026-07-13"
+      reason: "Standard onCleanup async-race guard; removing it reintroduces the out-of-order-response bug."
+      patterns:
+        - "composables/project/useWikidataEntity.ts stale"
+    - triaged_at: "2026-07-13"
+      reason: "try/catch success flag selecting the Mercator fallback; the throw carries the signal, not a value."
+      patterns:
+        - "services/map/mapNavigation.ts cameraForBoundsOk"
+    - triaged_at: "2026-07-13"
+      reason: "Function-local ray-casting parity and hole-ring flags; toggling is the algorithm."
+      patterns:
+        - "services/map/tiles/basemap.ts inside"
+        - "services/map/tiles/basemap.ts inHole"
+        - "services/overlay/selection.ts isInside"
+    - triaged_at: "2026-07-13"
+      reason: "Per-gesture drag-threshold flag scoped to one onDown closure."
+      patterns:
+        - "services/overlay/editing.ts didMove"
+    - triaged_at: "2026-07-15"
+      reason: "The MapView-owned coordinator disposer is explicitly idempotent."
+      patterns:
+        - "services/map/globalWatchers.ts stopped -> latch"
+  state.boolean-density:
+    - triaged_at: "2026-07-13"
+      reason: "The four booleans are the ray-casting flags and a style-load once-guard already ruled out in state.boolean-latch; density is an artifact of the file hosting a geometry algorithm, not a state machine."
+      patterns:
+        - "services/map/tiles/basemap.ts 4 mutable booleans"
+  vue.template.unpassed-prop:
+    - triaged_at: "2026-07-13"
+      reason: "Idiomatic size prop on a generic reusable SVG leaf; kept for reusability over negligible savings."
+      patterns:
+        - 'ShapeThumbnail.vue prop "size"'
+  vue.reactivity.derived-watcher:
+    - triaged_at: "2026-07-13"
+      reason: "Dialog edit buffers and form fields whose other writers are template v-model bindings; the watch only initializes or clears them on open."
+      patterns:
+        - "components/map/OverlayEditor.vue watch{immediate} [ctx:MODULE-TOP]"
+        - "components/moderation/RejectionDialog.vue watch [ctx:MODULE-TOP]"
+    - triaged_at: "2026-07-13"
+      reason: "Conditional adoption that remembers state (last satellite layer, incoming non-null precision); a computed over the source would lose exactly that memory."
+      patterns:
+        - "components/map/SatellitePreview.vue watch [ctx:MODULE-TOP] STRONG"
+        - "FlexibleDatePicker.vue watch [ctx:MODULE-TOP] weak source=() => props.modelValue?.precision"
+    - triaged_at: "2026-07-15"
+      reason: "Selection transition removes only the newly selected project from user-controlled accordion state."
+      patterns:
+        - "services/map/projectDetailWatcher.ts watch [ctx:watchSelectedPanelCleanup] weak, source=() => focus.selectedProjectId"
+    - triaged_at: "2026-07-13"
+      reason: "The prop watch is one of six writers; the drag handlers own the value the rest of the time."
+      patterns:
+        - "DraggableDrawer.vue watch [ctx:MODULE-TOP] weak source=() => props.heightPercent"
+    - triaged_at: "2026-07-13"
+      reason: "Conditional resets, access evictions, and panel cleanup; none computes a value from its source."
+      patterns:
+        - "ModerationPanel.vue watch [ctx:MODULE-TOP] weak source=showReportDialog"
+        - "composables/layout/useTabNavigation.ts watch [ctx:useTabNavigation] weak"
+        - "pages/Home.vue watch [ctx:MODULE-TOP] weak"
+  vue.reactivity.shared-target:
+    - triaged_at: "2026-07-13"
+      reason: "Drag handlers and viewport sizing own disjoint trigger edges of the drawer height."
+      patterns:
+        - "target currentHeight written by 2 watchers"
+    - triaged_at: "2026-07-13"
+      reason: "Controlled navigation and access eviction are separate writer edges of the single navigation state."
+      patterns:
+        - "target uiStore.activeTab written by 2 watchers"
+  vue.reactivity.duplicate-source:
+    - triaged_at: "2026-07-13"
+      reason: "The mode-transition hooks own the ordered effects; the Home and MarkerPlacementBar watchers are deliberately mount-scoped."
+      patterns:
+        - "source mapStore.mode watched"
+    - triaged_at: "2026-07-13"
+      reason: "The country change invalidates two datasets: the moderation list (panel-mounted) and the moderation map data (app-level); merging would tie the map refresh to the panel's mount."
+      patterns:
+        - "source mapStore.selectedCountryCode watched"
+    - triaged_at: "2026-07-13"
+      reason: "Async URL slug sync and sync accordion-panel cleanup share the source but not targets; keeping them apart keeps the slug fetch out of panel bookkeeping."
+      patterns:
+        - "source focusStore.selectedProjectId watched"
+    - triaged_at: "2026-07-13"
+      reason: "GeoJSON shape highlight and vector-tile feature-state are separate rendering mechanisms; the split is documented as deliberate in the shape-highlight watcher."
+      patterns:
+        - "source focusStore.highlightedProjectId watched"
+  pinia.store.external-write-fan-in:
+    - triaged_at: "2026-07-13"
+      reason: "Independent user-menu, preload, sign-out, and v-model lifecycle writers."
+      patterns:
+        - "uiStore.moderatedContributionsDialogVisible <-"
+    - triaged_at: "2026-07-13"
+      reason: "The single writable navigation state, with distinct v-model, mode-mapping, and access-eviction writers."
+      patterns:
+        - "uiStore.activeTab <-"
+  pinia.store.cross-store-write:
+    - triaged_at: "2026-07-13"
+      reason: "Mode maps back to the single writable navigation tab, not to a second mode state."
+      patterns:
+        - "stores/mapStore.ts writes uiStore.activeTab [ctx:setMode]"
+  async.post-await-write.callback:
+    - triaged_at: "2026-07-13"
+      reason: "Memoized auth-initialization closure; runs once."
+      patterns:
+        - "stores/authStore.ts [closure-cb] (anonymous)"
+    - triaged_at: "2026-07-13"
+      reason: "The timeout captures its request key, so a late completion writes under the key it fetched."
+      patterns:
+        - "services/map/tiles/basemap.ts [event-cb] setTimeout"
+    - triaged_at: "2026-07-13"
+      reason: "Runs once per mount with a component-local result."
+      patterns:
+        - "components/map/MapView.vue [closure-cb] onMounted"
+  async.post-await-write.watcher:
+    - triaged_at: "2026-07-13"
+      reason: "The cache write is keyed by the captured project ID, and the visible-state write is guarded by a still-selected check."
+      patterns:
+        - "slugCache.set(projectId, fresh.slug)"
+    - triaged_at: "2026-07-13"
+      reason: "The watcher rechecks the captured user before changing visible state."
+      patterns:
+        - "await moderatedContributionsStore.preloadModeratedContributions();"
+  vue.reactivity.stale-dependency.read:
+    - triaged_at: "2026-07-13"
+      reason: "Replacement mode is set before the dialog opens and must be initialized on the open edge only, not re-derived when the target changes."
+      patterns:
+        - "components/common/ImageUploadDialog.vue watch{immediate}"
+  vue.reactivity.stale-dependency.branch:
+    - triaged_at: "2026-07-13"
+      reason: "Latch cancel on mode change; the latch's own edges are the user starting/finishing placement, so sourcing it would re-fire the watcher on its own state."
+      patterns:
+        - "components/map/MarkerPlacementBar.vue watch [ctx:MODULE-TOP] source=() => mapStore.mode"
+  vue.reactivity.stale-dependency.explained:
+    - triaged_at: "2026-07-16"
+      reason: "The callback's viewed-ID dedupe is component-local state written by that same callback; it must not be a watcher source or the append would re-trigger the watcher."
+      patterns:
+        - "components/layout/ModerationPanel.vue watch{deep} [ctx:MODULE-TOP] source=() => changeRequestStore.previewState"
+  async.post-await-write.function:
+    - triaged_at: "2026-07-15"
+      reason: "After nextTick, the component verifies that it still owns the target map; the remaining map-runtime registrations are synchronous, so unmount cannot interleave after that guard."
+      patterns:
+        - "components/map/MapView.vue [async-fn] initializeMapAndOverlays"
+    - triaged_at: "2026-07-13"
+      reason: "Single-shot per user gesture while its loading or dialog state is active; the post-await writes are the operation's result."
+      patterns:
+        - "pages/EmailVerification.vue [async-fn] verifyEmail"
+        - "stores/authStore.ts [async-fn] signOut"
+        - "services/auth/signOut.ts [async-fn] signOut"
+        - "stores/authStore.ts [async-fn] signIn"
+        - "components/auth/AuthModal.vue [async-fn] handleSubmit"
+        - "components/auth/AuthModal.vue [async-fn] handleOAuthSignIn"
+        - "components/auth/AuthModal.vue [async-fn] handleForgotPassword"
+        - "components/moderation/ModeratedContributionsDialog.vue [async-fn] handleAcknowledgeAll"
+        - "components/layout/ModerationPanel.vue [async-fn] handleApproveOverlay"
+        - "pages/AdminDetachedProjectsPage.vue [async-fn] confirmRelink"
+        - "pages/AdminUserContributionsPage.vue [async-fn] adminDeleteProject"
+        - "pages/AdminUserContributionsPage.vue [async-fn] adminDeleteOverlay"
+    - triaged_at: "2026-07-13"
+      reason: "Idempotent memo-fills and loaders with fixed page inputs or writes under their captured key."
+      patterns:
+        - "services/feed/latestContributions.ts [async-fn] fetchLatestContributions"
+        - "services/map/tiles/basemap.ts [async-fn] ensureCountryBordersLoaded"
+        - "stores/moderatedContributionsStore.ts [async-fn] fetchModeratedContributions"
+        - "stores/moderatedContributionsStore.ts [async-fn] preloadModeratedContributions"
+        - "pages/AdminUserContributionsPage.vue [async-fn] loadCountryDetails"
+    - triaged_at: "2026-07-13"
+      reason: "Re-reads moderatedContributions after the await, so there is no lost update."
+      patterns:
+        - "stores/moderatedContributionsStore.ts [async-fn] acknowledgeContributions"
+    - triaged_at: "2026-07-13"
+      reason: "Writes one ordered intent-select-apply block, so a double-click interleave still lands on a coherent preview."
+      patterns:
+        - "services/overlay/changeRequestPreview.ts [async-fn] previewOverlayGeometry"
+    - triaged_at: "2026-07-13"
+      reason: "Replaces the prior widget."
+      patterns:
+        - "components/auth/AuthModal.vue [async-fn] renderTurnstile"
+    - triaged_at: "2026-07-13"
+      reason: "Writes a fresh closure-local object with a fresh UUID."
+      patterns:
+        - "services/overlay/editing.ts [async-fn] createAndSetupOverlay"
+  pinia.snapshot-live-derive-split:
+    - triaged_at: "2026-07-13"
+      reason: "The dialog must submit exactly the modifications it displayed; only the overlay object is resolved live, for status/change-type routing."
+      patterns:
+        - "-> consumer submitContext() in services/submission/submissionService.ts"
+    - triaged_at: "2026-07-13"
+      reason: "The removal handlers run on a later user event and prune the snapshot in step with the store write; the live reads are store writes or keyed by the snapshot."
+      patterns:
+        - "ref submissionSummary [decl services/submission/submissionDialogState.ts] -> consumer handleRemoveChange()"
+        - "ref pendingSubmissionContext [decl services/submission/submissionDialogState.ts] -> consumer handleRemoveChange()"
+        - "-> consumer handleRemoveOverlayChange() in services/submission/submissionDialog.ts"
+        - "-> consumer handleRemoveProjectChange() in services/submission/submissionDialog.ts"
+  typescript.cast-disagreement:
+    - triaged_at: "2026-07-13"
+      reason: "Per-call-site narrowing of unknown payloads or a GeoJSON union split into its members."
+      patterns:
+        - "as Locale [ctx:MODULE-TOP]"
+        - "as Position[] [ctx:buildDrawables]"
+  typescript.field-enumeration.copier:
+    - triaged_at: "2026-07-13"
+      reason: "Merges only the nullable lat/lng fallbacks; the first feature's anchors are always valid, so a later feature has nothing to repair."
+      patterns:
+        - "roots existing/incoming in mergeIntoExisting"
+    - triaged_at: "2026-07-13"
+      reason: "Else-branch of projectsChanged: it runs only when the visible set is content-identical, so it copies exactly the viewport-relative anchors, in place, to avoid a re-sort."
+      patterns:
+        - "roots entry/fresh in syncAnchors"
+  typescript.field-enumeration.comparator:
+    - triaged_at: "2026-07-13"
+      reason: "The uncompared fields are viewport-relative anchors (which must not count as list changes) and per-project constants covered by lastModifiedS."
+      patterns:
+        - "roots n/p in projectsChanged"
+  typescript.field-enumeration.mirror-patch:
+    - triaged_at: "2026-07-13"
+      reason: "The omitted fields are client-only editor state with no tRPC counterpart; corners come from resolveOverlayCorners, not the overlay."
+      patterns:
+        - "roots overlay in publishOverlay"
+    - triaged_at: "2026-07-13"
+      reason: "Event payloads for the stats dialog; the 0/0 counts match the withDefaults defaults and keep the rejection-rate badge off for change requests."
+      patterns:
+        - "roots data in handleShowUserStats"
+        - "roots data in handleClickContributor"
+        - "roots data in handleContributorClick"
+    - triaged_at: "2026-07-15"
+      reason: "The single typed conversion to ProjectDetailFields, which intentionally excludes summary fields."
+      patterns:
+        - "roots project in getProjectDetailFields"
+    - triaged_at: "2026-07-13"
+      reason: "Consumer arguments carrying only the destination contract, not clones of the source object."
+      patterns:
+        - "roots anchors in featureToProject"
+        - "roots project in showHoverCardForProject"
+        - "roots options in mobileAwareFlyTo"
+    - triaged_at: "2026-07-13"
+      reason: "Form and validation helpers deliberately map between form data and the editable or schema subset; the real payloads set the rest themselves."
+      patterns:
+        - "roots overlay in prepareOverlayValidationData"
+        - "roots p in projectToFormData"
+        - "roots f in formDataToProjectFields"
+        - "roots formData in prepareProjectValidationData"
+    - triaged_at: "2026-07-15"
+      reason: "The classification patch explicitly supplies every SubmissionClassificationInput field; its fields are consumed across two classifier helpers rather than by one key enumeration."
+      patterns:
+        - "mirror patch roots ctx authority=SubmissionClassificationInput in recomputeSummaryClassification"
+  typescript.field-enumeration.key-list:
+    - triaged_at: "2026-07-13"
+      reason: "An intentional subset naming only the date-valued project fields."
+      patterns:
+        - "[keyof-Project key array] 3 keys authority=Project"
+    - triaged_at: "2026-07-13"
+      reason: "DatePrecision and entity-type value domains, not object-key enumerations."
+      patterns:
+        - "[string-key array] 3 keys authority=FlexibleDateInput"
+        - "[string-key array] 2 keys authority=Props"
+  comments.unresolved-path:
+    - triaged_at: "2026-07-13"
+      reason: "Public MapLibre, GeoJSON, and PrimeVue Aura API names, not front/src symbols."
+      patterns:
+        - "map.setFilter forces a full map repaint"
+        - "promoteId means the id may live on feat.id"
+        - "Aura defaults to {text.muted.color}"
+    - triaged_at: "2026-07-13"
+      reason: "Real files outside the corpus or the detector's relative lookup."
+      patterns:
+        - "Vite proxy (see vite.config.ts)"
+        - "uploadLimits.ts storageQuota.ts"
+        - "osmRules.ts osm.ts"
+    - triaged_at: "2026-07-13"
+      reason: "The actual database column, not a file reference."
+      patterns:
+        - "projectSlug.ts projects.slug"
+    - triaged_at: "2026-07-13"
+      reason: "Public documentation external to the repository."
+      patterns:
+        - "validation/schemas.ts zod.dev"
+  typescript.unread-input-field:
+    - triaged_at: "2026-07-13"
+      reason: "The EditSession fields are read through inferred locals outside the typed-parameter census."
+      patterns:
+        - "EditSession (13 fields, declared services/overlay/editing.ts)"
+  comments.unresolved-identifier:
+    - triaged_at: "2026-07-13"
+      reason: "Prose naming the elements of a [number, number] tuple, not references to declared symbols."
+      patterns:
+        - "[minMeters, maxMeters]. Infinity = no upper bound."
+        - "[minTimestampMs, maxTimestampMs]. Uses externalLastModified"
+    - triaged_at: "2026-07-13"
+      reason: "Documents MapLibre addLayer's positional second parameter, left undefined so the layers land on top of the stack."
+      patterns:
+        - "Project shapes/outlines render on top of the whole basemap (undefined beforeId)"
+        - "Cluster/point layers insert at the top of the stack (undefined beforeId)"
+    - triaged_at: "2026-07-13"
+      reason: "Points at the real root-relative storage-quota module."
+      patterns:
+        - "uploadLimits.ts storageQuota"
+  typescript.field-enumeration.joint-gap:
+    - triaged_at: "2026-07-13"
+      reason: "DatePrecision value lists mistaken for object-key enumerations."
+      patterns:
+        - "validation/schemas.ts|FlexibleDateInput"
+    - triaged_at: "2026-07-13"
+      reason: "The documented content-versus-viewport comparison split."
+      patterns:
+        - "composables/project/useVisibleProjects.ts|VisibleProject"

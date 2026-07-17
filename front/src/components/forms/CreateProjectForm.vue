@@ -12,11 +12,15 @@
 
 <script setup lang="ts">
 import { ref, watch, reactive } from "vue";
-import { validateProjectForm } from "@/utils/validationHelpers";
+import { useI18n } from "vue-i18n";
+import { getScopedProjectValidationErrors } from "@/utils/validationHelpers";
+import { toastError } from "@/services/core/toast";
 import type { Project, ProjectFormData } from "@/types/index";
 import { projectToFormData, formDataToProjectFields } from "@/utils/projectFormHelpers";
 
 import ProjectFormFields from "@/components/forms/ProjectFormFields.vue";
+
+const { t } = useI18n();
 
 const props = defineProps<{
   project: Partial<Project>;
@@ -39,7 +43,14 @@ watch(
 );
 
 function handleSubmit() {
-  if (!validateProjectForm(formData, timelineStatus.value)) return;
+  const errors = getScopedProjectValidationErrors(formData, timelineStatus.value);
+  if (errors) {
+    const firstError = Object.values(errors)[0];
+    if (firstError) {
+      toastError(t(firstError.key, firstError.params ?? {}), t("toast.validationError"));
+    }
+    return;
+  }
 
   const result: Partial<Project> = {
     ...props.project,

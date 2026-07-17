@@ -12,7 +12,7 @@ import {
   parseQuadValue,
   getEditModeRestingCorners,
 } from "@/services/overlay/transform";
-import { selectOverlay } from "@/services/overlay/selection";
+import { openOverlayDetail } from "@/services/overlay/selection";
 import { clearAllMapContent } from "@/services/overlay/teardown";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import type { LatLng, Overlay, PendingChangeRequest } from "@/types/index";
@@ -188,7 +188,7 @@ export async function previewOverlayGeometry(options: PreviewGeometryOptions): P
       changeId: change.id,
       side: type === "new" ? "suggested" : "current",
     };
-    selectOverlay(change.entityId);
+    openOverlayDetail(change.entityId);
 
     // Don't pass previousBounds when toggling, both positions are already visible
     applyPositionPreview(

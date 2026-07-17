@@ -358,7 +358,7 @@ watch(
 
     // Handle Turnstile rendering when modal opens or mode changes
     if (isVisible && !isLoginMode.value) {
-      nextTick(() => renderTurnstile());
+      nextTick().then(() => renderTurnstile());
     }
   },
   // The modal is v-if-mounted only once already visible, so the initial true value
@@ -369,7 +369,7 @@ watch(
 // Watch mode switch to render/reset Turnstile
 watch(isLoginMode, (isLogin) => {
   if (!isLogin && props.visible) {
-    nextTick(() => renderTurnstile());
+    nextTick().then(() => renderTurnstile());
   } else {
     resetTurnstile();
   }

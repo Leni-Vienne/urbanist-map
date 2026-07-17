@@ -1,8 +1,7 @@
 // The last-synced set of approved overlays built from overlay-footprint tile features, keyed by id.
-// vectorTileSync writes it (filters + viewport already applied); the viewport reconciler reads it
-// as the desired-existence signal for approved overlays, and shape rendering reads it to collect
-// approved-overlay project ids. Held here as a leaf so the writer (tiles/sync) can depend on the
-// reconciler without a cycle through the reader.
+// Writes arrive with filters and the viewport already applied; readers treat it as the
+// desired-existence signal for approved overlays. Held here as a leaf so the writer can depend on
+// the viewport reconciler without a cycle through the reader.
 
 import type { OverlayData } from "@/types/index";
 

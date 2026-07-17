@@ -9,11 +9,21 @@ import { highlightProjectShapes, unhighlightProjectShapes } from "@/services/map
 // refetching the slug of a project selected more than once.
 const slugCache = new Map<string, string>();
 
+// "/" and "/project/:slug" are the only paths that render the map, so they are the only ones whose
+// path describes the open project. On any other route (legal, contact, admin) a selection change
+// must not touch the address bar: rewriting the path there would silently replace the destination
+// the user navigated to.
+function isProjectPathRoute(): boolean {
+  const path = globalThis.location.pathname;
+  return path === "/" || path.startsWith("/project/");
+}
+
 // Rewrite only the path (via history.replaceState), leaving the map-state hash (managed in
 // services/core/map.ts) and any query string intact. Bypassing vue-router is intentional: both "/"
 // and "/project/:slug" render Home, and the deep-link handler reads the slug only once on mount, so
 // swapping the path never remounts Home nor re-triggers that handler (mirroring map.ts's hash writes).
 function writeProjectPath(slug: string | null): void {
+  if (!isProjectPathRoute()) return;
   const url = new URL(globalThis.location.href);
   const nextPath = slug ? `/project/${encodeURIComponent(slug)}` : "/";
   if (url.pathname === nextPath) return;
@@ -24,11 +34,11 @@ function writeProjectPath(slug: string | null): void {
 // /project/<slug> deep link, and reverts to "/" when nothing is selected. No `immediate`: on a
 // deep-link load the URL already carries the slug and the project is selected asynchronously, so
 // reacting only to changes avoids wiping the slug back to "/" before it loads.
-function initializeProjectUrlSync() {
+function watchProjectUrlSync(): () => void {
   const projectStore = useProjectStore();
   const focus = useFocusStore();
 
-  watch(
+  return watch(
     () => focus.selectedProjectId,
     async (projectId) => {
       if (!projectId) {
@@ -57,11 +67,11 @@ function initializeProjectUrlSync() {
 // project" card and filtered out of the accordion list. Drop it from the expanded accordion set so
 // it returns collapsed (not expanded) when it later falls back into the list on deselection, while
 // leaving manually-expanded panels untouched.
-function initializeSelectedPanelCleanup() {
+function watchSelectedPanelCleanup(): () => void {
   const uiStore = useUiStore();
   const focus = useFocusStore();
 
-  watch(
+  return watch(
     () => focus.selectedProjectId,
     (projectId) => {
       if (!projectId) return;
@@ -76,11 +86,11 @@ function initializeSelectedPanelCleanup() {
 
 // Drive the GeoJSON project-shape outline (edit/moderation layers) off the focused project: light
 // the newly focused project's shapes and revert the previously focused one. The vector tile
-// "selected" feature-state is handled separately in projectVectorLayers.
-function initializeShapeHighlightWatcher() {
+// "selected" feature-state is handled separately.
+export function watchShapeHighlighting(): () => void {
   const focus = useFocusStore();
 
-  watch(
+  return watch(
     () => focus.highlightedProjectId,
     (newProjectId, oldProjectId) => {
       if (oldProjectId && oldProjectId !== newProjectId) unhighlightProjectShapes(oldProjectId);
@@ -90,11 +100,12 @@ function initializeShapeHighlightWatcher() {
 }
 
 /**
- * Drives all focus-driven side effects (URL slug sync, accordion cleanup, GeoJSON shape highlight)
- * so click handlers only need to write the focus store. Requires Pinia to be installed.
+ * Install the app-lifetime focus projections that do not require a MapLibre instance.
  */
-export function initializeDetailWatcher(): void {
-  initializeProjectUrlSync();
-  initializeSelectedPanelCleanup();
-  initializeShapeHighlightWatcher();
+export function startDetailWatcher(): () => void {
+  const stops = [watchProjectUrlSync(), watchSelectedPanelCleanup()];
+
+  return function stopDetailWatcher(): void {
+    for (const stop of stops.toReversed()) stop();
+  };
 }

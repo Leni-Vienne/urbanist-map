@@ -25,14 +25,21 @@ if (import.meta.env.VITE_DEBUG) {
       const cleanList = scripts
         .map((res) => ({
           name: res.name.split("/").pop(),
-          size: res.transferSize,
+          size: res.encodedBodySize,
         }))
         .toSorted((a, b) => b.size - a.size)
         .map(({ name, size }) => `${name} | ${(size / 1024).toFixed(2)} kB`)
         .join("\n");
 
-      const totalKB = (scripts.reduce((sum, res) => sum + res.transferSize, 0) / 1024).toFixed(2);
-      console.log(`Initial JS Chunks Loaded:\n\n${cleanList}\n\nTotal Transfer: ${totalKB} kB`);
+      const totalSizeKB = (
+        scripts.reduce((sum, res) => sum + res.encodedBodySize, 0) / 1024
+      ).toFixed(2);
+      const totalTransferKB = (
+        scripts.reduce((sum, res) => sum + res.transferSize, 0) / 1024
+      ).toFixed(2);
+      console.log(
+        `Initial JS Chunks Loaded:\n\n${cleanList}\n\nTotal JS Size: ${totalSizeKB} kB\nTotal Transfer: ${totalTransferKB} kB`,
+      );
     }, 1000);
   }
   if (document.readyState === "complete") {
@@ -84,7 +91,7 @@ if (import.meta.env.VITE_DEBUG) {
       if (entry.startTime < pageLoadCutoff) continue; // skip initial load window
 
       const name = entry.name.split("/").pop();
-      const size = ((entry as PerformanceResourceTiming).transferSize / 1024).toFixed(2);
+      const size = ((entry as PerformanceResourceTiming).encodedBodySize / 1024).toFixed(2);
       batchLines.push(`${name} | ${size} kB`);
 
       if (batchTimer !== null) clearTimeout(batchTimer);

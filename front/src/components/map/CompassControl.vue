@@ -16,7 +16,7 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import CompassRose from "@/components/map/CompassRose.vue";
-import { map, currentBearing, currentPitch } from "@/services/core/map";
+import { getMap, currentBearing, currentPitch } from "@/services/core/map";
 import { mapRotationEnabled } from "@/services/map/settings";
 
 const { t } = useI18n();
@@ -29,6 +29,6 @@ const isVisible = computed(
 );
 
 function resetNorth() {
-  map.value.resetNorthPitch();
+  getMap().resetNorthPitch();
 }
 </script>

@@ -1,6 +1,6 @@
 import { LngLat, LngLatBounds } from "maplibre-gl";
-import { selectOverlay } from "@/services/overlay/selection";
-import { map } from "@/services/core/map";
+import { openOverlayDetail } from "@/services/overlay/selection";
+import { getMap } from "@/services/core/map";
 import * as registry from "@/services/overlay/mapLayers";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
 import { handleProjectClickFromTile } from "@/services/map/projectSelection";
@@ -33,7 +33,7 @@ export function zoomToOverlayAndSelect(
         ? Math.max(80, Math.floor(Math.min(globalThis.innerWidth, globalThis.innerHeight) * 0.1))
         : 80;
 
-    const cam = map.value.cameraForBounds(llb, { padding: dynamicPadding, maxZoom: 18 });
+    const cam = getMap().cameraForBounds(llb, { padding: dynamicPadding, maxZoom: 18 });
     if (cam && typeof cam.zoom === "number") {
       targetZoom = cam.zoom;
     }
@@ -52,7 +52,7 @@ export function zoomToOverlayAndSelect(
   // settles). Give up after ~5s for overlays that never render.
   function selectWhenReady(): void {
     function select(): void {
-      if (autoSelect) selectOverlay(overlayId);
+      if (autoSelect) openOverlayDetail(overlayId);
     }
     function onReadyTimeout(): void {
       console.warn("Overlay did not render in time, aborting auto-select", overlayId);
@@ -66,7 +66,7 @@ export function zoomToOverlayAndSelect(
     return true;
   }
 
-  void map.value.once("moveend", selectWhenReady);
+  void getMap().once("moveend", selectWhenReady);
 
   return true;
 }
@@ -78,7 +78,7 @@ function openDetailAfterFlight(flew: boolean, projectId: string): void {
     void handleProjectClickFromTile(projectId);
   }
   if (flew) {
-    void map.value.once("moveend", openDetail);
+    void getMap().once("moveend", openDetail);
   } else {
     openDetail();
   }
