@@ -1,6 +1,11 @@
 # Environment-agnostic Docker Compose for both production and preview
 # Use with: docker compose --env-file .env.prod up -d
 # Or with: docker compose --env-file .env.preview up -d
+#
+# Every service caps its json-file log. Without this Docker keeps the whole log for the container's
+# lifetime, so request lines (which contain IP addresses) would outlive the retention promised in
+# the privacy policy. Grafana Cloud Loki is the durable store, so what sits on disk here only has to
+# cover local debugging.
 
 services:
   postgres:
@@ -30,6 +35,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: ${DB_LOG_MAX_SIZE:-5m}
+        max-file: "${DB_LOG_MAX_FILE:-3}"
 
   # Backend web server, running directly on the official Bun Alpine image.
   # Image processing uses Bun.Image (no native deps needed).
@@ -82,6 +92,12 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    # Request logs carry client IPs, so this is the cap that bounds how long they live on disk.
+    logging:
+      driver: json-file
+      options:
+        max-size: ${BACKEND_LOG_MAX_SIZE:-10m}
+        max-file: "${BACKEND_LOG_MAX_FILE:-3}"
 
   # Grafana Alloy - Log shipper that captures stdout and sends to Loki
   alloy:
@@ -104,6 +120,11 @@ services:
       - app-network
     ports:
       - "${ALLOY_PORT:-12345}:12345" # Alloy UI
+    logging:
+      driver: json-file
+      options:
+        max-size: ${ALLOY_LOG_MAX_SIZE:-5m}
+        max-file: "${ALLOY_LOG_MAX_FILE:-3}"
 
 volumes:
   postgres_data:

@@ -9,11 +9,6 @@
 #         - "Component.vue watch [ctx:setup]"
 version: 2
 rules:
-  async.swallowed-write-error-contract:
-    - triaged_at: "2026-07-15"
-      reason: "The project and overlay deletes are mutually exclusive branches; a project deletion failure reaches the end of executeDelete without another write."
-      patterns:
-        - "pages/AdminUserContributionsPage.vue executeDelete continues to durable-write after ignored adminDeleteProject failure contract"
   state.boolean-latch:
     - triaged_at: "2026-07-13"
       reason: "KeepAlive activation guard: CurrentLocationPanel sits inside PanelContent's KeepAlive."
@@ -62,11 +57,6 @@ rules:
       reason: "The four booleans are the ray-casting flags and a style-load once-guard already ruled out in state.boolean-latch; density is an artifact of the file hosting a geometry algorithm, not a state machine."
       patterns:
         - "services/map/tiles/basemap.ts 4 mutable booleans"
-  comments.hedge:
-    - triaged_at: "2026-07-13"
-      reason: "Describes the history-corners fallback for when a modified overlay's raster is off the map."
-      patterns:
-        - "mapLayers.ts [temporarily] temporarily null"
   vue.template.unpassed-prop:
     - triaged_at: "2026-07-13"
       reason: "Idiomatic size prop on a generic reusable SVG leaf; kept for reusability over negligible savings."
@@ -137,49 +127,6 @@ rules:
       reason: "Mode maps back to the single writable navigation tab, not to a second mode state."
       patterns:
         - "stores/mapStore.ts writes uiStore.activeTab [ctx:setMode]"
-  typescript.constant-argument:
-    - triaged_at: "2026-07-13"
-      reason: "Toast detail and summary values come from translated messages, including dynamic moderation keys, which literal-only call-site resolution misses."
-      patterns:
-        - "services/core/toast.ts toastError parameter detail always receives (omitted)"
-        - "services/core/toast.ts toastSuccess parameter detail always receives (omitted)"
-        - "services/core/toast.ts toastSuccess parameter summary always receives (omitted)"
-        - "services/core/toast.ts toastInfo parameter detail always receives (omitted)"
-        - "services/core/toast.ts toastInfo parameter summary always receives (omitted)"
-        - "services/core/toast.ts toastWarn parameter detail always receives (omitted)"
-        - "services/core/toast.ts toastWarn parameter summary always receives (omitted)"
-    - triaged_at: "2026-07-13"
-      reason: "Validation options are forwarded through getProjectValidationErrors; existing-project validation needs its actual coordinates."
-      patterns:
-        - 'prepareProjectValidationData(): param #2 "options" never passed'
-        - "utils/validationHelpers.ts getProjectValidationErrors parameter options always receives (omitted)"
-    - triaged_at: "2026-07-13"
-      reason: "Callers pass the selected project ID, which controls whether the detail panel opens after the camera move."
-      patterns:
-        - "services/navigation/projectNavigation.ts navigateToProject parameter projectId always receives (omitted)"
-    - triaged_at: "2026-07-13"
-      reason: "Forwarded values, reactive state, or object arguments the static literal-only analysis cannot see; the optional defaults are exercised on other paths."
-      patterns:
-        - "locales/index.ts t parameter values always receives (omitted)"
-        - "services/changes/changeRequests.ts refreshPendingChangeRequests parameter options always receives (omitted)"
-        - "services/core/entityRemoval.ts deleteOverlayDirect parameter options always receives (omitted)"
-        - "services/map/mapLabelLanguage.ts applyMapLabelLanguage parameter preference always receives (omitted)"
-        - "services/map/mapNavigation.ts mobileAwareFlyTo parameter options always receives (omitted)"
-        - "services/map/mapNavigation.ts mobileAwareFlyToBounds parameter options always receives (omitted)"
-        - "services/map/mapNavigation.ts flyToGeometry parameter options always receives (omitted)"
-        - "services/map/shapes/rendering.ts renderProjectShapes parameter oldGeometry always receives (omitted)"
-        - "services/overlay/history.ts makeHistoryState parameter cropRect always receives (omitted)"
-        - "services/overlay/history.ts commitOverlayEdit parameter cropRect always receives (omitted)"
-        - "services/overlay/mapLayers.ts deriveOverlayFilename parameter fallback always receives (omitted)"
-        - "services/overlay/visibility.ts isOverlayVisible parameter currentUserId always receives (omitted)"
-        - "services/submission/submissionDialog.ts prepareSubmission parameter overlay always receives (omitted)"
-        - "utils/flexibleDateHelpers.ts dbToFlexibleDate parameter savedPrecision always receives (omitted)"
-        - "utils/typeFactories.ts createProjectObject parameter data always receives (omitted)"
-        - "utils/typeFactories.ts createOverlayObject parameter data always receives (omitted)"
-        - "stores/authStore.ts signIn parameter rememberMe always receives (omitted)"
-        - "stores/authStore.ts setLastUsedMethod parameter email always receives (omitted)"
-        - "stores/projectStore.ts addOverlayToUserContributions parameter existingProjectOverlays always receives (omitted)"
-        - "stores/projectStore.ts removeOverlayFromUserContributions parameter currentUserId always receives (omitted)"
   async.post-await-write.callback:
     - triaged_at: "2026-07-13"
       reason: "Memoized auth-initialization closure; runs once."
@@ -212,8 +159,9 @@ rules:
       reason: "Latch cancel on mode change; the latch's own edges are the user starting/finishing placement, so sourcing it would re-fire the watcher on its own state."
       patterns:
         - "components/map/MarkerPlacementBar.vue watch [ctx:MODULE-TOP] source=() => mapStore.mode"
-    - triaged_at: "2026-07-13"
-      reason: "Dedupe check on an array the watcher itself appends to; watching it would loop."
+  vue.reactivity.stale-dependency.explained:
+    - triaged_at: "2026-07-16"
+      reason: "The callback's viewed-ID dedupe is component-local state written by that same callback; it must not be a watcher source or the append would re-trigger the watcher."
       patterns:
         - "components/layout/ModerationPanel.vue watch{deep} [ctx:MODULE-TOP] source=() => changeRequestStore.previewState"
   async.post-await-write.function:
@@ -243,9 +191,6 @@ rules:
         - "services/map/tiles/basemap.ts [async-fn] ensureCountryBordersLoaded"
         - "stores/moderatedContributionsStore.ts [async-fn] fetchModeratedContributions"
         - "stores/moderatedContributionsStore.ts [async-fn] preloadModeratedContributions"
-        - "pages/AdminDetachedProjectsPage.vue [async-fn] loadDetachedProjects"
-        - "pages/AdminReportsPage.vue [async-fn] loadReportedUsers"
-        - "pages/AdminUserContributionsPage.vue [async-fn] loadUserContributions"
         - "pages/AdminUserContributionsPage.vue [async-fn] loadCountryDetails"
     - triaged_at: "2026-07-13"
       reason: "Re-reads moderatedContributions after the await, so there is no lost update."
@@ -275,37 +220,12 @@ rules:
         - "ref pendingSubmissionContext [decl services/submission/submissionDialogState.ts] -> consumer handleRemoveChange()"
         - "-> consumer handleRemoveOverlayChange() in services/submission/submissionDialog.ts"
         - "-> consumer handleRemoveProjectChange() in services/submission/submissionDialog.ts"
-  pinia.collection-roundtrip-fallback:
-    - triaged_at: "2026-07-13"
-      reason: "The fallback fires when the user removes a row from an already-open dialog, so the overlay can genuinely be gone; not a same-tick roundtrip."
-      patterns:
-        - "submissionDialog.ts: calls getStagedOverlayModifications()"
-        - "submissionDialog.ts: calls getNewOverlaysForProject()"
-    - triaged_at: "2026-07-13"
-      reason: "Keyed by selectedId, an external input, and run before the derive as its entry guard."
-      patterns:
-        - "OverlayFloatingToolbar.vue: calls getProjectSiblingOverlayIds()"
-        - "navigation.ts: calls getProjectSiblingOverlayIds()"
   typescript.cast-disagreement:
-    - triaged_at: "2026-07-13"
-      reason: "DOM event.target narrowed to whatever element the handler is bound to."
-      patterns:
-        - "as HTMLElement [ctx:handleTouchStart]"
     - triaged_at: "2026-07-13"
       reason: "Per-call-site narrowing of unknown payloads or a GeoJSON union split into its members."
       patterns:
-        - "as GeoJSON.GeometryCollection | undefined [ctx:getPendingGeometry]"
         - "as Locale [ctx:MODULE-TOP]"
         - "as Position[] [ctx:buildDrawables]"
-        - "as GeoJSON.Geometry | null [ctx:featureToProject]"
-    - triaged_at: "2026-07-13"
-      reason: "Paint-property and layer-filter are two different style-spec slots, built by different functions."
-      patterns:
-        - "as ExpressionSpecification [ctx:getTagColorExpression]"
-    - triaged_at: "2026-07-13"
-      reason: "A re-export barrel; the aliases are separate component defaults that share no expression."
-      patterns:
-        - "mapUIBundle.ts default: FilterControl vs UserMenu vs CitySearch vs SettingsButton"
   typescript.field-enumeration.copier:
     - triaged_at: "2026-07-13"
       reason: "Merges only the nullable lat/lng fallbacks; the first feature's anchors are always valid, so a later feature has nothing to repair."
@@ -345,7 +265,6 @@ rules:
       reason: "Form and validation helpers deliberately map between form data and the editable or schema subset; the real payloads set the rest themselves."
       patterns:
         - "roots overlay in prepareOverlayValidationData"
-        - "roots project in validateProject"
         - "roots p in projectToFormData"
         - "roots f in formDataToProjectFields"
         - "roots formData in prepareProjectValidationData"
@@ -386,10 +305,9 @@ rules:
         - "validation/schemas.ts zod.dev"
   typescript.unread-input-field:
     - triaged_at: "2026-07-13"
-      reason: "The fields are read through inferred locals or callbacks outside the typed-parameter census; ProjectTag.hidden is the escape hatch for retiring a tag from the pickers."
+      reason: "The EditSession fields are read through inferred locals outside the typed-parameter census."
       patterns:
         - "EditSession (13 fields, declared services/overlay/editing.ts)"
-        - "ProjectTag (4 fields, declared constants/projectTags.ts)"
   comments.unresolved-identifier:
     - triaged_at: "2026-07-13"
       reason: "Prose naming the elements of a [number, number] tuple, not references to declared symbols."
@@ -405,11 +323,6 @@ rules:
       reason: "Points at the real root-relative storage-quota module."
       patterns:
         - "uploadLimits.ts storageQuota"
-  vue.template.unused-component-import:
-    - triaged_at: "2026-07-13"
-      reason: "The symbol is used as a TypeScript type while the separately named default component is present in the template."
-      patterns:
-        - "ModerationPanel.vue imports ReplacementConflicts from components/moderation/ReplacementConflictsDialog.vue"
   typescript.field-enumeration.joint-gap:
     - triaged_at: "2026-07-13"
       reason: "DatePrecision value lists mistaken for object-key enumerations."

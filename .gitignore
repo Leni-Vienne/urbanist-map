@@ -62,3 +62,5 @@ dist-ssr
 *.geojsonl
 *.osc.gz
 *.replication-state
+# analyze-visitors.ts runtime cache of published crawler IP ranges
+scripts/.crawler-ranges.json

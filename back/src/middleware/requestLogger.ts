@@ -1,6 +1,7 @@
 import type { Context, Next } from "hono";
 import { logger } from "../services/logger";
 import { addError } from "../services/errorAlerter";
+import { classifyRequest } from "../services/botClassifier";
 import { getClientIp } from "../utils/ip";
 
 // Only alert on errors from routes that the app actually serves
@@ -53,6 +54,8 @@ export async function requestLogger(c: Context, next: Next) {
     const duration = Date.now() - startTime;
     const status = c.res.status;
     const userId = getUserId(c);
+    // After duration is measured, so the range scan never shows up as request latency
+    const verdict = classifyRequest(ip, path, userAgent);
 
     // eslint-disable-next-line no-nested-ternary
     const level = status >= 500 ? "error" : status >= 400 ? "warn" : "info";
@@ -65,7 +68,15 @@ export async function requestLogger(c: Context, next: Next) {
       cfCountry: cloudflare.cfCountry,
       cfRay: cloudflare.cfRay,
       userId,
-      userAgent,
+      botClass: verdict.botClass,
+      botKind: verdict.botKind,
+      // botOperator is derived from the User-Agent for declared bots, so a client controls its
+      // value. It stays a field: promoting it to a Loki label would hand the index unbounded
+      // cardinality.
+      botOperator: verdict.botOperator,
+      ...(verdict.impostor ? { impostor: true } : {}),
+      // userAgent is wide and low-signal on success; keep it only on failures
+      ...(status >= 400 ? { userAgent } : {}),
     });
 
     // Track errors for alerting (4xx and 5xx), but only for routes we serve
@@ -83,6 +94,7 @@ export async function requestLogger(c: Context, next: Next) {
     // Reaching here means an unhandled throw bubbled past Hono's error handler,
     // so no real response was set (c.res lazily defaults to 200): treat as 500
     const status = 500;
+    const verdict = classifyRequest(ip, path, userAgent);
 
     logger.error({
       method,
@@ -93,6 +105,10 @@ export async function requestLogger(c: Context, next: Next) {
       cfCountry: cloudflare.cfCountry,
       cfRay: cloudflare.cfRay,
       userAgent,
+      botClass: verdict.botClass,
+      botKind: verdict.botKind,
+      botOperator: verdict.botOperator,
+      ...(verdict.impostor ? { impostor: true } : {}),
       error: error instanceof Error ? error.message : String(error),
     });
 
