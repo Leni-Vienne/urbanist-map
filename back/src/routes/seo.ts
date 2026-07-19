@@ -125,7 +125,9 @@ seoApp.get("/seo/project/:slug", async (c) => {
         >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_XMax(ST_Envelope(${projects.geometry})) ELSE NULL END`,
       })
       .from(projects)
-      .where(eq(projects.slug, slug))
+      // Approved only: this endpoint carries no session, so a pending or rejected project is
+      // private to its owner and must resolve as if it did not exist.
+      .where(and(eq(projects.slug, slug), eq(projects.status, "approved")))
       .limit(1);
 
     const project = rows[0];
