@@ -566,6 +566,7 @@
     "captionTooLong": "La légende ne doit pas dépasser {max} caractères",
     "filenameRequired": "Le nom de fichier est requis",
     "filenameTooLong": "Le nom de fichier ne doit pas dépasser {max} caractères",
+    "filenameInvalid": "Nom de fichier invalide",
     "projectRequired": "Le projet est requis",
     "invalidLatitude": "La latitude doit être entre {min} et {max}",
     "invalidLongitude": "La longitude doit être entre {min} et {max}",

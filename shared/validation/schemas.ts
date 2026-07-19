@@ -6,6 +6,15 @@ import { validateOverlaySize } from "../overlayValidation";
 // From Zod doc, way safer than plain z.url(). https://zod.dev/api?id=urls
 const safeUrl = z.url({ protocol: /^https?$/, message: "validation.invalidUrl" });
 
+// The upload endpoint names stored images `${timestamp}-${random}.${ext}`. A persisted
+// filename is later interpolated into filesystem paths (unlink, readdir) and served, so it
+// must match that shape exactly: bare name, no path separators or `..`, single extension.
+export const uploadedFilenameSchema = z
+  .string()
+  .min(1, "validation.filenameRequired")
+  .max(255, "validation.filenameTooLong")
+  .regex(/^[0-9]+-[a-z0-9]+\.[a-z0-9]+$/, "validation.filenameInvalid");
+
 export const projectSchema = z
   .object({
     id: z.uuid().optional(),
@@ -63,7 +72,7 @@ export const projectSchema = z
 
 const overlayBaseSchema = z.object({
   id: z.uuid(),
-  filename: z.string().min(1, "validation.filenameRequired").max(255, "validation.filenameTooLong"),
+  filename: uploadedFilenameSchema,
   caption: z
     .string()
     .max(500, "validation.captionTooLong")

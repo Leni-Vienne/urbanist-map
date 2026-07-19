@@ -1,7 +1,7 @@
 import { publicProcedure, loggedInProcedure, router, TRPCError } from "../trpc";
 import * as z from "zod";
 import { overlays, projects, users } from "../db/schema";
-import { sql, eq, and, or, inArray } from "drizzle-orm";
+import { sql, eq, ne, and, or, inArray } from "drizzle-orm";
 import { db, type Database } from "../database";
 import { buildOverlayQuery, buildOverlayVisibilityCondition, isUserBlocked } from "../db/helpers";
 import type { AppMode } from "@shared/types";
@@ -16,7 +16,7 @@ import {
   checkPendingLimitForNewContribution,
   checkTotalContributionLimit,
 } from "../db/contributionHelpers";
-import { overlaySchema } from "@shared/validation/schemas";
+import { overlaySchema, uploadedFilenameSchema } from "@shared/validation/schemas";
 import { notifyNewSubmission } from "../services/discordNotifier";
 
 // Use shared overlay schema for validation
@@ -32,7 +32,7 @@ const getOverlaySchema = z.object({
 // lightweight publish schema rather than reusing the corner-centric overlaySchema.
 const publishRenderSchema = z.object({
   projectId: z.uuid({ message: "validation.projectRequired" }),
-  filename: z.string().min(1, "validation.filenameRequired").max(255, "validation.filenameTooLong"),
+  filename: uploadedFilenameSchema,
   caption: z
     .string()
     .max(500, "validation.captionTooLong")
@@ -82,6 +82,25 @@ async function findIntersectingOverlays(
       code: "INTERNAL_SERVER_ERROR",
       message: "Failed to find intersecting overlays",
     });
+  }
+}
+
+// Filenames are minted per-upload and are the key for the stored image plus its retained
+// original and thumbnail. A filename already carried by another overlay would let a delete or
+// re-publish reach that overlay's files, so a publish may only claim one no other row holds.
+async function assertFilenameUnclaimed(filename: string, exceptOverlayId?: string): Promise<void> {
+  const claim = await db
+    .select({ id: overlays.id })
+    .from(overlays)
+    .where(
+      exceptOverlayId
+        ? and(eq(overlays.filename, filename), ne(overlays.id, exceptOverlayId))
+        : eq(overlays.filename, filename),
+    )
+    .limit(1);
+
+  if (claim[0]) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "validation.filenameInvalid" });
   }
 }
 
@@ -155,6 +174,8 @@ export const overlayRouter = router({
       if (!project) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
       }
+
+      await assertFilenameUnclaimed(input.filename);
 
       const id = crypto.randomUUID();
       await checkPendingLimitForNewContribution(ctx.user.id, id);
@@ -240,6 +261,8 @@ export const overlayRouter = router({
           message: "Not authorized to modify this overlay",
         });
       }
+
+      await assertFilenameUnclaimed(input.filename, input.id);
 
       // Extract corner coordinates
       const [topLeft, topRight, bottomRight, bottomLeft] = input.corners;

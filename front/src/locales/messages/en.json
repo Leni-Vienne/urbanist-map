@@ -566,6 +566,7 @@
     "captionTooLong": "Caption must not exceed {max} characters",
     "filenameRequired": "Filename is required",
     "filenameTooLong": "Filename must not exceed {max} characters",
+    "filenameInvalid": "Invalid filename",
     "projectRequired": "Project is required",
     "invalidLatitude": "Latitude must be between {min} and {max}",
     "invalidLongitude": "Longitude must be between {min} and {max}",
