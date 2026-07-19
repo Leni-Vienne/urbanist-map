@@ -384,7 +384,7 @@ export const overlayRouter = router({
 
       // Only allow owners to update their own overlays
       const existingOverlay = await db
-        .select({ authorId: overlays.authorId })
+        .select({ authorId: overlays.authorId, status: overlays.status })
         .from(overlays)
         .where(eq(overlays.id, input.id))
         .limit(1);
@@ -399,6 +399,15 @@ export const overlayRouter = router({
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "Not authorized to update this overlay",
+        });
+      }
+
+      if (overlayToUpdate.status === "approved") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "APPROVED_OVERLAY_REQUIRES_CHANGE_REQUEST",
+          cause:
+            "Modifying an approved overlay requires moderation approval. Please submit a change request instead.",
         });
       }
 
