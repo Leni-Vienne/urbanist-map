@@ -1,0 +1,1118 @@
+annotations:
+  - kind: AnnotationQuery
+    spec:
+      builtIn: true
+      enable: true
+      hide: true
+      iconColor: rgba(0, 211, 255, 1)
+      name: Annotations & Alerts
+      query:
+        datasource:
+          name: "-- Grafana --"
+        group: grafana
+        kind: DataQuery
+        spec: {}
+        version: v0
+cursorSync: "Off"
+description: Request traffic, bot classification, and identity analysis for the selected backend. Health checks (/api/health) are excluded by the bot classification filters. Use the time picker to select the aggregation window; only the request-rate panel charts time.
+editable: true
+elements:
+  panel-1:
+    kind: Panel
+    spec:
+      data:
+        kind: QueryGroup
+        spec:
+          queries:
+            - kind: PanelQuery
+              spec:
+                hidden: false
+                query:
+                  datasource:
+                    name: grafanacloud-logs
+                  group: loki
+                  kind: DataQuery
+                  spec:
+                    app: grafana-assistant-app
+                    direction: backward
+                    editorMode: code
+                    expr: |-
+                      sum by (cfCountry, botKind) (
+                        count_over_time({container=~".*${backend:regex}", cfCountry!="", botKind=~"human|bot"} [$__range])
+                      ) and on (cfCountry) topk(15, sum by (cfCountry) (
+                        count_over_time({container=~".*${backend:regex}", cfCountry!="", botKind=~"human|bot"} [$__range])
+                      ))
+                    instant: true
+                    legendFormat: "{{cfCountry}} {{botKind}}"
+                    queryType: instant
+                    range: false
+                  version: v0
+                refId: A
+          queryOptions: {}
+          transformations:
+            - kind: Transformation
+              group: labelsToFields
+              spec:
+                options: {}
+            - kind: Transformation
+              group: groupingToMatrix
+              spec:
+                options:
+                  columnField: botKind
+                  rowField: cfCountry
+                  valueField: "Value #A"
+      description: Top 15 Cloudflare country codes by classified traffic in the selected time window, split into human and bot requests. Empty country codes and unclassified requests are excluded.
+      id: 1
+      links: []
+      title: Requests by country
+      vizConfig:
+        group: barchart
+        kind: VizConfig
+        spec:
+          fieldConfig:
+            defaults:
+              color:
+                mode: palette-classic
+              custom:
+                axisBorderShow: false
+                axisCenteredZero: false
+                axisColorMode: text
+                axisLabel: ""
+                axisPlacement: auto
+                fillOpacity: 80
+                gradientMode: none
+                hideFrom:
+                  legend: false
+                  tooltip: false
+                  viz: false
+                lineWidth: 1
+                scaleDistribution:
+                  type: linear
+                thresholdsStyle:
+                  mode: "off"
+              thresholds:
+                mode: absolute
+                steps:
+                  - color: green
+                    value: 0
+                  - color: red
+                    value: 80
+            overrides: []
+          options:
+            annotations:
+              clustering: -1
+              multiLane: false
+            barRadius: 0
+            barWidth: 0.97
+            fullHighlight: false
+            groupWidth: 0.7
+            legend:
+              calcs:
+                - sum
+              displayMode: table
+              enableFacetedFilter: false
+              overflow: ellipsis
+              placement: right
+              showLegend: true
+            orientation: horizontal
+            showValue: auto
+            stacking: normal
+            tooltip:
+              hideZeros: false
+              mode: multi
+              sort: desc
+            xTickLabelRotation: 0
+            xTickLabelSpacing: 0
+        version: 13.2.0-29316898481
+  panel-10:
+    kind: Panel
+    spec:
+      data:
+        kind: QueryGroup
+        spec:
+          queries:
+            - kind: PanelQuery
+              spec:
+                hidden: false
+                query:
+                  datasource:
+                    name: grafanacloud-logs
+                  group: loki
+                  kind: DataQuery
+                  spec:
+                    app: grafana-assistant-app
+                    direction: backward
+                    editorMode: code
+                    expr: 100 * sum(count_over_time({container=~".*${backend:regex}", botKind="bot"} [$__range])) / sum(count_over_time({container=~".*${backend:regex}", botKind!=""} [$__range]))
+                    instant: true
+                    queryType: instant
+                    range: false
+                  version: v0
+                refId: A
+          queryOptions: {}
+          transformations: []
+      description: Percentage of classified requests identified as bots in the selected time window.
+      id: 10
+      links: []
+      title: Bot traffic share
+      vizConfig:
+        group: stat
+        kind: VizConfig
+        spec:
+          fieldConfig:
+            defaults:
+              color:
+                mode: thresholds
+              displayName: Bot traffic share
+              thresholds:
+                mode: absolute
+                steps:
+                  - color: green
+                    value: 0
+                  - color: orange
+                    value: 50
+              unit: percent
+            overrides: []
+          options:
+            colorMode: value
+            graphMode: none
+            justifyMode: auto
+            orientation: horizontal
+            percentChangeColorMode: standard
+            reduceOptions:
+              calcs:
+                - lastNotNull
+              fields: ""
+              values: false
+            showPercentChange: false
+            textMode: value_and_name
+            wideLayout: true
+        version: 13.2.0-29316898481
+  panel-11:
+    kind: Panel
+    spec:
+      data:
+        kind: QueryGroup
+        spec:
+          queries:
+            - kind: PanelQuery
+              spec:
+                hidden: false
+                query:
+                  datasource:
+                    name: grafanacloud-logs
+                  group: loki
+                  kind: DataQuery
+                  spec:
+                    app: grafana-assistant-app
+                    direction: backward
+                    editorMode: code
+                    expr: 100 * sum(count_over_time({container=~".*${backend:regex}", botKind="unknown"} [$__range])) / sum(count_over_time({container=~".*${backend:regex}", botKind!=""} [$__range]))
+                    instant: true
+                    queryType: instant
+                    range: false
+                  version: v0
+                refId: A
+          queryOptions: {}
+          transformations: []
+      description: Percentage of classified requests that lack bot or human evidence in the selected time window.
+      id: 11
+      links: []
+      title: Unknown traffic share
+      vizConfig:
+        group: stat
+        kind: VizConfig
+        spec:
+          fieldConfig:
+            defaults:
+              color:
+                mode: thresholds
+              displayName: Unknown traffic share
+              thresholds:
+                mode: absolute
+                steps:
+                  - color: green
+                    value: 0
+                  - color: orange
+                    value: 25
+                  - color: red
+                    value: 50
+              unit: percent
+            overrides: []
+          options:
+            colorMode: value
+            graphMode: none
+            justifyMode: auto
+            orientation: horizontal
+            percentChangeColorMode: standard
+            reduceOptions:
+              calcs:
+                - lastNotNull
+              fields: ""
+              values: false
+            showPercentChange: false
+            textMode: value_and_name
+            wideLayout: true
+        version: 13.2.0-29316898481
+  panel-2:
+    kind: Panel
+    spec:
+      data:
+        kind: QueryGroup
+        spec:
+          queries:
+            - kind: PanelQuery
+              spec:
+                hidden: false
+                query:
+                  datasource:
+                    name: grafanacloud-logs
+                  group: loki
+                  kind: DataQuery
+                  spec:
+                    app: grafana-assistant-app
+                    direction: backward
+                    editorMode: code
+                    expr: |-
+                      sum by (botKind) (
+                        count_over_time({container=~".*${backend:regex}", botKind!=""} [$__range])
+                      )
+                    instant: true
+                    legendFormat: "{{botKind}}"
+                    queryType: instant
+                    range: false
+                  version: v0
+                refId: A
+          queryOptions: {}
+          transformations: []
+      description: Bot, human, and unknown traffic in the selected time window. Health checks have no botKind and are excluded.
+      id: 2
+      links: []
+      title: Traffic by classification
+      vizConfig:
+        group: barchart
+        kind: VizConfig
+        spec:
+          fieldConfig:
+            defaults:
+              color:
+                mode: palette-classic
+              custom:
+                axisBorderShow: false
+                axisCenteredZero: false
+                axisColorMode: text
+                axisLabel: ""
+                axisPlacement: auto
+                fillOpacity: 80
+                gradientMode: none
+                hideFrom:
+                  legend: false
+                  tooltip: false
+                  viz: false
+                lineWidth: 1
+                scaleDistribution:
+                  type: linear
+                thresholdsStyle:
+                  mode: "off"
+              displayName: Requests
+              thresholds:
+                mode: absolute
+                steps:
+                  - color: green
+                    value: 0
+                  - color: red
+                    value: 80
+            overrides: []
+          options:
+            barRadius: 0
+            barWidth: 0.97
+            fullHighlight: false
+            groupWidth: 0.7
+            legend:
+              calcs: []
+              displayMode: list
+              overflow: ellipsis
+              placement: bottom
+              showLegend: true
+            orientation: horizontal
+            showValue: auto
+            stacking: normal
+            tooltip:
+              hideZeros: false
+              mode: multi
+              sort: desc
+            xTickLabelRotation: 0
+            xTickLabelSpacing: 0
+        version: 13.2.0-29316898481
+  panel-3:
+    kind: Panel
+    spec:
+      data:
+        kind: QueryGroup
+        spec:
+          queries:
+            - kind: PanelQuery
+              spec:
+                hidden: false
+                query:
+                  datasource:
+                    name: grafanacloud-logs
+                  group: loki
+                  kind: DataQuery
+                  spec:
+                    app: grafana-assistant-app
+                    direction: backward
+                    editorMode: code
+                    expr: |-
+                      sum by (botClass) (
+                        count_over_time({container=~".*${backend:regex}", botClass!=""} [$__range])
+                      )
+                    instant: true
+                    legendFormat: "{{botClass}}"
+                    queryType: instant
+                    range: false
+                  version: v0
+                refId: A
+          queryOptions: {}
+          transformations: []
+      description: Request count by bot classification in the selected time window.
+      id: 3
+      links: []
+      title: Bot classification breakdown
+      vizConfig:
+        group: barchart
+        kind: VizConfig
+        spec:
+          fieldConfig:
+            defaults:
+              color:
+                mode: palette-classic
+              custom:
+                axisBorderShow: false
+                axisCenteredZero: false
+                axisColorMode: text
+                axisLabel: ""
+                axisPlacement: auto
+                fillOpacity: 80
+                gradientMode: none
+                hideFrom:
+                  legend: false
+                  tooltip: false
+                  viz: false
+                lineWidth: 1
+                scaleDistribution:
+                  type: linear
+                thresholdsStyle:
+                  mode: "off"
+              displayName: Requests
+              thresholds:
+                mode: absolute
+                steps:
+                  - color: green
+                    value: 0
+                  - color: red
+                    value: 80
+            overrides: []
+          options:
+            barRadius: 0
+            barWidth: 0.97
+            fullHighlight: false
+            groupWidth: 0.7
+            legend:
+              calcs: []
+              displayMode: list
+              overflow: ellipsis
+              placement: bottom
+              showLegend: true
+            orientation: horizontal
+            showValue: auto
+            stacking: normal
+            tooltip:
+              hideZeros: false
+              mode: multi
+              sort: desc
+            xTickLabelRotation: 0
+            xTickLabelSpacing: 0
+        version: 13.2.0-29316898481
+  panel-4:
+    kind: Panel
+    spec:
+      data:
+        kind: QueryGroup
+        spec:
+          queries:
+            - kind: PanelQuery
+              spec:
+                hidden: false
+                query:
+                  datasource:
+                    name: grafanacloud-logs
+                  group: loki
+                  kind: DataQuery
+                  spec:
+                    app: grafana-assistant-app
+                    direction: backward
+                    editorMode: code
+                    expr: |-
+                      topk(10, sum by (botOperator) (
+                        count_over_time({container=~".*${backend:regex}", botKind="bot"} | json [$__range])
+                      ))
+                    instant: true
+                    legendFormat: "{{botOperator}}"
+                    queryType: instant
+                    range: false
+                  version: v0
+                refId: A
+          queryOptions: {}
+          transformations: []
+      description: Top 10 confirmed bot operators in the selected time window.
+      id: 4
+      links: []
+      title: Top bot operators
+      vizConfig:
+        group: barchart
+        kind: VizConfig
+        spec:
+          fieldConfig:
+            defaults:
+              color:
+                mode: palette-classic
+              custom:
+                axisBorderShow: false
+                axisCenteredZero: false
+                axisColorMode: text
+                axisLabel: ""
+                axisPlacement: auto
+                fillOpacity: 6
+                gradientMode: none
+                hideFrom:
+                  legend: false
+                  tooltip: false
+                  viz: false
+                lineWidth: 1
+                scaleDistribution:
+                  type: linear
+                thresholdsStyle:
+                  mode: "off"
+              displayName: Requests
+              thresholds:
+                mode: absolute
+                steps:
+                  - color: green
+                    value: 0
+                  - color: red
+                    value: 80
+            overrides: []
+          options:
+            annotations:
+              clustering: -1
+              multiLane: false
+            barRadius: 0
+            barWidth: 0.97
+            fullHighlight: false
+            groupWidth: 0.7
+            legend:
+              calcs:
+                - sum
+              displayMode: table
+              enableFacetedFilter: false
+              overflow: ellipsis
+              placement: right
+              showLegend: true
+            orientation: horizontal
+            showValue: auto
+            stacking: none
+            tooltip:
+              hideZeros: false
+              mode: multi
+              sort: desc
+            xTickLabelRotation: 0
+            xTickLabelSpacing: 0
+        version: 13.2.0-29316898481
+  panel-5:
+    kind: Panel
+    spec:
+      data:
+        kind: QueryGroup
+        spec:
+          queries:
+            - kind: PanelQuery
+              spec:
+                hidden: false
+                query:
+                  datasource:
+                    name: grafanacloud-logs
+                  group: loki
+                  kind: DataQuery
+                  spec:
+                    app: grafana-assistant-app
+                    direction: backward
+                    editorMode: code
+                    expr: |-
+                      sum by (botKind) (
+                        sum_over_time({container=~".*${backend:regex}", botKind!=""} | json | unwrap duration [$__range])
+                      )
+                    instant: true
+                    legendFormat: "{{botKind}}"
+                    queryType: instant
+                    range: false
+                  version: v0
+                refId: A
+          queryOptions: {}
+          transformations: []
+      description: Sum of logged request wall-clock durations in the selected time window. This is not CPU time.
+      id: 5
+      links: []
+      title: Cumulative request duration by classification
+      vizConfig:
+        group: barchart
+        kind: VizConfig
+        spec:
+          fieldConfig:
+            defaults:
+              color:
+                mode: palette-classic
+              custom:
+                axisBorderShow: false
+                axisCenteredZero: false
+                axisColorMode: text
+                axisLabel: ""
+                axisPlacement: auto
+                fillOpacity: 15
+                gradientMode: none
+                hideFrom:
+                  legend: false
+                  tooltip: false
+                  viz: false
+                lineWidth: 2
+                scaleDistribution:
+                  type: linear
+                thresholdsStyle:
+                  mode: "off"
+              displayName: Cumulative request duration
+              thresholds:
+                mode: absolute
+                steps:
+                  - color: green
+                    value: 0
+                  - color: red
+                    value: 80
+              unit: ms
+            overrides: []
+          options:
+            annotations:
+              clustering: -1
+              multiLane: false
+            barRadius: 0
+            barWidth: 0.97
+            fullHighlight: false
+            groupWidth: 0.7
+            legend:
+              calcs:
+                - mean
+                - sum
+              displayMode: table
+              enableFacetedFilter: false
+              overflow: ellipsis
+              placement: right
+              showLegend: true
+            orientation: horizontal
+            showValue: auto
+            stacking: none
+            tooltip:
+              hideZeros: false
+              mode: multi
+              sort: desc
+            xTickLabelRotation: 0
+            xTickLabelSpacing: 0
+        version: 13.2.0-29316898481
+  panel-6:
+    kind: Panel
+    spec:
+      data:
+        kind: QueryGroup
+        spec:
+          queries:
+            - kind: PanelQuery
+              spec:
+                hidden: false
+                query:
+                  datasource:
+                    name: grafanacloud-logs
+                  group: loki
+                  kind: DataQuery
+                  spec:
+                    app: grafana-assistant-app
+                    direction: backward
+                    editorMode: code
+                    expr: |-
+                      sum(
+                        count_over_time({container=~".*${backend:regex}"} | json | impostor="true" [$__range])
+                      )
+                    instant: true
+                    legendFormat: "{{botOperator}}"
+                    queryType: instant
+                    range: false
+                  version: v0
+                refId: A
+          queryOptions: {}
+          transformations: []
+      description: Requests claiming a verifiable crawler identity from an unverified IP range, in the selected time window.
+      id: 6
+      links: []
+      title: Forged identity claims
+      vizConfig:
+        group: stat
+        kind: VizConfig
+        spec:
+          fieldConfig:
+            defaults:
+              color:
+                mode: palette-classic
+              displayName: Forged identity claims
+              thresholds:
+                mode: absolute
+                steps:
+                  - color: green
+                    value: 0
+                  - color: red
+                    value: 80
+            overrides:
+              - matcher:
+                  id: byFrameRefID
+                  options: A
+                properties:
+                  - id: color
+                    value:
+                      fixedColor: red
+                      mode: fixed
+          options:
+            annotations:
+              clustering: -1
+              multiLane: false
+            colorMode: value
+            graphMode: area
+            justifyMode: auto
+            legend:
+              calcs:
+                - sum
+              displayMode: table
+              enableFacetedFilter: false
+              overflow: ellipsis
+              placement: right
+              showLegend: true
+            orientation: auto
+            percentChangeColorMode: standard
+            reduceOptions:
+              calcs:
+                - lastNotNull
+              fields: ""
+              values: false
+            showPercentChange: false
+            textMode: auto
+            tooltip:
+              hideZeros: false
+              mode: multi
+              sort: desc
+            wideLayout: true
+        version: 13.2.0-29316898481
+  panel-7:
+    kind: Panel
+    spec:
+      data:
+        kind: QueryGroup
+        spec:
+          queries:
+            - kind: PanelQuery
+              spec:
+                hidden: false
+                query:
+                  datasource:
+                    name: grafanacloud-logs
+                  group: loki
+                  kind: DataQuery
+                  spec:
+                    app: grafana-assistant-app
+                    direction: backward
+                    editorMode: code
+                    expr: |-
+                      count(
+                        sum by (ip) (
+                          count_over_time({container=~".*${backend:regex}", botKind="human"} | json ip [1h])
+                        )
+                      )
+                    instant: false
+                    legendFormat: Human
+                    queryType: range
+                    range: true
+                  version: v0
+                refId: A
+            - kind: PanelQuery
+              spec:
+                hidden: false
+                query:
+                  datasource:
+                    name: grafanacloud-logs
+                  group: loki
+                  kind: DataQuery
+                  spec:
+                    app: grafana-assistant-app
+                    direction: backward
+                    editorMode: code
+                    expr: |-
+                      count by (botOperator) (
+                        sum by (ip, botOperator) (
+                          count_over_time({container=~".*${backend:regex}", botKind=~"bot|unknown"} | json ip, botOperator [1h])
+                        )
+                      )
+                    instant: false
+                    legendFormat: "{{botOperator}}"
+                    queryType: range
+                    range: true
+                  version: v0
+                refId: B
+          queryOptions: {}
+          transformations: []
+      description: Rolling one-hour count of distinct anonymous visitors. Humans are the base series, with verified bot operators, declared bots, scanners, and unknown visitors stacked above.
+      id: 7
+      links: []
+      title: Unique visitors by classification
+      vizConfig:
+        group: timeseries
+        kind: VizConfig
+        spec:
+          fieldConfig:
+            defaults:
+              color:
+                mode: palette-classic
+              custom:
+                axisBorderShow: false
+                axisCenteredZero: false
+                axisColorMode: text
+                axisLabel: Visitors
+                axisPlacement: auto
+                barAlignment: 0
+                barWidthFactor: 0.6
+                drawStyle: line
+                fillOpacity: 60
+                gradientMode: none
+                hideFrom:
+                  legend: false
+                  tooltip: false
+                  viz: false
+                insertNulls: false
+                lineInterpolation: linear
+                lineWidth: 1
+                pointSize: 0
+                scaleDistribution:
+                  type: linear
+                showPoints: never
+                showValues: false
+                spanNulls: false
+                stacking:
+                  group: A
+                  mode: normal
+                thresholdsStyle:
+                  mode: "off"
+              displayName: ${__field.labels.__values}
+              thresholds:
+                mode: absolute
+                steps:
+                  - color: green
+                    value: 0
+                  - color: red
+                    value: 80
+              unit: short
+            overrides: []
+          options:
+            annotations:
+              clustering: -1
+              multiLane: false
+            legend:
+              calcs:
+                - lastNotNull
+                - max
+              displayMode: table
+              enableFacetedFilter: false
+              overflow: ellipsis
+              placement: right
+              showLegend: true
+            tooltip:
+              hideZeros: false
+              mode: multi
+              sort: desc
+        version: 13.2.0-29316898481
+  panel-8:
+    kind: Panel
+    spec:
+      data:
+        kind: QueryGroup
+        spec:
+          queries:
+            - kind: PanelQuery
+              spec:
+                hidden: false
+                query:
+                  datasource:
+                    name: grafanacloud-logs
+                  group: loki
+                  kind: DataQuery
+                  spec:
+                    app: grafana-assistant-app
+                    direction: backward
+                    editorMode: code
+                    expr: '{container=~".*${backend:regex}"} | json | impostor="true"'
+                    instant: false
+                    queryType: range
+                    range: true
+                  version: v0
+                refId: A
+          queryOptions: {}
+          transformations: []
+      description: Inspect the requests behind the forged-identity count in the selected time window.
+      id: 8
+      links: []
+      title: Latest forged-identity requests
+      vizConfig:
+        group: logs
+        kind: VizConfig
+        spec:
+          fieldConfig:
+            defaults: {}
+            overrides: []
+          options:
+            dedupStrategy: none
+            enableInfiniteScrolling: false
+            enableLogDetails: true
+            prettifyJSON: true
+            prettifyLogMessage: true
+            showCommonLabels: false
+            showControls: false
+            showFieldSelector: false
+            showLabels: false
+            showLevel: true
+            showLogAttributes: true
+            showTime: true
+            sortOrder: Descending
+            timestampResolution: ms
+            unwrappedColumns: false
+            wrapLogMessage: true
+        version: 13.2.0-29316898481
+  panel-9:
+    kind: Panel
+    spec:
+      data:
+        kind: QueryGroup
+        spec:
+          queries:
+            - kind: PanelQuery
+              spec:
+                hidden: false
+                query:
+                  datasource:
+                    name: grafanacloud-logs
+                  group: loki
+                  kind: DataQuery
+                  spec:
+                    app: grafana-assistant-app
+                    direction: backward
+                    editorMode: code
+                    expr: |-
+                      count(
+                        sum by (ip) (
+                          count_over_time({container=~".*${backend:regex}", botKind!=""} | json ip [$__range])
+                        )
+                      )
+                    instant: true
+                    queryType: instant
+                    range: false
+                  version: v0
+                refId: A
+          queryOptions: {}
+          transformations: []
+      description: "Cloudflare-style visits in the selected time window: one visitor for each distinct client IP that reached the backend. Bots and other automated traffic are included."
+      id: 9
+      links: []
+      title: Unique visitors
+      vizConfig:
+        group: stat
+        kind: VizConfig
+        spec:
+          fieldConfig:
+            defaults:
+              color:
+                mode: thresholds
+              displayName: Unique visitors
+              thresholds:
+                mode: absolute
+                steps:
+                  - color: blue
+                    value: 0
+            overrides: []
+          options:
+            colorMode: value
+            graphMode: none
+            justifyMode: auto
+            orientation: horizontal
+            percentChangeColorMode: standard
+            reduceOptions:
+              calcs:
+                - lastNotNull
+              fields: ""
+              values: false
+            showPercentChange: false
+            textMode: value_and_name
+            wideLayout: true
+        version: 13.2.0-29316898481
+layout:
+  kind: GridLayout
+  spec:
+    items:
+      - kind: GridLayoutItem
+        spec:
+          element:
+            kind: ElementReference
+            name: panel-9
+          height: 5
+          width: 6
+          x: 0
+          "y": 0
+      - kind: GridLayoutItem
+        spec:
+          element:
+            kind: ElementReference
+            name: panel-10
+          height: 5
+          width: 6
+          x: 6
+          "y": 0
+      - kind: GridLayoutItem
+        spec:
+          element:
+            kind: ElementReference
+            name: panel-11
+          height: 5
+          width: 6
+          x: 12
+          "y": 0
+      - kind: GridLayoutItem
+        spec:
+          element:
+            kind: ElementReference
+            name: panel-6
+          height: 5
+          width: 6
+          x: 18
+          "y": 0
+      - kind: GridLayoutItem
+        spec:
+          element:
+            kind: ElementReference
+            name: panel-1
+          height: 9
+          width: 24
+          x: 0
+          "y": 5
+      - kind: GridLayoutItem
+        spec:
+          element:
+            kind: ElementReference
+            name: panel-2
+          height: 9
+          width: 12
+          x: 0
+          "y": 14
+      - kind: GridLayoutItem
+        spec:
+          element:
+            kind: ElementReference
+            name: panel-3
+          height: 9
+          width: 12
+          x: 12
+          "y": 14
+      - kind: GridLayoutItem
+        spec:
+          element:
+            kind: ElementReference
+            name: panel-4
+          height: 9
+          width: 12
+          x: 0
+          "y": 23
+      - kind: GridLayoutItem
+        spec:
+          element:
+            kind: ElementReference
+            name: panel-5
+          height: 9
+          width: 12
+          x: 12
+          "y": 23
+      - kind: GridLayoutItem
+        spec:
+          element:
+            kind: ElementReference
+            name: panel-7
+          height: 8
+          width: 24
+          x: 0
+          "y": 32
+      - kind: GridLayoutItem
+        spec:
+          element:
+            kind: ElementReference
+            name: panel-8
+          height: 9
+          width: 24
+          x: 0
+          "y": 40
+links: []
+liveNow: false
+preferences:
+  layout:
+    kind: GridLayout
+    spec:
+      items: []
+preload: false
+tags: []
+timeSettings:
+  autoRefresh: ""
+  autoRefreshIntervals:
+    - 5s
+    - 10s
+    - 30s
+    - 1m
+    - 5m
+    - 15m
+    - 30m
+    - 1h
+    - 2h
+    - 1d
+  fiscalYearStartMonth: 0
+  from: now-2d
+  hideTimepicker: false
+  timezone: browser
+  to: now
+title: construction-map-${backend} — Traffic & Bot Analysis
+variables:
+  - kind: CustomVariable
+    spec:
+      name: backend
+      label: Backend
+      query: prod-backend,preview-backend
+      current:
+        text: prod-backend
+        value: prod-backend
+      options:
+        - text: prod-backend
+          value: prod-backend
+          selected: true
+        - text: preview-backend
+          value: preview-backend
+          selected: false
+      multi: false
+      includeAll: false
+      hide: dontHide
+      skipUrlSync: false
+      allowCustomValue: false

@@ -76,6 +76,10 @@ app.get("/api/health", (c) => {
   return c.json({ status: "ok", timestamp });
 });
 
+// Request logging for everything past the health check, including the cookie-free tile and SEO
+// routes below. Session state is read only after next(), so downstream session writes are visible.
+app.use("*", requestLogger);
+
 // Public tile endpoints - mounted before session middleware (no auth needed)
 app.route("/api/tiles", tilesApp);
 
@@ -100,9 +104,6 @@ app.use(
     },
   }),
 );
-
-// Request logging middleware (after session middleware)
-app.use("*", requestLogger);
 
 // tRPC routes
 app.use(
