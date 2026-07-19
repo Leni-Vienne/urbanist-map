@@ -1,6 +1,7 @@
 import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
 import { TRPCError } from "@trpc/server";
 import * as rateLimit from "../lib/rateLimit";
+import { deleteUserSessions } from "../lib/drizzleSessionStore";
 import { getClientIp } from "../utils/ip";
 import crypto from "node:crypto";
 import { eq, gt } from "drizzle-orm";
@@ -387,7 +388,8 @@ export const accountRouter = router({
         })
         .where(eq(users.id, matchedUser.id));
 
-      // Sessions are handled by Hono middleware, no need to invalidate here
+      // A reset must revoke credentials already issued, including any stolen session.
+      await deleteUserSessions(matchedUser.id);
 
       return {
         success: true,

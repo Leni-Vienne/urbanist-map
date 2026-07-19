@@ -1,6 +1,6 @@
 import { db } from "../database";
 import { sessions } from "../db/schema";
-import { eq, lt } from "drizzle-orm";
+import { eq, lt, sql } from "drizzle-orm";
 
 const CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 const DEFAULT_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
@@ -82,6 +82,15 @@ async function deleteSession(sessionId: string): Promise<void> {
     await db.delete(sessions).where(eq(sessions.id, sessionId));
   } catch (error) {
     console.error("Failed to delete session:", error);
+  }
+}
+
+// Drops every stored session belonging to a user, revoking credentials already issued.
+export async function deleteUserSessions(userId: string): Promise<void> {
+  try {
+    await db.delete(sessions).where(sql`data->'_data'->'user'->>'id' = ${userId}`);
+  } catch (error) {
+    console.error("Failed to delete user sessions:", error);
   }
 }
 

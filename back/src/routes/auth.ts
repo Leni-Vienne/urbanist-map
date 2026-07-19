@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../database";
 import { users, config } from "../db/schema";
 import * as rateLimit from "../lib/rateLimit";
+import { resolveSessionUser } from "../lib/currentUser";
 import { getClientIp } from "../utils/ip";
 import { verifyGoogleToken } from "../utils/googleAuth";
 import { findOrCreateOAuthUser } from "../utils/oauthAccounts";
@@ -295,29 +296,20 @@ authApp.post("/api/logout", (c) => {
 });
 
 authApp.get("/api/check-session", async (c) => {
+  const sessionUser = await resolveSessionUser(c.get("session"));
+
+  let infoMessage: string | null = null;
   try {
-    const session = c.get("session");
-    const sessionUser = session.get("user");
-
-    // Fetch config for info message (if exists)
     const [dbConfig] = await db.select().from(config).where(eq(config.id, 1)).limit(1);
-
-    return c.json({
-      userId: sessionUser?.id,
-      isAuthenticated: Boolean(sessionUser),
-      user: sessionUser ?? null,
-      infoMessage: dbConfig?.infoMessage ?? null,
-    });
+    infoMessage = dbConfig?.infoMessage ?? null;
   } catch (error) {
-    console.error("Error fetching session:", error);
-    // Return session info even if config fetch fails
-    const session = c.get("session");
-    const sessionUser = session.get("user");
-    return c.json({
-      userId: sessionUser?.id,
-      isAuthenticated: Boolean(sessionUser),
-      user: sessionUser ?? null,
-      infoMessage: null,
-    });
+    console.error("Error fetching config:", error);
   }
+
+  return c.json({
+    userId: sessionUser?.id,
+    isAuthenticated: Boolean(sessionUser),
+    user: sessionUser,
+    infoMessage,
+  });
 });

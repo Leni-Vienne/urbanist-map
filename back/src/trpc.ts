@@ -1,13 +1,13 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
-import type { DBUser } from "./db/schema";
+import type { SessionUser } from "./lib/types";
 import type { Context as HonoContext } from "hono";
 import { isModeratorOrAdmin } from "./db/helpers";
 
 export { TRPCError } from "@trpc/server";
 
 type Context = {
-  user?: DBUser | null;
+  user?: SessionUser | null;
   hono: HonoContext;
 };
 

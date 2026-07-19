@@ -15,6 +15,7 @@ import type { AppEnv } from "./lib/types";
 import { config as appConfig } from "./config";
 import { generateMissingThumbnails } from "./lib/startup";
 import { sessionStore, startSessionCleanup } from "./lib/drizzleSessionStore";
+import { resolveSessionUser } from "./lib/currentUser";
 import { requestLogger } from "./middleware/requestLogger";
 import { startErrorAlerter } from "./services/errorAlerter";
 import { startBotClassifier } from "./services/botClassifier";
@@ -110,10 +111,10 @@ app.use(
   "/trpc/*",
   trpcServer({
     router: appRouter,
-    createContext(_opts: FetchCreateContextFnOptions, c: Context) {
+    async createContext(_opts: FetchCreateContextFnOptions, c: Context) {
       const session = c.get("session");
       return {
-        user: session.get("user") ?? null,
+        user: await resolveSessionUser(session),
         session,
         hono: c,
       };

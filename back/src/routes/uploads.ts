@@ -7,6 +7,7 @@ import { MAX_UPLOAD_FILE_SIZE_BYTES, MAX_UPLOAD_FILE_SIZE_MB } from "@shared/upl
 import { allowedDomains } from "../lib/corsConfig";
 import type { FileUploadResult, AppEnv, SessionUser } from "../lib/types";
 import * as rateLimit from "../lib/rateLimit";
+import { resolveSessionUser } from "../lib/currentUser";
 import { getClientIp } from "../utils/ip";
 import { logger } from "../services/logger";
 import { db } from "../database";
@@ -110,7 +111,7 @@ uploadsApp.post("/api/upload-image", async (c) => {
     // Require authentication
     // Uploads are only allowed for logged-in users to prevent anonymous spam
     const session = c.get("session");
-    const user = session.get("user");
+    const user = await resolveSessionUser(session);
     if (!user) {
       return c.json({ error: "Authentication required" }, 401);
     }

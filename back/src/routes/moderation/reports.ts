@@ -3,6 +3,7 @@ import { db } from "../../database";
 import { projects, overlays, users, userReports } from "../../db/schema";
 import { and, eq, or, sql, inArray } from "drizzle-orm";
 import { deleteImages, deleteLocalImages } from "../../lib/imageCleanup";
+import { deleteUserSessions } from "../../lib/drizzleSessionStore";
 import { assignProjectBoundary } from "../../db/boundaryAssignment";
 import { TRPCError } from "@trpc/server";
 import * as z from "zod";
@@ -250,6 +251,8 @@ export const reportProcedures = {
 
           await tx.delete(userReports).where(eq(userReports.reportedUserId, input.userId));
         });
+
+        await deleteUserSessions(input.userId);
 
         return { success: true };
       } catch (error) {
