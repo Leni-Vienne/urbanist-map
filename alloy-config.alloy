@@ -44,8 +44,10 @@ loki.process "json" {
   // (official-range, scanner, declared-bot, human-likely, unknown). botKind collapses those to
   // bot/human/unknown for the stacked bot-vs-human panel. Because botKind is determined by
   // botClass, it creates no stream beyond the ones botClass already creates, so the convenience is
-  // free at the index. botOperator is NOT promoted: for declared bots it comes from the
-  // User-Agent, so a client picks its value and the cardinality is unbounded. Read it with | json.
+  // free at the index. botOperator and visitorId are NOT promoted. For declared bots, botOperator
+  // comes from the User-Agent, so a client picks its value and the cardinality is unbounded.
+  // visitorId is a keyed, anonymous identifier for a single client IP in unique-visitor queries.
+  // Read both fields with | json.
   //
   // Only requests through the middleware carry these, which is what excludes health checks from
   // every panel: /api/health is served before requestLogger and logs no verdict, so a

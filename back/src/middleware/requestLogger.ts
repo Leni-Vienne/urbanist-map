@@ -1,4 +1,6 @@
+import { createHmac } from "node:crypto";
 import type { Context, Next } from "hono";
+import { config as appConfig } from "../config";
 import { logger } from "../services/logger";
 import { addError } from "../services/errorAlerter";
 import { classifyRequest } from "../services/botClassifier";
@@ -25,10 +27,33 @@ function getUserId(c: Context): number | undefined {
   try {
     // Session is stored in c.get('session') by Hono session middleware
     const session = c.get("session");
-    return session?.userId;
+    return session?.get("user")?.id;
   } catch {
     return undefined;
   }
+}
+
+const TILE_LOG_WINDOW_MS = 30 * 60 * 1000;
+const TILE_SEEN_SWEEP_SIZE = 50_000;
+
+// Last log time per visitorId for tile requests. Successful tile fetches are logged at most once
+// per window per visitor: enough for distinct-visitor queries without a log line per tile.
+const tileLogLastSeen = new Map<string, number>();
+
+function shouldLogTileRequest(visitorId: string, now: number): boolean {
+  const last = tileLogLastSeen.get(visitorId);
+  if (last !== undefined && now - last < TILE_LOG_WINDOW_MS) return false;
+  if (tileLogLastSeen.size >= TILE_SEEN_SWEEP_SIZE) {
+    for (const [id, ts] of tileLogLastSeen) {
+      if (now - ts >= TILE_LOG_WINDOW_MS) tileLogLastSeen.delete(id);
+    }
+  }
+  tileLogLastSeen.set(visitorId, now);
+  return true;
+}
+
+function visitorIdFor(ip: string): string {
+  return createHmac("sha256", appConfig.COOKIE_SECRET).update(ip).digest("base64url").slice(0, 22);
 }
 
 export async function requestLogger(c: Context, next: Next) {
@@ -46,6 +71,7 @@ export async function requestLogger(c: Context, next: Next) {
 
   const userAgent = c.req.header("User-Agent");
   const ip = getClientIp(c);
+  const visitorId = visitorIdFor(ip);
   const cloudflare = getCloudflareHeaders(c);
 
   try {
@@ -53,6 +79,16 @@ export async function requestLogger(c: Context, next: Next) {
 
     const duration = Date.now() - startTime;
     const status = c.res.status;
+
+    // Successful tile responses are rate-limited per visitor; tile errors always log below
+    if (
+      status < 400 &&
+      path.startsWith("/api/tiles") &&
+      !shouldLogTileRequest(visitorId, Date.now())
+    ) {
+      return;
+    }
+
     const userId = getUserId(c);
     // After duration is measured, so the range scan never shows up as request latency
     const verdict = classifyRequest(ip, path, userAgent);
@@ -65,6 +101,7 @@ export async function requestLogger(c: Context, next: Next) {
       status,
       duration,
       ip,
+      visitorId,
       cfCountry: cloudflare.cfCountry,
       cfRay: cloudflare.cfRay,
       userId,
@@ -102,6 +139,7 @@ export async function requestLogger(c: Context, next: Next) {
       status,
       duration,
       ip,
+      visitorId,
       cfCountry: cloudflare.cfCountry,
       cfRay: cloudflare.cfRay,
       userAgent,

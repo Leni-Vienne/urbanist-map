@@ -142,6 +142,7 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
           R2_BUCKET_NAME: ${{ vars.R2_BUCKET_NAME }}
+          R2_PUBLIC_URL: ${{ vars.VITE_R2_PUBLIC_URL }}
           VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
           OSM_CLIENT_ID: ${{ secrets.OSM_CLIENT_ID }}
@@ -244,6 +245,7 @@ jobs:
           R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}
           R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}
           R2_BUCKET_NAME=${R2_BUCKET_NAME}
+          R2_PUBLIC_URL=${R2_PUBLIC_URL}
           TURNSTILE_SECRET_KEY=${TURNSTILE_SECRET_KEY}
           DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
           EOF
