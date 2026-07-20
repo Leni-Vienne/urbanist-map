@@ -11,7 +11,7 @@ import { resolveSessionUser } from "../lib/currentUser";
 import { getClientIp } from "../utils/ip";
 import { logger } from "../services/logger";
 import { db } from "../database";
-import { overlays, projects } from "../db/schema";
+import { overlays, projects, uploadedFiles } from "../db/schema";
 
 export const uploadsApp = new Hono<AppEnv>();
 
@@ -168,6 +168,12 @@ uploadsApp.post("/api/upload-image", async (c) => {
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).slice(2, 15);
     const filename = `${timestamp}-${randomString}.${compressionResult.extension}`;
+    const originalFilename = `${timestamp}-${randomString}.${fileExtension}`;
+
+    // Claim the filenames before writing them, so bytes that reach disk are always attributable to
+    // an uploader even if the request dies mid-write. Recorded here rather than at overlay creation
+    // because an upload that is never submitted still occupies local storage.
+    await db.insert(uploadedFiles).values({ filename, originalFilename, uploaderId: user.id });
 
     // Log compression results for monitoring (structured logging for Grafana)
     const savings = compressionResult.originalSize - compressionResult.finalSize;
@@ -199,7 +205,6 @@ uploadsApp.post("/api/upload-image", async (c) => {
 
     // Keep the pre-compression original locally (never migrated to R2) so approved
     // content retains a full-quality, uncapped source. Removed on rejection/deletion.
-    const originalFilename = `${timestamp}-${randomString}.${fileExtension}`;
     try {
       await storage.putOriginal(originalFilename, originalBuffer);
     } catch (error) {

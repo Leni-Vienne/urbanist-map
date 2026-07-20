@@ -64,7 +64,9 @@ export const approvalStatusEnum = pgEnum("approval_status", [
 ]);
 export type ApprovalStatus = (typeof approvalStatusEnum.enumValues)[number];
 
-const changeRequestStatusEnum = pgEnum("change_request_status", [
+// Exported so drizzle-kit collects it; unexported pgEnum declarations are invisible to the
+// migration generator, which then reads the type as dropped.
+export const changeRequestStatusEnum = pgEnum("change_request_status", [
   "pending",
   "approved",
   "rejected",
@@ -437,6 +439,30 @@ export const changeHistory = pgTable(
   (table) => [
     index("idx_change_history_entity").on(table.entityType, table.entityId),
     index("idx_change_history_request").on(table.changeRequestId),
+  ],
+);
+
+// Attribution index for every file written by the upload endpoint, recorded before the bytes hit
+// disk. An upload exists on disk from the moment it is stored, but an overlay row only appears if
+// the user goes on to submit; without this table those in-between files have no owner, so they
+// escape the per-user pending storage quota and no cleanup path can ever find them.
+export const uploadedFiles = pgTable(
+  "uploaded_files",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    // Compressed image filename, joined against overlays.filename to find the submission (if any).
+    filename: text("filename").notNull(),
+    // Retained pre-compression source; null when the original could not be written.
+    originalFilename: text("original_filename"),
+    uploaderId: uuid("uploader_id")
+      .references(() => users.id, { onDelete: "cascade", onUpdate: "cascade" })
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_uploaded_files_filename").on(table.filename),
+    index("idx_uploaded_files_uploader").on(table.uploaderId),
+    index("idx_uploaded_files_created_at").on(table.createdAt),
   ],
 );
 
