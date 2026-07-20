@@ -143,13 +143,23 @@ export async function findOrCreateOAuthUser(profile: OAuthProfile): Promise<User
       });
 
       if (!emailUser.emailVerified) {
-        await db
+        // Nobody proved ownership of this address before now, so any credential set on
+        // the row is untrusted: drop it and let the owner re-establish one via reset.
+        const [adopted] = await db
           .update(users)
-          .set({ emailVerified: true, emailVerificationToken: null })
-          .where(eq(users.id, emailUser.id));
+          .set({
+            emailVerified: true,
+            emailVerificationToken: null,
+            passwordHash: null,
+            passwordResetToken: null,
+            passwordResetExpiresAt: null,
+          })
+          .where(eq(users.id, emailUser.id))
+          .returning();
+        return adopted ?? { ...emailUser, emailVerified: true, passwordHash: null };
       }
 
-      return { ...emailUser, emailVerified: true };
+      return emailUser;
     }
   }
 
