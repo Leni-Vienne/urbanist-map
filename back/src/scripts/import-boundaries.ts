@@ -24,17 +24,15 @@
  *   bun run ...import-boundaries.ts <path.geojsonl> --steps=load   # reload boundaries only
  */
 
-// postgres.js (not Bun's SQL client) for the same reason as import-osm.ts: Bun double-encodes
-// jsonb params, which would corrupt the `names` column.
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgresJs from "postgres";
+import { drizzle } from "drizzle-orm/bun-sql";
+import { SQL as BunSQL } from "bun";
 import { adminBoundaries, importSources } from "../db/schema";
 import {
   BOUNDARY_DOMINANCE_THRESHOLD,
   coverageFractionSql,
   projectEffectiveGeometrySql,
 } from "../db/boundaryAssignment";
-import { sql, eq, lt, type SQL } from "drizzle-orm";
+import { sql, eq, type SQL } from "drizzle-orm";
 import { config } from "../config";
 import * as fs from "node:fs";
 import * as readline from "node:readline";
@@ -49,12 +47,18 @@ import * as os from "node:os";
 // backend can exceed by fanning out into parallel workers.
 const IMPORT_CONCURRENCY = Math.max(1, Math.floor(os.availableParallelism() / 2));
 
-const pgClient = postgresJs(config.DATABASE_URL, {
+const importDatabaseUrl = new URL(config.DATABASE_URL);
+const startupOptions = importDatabaseUrl.searchParams.get("options");
+importDatabaseUrl.searchParams.set(
+  "options",
+  [startupOptions, "-c synchronous_commit=off -c max_parallel_workers_per_gather=0"]
+    .filter(Boolean)
+    .join(" "),
+);
+const sqlClient = new BunSQL(importDatabaseUrl.toString(), {
   max: IMPORT_CONCURRENCY,
-  connection: { synchronous_commit: "off", max_parallel_workers_per_gather: "0" },
-  onnotice: () => {},
 });
-const db = drizzle({ client: pgClient });
+const db = drizzle({ client: sqlClient });
 
 // ~0.0005 degrees ≈ 55m at the equator. Drops vertex count by ~10x while staying well within
 // the accuracy a project-to-boundary assignment needs.
@@ -182,7 +186,7 @@ async function terminateOrphanImportBackends(): Promise<number> {
              OR query ILIKE '%boundary_points%'
              OR query ILIKE '%project_assign_queue%')
     `);
-    return killed.count ?? 0;
+    return killed.length;
   } catch (error) {
     console.error("Failed to terminate orphaned backends:", error);
     return 0;
@@ -199,7 +203,7 @@ async function shutdown(signal: string): Promise<void> {
   // startup guard exists as the real safety net.
   await terminateOrphanImportBackends();
   try {
-    await pgClient.end({ timeout: 5 });
+    await sqlClient.end({ timeout: 5 });
   } catch {
     // already closing; nothing to do
   }
@@ -447,7 +451,7 @@ async function resolveHierarchy(): Promise<void> {
     // parent index, so it skips missing intermediate levels and costs seconds, not the minutes a
     // point-in-polygon scan of every boundary would. Boundaries whose chain never reaches an
     // ISO-tagged ancestor keep country_code NULL.
-    const countryResult = await db.execute(sql`
+    const countryResult = await db.execute<{ count: number }>(sql`
       WITH RECURSIVE chain AS (
         SELECT osm_id, country_code
         FROM admin_boundaries
@@ -457,14 +461,17 @@ async function resolveHierarchy(): Promise<void> {
         FROM admin_boundaries b
         JOIN chain c ON b.parent_id = c.osm_id
         WHERE b.country_code IS NULL
+      ), updated AS (
+        UPDATE admin_boundaries b
+        SET country_code = chain.country_code
+        FROM chain
+        WHERE b.osm_id = chain.osm_id AND b.country_code IS NULL
+        RETURNING 1
       )
-      UPDATE admin_boundaries b
-      SET country_code = chain.country_code
-      FROM chain
-      WHERE b.osm_id = chain.osm_id AND b.country_code IS NULL
+      SELECT count(*)::int AS count FROM updated
     `);
     log(
-      `  country_code: stamped ${countryResult.count ?? 0} boundaries in ${formatDuration(
+      `  country_code: stamped ${countryResult[0]?.count ?? 0} boundaries in ${formatDuration(
         (Date.now() - countryStart) / 1000,
       )}`,
     );
@@ -615,10 +622,15 @@ async function loadBoundaries(inputPath: string): Promise<void> {
   // Prune boundaries that vanished from the source since they would otherwise keep stale
   // geometry. Projects referencing a pruned boundary fall back to NULL (FK on delete set null).
   try {
-    const pruned = await db
-      .delete(adminBoundaries)
-      .where(lt(adminBoundaries.lastImportedAt, syncStartTime));
-    log(`Pruned stale boundaries: ${pruned.count ?? 0}`);
+    const pruned = await db.execute<{ count: number }>(sql`
+      WITH deleted AS (
+        DELETE FROM admin_boundaries
+        WHERE last_imported_at < ${syncStartTime}
+        RETURNING 1
+      )
+      SELECT count(*)::int AS count FROM deleted
+    `);
+    log(`Pruned stale boundaries: ${pruned[0]?.count ?? 0}`);
   } catch (error) {
     console.error("Failed to prune stale boundaries:", error);
   }
@@ -731,7 +743,7 @@ async function main(): Promise<void> {
   if (runAssign) await assignProjects(onlyUnassigned);
 
   log("Done.");
-  await pgClient.end();
+  await sqlClient.end();
   process.exit(0);
 }
 

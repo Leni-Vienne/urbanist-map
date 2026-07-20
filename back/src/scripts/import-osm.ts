@@ -8,10 +8,8 @@
  * buildings under construction, and parks/green spaces.
  */
 
-// Use postgres.js instead of Bun's native SQL client: Bun double-encodes jsonb parameters
-// (https://github.com/oven-sh/bun/issues/28819), which corrupts externalProperties on insert.
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgresJs from "postgres";
+import { drizzle } from "drizzle-orm/bun-sql";
+import { SQL } from "bun";
 import { projects, importSources, adminBoundaries, type TimelineStatus } from "../db/schema";
 import {
   BOUNDARY_DOMINANCE_THRESHOLD,
@@ -22,17 +20,22 @@ import { sql, eq, isNull } from "drizzle-orm";
 import { config } from "../config";
 
 // synchronous_commit=off lets commits return without waiting for the WAL fsync, which is the main
-// cost of the thousands of small batch commits. Set as a startup parameter so every pooled
-// connection inherits it (a per-session SET would only affect one connection in the pool).
+// cost of the thousands of small batch commits. Set as a startup parameter so every connection
+// inherits it.
 // The import is idempotent and replayable, so losing the last few commits to a crash is fine: re-run.
 // max: 1 pins the whole run to a single backend connection. The script is fully sequential, so it
 // loses no parallelism, and the prune's TEMP TABLE of seen ids is session-scoped: it must live on the
 // same connection as the statements that read it.
-const pgClient = postgresJs(config.DATABASE_URL, {
+const importDatabaseUrl = new URL(config.DATABASE_URL);
+const startupOptions = importDatabaseUrl.searchParams.get("options");
+importDatabaseUrl.searchParams.set(
+  "options",
+  [startupOptions, "-c synchronous_commit=off"].filter(Boolean).join(" "),
+);
+const sqlClient = new SQL(importDatabaseUrl.toString(), {
   max: 1,
-  connection: { synchronous_commit: "off" },
 });
-const db = drizzle({ client: pgClient });
+const db = drizzle({ client: sqlClient });
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { EXTENDED_OSM_RULES, PRESENT_STATE_OSM_KEYS, isRedevelopmentSite } from "@shared/osmRules";
@@ -835,7 +838,7 @@ async function main() {
 
   // Presence is tracked by a temp table of this run's seen external_ids rather than a per-row
   // last_imported_at bump, so unchanged rows are never rewritten. Built on the single pinned connection
-  // (pgClient max: 1) so the prune statements below can read it. If it can't be built in full, or it
+  // (sqlClient max: 1) so the prune statements below can read it. If it can't be built in full, or it
   // came back empty, the prune is skipped entirely: deleting against a partial set would remove rows
   // that are actually present.
   let pruneSafe = false;
@@ -944,7 +947,7 @@ async function main() {
   }
 
   log(`Import complete. Updated lastSyncAt for ${IMPORT_SOURCE_SLUG}`);
-  await pgClient.end();
+  await sqlClient.end();
   // Importing boundaryAssignment transitively constructs the app's main + tile pools (database.ts),
   // which this script never queries. Exit explicitly so an idle pool can't keep the process alive.
   process.exit(0);

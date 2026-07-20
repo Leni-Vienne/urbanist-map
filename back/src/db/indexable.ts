@@ -1,8 +1,7 @@
 import { sql } from "drizzle-orm";
 import { db } from "../database";
 
-// Minimal shape both the app's shared drizzle client and the import script's postgres-js drizzle
-// client satisfy, so this module can run against either connection.
+// Minimal shape both the app's shared and import script's Drizzle clients satisfy.
 type SqlExecutor = { execute: (query: ReturnType<typeof sql>) => Promise<unknown> };
 
 // The curation rule that decides whether a project is worth indexing in Google. A project qualifies
