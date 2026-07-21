@@ -215,13 +215,11 @@ function reconcileOverlayExistence(bounds: ViewportBounds): void {
       continue;
     }
 
-    let desired: boolean;
-    let renderData: OverlayData | null;
-    if (tileManaged.has(id)) {
-      // Approved + tile-delivered: cache membership already applied filters and viewport.
-      desired = true;
-      renderData = tileManaged.get(id) ?? null;
-    } else {
+    // Approved + tile-delivered: cache membership already applied filters and viewport.
+    const isTileManaged = tileManaged.has(id);
+    let desired = isTileManaged;
+    let renderData = tileManaged.get(id) ?? null;
+    if (!isTileManaged) {
       // Fall back to the canonical store object as the data source (edit-mode CR overlays not in
       // this bbox, a moderation preview whose approved footprint left the viewport, a staged overlay
       // dragged away from its footprint): membership then keys on the resolved "marker" position, so

@@ -53,7 +53,11 @@ import {
 
 const { locale } = useI18n();
 const currentLocale = ref<Locale>("en");
-const languagePopover = ref();
+const languagePopover = ref<{
+  visible: boolean;
+  toggle(event: Event): void;
+  hide(): void;
+} | null>(null);
 const isLoading = ref(false);
 const loadingLocale = ref<Locale | null>(null);
 
@@ -68,12 +72,12 @@ onUnmounted(() => {
 
 function handleResize() {
   if (languagePopover.value?.visible) {
-    languagePopover.value.hide();
+    languagePopover.value?.hide();
   }
 }
 
 function toggleMenu(event: Event) {
-  languagePopover.value.toggle(event);
+  languagePopover.value?.toggle(event);
 }
 
 async function changeLocale(newLocale: Locale): Promise<void> {
@@ -92,7 +96,7 @@ async function changeLocale(newLocale: Locale): Promise<void> {
     locale.value = newLocale;
     currentLocale.value = newLocale;
     saveLocale(newLocale);
-    languagePopover.value.hide();
+    languagePopover.value?.hide();
 
     updateTranslationSettings(newLocale);
   } finally {

@@ -26,6 +26,7 @@
     ],*/ // vue files are in pascal case, composables in camel case.....
     // vue rules
     "vue/max-props": "off",
+    "vue/define-props-destructuring": "off",
     // import rules
     "import/group-exports": "off",
     // the rest

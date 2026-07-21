@@ -112,7 +112,8 @@ async function onSearch(event: { query: string }) {
   }
 
   searchTimeout = setTimeout(async () => {
-    const searchId = ++latestSearchId;
+    latestSearchId += 1;
+    const searchId = latestSearchId;
     isLoading.value = true;
     try {
       const center = getMap().getCenter();

@@ -88,7 +88,7 @@ import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
 
 interface Props {
-  visible: boolean;
+  visible?: boolean;
   userId?: string | null;
   username?: string | null;
   approvedCount?: number | null;

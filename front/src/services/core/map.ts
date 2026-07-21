@@ -214,9 +214,10 @@ function configureMap(target: MaplibreMap): void {
   target.addControl(new maplibre.AttributionControl({ compact: false }));
 
   currentZoomLevel.value = target.getZoom();
-  target.on("zoomend", function syncZoom(): void {
+  function syncZoom(): void {
     currentZoomLevel.value = target.getZoom();
-  });
+  }
+  target.on("zoomend", syncZoom);
 
   // Bearing/pitch drive the custom CompassControl (visibility + needle rotation). "move" fires
   // on every camera frame, including rotation inertia, so the needle stays locked to the map;

@@ -141,7 +141,11 @@ const authStore = useAuthStore();
 const uiStore = useUiStore();
 
 const { t } = useI18n();
-const userPopover = ref();
+const userPopover = ref<{
+  visible: boolean;
+  toggle(event: Event): void;
+  hide(): void;
+} | null>(null);
 const isMenuOpen = computed<boolean>(() => userPopover.value?.visible ?? false);
 
 // OSM accounts have a synthetic, non-routable email, so show the username instead.
@@ -151,7 +155,7 @@ const isOsmAccount = computed(() =>
 
 // Toggle menu visibility using Popover
 function toggleMenu(event: Event) {
-  userPopover.value.toggle(event);
+  userPopover.value?.toggle(event);
 }
 
 function openAuthModal() {
@@ -162,7 +166,7 @@ async function handleSignOut() {
   if (hasUnsavedChanges()) {
     // Use a generic warning about unsaved data (reusing existing key)
     if (!confirm(t("navigation.unsavedOverlaysWarning"))) {
-      userPopover.value.hide();
+      userPopover.value?.hide();
       return;
     }
   }
@@ -173,19 +177,19 @@ async function handleSignOut() {
   } else {
     toastError(result.error ?? undefined, t("auth.error.signOutFailed"));
   }
-  userPopover.value.hide();
+  userPopover.value?.hide();
 }
 
 // Handle opening moderation results (closes menu)
 function openModerationResults() {
   uiStore.moderatedContributionsDialogVisible = true;
-  userPopover.value.hide();
+  userPopover.value?.hide();
 }
 
 // Close the menu on resize, including on touch devices where the Popover keeps itself open
 function handleResize() {
   if (isMenuOpen.value) {
-    userPopover.value.hide();
+    userPopover.value?.hide();
   }
 }
 

@@ -62,7 +62,10 @@ const activeFilterCount = computed(() => {
 
 const FILTER_HINT_KEY = "filter-control-seen";
 const showFilterHint = ref(localStorage.getItem(FILTER_HINT_KEY) !== "1");
-const filterPanel = ref();
+const filterPanel = ref<{
+  visible: boolean;
+  toggle(event: Event): void;
+} | null>(null);
 const showFilterPanel = computed<boolean>(() => filterPanel.value?.visible ?? false);
 
 function toggleFilterPanel(event: Event) {
@@ -70,7 +73,7 @@ function toggleFilterPanel(event: Event) {
     showFilterHint.value = false;
     localStorage.setItem(FILTER_HINT_KEY, "1");
   }
-  filterPanel.value.toggle(event);
+  filterPanel.value?.toggle(event);
 }
 
 defineExpose({

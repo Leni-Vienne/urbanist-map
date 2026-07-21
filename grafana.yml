@@ -14,7 +14,7 @@ annotations:
         spec: {}
         version: v0
 cursorSync: "Off"
-description: Request traffic, bot classification, and identity analysis for the selected backend. Health checks (/api/health) are excluded by the bot classification filters. Use the time picker to select the aggregation window; only the request-rate panel charts time.
+description: Request traffic, bot classification, and identity analysis for the selected backend. All counts are origin-side — only requests that reach the API backend appear. The Pages-hosted frontend, edge-cached assets, and requests Cloudflare blocks never reach it, so Cloudflare's zone-wide visitor numbers sit far above every panel here. Health checks (/api/health) are excluded by the bot classification filters. Route panels normalise paths into templates at query time - path is a log field, not a Loki label, so it is parsed per request rather than indexed. Use the time picker to select the aggregation window; only the request-rate panel charts time.
 editable: true
 elements:
   panel-1:
@@ -37,10 +37,14 @@ elements:
                     direction: backward
                     editorMode: code
                     expr: |-
-                      sum by (cfCountry, botKind) (
-                        count_over_time({container=~".*${backend:regex}", cfCountry!="", botKind=~"human|bot"} [$__range])
-                      ) and on (cfCountry) topk(15, sum by (cfCountry) (
-                        count_over_time({container=~".*${backend:regex}", cfCountry!="", botKind=~"human|bot"} [$__range])
+                      count by (cfCountry, botKind) (
+                        sum by (cfCountry, botKind, visitorId) (
+                          count_over_time({container=~".*${backend:regex}", cfCountry!="", botKind!=""} | json visitorId [$__range])
+                        )
+                      ) and on (cfCountry) topk(15, count by (cfCountry) (
+                        sum by (cfCountry, visitorId) (
+                          count_over_time({container=~".*${backend:regex}", cfCountry!="", botKind!=""} | json visitorId [$__range])
+                        )
                       ))
                     instant: true
                     legendFormat: "{{cfCountry}} {{botKind}}"
@@ -61,10 +65,10 @@ elements:
                   columnField: botKind
                   rowField: cfCountry
                   valueField: "Value #A"
-      description: Top 15 Cloudflare country codes by classified traffic in the selected time window, split into human and bot requests. Empty country codes and unclassified requests are excluded.
+      description: Top 15 Cloudflare country codes by distinct anonymous visitors in the selected time window, split into human, bot, and unknown. Counts only visitors whose requests reached the API origin; empty country codes (direct-to-origin traffic) are excluded. Cloudflare's zone-wide unique-visitor count measures the edge — including the Pages-hosted frontend, cached assets, and blocked requests — and sits far above this.
       id: 1
       links: []
-      title: Requests by country
+      title: Unique visitors by country
       vizConfig:
         group: barchart
         kind: VizConfig
@@ -97,7 +101,31 @@ elements:
                     value: 0
                   - color: red
                     value: 80
-            overrides: []
+            overrides:
+              - matcher:
+                  id: byName
+                  options: human
+                properties:
+                  - id: color
+                    value:
+                      fixedColor: green
+                      mode: fixed
+              - matcher:
+                  id: byName
+                  options: bot
+                properties:
+                  - id: color
+                    value:
+                      fixedColor: orange
+                      mode: fixed
+              - matcher:
+                  id: byName
+                  options: unknown
+                properties:
+                  - id: color
+                    value:
+                      fixedColor: "#9e9e9e"
+                      mode: fixed
           options:
             annotations:
               clustering: -1
@@ -188,162 +216,6 @@ elements:
             textMode: value_and_name
             wideLayout: true
         version: 13.2.0-29316898481
-  panel-11:
-    kind: Panel
-    spec:
-      data:
-        kind: QueryGroup
-        spec:
-          queries:
-            - kind: PanelQuery
-              spec:
-                hidden: false
-                query:
-                  datasource:
-                    name: grafanacloud-logs
-                  group: loki
-                  kind: DataQuery
-                  spec:
-                    app: grafana-assistant-app
-                    direction: backward
-                    editorMode: code
-                    expr: 100 * sum(count_over_time({container=~".*${backend:regex}", botKind="unknown"} [$__range])) / sum(count_over_time({container=~".*${backend:regex}", botKind!=""} [$__range]))
-                    instant: true
-                    queryType: instant
-                    range: false
-                  version: v0
-                refId: A
-          queryOptions: {}
-          transformations: []
-      description: Percentage of classified requests that lack bot or human evidence in the selected time window.
-      id: 11
-      links: []
-      title: Unknown traffic share
-      vizConfig:
-        group: stat
-        kind: VizConfig
-        spec:
-          fieldConfig:
-            defaults:
-              color:
-                mode: thresholds
-              displayName: Unknown traffic share
-              thresholds:
-                mode: absolute
-                steps:
-                  - color: green
-                    value: 0
-                  - color: orange
-                    value: 25
-                  - color: red
-                    value: 50
-              unit: percent
-            overrides: []
-          options:
-            colorMode: value
-            graphMode: none
-            justifyMode: auto
-            orientation: horizontal
-            percentChangeColorMode: standard
-            reduceOptions:
-              calcs:
-                - lastNotNull
-              fields: ""
-              values: false
-            showPercentChange: false
-            textMode: value_and_name
-            wideLayout: true
-        version: 13.2.0-29316898481
-  panel-2:
-    kind: Panel
-    spec:
-      data:
-        kind: QueryGroup
-        spec:
-          queries:
-            - kind: PanelQuery
-              spec:
-                hidden: false
-                query:
-                  datasource:
-                    name: grafanacloud-logs
-                  group: loki
-                  kind: DataQuery
-                  spec:
-                    app: grafana-assistant-app
-                    direction: backward
-                    editorMode: code
-                    expr: |-
-                      sum by (botKind) (
-                        count_over_time({container=~".*${backend:regex}", botKind!=""} [$__range])
-                      )
-                    instant: true
-                    legendFormat: "{{botKind}}"
-                    queryType: instant
-                    range: false
-                  version: v0
-                refId: A
-          queryOptions: {}
-          transformations: []
-      description: Bot, human, and unknown traffic in the selected time window. Health checks have no botKind and are excluded.
-      id: 2
-      links: []
-      title: Traffic by classification
-      vizConfig:
-        group: barchart
-        kind: VizConfig
-        spec:
-          fieldConfig:
-            defaults:
-              color:
-                mode: palette-classic
-              custom:
-                axisBorderShow: false
-                axisCenteredZero: false
-                axisColorMode: text
-                axisLabel: ""
-                axisPlacement: auto
-                fillOpacity: 80
-                gradientMode: none
-                hideFrom:
-                  legend: false
-                  tooltip: false
-                  viz: false
-                lineWidth: 1
-                scaleDistribution:
-                  type: linear
-                thresholdsStyle:
-                  mode: "off"
-              displayName: Requests
-              thresholds:
-                mode: absolute
-                steps:
-                  - color: green
-                    value: 0
-                  - color: red
-                    value: 80
-            overrides: []
-          options:
-            barRadius: 0
-            barWidth: 0.97
-            fullHighlight: false
-            groupWidth: 0.7
-            legend:
-              calcs: []
-              displayMode: list
-              overflow: ellipsis
-              placement: bottom
-              showLegend: true
-            orientation: horizontal
-            showValue: auto
-            stacking: normal
-            tooltip:
-              hideZeros: false
-              mode: multi
-              sort: desc
-            xTickLabelRotation: 0
-            xTickLabelSpacing: 0
-        version: 13.2.0-29316898481
   panel-3:
     kind: Panel
     spec:
@@ -412,7 +284,47 @@ elements:
                     value: 0
                   - color: red
                     value: 80
-            overrides: []
+            overrides:
+              - matcher:
+                  id: byName
+                  options: human-likely
+                properties:
+                  - id: color
+                    value:
+                      fixedColor: green
+                      mode: fixed
+              - matcher:
+                  id: byName
+                  options: official-range
+                properties:
+                  - id: color
+                    value:
+                      fixedColor: orange
+                      mode: fixed
+              - matcher:
+                  id: byName
+                  options: declared-bot
+                properties:
+                  - id: color
+                    value:
+                      fixedColor: yellow
+                      mode: fixed
+              - matcher:
+                  id: byName
+                  options: scanner
+                properties:
+                  - id: color
+                    value:
+                      fixedColor: red
+                      mode: fixed
+              - matcher:
+                  id: byName
+                  options: unknown
+                properties:
+                  - id: color
+                    value:
+                      fixedColor: "#9e9e9e"
+                      mode: fixed
           options:
             barRadius: 0
             barWidth: 0.97
@@ -529,193 +441,6 @@ elements:
             xTickLabelRotation: 0
             xTickLabelSpacing: 0
         version: 13.2.0-29316898481
-  panel-5:
-    kind: Panel
-    spec:
-      data:
-        kind: QueryGroup
-        spec:
-          queries:
-            - kind: PanelQuery
-              spec:
-                hidden: false
-                query:
-                  datasource:
-                    name: grafanacloud-logs
-                  group: loki
-                  kind: DataQuery
-                  spec:
-                    app: grafana-assistant-app
-                    direction: backward
-                    editorMode: code
-                    expr: |-
-                      sum by (botKind) (
-                        sum_over_time({container=~".*${backend:regex}", botKind!=""} | json | unwrap duration [$__range])
-                      )
-                    instant: true
-                    legendFormat: "{{botKind}}"
-                    queryType: instant
-                    range: false
-                  version: v0
-                refId: A
-          queryOptions: {}
-          transformations: []
-      description: Sum of logged request wall-clock durations in the selected time window. This is not CPU time.
-      id: 5
-      links: []
-      title: Cumulative request duration by classification
-      vizConfig:
-        group: barchart
-        kind: VizConfig
-        spec:
-          fieldConfig:
-            defaults:
-              color:
-                mode: palette-classic
-              custom:
-                axisBorderShow: false
-                axisCenteredZero: false
-                axisColorMode: text
-                axisLabel: ""
-                axisPlacement: auto
-                fillOpacity: 15
-                gradientMode: none
-                hideFrom:
-                  legend: false
-                  tooltip: false
-                  viz: false
-                lineWidth: 2
-                scaleDistribution:
-                  type: linear
-                thresholdsStyle:
-                  mode: "off"
-              displayName: Cumulative request duration
-              thresholds:
-                mode: absolute
-                steps:
-                  - color: green
-                    value: 0
-                  - color: red
-                    value: 80
-              unit: ms
-            overrides: []
-          options:
-            annotations:
-              clustering: -1
-              multiLane: false
-            barRadius: 0
-            barWidth: 0.97
-            fullHighlight: false
-            groupWidth: 0.7
-            legend:
-              calcs:
-                - mean
-                - sum
-              displayMode: table
-              enableFacetedFilter: false
-              overflow: ellipsis
-              placement: right
-              showLegend: true
-            orientation: horizontal
-            showValue: auto
-            stacking: none
-            tooltip:
-              hideZeros: false
-              mode: multi
-              sort: desc
-            xTickLabelRotation: 0
-            xTickLabelSpacing: 0
-        version: 13.2.0-29316898481
-  panel-6:
-    kind: Panel
-    spec:
-      data:
-        kind: QueryGroup
-        spec:
-          queries:
-            - kind: PanelQuery
-              spec:
-                hidden: false
-                query:
-                  datasource:
-                    name: grafanacloud-logs
-                  group: loki
-                  kind: DataQuery
-                  spec:
-                    app: grafana-assistant-app
-                    direction: backward
-                    editorMode: code
-                    expr: |-
-                      sum(
-                        count_over_time({container=~".*${backend:regex}"} | json | impostor="true" [$__range])
-                      )
-                    instant: true
-                    legendFormat: "{{botOperator}}"
-                    queryType: instant
-                    range: false
-                  version: v0
-                refId: A
-          queryOptions: {}
-          transformations: []
-      description: Requests claiming a verifiable crawler identity from an unverified IP range, in the selected time window.
-      id: 6
-      links: []
-      title: Forged identity claims
-      vizConfig:
-        group: stat
-        kind: VizConfig
-        spec:
-          fieldConfig:
-            defaults:
-              color:
-                mode: palette-classic
-              displayName: Forged identity claims
-              thresholds:
-                mode: absolute
-                steps:
-                  - color: green
-                    value: 0
-                  - color: red
-                    value: 80
-            overrides:
-              - matcher:
-                  id: byFrameRefID
-                  options: A
-                properties:
-                  - id: color
-                    value:
-                      fixedColor: red
-                      mode: fixed
-          options:
-            annotations:
-              clustering: -1
-              multiLane: false
-            colorMode: value
-            graphMode: area
-            justifyMode: auto
-            legend:
-              calcs:
-                - sum
-              displayMode: table
-              enableFacetedFilter: false
-              overflow: ellipsis
-              placement: right
-              showLegend: true
-            orientation: auto
-            percentChangeColorMode: standard
-            reduceOptions:
-              calcs:
-                - lastNotNull
-              fields: ""
-              values: false
-            showPercentChange: false
-            textMode: auto
-            tooltip:
-              hideZeros: false
-              mode: multi
-              sort: desc
-            wideLayout: true
-        version: 13.2.0-29316898481
   panel-7:
     kind: Panel
     spec:
@@ -814,7 +539,6 @@ elements:
                   mode: normal
                 thresholdsStyle:
                   mode: "off"
-              displayName: ${__field.labels.__values}
               thresholds:
                 mode: absolute
                 steps:
@@ -823,7 +547,31 @@ elements:
                   - color: red
                     value: 80
               unit: short
-            overrides: []
+            overrides:
+              - matcher:
+                  id: byName
+                  options: Human
+                properties:
+                  - id: color
+                    value:
+                      fixedColor: green
+                      mode: fixed
+              - matcher:
+                  id: byName
+                  options: scanner
+                properties:
+                  - id: color
+                    value:
+                      fixedColor: red
+                      mode: fixed
+              - matcher:
+                  id: byName
+                  options: unknown
+                properties:
+                  - id: color
+                    value:
+                      fixedColor: "#9e9e9e"
+                      mode: fixed
           options:
             annotations:
               clustering: -1
@@ -841,62 +589,6 @@ elements:
               hideZeros: false
               mode: multi
               sort: desc
-        version: 13.2.0-29316898481
-  panel-8:
-    kind: Panel
-    spec:
-      data:
-        kind: QueryGroup
-        spec:
-          queries:
-            - kind: PanelQuery
-              spec:
-                hidden: false
-                query:
-                  datasource:
-                    name: grafanacloud-logs
-                  group: loki
-                  kind: DataQuery
-                  spec:
-                    app: grafana-assistant-app
-                    direction: backward
-                    editorMode: code
-                    expr: '{container=~".*${backend:regex}"} | json | impostor="true"'
-                    instant: false
-                    queryType: range
-                    range: true
-                  version: v0
-                refId: A
-          queryOptions: {}
-          transformations: []
-      description: Inspect the requests behind the forged-identity count in the selected time window.
-      id: 8
-      links: []
-      title: Latest forged-identity requests
-      vizConfig:
-        group: logs
-        kind: VizConfig
-        spec:
-          fieldConfig:
-            defaults: {}
-            overrides: []
-          options:
-            dedupStrategy: none
-            enableInfiniteScrolling: false
-            enableLogDetails: true
-            prettifyJSON: true
-            prettifyLogMessage: true
-            showCommonLabels: false
-            showControls: false
-            showFieldSelector: false
-            showLabels: false
-            showLevel: true
-            showLogAttributes: true
-            showTime: true
-            sortOrder: Descending
-            timestampResolution: ms
-            unwrappedColumns: false
-            wrapLogMessage: true
         version: 13.2.0-29316898481
   panel-9:
     kind: Panel
@@ -930,7 +622,7 @@ elements:
                 refId: A
           queryOptions: {}
           transformations: []
-      description: "Cloudflare-style visits in the selected time window: one visitor for each distinct client IP that reached the backend. Bots and other automated traffic are included."
+      description: "One visitor for each distinct client IP that reached the API origin in the selected time window. Bots and other automated traffic are included. Not comparable to Cloudflare's unique-visitor count, which is measured at the edge for the whole zone."
       id: 9
       links: []
       title: Unique visitors
@@ -964,6 +656,318 @@ elements:
             textMode: value_and_name
             wideLayout: true
         version: 13.2.0-29316898481
+  panel-12:
+    kind: Panel
+    spec:
+      data:
+        kind: QueryGroup
+        spec:
+          queries:
+            - kind: PanelQuery
+              spec:
+                hidden: false
+                query:
+                  datasource:
+                    name: grafanacloud-logs
+                  group: loki
+                  kind: DataQuery
+                  spec:
+                    app: grafana-assistant-app
+                    direction: backward
+                    editorMode: code
+                    expr: |-
+                      topk(25,
+                        sum by (route, botKind) (
+                          count_over_time(
+                            {container=~".*${backend:regex}", botKind!=""}
+                            | json path="path"
+                            | label_format route=`{{ regexReplaceAll "^/api/tiles/.*" .path "/api/tiles/{z}/{x}/{y}" }}`
+                            | label_format route=`{{ regexReplaceAll "^/uploads/.*" .route "/uploads/*" }}`
+                            | label_format route=`{{ regexReplaceAll "^/seo/project/.*" .route "/seo/project/{slug}" }}`
+                            | label_format route=`{{ regexReplaceAll ",.*" .route "" }}`
+                            | label_format route=`{{ regexReplaceAll "/[0-9]+" .route "/{id}" }}`
+                            [$__range]
+                          )
+                        )
+                      )
+                    instant: true
+                    legendFormat: "{{route}} {{botKind}}"
+                    queryType: instant
+                    range: false
+                  version: v0
+                refId: A
+          queryOptions: {}
+          transformations:
+            - kind: Transformation
+              group: labelsToFields
+              spec:
+                options: {}
+            - kind: Transformation
+              group: groupingToMatrix
+              spec:
+                options:
+                  columnField: botKind
+                  rowField: route
+                  valueField: "Value #A"
+      description: Top 25 route/classification pairs by request count in the selected time window. Paths are normalised into route templates - tile coordinates, upload filenames, SEO slugs and numeric ids collapse into placeholders, and a batched tRPC call is attributed to the first procedure in its batch. Successful tile requests are sampled once per visitor per 30 minutes by the backend, so the tile route undercounts relative to the others.
+      id: 12
+      links: []
+      title: Requests by route
+      vizConfig:
+        group: barchart
+        kind: VizConfig
+        spec:
+          fieldConfig:
+            defaults:
+              color:
+                mode: palette-classic
+              custom:
+                axisBorderShow: false
+                axisCenteredZero: false
+                axisColorMode: text
+                axisLabel: ""
+                axisPlacement: auto
+                fillOpacity: 80
+                gradientMode: none
+                hideFrom:
+                  legend: false
+                  tooltip: false
+                  viz: false
+                lineWidth: 1
+                scaleDistribution:
+                  type: linear
+                thresholdsStyle:
+                  mode: "off"
+              thresholds:
+                mode: absolute
+                steps:
+                  - color: green
+                    value: 0
+            overrides:
+              - matcher:
+                  id: byName
+                  options: human
+                properties:
+                  - id: color
+                    value:
+                      fixedColor: green
+                      mode: fixed
+              - matcher:
+                  id: byName
+                  options: bot
+                properties:
+                  - id: color
+                    value:
+                      fixedColor: orange
+                      mode: fixed
+              - matcher:
+                  id: byName
+                  options: unknown
+                properties:
+                  - id: color
+                    value:
+                      fixedColor: "#9e9e9e"
+                      mode: fixed
+          options:
+            barRadius: 0
+            barWidth: 0.97
+            fullHighlight: false
+            groupWidth: 0.7
+            legend:
+              calcs:
+                - sum
+              displayMode: table
+              overflow: ellipsis
+              placement: right
+              showLegend: true
+            orientation: horizontal
+            showValue: auto
+            stacking: normal
+            tooltip:
+              hideZeros: false
+              mode: multi
+              sort: desc
+            xTickLabelRotation: 0
+            xTickLabelSpacing: 0
+        version: 13.2.0-29316898481
+  panel-13:
+    kind: Panel
+    spec:
+      data:
+        kind: QueryGroup
+        spec:
+          queries:
+            - kind: PanelQuery
+              spec:
+                hidden: false
+                query:
+                  datasource:
+                    name: grafanacloud-logs
+                  group: loki
+                  kind: DataQuery
+                  spec:
+                    app: grafana-assistant-app
+                    direction: backward
+                    editorMode: code
+                    expr: |-
+                      label_replace(
+                        quantile_over_time(0.10,
+                          {container=~".*${backend:regex}", botKind!=""}
+                          | json path="path", duration="duration", status="status" | __error__="" | status < 400 | path=~"/(api|trpc|uploads|seo)/.*" | label_format route=`{{ regexReplaceAll "^/api/tiles/.*" .path "/api/tiles/{z}/{x}/{y}" }}` | label_format route=`{{ regexReplaceAll "^/uploads/.*" .route "/uploads/*" }}` | label_format route=`{{ regexReplaceAll "^/seo/project/.*" .route "/seo/project/{slug}" }}` | label_format route=`{{ regexReplaceAll ",.*" .route "" }}` | label_format route=`{{ regexReplaceAll "/[0-9]+" .route "/{id}" }}` | unwrap duration
+                          [$__range]
+                        ) by (route),
+                        "quantile", "10", "", ""
+                      )
+                      or
+                      label_replace(
+                        quantile_over_time(0.25,
+                          {container=~".*${backend:regex}", botKind!=""}
+                          | json path="path", duration="duration", status="status" | __error__="" | status < 400 | path=~"/(api|trpc|uploads|seo)/.*" | label_format route=`{{ regexReplaceAll "^/api/tiles/.*" .path "/api/tiles/{z}/{x}/{y}" }}` | label_format route=`{{ regexReplaceAll "^/uploads/.*" .route "/uploads/*" }}` | label_format route=`{{ regexReplaceAll "^/seo/project/.*" .route "/seo/project/{slug}" }}` | label_format route=`{{ regexReplaceAll ",.*" .route "" }}` | label_format route=`{{ regexReplaceAll "/[0-9]+" .route "/{id}" }}` | unwrap duration
+                          [$__range]
+                        ) by (route),
+                        "quantile", "25", "", ""
+                      )
+                      or
+                      label_replace(
+                        quantile_over_time(0.50,
+                          {container=~".*${backend:regex}", botKind!=""}
+                          | json path="path", duration="duration", status="status" | __error__="" | status < 400 | path=~"/(api|trpc|uploads|seo)/.*" | label_format route=`{{ regexReplaceAll "^/api/tiles/.*" .path "/api/tiles/{z}/{x}/{y}" }}` | label_format route=`{{ regexReplaceAll "^/uploads/.*" .route "/uploads/*" }}` | label_format route=`{{ regexReplaceAll "^/seo/project/.*" .route "/seo/project/{slug}" }}` | label_format route=`{{ regexReplaceAll ",.*" .route "" }}` | label_format route=`{{ regexReplaceAll "/[0-9]+" .route "/{id}" }}` | unwrap duration
+                          [$__range]
+                        ) by (route),
+                        "quantile", "50", "", ""
+                      )
+                      or
+                      label_replace(
+                        quantile_over_time(0.75,
+                          {container=~".*${backend:regex}", botKind!=""}
+                          | json path="path", duration="duration", status="status" | __error__="" | status < 400 | path=~"/(api|trpc|uploads|seo)/.*" | label_format route=`{{ regexReplaceAll "^/api/tiles/.*" .path "/api/tiles/{z}/{x}/{y}" }}` | label_format route=`{{ regexReplaceAll "^/uploads/.*" .route "/uploads/*" }}` | label_format route=`{{ regexReplaceAll "^/seo/project/.*" .route "/seo/project/{slug}" }}` | label_format route=`{{ regexReplaceAll ",.*" .route "" }}` | label_format route=`{{ regexReplaceAll "/[0-9]+" .route "/{id}" }}` | unwrap duration
+                          [$__range]
+                        ) by (route),
+                        "quantile", "75", "", ""
+                      )
+                      or
+                      label_replace(
+                        quantile_over_time(0.90,
+                          {container=~".*${backend:regex}", botKind!=""}
+                          | json path="path", duration="duration", status="status" | __error__="" | status < 400 | path=~"/(api|trpc|uploads|seo)/.*" | label_format route=`{{ regexReplaceAll "^/api/tiles/.*" .path "/api/tiles/{z}/{x}/{y}" }}` | label_format route=`{{ regexReplaceAll "^/uploads/.*" .route "/uploads/*" }}` | label_format route=`{{ regexReplaceAll "^/seo/project/.*" .route "/seo/project/{slug}" }}` | label_format route=`{{ regexReplaceAll ",.*" .route "" }}` | label_format route=`{{ regexReplaceAll "/[0-9]+" .route "/{id}" }}` | unwrap duration
+                          [$__range]
+                        ) by (route),
+                        "quantile", "90", "", ""
+                      )
+                      or
+                      label_replace(
+                        quantile_over_time(0.95,
+                          {container=~".*${backend:regex}", botKind!=""}
+                          | json path="path", duration="duration", status="status" | __error__="" | status < 400 | path=~"/(api|trpc|uploads|seo)/.*" | label_format route=`{{ regexReplaceAll "^/api/tiles/.*" .path "/api/tiles/{z}/{x}/{y}" }}` | label_format route=`{{ regexReplaceAll "^/uploads/.*" .route "/uploads/*" }}` | label_format route=`{{ regexReplaceAll "^/seo/project/.*" .route "/seo/project/{slug}" }}` | label_format route=`{{ regexReplaceAll ",.*" .route "" }}` | label_format route=`{{ regexReplaceAll "/[0-9]+" .route "/{id}" }}` | unwrap duration
+                          [$__range]
+                        ) by (route),
+                        "quantile", "95", "", ""
+                      )
+                      or
+                      label_replace(
+                        quantile_over_time(0.99,
+                          {container=~".*${backend:regex}", botKind!=""}
+                          | json path="path", duration="duration", status="status" | __error__="" | status < 400 | path=~"/(api|trpc|uploads|seo)/.*" | label_format route=`{{ regexReplaceAll "^/api/tiles/.*" .path "/api/tiles/{z}/{x}/{y}" }}` | label_format route=`{{ regexReplaceAll "^/uploads/.*" .route "/uploads/*" }}` | label_format route=`{{ regexReplaceAll "^/seo/project/.*" .route "/seo/project/{slug}" }}` | label_format route=`{{ regexReplaceAll ",.*" .route "" }}` | label_format route=`{{ regexReplaceAll "/[0-9]+" .route "/{id}" }}` | unwrap duration
+                          [$__range]
+                        ) by (route),
+                        "quantile", "99", "", ""
+                      )
+                    instant: true
+                    legendFormat: "{{route}} {{quantile}}"
+                    queryType: instant
+                    range: false
+                  version: v0
+                refId: A
+          queryOptions: {}
+          transformations:
+            - kind: Transformation
+              group: labelsToFields
+              spec:
+                options: {}
+            - kind: Transformation
+              group: groupingToMatrix
+              spec:
+                options:
+                  columnField: route
+                  rowField: quantile
+                  valueField: "Value #A"
+            - kind: Transformation
+              group: organize
+              spec:
+                options:
+                  renameByName:
+                    'quantile\route': quantile
+            - kind: Transformation
+              group: convertFieldType
+              spec:
+                options:
+                  conversions:
+                    - destinationType: number
+                      targetField: quantile
+      description: Latency quantile curve per route over the whole selected window. Each line reads left to right as "this share of requests finished at or below this latency", so a line that stays flat and lifts only at its right-hand end has a slow tail rather than a slow typical case. Only successful (status under 400) requests to served prefixes are included, which excludes scanner probes for paths the app does not route. Paths are normalised into route templates - tile coordinates, upload filenames, SEO slugs and numeric ids collapse into placeholders, and a batched tRPC call is attributed to the first procedure in its batch.
+      id: 13
+      links: []
+      title: Request latency by percentile per route
+      vizConfig:
+        group: trend
+        kind: VizConfig
+        spec:
+          fieldConfig:
+            defaults:
+              color:
+                mode: palette-classic
+              custom:
+                axisBorderShow: false
+                axisCenteredZero: false
+                axisColorMode: text
+                axisLabel: Latency
+                axisPlacement: auto
+                drawStyle: line
+                fillOpacity: 0
+                gradientMode: none
+                hideFrom:
+                  legend: false
+                  tooltip: false
+                  viz: false
+                insertNulls: false
+                lineInterpolation: smooth
+                lineWidth: 2
+                pointSize: 5
+                scaleDistribution:
+                  type: linear
+                showPoints: auto
+                spanNulls: true
+                thresholdsStyle:
+                  mode: "off"
+              thresholds:
+                mode: absolute
+                steps:
+                  - color: green
+                    value: 0
+              unit: ms
+            overrides:
+              - matcher:
+                  id: byName
+                  options: quantile
+                properties:
+                  - id: unit
+                    value: percent
+                  - id: custom.axisLabel
+                    value: Percentile
+          options:
+            legend:
+              calcs:
+                - max
+              displayMode: table
+              overflow: ellipsis
+              placement: right
+              showLegend: true
+            tooltip:
+              hideZeros: false
+              mode: multi
+              sort: desc
+            xField: quantile
+        version: 13.2.0-29316898481
 layout:
   kind: GridLayout
   spec:
@@ -972,10 +976,19 @@ layout:
         spec:
           element:
             kind: ElementReference
-            name: panel-9
-          height: 5
-          width: 6
+            name: panel-1
+          height: 9
+          width: 18
           x: 0
+          "y": 0
+      - kind: GridLayoutItem
+        spec:
+          element:
+            kind: ElementReference
+            name: panel-9
+          height: 4
+          width: 6
+          x: 18
           "y": 0
       - kind: GridLayoutItem
         spec:
@@ -984,71 +997,8 @@ layout:
             name: panel-10
           height: 5
           width: 6
-          x: 6
-          "y": 0
-      - kind: GridLayoutItem
-        spec:
-          element:
-            kind: ElementReference
-            name: panel-11
-          height: 5
-          width: 6
-          x: 12
-          "y": 0
-      - kind: GridLayoutItem
-        spec:
-          element:
-            kind: ElementReference
-            name: panel-6
-          height: 5
-          width: 6
           x: 18
-          "y": 0
-      - kind: GridLayoutItem
-        spec:
-          element:
-            kind: ElementReference
-            name: panel-1
-          height: 9
-          width: 24
-          x: 0
-          "y": 5
-      - kind: GridLayoutItem
-        spec:
-          element:
-            kind: ElementReference
-            name: panel-2
-          height: 9
-          width: 12
-          x: 0
-          "y": 14
-      - kind: GridLayoutItem
-        spec:
-          element:
-            kind: ElementReference
-            name: panel-3
-          height: 9
-          width: 12
-          x: 12
-          "y": 14
-      - kind: GridLayoutItem
-        spec:
-          element:
-            kind: ElementReference
-            name: panel-4
-          height: 9
-          width: 12
-          x: 0
-          "y": 23
-      - kind: GridLayoutItem
-        spec:
-          element:
-            kind: ElementReference
-            name: panel-5
-          height: 9
-          width: 12
-          x: 12
-          "y": 23
+          "y": 4
       - kind: GridLayoutItem
         spec:
           element:
@@ -1057,16 +1007,43 @@ layout:
           height: 8
           width: 24
           x: 0
-          "y": 32
+          "y": 9
       - kind: GridLayoutItem
         spec:
           element:
             kind: ElementReference
-            name: panel-8
-          height: 9
+            name: panel-12
+          height: 11
           width: 24
           x: 0
-          "y": 40
+          "y": 17
+      - kind: GridLayoutItem
+        spec:
+          element:
+            kind: ElementReference
+            name: panel-13
+          height: 10
+          width: 24
+          x: 0
+          "y": 28
+      - kind: GridLayoutItem
+        spec:
+          element:
+            kind: ElementReference
+            name: panel-3
+          height: 9
+          width: 12
+          x: 0
+          "y": 38
+      - kind: GridLayoutItem
+        spec:
+          element:
+            kind: ElementReference
+            name: panel-4
+          height: 9
+          width: 12
+          x: 12
+          "y": 38
 links: []
 liveNow: false
 preferences:

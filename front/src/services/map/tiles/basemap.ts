@@ -498,7 +498,8 @@ let tileLayerSwitchGeneration = 0;
 
 /** Switch to a different tile layer. The most recent call wins. */
 export async function switchTileLayer(layerType: TileLayerType): Promise<void> {
-  const generation = ++tileLayerSwitchGeneration;
+  tileLayerSwitchGeneration += 1;
+  const generation = tileLayerSwitchGeneration;
 
   // When switching to satellite, jump directly to the country-specific layer to avoid a
   // brief flash of the generic ESRI layer.

@@ -104,7 +104,6 @@ function handleModeSwitch() {
         newMode = "view";
         break;
       default:
-        newMode = "view";
     }
   } else {
     newMode = currentMode === "edit" ? "view" : "edit";

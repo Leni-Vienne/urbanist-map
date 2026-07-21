@@ -24,10 +24,13 @@ import { ref, computed } from "vue";
 import SettingsMenuItems from "@/components/map/SettingsMenuItems.vue";
 import { isMobile } from "@/services/core/viewport";
 
-const settingsPopover = ref();
+const settingsPopover = ref<{
+  visible: boolean;
+  toggle(event: Event): void;
+} | null>(null);
 const isOpen = computed<boolean>(() => settingsPopover.value?.visible ?? false);
 
 function toggleSettings(event: Event) {
-  settingsPopover.value.toggle(event);
+  settingsPopover.value?.toggle(event);
 }
 </script>

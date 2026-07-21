@@ -24,6 +24,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   icon: "folder",
+  subMessage: "",
 });
 
 const iconClass = computed(() => `pi-${props.icon}`);

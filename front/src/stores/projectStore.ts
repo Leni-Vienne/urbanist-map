@@ -85,16 +85,14 @@ export const useProjectStore = defineStore("project", () => {
 
   function upsertProjectSummary(project: Project): Project {
     const current = projects.value[project.id];
-    let stored: Project;
-    if (!current) {
-      stored = project;
-    } else if (hydratedProjectIds.value[project.id]) {
+    let stored = project;
+    if (current && hydratedProjectIds.value[project.id]) {
       stored = {
         ...current,
         ...project,
         ...getProjectDetailFields(current),
       };
-    } else {
+    } else if (current) {
       stored = { ...current, ...project };
     }
     projects.value[project.id] = stored;

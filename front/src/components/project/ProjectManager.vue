@@ -44,7 +44,7 @@
 <script setup lang="ts">
 import { toastSuccess, toastError } from "@/services/core/toast";
 
-import { ref, defineAsyncComponent } from "vue";
+import { ref, shallowRef, defineAsyncComponent } from "vue";
 import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 import maplibregl, { type MapMouseEvent } from "maplibre-gl";
@@ -72,8 +72,8 @@ const mapStore = useMapStore();
 const uiStore = useUiStore();
 
 const { t: $t } = useI18n();
-const markerPlacementBar = ref();
-const tempMarker = ref<maplibregl.Marker | null>(null);
+const markerPlacementBar = ref<InstanceType<typeof MarkerPlacementBar> | null>(null);
+const tempMarker = shallowRef<maplibregl.Marker | null>(null);
 const mapClickHandler = ref<((e: MapMouseEvent) => void) | null>(null);
 
 const { projects } = storeToRefs(projectStore);

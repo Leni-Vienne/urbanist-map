@@ -37,6 +37,8 @@ type Emits = (
 ) => void;
 
 const props = withDefaults(defineProps<Props>(), {
+  contributorId: null,
+  contributorUsername: null,
   reportCount: 0,
   clickable: false,
 });

@@ -46,7 +46,10 @@ import {
 } from "@/services/map/mapLabelLanguage";
 
 const { t } = useI18n();
-const mapLanguagePopover = ref();
+const mapLanguagePopover = ref<{
+  toggle(event: Event): void;
+  hide(): void;
+} | null>(null);
 
 const options = computed(() => [
   { code: "default" as MapLabelLanguage, name: t("controls.mapLanguageDefault") },
@@ -62,11 +65,11 @@ const currentLabel = computed(() => {
 });
 
 function toggleMenu(event: Event): void {
-  mapLanguagePopover.value.toggle(event);
+  mapLanguagePopover.value?.toggle(event);
 }
 
 function selectLanguage(code: MapLabelLanguage): void {
   setMapLabelLanguage(code);
-  mapLanguagePopover.value.hide();
+  mapLanguagePopover.value?.hide();
 }
 </script>

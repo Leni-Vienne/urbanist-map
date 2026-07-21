@@ -67,17 +67,16 @@ export const useChangeRequestStore = defineStore("changeRequest", () => {
           : requests.find((cr) => isOverlayGeometryChange(cr, overlayId));
       if (!geometryChange) return { type: "none" };
 
-      let side: "current" | "suggested";
       if (useMapStore().mode === "edit") {
         const positionState = useOverlayStore().liveOverlays[overlayId]?.positionState;
-        side = positionState === "approved-toggled" ? "current" : "suggested";
+        const side = positionState === "approved-toggled" ? "current" : "suggested";
         // The suggested position can't be shown without corners, so no preview is active.
         if (side === "suggested" && !Array.isArray(geometryChange.newValue)) {
           return { type: "none" };
         }
-      } else {
-        side = intent && geometryChange === intentChange ? intent.side : "current";
+        return { type: side, changeId: geometryChange.id, overlayId };
       }
+      const side = intent && geometryChange === intentChange ? intent.side : "current";
       return { type: side, changeId: geometryChange.id, overlayId };
     }
 

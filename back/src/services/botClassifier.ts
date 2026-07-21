@@ -25,8 +25,8 @@ import {
   type Cidr,
 } from "./botSignatures";
 
-export type BotClass = "official-range" | "scanner" | "declared-bot" | "human-likely" | "unknown";
-export type BotKind = "bot" | "human" | "unknown";
+type BotClass = "official-range" | "scanner" | "declared-bot" | "human-likely" | "unknown";
+type BotKind = "bot" | "human" | "unknown";
 
 export interface Verdict {
   botClass: BotClass;
@@ -72,9 +72,11 @@ const UNKNOWN_VERDICT: Verdict = {
 function rangeOperatorFor(ip: string): string | undefined {
   const parsed = ipToBigInt(ip);
   if (!parsed) return undefined;
-  const hit = ranges.find(function inRange(c) {
-    return cidrContains(c, parsed);
-  });
+  const parsedIp = parsed;
+  function inRange(c: Cidr): boolean {
+    return cidrContains(c, parsedIp);
+  }
+  const hit = ranges.find(inRange);
   return hit?.operator;
 }
 
@@ -139,6 +141,10 @@ function verdictFrom(e: Evidence): Verdict {
 // Runs on every logged request, so it must never throw: a failure here would turn every response
 // into a 500.
 export function classifyRequest(ip: string, path: string, userAgent: string | undefined): Verdict {
+  function isBrowserOnly(pathPrefix: string): boolean {
+    return path.startsWith(pathPrefix);
+  }
+
   try {
     const now = Date.now();
     const e = evidenceFor(ipKey64(ip), now);
@@ -150,11 +156,7 @@ export function classifyRequest(ip: string, path: string, userAgent: string | un
     }
     if (userAgent && BOT_UA_RE.test(userAgent)) e.claimed = botNameFromUa(userAgent);
     if (SCANNER_PATH_RE.test(path)) e.scanner = true;
-    if (
-      HUMAN_SIGNAL_PATHS.some(function isBrowserOnly(h) {
-        return path.startsWith(h);
-      })
-    ) {
+    if (HUMAN_SIGNAL_PATHS.some(isBrowserOnly)) {
       e.humanSignal = true;
     }
 
@@ -174,16 +176,7 @@ export function classifyRequest(ip: string, path: string, userAgent: string | un
 async function refreshRanges(): Promise<void> {
   let next = RANGE_RETRY_MS;
   try {
-    const raw = await fetchRangePrefixes(function report(operator, error) {
-      logger.warn(
-        {
-          event: "crawler_ranges_source_failed",
-          operator,
-          error: error instanceof Error ? error.message : String(error),
-        },
-        "Crawler range source unavailable",
-      );
-    });
+    const raw = await fetchRangePrefixes(reportRangeSourceFailure);
     const parsed = parseRangePrefixes(raw);
     if (parsed.length > 0) {
       ranges = parsed;
@@ -213,9 +206,29 @@ async function refreshRanges(): Promise<void> {
       "Crawler range refresh failed",
     );
   }
-  setTimeout(function scheduleRefresh() {
-    void refreshRanges();
-  }, next);
+  setTimeout(scheduleRefresh, next);
+}
+
+function reportRangeSourceFailure(operator: string, error: unknown): void {
+  logger.warn(
+    {
+      event: "crawler_ranges_source_failed",
+      operator,
+      error: error instanceof Error ? error.message : String(error),
+    },
+    "Crawler range source unavailable",
+  );
+}
+
+function scheduleRefresh(): void {
+  void refreshRanges();
+}
+
+function sweepIdleEvidence(): void {
+  const cutoff = Date.now() - SESSION_GAP_MS;
+  for (const [key, e] of evidenceByIp) {
+    if (e.lastSeen < cutoff) evidenceByIp.delete(key);
+  }
 }
 
 export function startBotClassifier(): void {
@@ -223,10 +236,5 @@ export function startBotClassifier(): void {
   // rather than blocking startup on a third-party endpoint.
   void refreshRanges();
 
-  setInterval(function sweepIdle() {
-    const cutoff = Date.now() - SESSION_GAP_MS;
-    for (const [key, e] of evidenceByIp) {
-      if (e.lastSeen < cutoff) evidenceByIp.delete(key);
-    }
-  }, SWEEP_MS);
+  setInterval(sweepIdleEvidence, SWEEP_MS);
 }

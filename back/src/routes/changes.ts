@@ -88,8 +88,7 @@ function convertCornersToGeometry(cornersValue: unknown) {
   ), 4326)`;
 }
 
-// Helper function to convert coordinate object to PostGIS point geometry
-function convertCoordinateToGeometry(coordValue: unknown) {
+function parseCoordinate(coordValue: unknown): Coord {
   if (!isCoord(coordValue)) {
     throw new TRPCError({
       code: "BAD_REQUEST",
@@ -97,7 +96,12 @@ function convertCoordinateToGeometry(coordValue: unknown) {
     });
   }
 
-  return sql`ST_SetSRID(ST_MakePoint(${coordValue.lng}, ${coordValue.lat}), 4326)`;
+  return coordValue;
+}
+
+// Helper function to convert coordinate object to PostGIS point geometry
+function convertCoordinateToGeometry(coordinate: Coord) {
+  return sql`ST_SetSRID(ST_MakePoint(${coordinate.lng}, ${coordinate.lat}), 4326)`;
 }
 
 // Project fields backed by timestamp columns. Stored in jsonb as ISO strings,
@@ -116,11 +120,17 @@ function buildUpdateData(change: { entityType: string; fieldName: string; newVal
   }
 
   if (isOverlayCentroidField) {
-    return { centroid: convertCoordinateToGeometry(change.newValue) };
+    const coordinate = parseCoordinate(change.newValue);
+    return { centroid: convertCoordinateToGeometry(coordinate) };
   }
 
   if (isProjectCenterCoordinateField) {
-    return { centerCoordinate: convertCoordinateToGeometry(change.newValue) };
+    const coordinate = parseCoordinate(change.newValue);
+    return {
+      centerCoordinate: convertCoordinateToGeometry(coordinate),
+      lat: coordinate.lat,
+      lng: coordinate.lng,
+    };
   }
 
   const isProjectGeometryField = change.entityType === "project" && change.fieldName === "geometry";

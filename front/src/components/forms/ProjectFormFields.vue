@@ -228,10 +228,16 @@ type Emits = {
   (e: "update:timelineStatus", value: TimelineStatus): void;
 };
 
+function hasNoChangedFields(): boolean {
+  return false;
+}
+
 const props = withDefaults(defineProps<Props>(), {
+  originalData: undefined,
   showChangeIndicators: false,
   idPrefix: "project",
   timelineStatus: "proposed",
+  hasChanged: hasNoChangedFields,
 });
 
 const emit = defineEmits<Emits>();

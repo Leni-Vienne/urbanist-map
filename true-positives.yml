@@ -35,3 +35,10 @@ rules:
       patterns:
         - "PendingRejection (3 fields, declared components/layout/ModerationPanel.vue)"
         - "SubmissionContext (7 fields, declared services/submission/submissionTypes.ts)"
+  vue.reactivity.unused-deep-reactivity:
+    - triaged_at: "2026-07-20"
+      commit: "1648f64d6159c4470cf7dd8cbbd5ed8beb17eee5"
+      status: "fixed"
+      reason: "A third-party maplibregl.Marker held in a deep ref drags the maplibre Map object graph into reactive traversal and hands maplibre a proxied this; nothing consumes it reactively, so the marker handle is now a shallowRef."
+      patterns:
+        - "components/project/ProjectManager.vue:76  ref tempMarker [instance]: 4 wholesale write(s), no deep consumer"

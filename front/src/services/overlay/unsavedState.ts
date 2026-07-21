@@ -25,7 +25,11 @@ function getStagedCornersDelta(
 export function getEditModeDefaultCaption(
   overlay: Pick<OverlayObject, "hasPendingChanges" | "suggestedCaption" | "baselineCaption">,
 ): string | null {
-  if (overlay.hasPendingChanges === true && overlay.suggestedCaption != null) {
+  if (
+    overlay.hasPendingChanges === true &&
+    overlay.suggestedCaption !== null &&
+    overlay.suggestedCaption !== undefined
+  ) {
     return overlay.suggestedCaption;
   }
   return overlay.baselineCaption;

@@ -109,10 +109,6 @@ rules:
       reason: "Async URL slug sync and sync accordion-panel cleanup share the source but not targets; keeping them apart keeps the slug fetch out of panel bookkeeping."
       patterns:
         - "source focusStore.selectedProjectId watched"
-    - triaged_at: "2026-07-13"
-      reason: "GeoJSON shape highlight and vector-tile feature-state are separate rendering mechanisms; the split is documented as deliberate in the shape-highlight watcher."
-      patterns:
-        - "source focusStore.highlightedProjectId watched"
   pinia.store.external-write-fan-in:
     - triaged_at: "2026-07-13"
       reason: "Independent user-menu, preload, sign-out, and v-model lifecycle writers."
@@ -136,10 +132,6 @@ rules:
       reason: "The timeout captures its request key, so a late completion writes under the key it fetched."
       patterns:
         - "services/map/tiles/basemap.ts [event-cb] setTimeout"
-    - triaged_at: "2026-07-13"
-      reason: "Runs once per mount with a component-local result."
-      patterns:
-        - "components/map/MapView.vue [closure-cb] onMounted"
   async.post-await-write.watcher:
     - triaged_at: "2026-07-13"
       reason: "The cache write is keyed by the captured project ID, and the visible-state write is guarded by a still-selected check."
@@ -224,7 +216,6 @@ rules:
     - triaged_at: "2026-07-13"
       reason: "Per-call-site narrowing of unknown payloads or a GeoJSON union split into its members."
       patterns:
-        - "as Locale [ctx:MODULE-TOP]"
         - "as Position[] [ctx:buildDrawables]"
   typescript.field-enumeration.copier:
     - triaged_at: "2026-07-13"
@@ -332,3 +323,33 @@ rules:
       reason: "The documented content-versus-viewport comparison split."
       patterns:
         - "composables/project/useVisibleProjects.ts|VisibleProject"
+  vue.lifecycle.unpaired-acquisition:
+    - triaged_at: "2026-07-18"
+      reason: "The root App.vue mounts once and never unmounts, so its globalThis listener (further gated behind VITE_DEBUG chunk-load logging) has no teardown to pair (documented App-root never-unmounts class)."
+      patterns:
+        - 'globalThis "click" listener is added but never removed in this component'
+  vue.reactivity.prop-sync-watcher:
+    - triaged_at: "2026-07-18"
+      reason: "A local ref mirrors a v-model / controlled-component prop whose write contention is resolved by an explicit guard or emit round-trip (isDragging guard, guarded prop adoption settling through emit), so the two writers converge rather than compete."
+      patterns:
+        - "components/forms/FlexibleDatePicker.vue:117  prop props.modelValue.precision resyncs precision.value with 1 other writer (correctness)"
+        - "components/layout/DraggableDrawer.vue:106  prop props.heightPercent resyncs currentHeight.value with 5 other writers (modernization)"
+  vue.reactivity.unused-deep-reactivity:
+    - triaged_at: "2026-07-20"
+      reason: "The value escapes through a template prop binding into a child, so deep consumption sits outside the rule's rooted same-name scan - the documented PROCESS.md blind spot."
+      patterns:
+        - "components/map/CitySearch.vue:73  ref suggestions [typed]: 4 wholesale write(s), no deep consumer"
+    - triaged_at: "2026-07-20"
+      reason: "Accurate join, performance-tier nil: a small wholesale-replaced record or fetched list rendered read-only, typically by a non-editing PrimeVue DataTable that never writes back into a row."
+      patterns:
+        - "components/layout/ModerationPanel.vue:225  ref pendingConflicts [typed]: 3 wholesale write(s), no deep consumer"
+        - "components/layout/ModerationPanel.vue:254  ref userStatsDialogData [collection]: 1 wholesale write(s), no deep consumer"
+        - "components/map/CitySearch.vue:72  ref selectedCity [typed]: 2 wholesale write(s), no deep consumer"
+        - "pages/AdminDetachedProjectsPage.vue:274  ref detachedProjects [fetched]: 1 wholesale write(s), no deep consumer"
+        - "pages/AdminDetachedProjectsPage.vue:276  ref expandedRows [typed]: 1 wholesale write(s), no deep consumer"
+        - "pages/AdminReportsPage.vue:223  ref reportedUsers [fetched]: 1 wholesale write(s), no deep consumer"
+        - "pages/AdminReportsPage.vue:227  ref selectedUser [typed]: 2 wholesale write(s), no deep consumer"
+        - "pages/AdminUserContributionsPage.vue:232  ref projectToDelete [typed]: 1 wholesale write(s), no deep consumer"
+        - "pages/AdminUserContributionsPage.vue:233  ref overlayToDelete [typed]: 1 wholesale write(s), no deep consumer"
+        - "services/feed/latestContributions.ts:8  ref latestContributions [typed]: 2 wholesale write(s), no deep consumer"
+        - "services/map/filters.ts:16  ref selectedStatusFilters [collection]: 2 wholesale write(s), no deep consumer"

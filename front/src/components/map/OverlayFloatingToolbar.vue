@@ -292,7 +292,7 @@ watch(
     destroyMarker();
     stopAnchorSync();
     // nextTick: let Teleport unmount cleanly from the old marker before we create a new one
-    if (id) nextTick(initForSelection);
+    if (id) void nextTick().then(initForSelection);
   },
   { immediate: true },
 );

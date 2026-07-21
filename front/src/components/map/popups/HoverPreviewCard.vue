@@ -183,20 +183,20 @@ function positionCard(): void {
   el.style.top = `${top}px`;
 }
 
+function measureAndPositionCard(): void {
+  const el = cardEl.value;
+  if (!el) return;
+  measuredW = el.offsetWidth || CARD_W;
+  measuredH = el.offsetHeight || CARD_H;
+  positionCard();
+}
+
 // Re-measure only when the card content changes, then reposition with the fresh size.
-watch(
-  hoverPreview,
-  () => {
-    void nextTick(() => {
-      const el = cardEl.value;
-      if (!el) return;
-      measuredW = el.offsetWidth || CARD_W;
-      measuredH = el.offsetHeight || CARD_H;
-      positionCard();
-    });
-  },
-  { immediate: true },
-);
+watch(hoverPreview, scheduleCardMeasurement, { immediate: true });
+
+function scheduleCardMeasurement(): void {
+  void nextTick().then(measureAndPositionCard);
+}
 
 // Cursor moves reposition using the cached size, so no reflow on the per-move path.
 watchEffect(positionCard);

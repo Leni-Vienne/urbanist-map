@@ -470,7 +470,9 @@ function transformOverlayDataWithChangeRequests(
 
     const captionChangeRequest = overlayChangeRequests.find((cr) => cr.fieldName === "caption");
     const suggestedCaption =
-      captionChangeRequest && captionChangeRequest.newValue != null
+      captionChangeRequest &&
+      captionChangeRequest.newValue !== null &&
+      captionChangeRequest.newValue !== undefined
         ? String(captionChangeRequest.newValue)
         : null;
 

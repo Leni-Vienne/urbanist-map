@@ -13,7 +13,7 @@ export interface Cidr {
 
 // Operators that publish the IP ranges their crawlers egress from. Fetched at runtime because
 // they change without notice.
-export const RANGE_SOURCES: Record<string, string> = {
+const RANGE_SOURCES: Record<string, string> = {
   "OpenAI SearchBot": "https://openai.com/searchbot.json",
   "OpenAI GPTBot": "https://openai.com/gptbot.json",
   "OpenAI ChatGPT-User": "https://openai.com/chatgpt-user.json",
@@ -28,7 +28,7 @@ export const BOT_UA_RE =
   /bot\b|bot\/|crawl|spider|slurp|\/scan|scanner|probe|curl|wget|python-requests|go-http-client|libwww|okhttp|java\/|headless|phantomjs|masscan|zgrab|nuclei|facebookexternalhit|semrush|ahrefs|mj12|dotbot|petal|bytespider|gptbot|ccbot|claudebot|perplexity|applebot|duckduck|chatgpt-user/i;
 
 export const SCANNER_PATH_RE =
-  /(\/\.env)|(\.env\.)|(\/\.git)|(wp-admin)|(wp-login)|(wp-includes)|(wp-content)|(xmlrpc\.php)|(phpmyadmin)|(\/vendor\/)|(\/\.aws)|(\/\.ssh)|(secrets?\.json)|(credentials\.json)|(gcp-credentials)|(\/config\.json)|(\/api\/env)|(\/actuator)|(\/solr\/)|(\/cgi-bin\/)|(\.php$)|(\/telescope)|(\/server-status)/i;
+  /(?:\/\.env)|(?:\.env\.)|(?:\/\.git)|(?:wp-admin)|(?:wp-login)|(?:wp-includes)|(?:wp-content)|(?:xmlrpc\.php)|(?:phpmyadmin)|(?:\/vendor\/)|(?:\/\.aws)|(?:\/\.ssh)|(?:secrets?\.json)|(?:credentials\.json)|(?:gcp-credentials)|(?:\/config\.json)|(?:\/api\/env)|(?:\/actuator)|(?:\/solr\/)|(?:\/cgi-bin\/)|(?:\.php$)|(?:\/telescope)|(?:\/server-status)/i;
 
 // Endpoints the SPA fires from a browser. A plain HTTP fetcher has no reason to request them.
 export const HUMAN_SIGNAL_PATHS = ["/api/check-session", "/uploads/"];
@@ -49,22 +49,22 @@ export const VERIFIABLE_CLAIMS = [
 
 export function botNameFromUa(ua: string): string {
   const m = ua.match(
-    /(OAI-SearchBot|ChatGPT-User|GPTBot|ClaudeBot|PerplexityBot|CCBot|Googlebot|Google-CloudVertexBot|bingbot|YandexBot|Baiduspider|Applebot|AhrefsBot|SemrushBot|xAI-SearchBot|DeepSeekBot|wpbot|CMS-Checker|[A-Za-z-]*[Bb]ot[A-Za-z-]*)/,
+    /(?<botName>OAI-SearchBot|ChatGPT-User|GPTBot|ClaudeBot|PerplexityBot|CCBot|Googlebot|Google-CloudVertexBot|bingbot|YandexBot|Baiduspider|Applebot|AhrefsBot|SemrushBot|xAI-SearchBot|DeepSeekBot|wpbot|CMS-Checker|[A-Za-z-]*[Bb]ot[A-Za-z-]*)/,
   );
-  return m?.[1] ?? "unnamed bot";
+  return m?.groups?.botName ?? "unnamed bot";
 }
 
-export function expandV6(ip: string): string {
+function padIpv6Group(group: string): string {
+  return (group || "0").padStart(4, "0");
+}
+
+function expandV6(ip: string): string {
   const zone = ip.split("%")[0] ?? ip;
   const [head, tail] = zone.split("::");
   const h = head ? head.split(":") : [];
   const t = tail ? tail.split(":") : [];
   const full = tail === undefined ? h : [...h, ...Array(8 - h.length - t.length).fill("0"), ...t];
-  return full
-    .map(function pad(g: string) {
-      return (g || "0").padStart(4, "0");
-    })
-    .join(":");
+  return full.map(padIpv6Group).join(":");
 }
 
 export function ipToBigInt(ip: string): { value: bigint; size: number } | undefined {
@@ -94,7 +94,7 @@ export function ipToBigInt(ip: string): { value: bigint; size: number } | undefi
   }
 }
 
-export function parseCidr(cidr: string, operator: string): Cidr | undefined {
+function parseCidr(cidr: string, operator: string): Cidr | undefined {
   const [addr, bitsRaw] = cidr.split("/");
   if (addr === undefined) return undefined;
   const parsed = ipToBigInt(addr);
@@ -117,6 +117,14 @@ export function ipKey64(ip: string): string {
   return `${expandV6(ip).split(":").slice(0, 4).join(":")}::/64`;
 }
 
+function pickRangePrefix(prefix: Record<string, string | undefined>): string | undefined {
+  return prefix.ipv4Prefix ?? prefix.ipv6Prefix ?? prefix.ipv4 ?? prefix.ipv6;
+}
+
+function isPresentPrefix(prefix: string | undefined): prefix is string {
+  return Boolean(prefix);
+}
+
 // Fetches the published prefix lists. Each source is independent: one operator being unreachable
 // costs that operator's ranges, not the whole set. onError reports per-source failures to whatever
 // logger the caller uses.
@@ -129,13 +137,7 @@ export async function fetchRangePrefixes(
       const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const body = (await res.json()) as { prefixes?: Record<string, string | undefined>[] };
-      raw[operator] = (body.prefixes ?? [])
-        .map(function pick(p) {
-          return p.ipv4Prefix ?? p.ipv6Prefix ?? p.ipv4 ?? p.ipv6;
-        })
-        .filter(function present(p): p is string {
-          return Boolean(p);
-        });
+      raw[operator] = (body.prefixes ?? []).map(pickRangePrefix).filter(isPresentPrefix);
     } catch (error) {
       onError?.(operator, error);
       raw[operator] = [];

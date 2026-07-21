@@ -53,7 +53,7 @@ const props = withDefaults(
     size?: number;
     title?: string;
   }>(),
-  { size: 36 },
+  { size: 36, title: "" },
 );
 
 const PADDING = 8;
