@@ -49,14 +49,12 @@ import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 import maplibregl, { type MapMouseEvent } from "maplibre-gl";
 import { useProjectStore } from "@/stores/projectStore";
-import { useMapStore } from "@/stores/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 
 import { getMap, getMapOrNull } from "@/services/core/map";
 import { createProjectPinElement } from "@/services/map/markersSvg";
 import { createProject } from "@/services/project/projectMutations";
 import { openProjectDetail } from "@/services/map/projectSelection";
-import { mergeProjectPointsForMode } from "@/services/map/tiles/pendingSources";
 import type { Project } from "@/types/index";
 
 import MarkerPlacementBar from "@/components/map/MarkerPlacementBar.vue";
@@ -68,7 +66,6 @@ const EditProjectForm = defineAsyncComponent(
 );
 
 const projectStore = useProjectStore();
-const mapStore = useMapStore();
 const uiStore = useUiStore();
 
 const { t: $t } = useI18n();
@@ -133,10 +130,6 @@ async function handleNewProjectCreation(project: Partial<Project>): Promise<void
     ...project,
     isModified: true,
   });
-
-  // Push the new local project to the pending-project-points GeoJSON source
-  // so it appears on the map immediately without waiting for a viewport refresh.
-  mergeProjectPointsForMode([], [], mapStore.mode);
 
   const hasNoOverlays = !project.overlayIds || project.overlayIds.length === 0;
   if (hasNoOverlays && typeof project.lat === "number" && typeof project.lng === "number") {

@@ -23,7 +23,10 @@ import { clearOverlayChangeRequestState, upsertOverlayFromWire } from "@/service
 import { overlayWireToData } from "@/utils/typeFactories";
 import { loadOrNull } from "@/services/core/errorHandling";
 import { trpc, type RouterOutput } from "@/client";
-import { mergeProjectPointsForMode } from "@/services/map/tiles/pendingSources";
+import {
+  mergeProjectPointsForMode,
+  watchPendingProjectSources,
+} from "@/services/map/tiles/pendingSources";
 import { onModeTransition } from "@/services/map/modeTransition";
 import type { OverlayData } from "@/types/index";
 import type { AppMode } from "@shared/types";
@@ -232,6 +235,7 @@ export function watchViewportModeData(): () => void {
   const mapStore = useMapStore();
 
   const unregisterModeTransition = onModeTransition("viewportSessionData", syncSessionDataForMode);
+  const stopPendingProjectWatch = watchPendingProjectSources();
 
   // Moderation follows the selected country: refetch its pending set when the code changes.
   const stopCountryWatch = watch(
@@ -242,6 +246,7 @@ export function watchViewportModeData(): () => void {
   );
   return function stopViewportModeDataWatchers(): void {
     stopCountryWatch();
+    stopPendingProjectWatch();
     unregisterModeTransition();
   };
 }

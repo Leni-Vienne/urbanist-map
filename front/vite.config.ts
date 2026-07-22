@@ -69,7 +69,7 @@ export default defineConfig(({ mode }) => {
       vue(),
       qrcode(),
       visualizer({
-        filename: "stats.md",
+        filename: ".bundle-report/stats.md",
         open: false,
         gzipSize: true,
         template: "markdown", // 'markdown', 'treemap', 'sunburst', 'network', 'list', 'flamegraph', 'raw-data'

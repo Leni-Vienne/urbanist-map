@@ -6,7 +6,6 @@
         :original-data="form.originalData"
         :show-change-indicators="true"
         :timeline-status="timelineStatus"
-        :has-changed="(fieldName: string) => form.hasChanged(fieldName as keyof ProjectFormData)"
         id-prefix="edit"
         @update:timeline-status="
           timelineStatus = $event;
@@ -50,7 +49,7 @@
 import { computed, ref } from "vue";
 import { useEditableProjectForm } from "@/composables/forms/useEditableProjectForm";
 import { useProjectStore } from "@/stores/projectStore";
-import type { Project, ProjectFormData } from "@/types/index";
+import type { Project } from "@/types/index";
 import type { TimelineStatus } from "../../../../back/src/db/schema";
 import { projectToFormData } from "@/utils/projectFormHelpers";
 

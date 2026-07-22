@@ -31,7 +31,7 @@
       getFieldError("name")
     }}</small>
     <ChangeIndicator
-      :show="showChangeIndicators && hasChanged?.('name')"
+      :show="showChangeIndicators && anyFieldChanged('name')"
       :original-value="originalData?.name"
     />
   </div>
@@ -56,7 +56,7 @@
       getFieldError("description")
     }}</small>
     <ChangeIndicator
-      :show="showChangeIndicators && hasChanged?.('description')"
+      :show="showChangeIndicators && anyFieldChanged('description')"
       :original-value="originalData?.description"
     />
   </div>
@@ -64,8 +64,8 @@
   <!-- Timeline status selector -->
   <TimelineStatusSelector v-model="localTimelineStatus" :id-prefix="idPrefix" />
   <ChangeIndicator
-    :show="showChangeIndicators && hasChanged?.('timelineStatus')"
-    :original-value="originalData?.timelineStatus"
+    :show="showChangeIndicators && anyFieldChanged('timelineStatus')"
+    :original-value="formatTimelineStatus(originalData?.timelineStatus)"
   />
 
   <!-- Start and end date fields (always shown) -->
@@ -79,8 +79,10 @@
         @blur="validateFieldHelper('startDate')"
       />
       <ChangeIndicator
-        :show="showChangeIndicators && hasChanged?.('startDate')"
-        :original-value="formatFlexibleDateFromProp(originalData?.startDate)"
+        :show="showChangeIndicators && anyFieldChanged('startDate', 'startDatePrecision')"
+        :original-value="
+          formatFlexibleDateFromProp(originalData?.startDate, originalData?.startDatePrecision)
+        "
       />
     </div>
 
@@ -93,8 +95,10 @@
         @blur="validateFieldHelper('endDate')"
       />
       <ChangeIndicator
-        :show="showChangeIndicators && hasChanged?.('endDate')"
-        :original-value="formatFlexibleDateFromProp(originalData?.endDate)"
+        :show="showChangeIndicators && anyFieldChanged('endDate', 'endDatePrecision')"
+        :original-value="
+          formatFlexibleDateFromProp(originalData?.endDate, originalData?.endDatePrecision)
+        "
       />
     </div>
   </div>
@@ -113,8 +117,13 @@
         />
         <small class="text-muted-color block mt-1">{{ $t("project.proposalDateHelp") }}</small>
         <ChangeIndicator
-          :show="showChangeIndicators && hasChanged?.('proposalDate')"
-          :original-value="formatFlexibleDateFromProp(originalData?.proposalDate)"
+          :show="showChangeIndicators && anyFieldChanged('proposalDate', 'proposalDatePrecision')"
+          :original-value="
+            formatFlexibleDateFromProp(
+              originalData?.proposalDate,
+              originalData?.proposalDatePrecision,
+            )
+          "
         />
       </div>
     </div>
@@ -141,7 +150,7 @@
       getFieldError("sourceUrl")
     }}</small>
     <ChangeIndicator
-      :show="showChangeIndicators && hasChanged?.('sourceUrl')"
+      :show="showChangeIndicators && anyFieldChanged('sourceUrl')"
       :original-value="originalData?.sourceUrl"
     />
   </div>
@@ -193,6 +202,11 @@
         {{ tagLabel(tag.slug) }}
       </button>
     </div>
+
+    <ChangeIndicator
+      :show="showChangeIndicators && anyFieldChanged('tags')"
+      :original-value="formatTags(originalData?.tags)"
+    />
   </div>
 </template>
 
@@ -209,6 +223,7 @@ import { useFieldValidation } from "@/composables/forms/useFieldValidation";
 import { projectSchema } from "@shared/validation/schemas";
 import { prepareProjectValidationData } from "@/utils/validationHelpers";
 import { PROJECT_TAGS, PROJECT_TAG_MAP } from "@/constants/projectTags";
+import { projectFormFieldsDiffer } from "@/utils/projectFormHelpers";
 
 import TimelineStatusSelector, { type TimelineStatus } from "./TimelineStatusSelector.vue";
 import FlexibleDatePicker from "./FlexibleDatePicker.vue";
@@ -220,7 +235,6 @@ interface Props {
   showChangeIndicators?: boolean;
   idPrefix?: string;
   timelineStatus?: TimelineStatus;
-  hasChanged?: (fieldName: string) => boolean;
 }
 
 type Emits = {
@@ -228,16 +242,11 @@ type Emits = {
   (e: "update:timelineStatus", value: TimelineStatus): void;
 };
 
-function hasNoChangedFields(): boolean {
-  return false;
-}
-
 const props = withDefaults(defineProps<Props>(), {
   originalData: undefined,
   showChangeIndicators: false,
   idPrefix: "project",
   timelineStatus: "proposed",
-  hasChanged: hasNoChangedFields,
 });
 
 const emit = defineEmits<Emits>();
@@ -281,6 +290,24 @@ const availableTags = computed(() =>
 
 function tagLabel(slug: string) {
   return te(`tags.${slug}`) ? t(`tags.${slug}`) : slug;
+}
+
+function anyFieldChanged(...fieldNames: (keyof ProjectFormData)[]): boolean {
+  const originalData = props.originalData;
+  if (!originalData) return false;
+
+  for (const fieldName of fieldNames) {
+    if (projectFormFieldsDiffer(originalData[fieldName], props.formData[fieldName])) return true;
+  }
+  return false;
+}
+
+function formatTags(tags: string[] | undefined): string {
+  return tags?.map(tagLabel).join(", ") ?? "";
+}
+
+function formatTimelineStatus(status: TimelineStatus | undefined): string {
+  return t(`timelineStatus.${status ?? "proposed"}`);
 }
 
 function addTag(slug: string) {
@@ -348,7 +375,10 @@ function getInputClass(fieldName: string) {
   return [{ "w-full": true }, errorClass];
 }
 
-function formatFlexibleDateFromProp(date: Date | null | undefined): string {
-  return formatFlexibleDate(dbToFlexibleDate(date));
+function formatFlexibleDateFromProp(
+  date: Date | null | undefined,
+  precision: ProjectFormData["proposalDatePrecision"] = null,
+): string {
+  return formatFlexibleDate(dbToFlexibleDate(date, precision));
 }
 </script>

@@ -7,11 +7,12 @@
  * pending set is fed once per fetch; maplibre clusters it client-side at every zoom.
  */
 
+import { watch } from "vue";
 import {
   updatePendingProjectPointsSource,
   updatePendingProjectShapesSource,
 } from "@/services/map/tiles/basemap";
-import type { OverlayData } from "@/types/index";
+import type { OverlayData, Project } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import { isValidQuad } from "@/services/overlay/transform";
 import { useProjectStore } from "@/stores/projectStore";
@@ -26,10 +27,14 @@ type PendingProjectInput = {
 };
 
 type ProjectShapeInput = PendingProjectInput & {
-  status: string;
+  status: string | null;
   timelineStatus?: string | null;
   geometry?: GeoJSON.GeometryCollection | null;
 };
+
+let cachedOverlaysData: OverlayData[] = [];
+let cachedProjectsData: ProjectShapeInput[] = [];
+let cachedMode: AppMode = "view";
 
 /**
  * Create a GeoJSON Feature for a project point
@@ -84,6 +89,12 @@ function collectPendingShapes(
 ): GeoJSON.Feature[] {
   const shapes: GeoJSON.Feature[] = [];
 
+  const projectStore = useProjectStore();
+  for (const project of Object.values(projectStore.projects)) {
+    if (!project.isModified && project.status !== null) continue;
+    addProjectShape(project, standaloneShapeProjectIds, shapes);
+  }
+
   for (const overlay of overlaysData) {
     const project = overlay.project;
     if (!project || typeof project.lat !== "number" || typeof project.lng !== "number") continue;
@@ -118,25 +129,56 @@ function collectPendingShapes(
   }
 
   for (const project of projectsData) {
-    if (project.status === "approved" || !project.geometry) continue;
-
-    shapes.push({
-      type: "Feature",
-      geometry: project.geometry,
-      properties: {
-        id: project.id,
-        sourceLayer: "project-shapes",
-        status: project.status,
-        name: project.name,
-        timeline_status: project.timelineStatus,
-        tags: project.tags ? JSON.stringify(project.tags) : null,
-        first_tag: project.tags?.[0] ?? null,
-      },
-    });
-    standaloneShapeProjectIds.add(project.id);
+    if (project.status === "approved") continue;
+    addProjectShape(project, standaloneShapeProjectIds, shapes);
   }
 
   return shapes;
+}
+
+function addProjectShape(
+  project: ProjectShapeInput,
+  standaloneShapeProjectIds: Set<string>,
+  shapes: GeoJSON.Feature[],
+): void {
+  if (!project.geometry || standaloneShapeProjectIds.has(project.id)) return;
+
+  shapes.push({
+    type: "Feature",
+    geometry: project.geometry,
+    properties: {
+      id: project.id,
+      sourceLayer: "project-shapes",
+      status: project.status,
+      name: project.name,
+      timeline_status: project.timelineStatus,
+      tags: project.tags ? JSON.stringify(project.tags) : null,
+      first_tag: project.tags?.[0] ?? null,
+    },
+  });
+  standaloneShapeProjectIds.add(project.id);
+}
+
+function renderPendingProjectSources(
+  overlaysData: OverlayData[],
+  projectsData: ProjectShapeInput[],
+  mode: AppMode,
+): void {
+  if (mode === "view") {
+    updatePendingProjectPointsSource({ type: "FeatureCollection", features: [] });
+    updatePendingProjectShapesSource({ type: "FeatureCollection", features: [] });
+    return;
+  }
+
+  const standaloneShapeProjectIds = new Set<string>();
+  const pendingShapes = collectPendingShapes(overlaysData, projectsData, standaloneShapeProjectIds);
+  const pendingPoints = collectPendingPoints(overlaysData, projectsData, standaloneShapeProjectIds);
+
+  updatePendingProjectPointsSource({
+    type: "FeatureCollection",
+    features: [...pendingPoints.values()],
+  });
+  updatePendingProjectShapesSource({ type: "FeatureCollection", features: pendingShapes });
 }
 
 /**
@@ -187,19 +229,38 @@ export function mergeProjectPointsForMode(
   projectsData: ProjectShapeInput[],
   mode: AppMode,
 ): void {
-  if (mode === "view") {
-    updatePendingProjectPointsSource({ type: "FeatureCollection", features: [] });
-    updatePendingProjectShapesSource({ type: "FeatureCollection", features: [] });
-    return;
-  }
+  cachedOverlaysData = overlaysData;
+  cachedProjectsData = projectsData;
+  cachedMode = mode;
+  renderPendingProjectSources(overlaysData, projectsData, mode);
+}
 
-  const standaloneShapeProjectIds = new Set<string>();
-  const pendingShapes = collectPendingShapes(overlaysData, projectsData, standaloneShapeProjectIds);
-  const pendingPoints = collectPendingPoints(overlaysData, projectsData, standaloneShapeProjectIds);
+export function refreshPendingProjectSources(): void {
+  renderPendingProjectSources(cachedOverlaysData, cachedProjectsData, cachedMode);
+}
 
-  updatePendingProjectPointsSource({
-    type: "FeatureCollection",
-    features: [...pendingPoints.values()],
+function localProjectSourceKey(project: Project): string {
+  return JSON.stringify({
+    id: project.id,
+    status: project.status,
+    name: project.name,
+    tags: project.tags,
+    timelineStatus: project.timelineStatus,
+    geometry: project.geometry,
+    lat: project.lat,
+    lng: project.lng,
   });
-  updatePendingProjectShapesSource({ type: "FeatureCollection", features: pendingShapes });
+}
+
+export function watchPendingProjectSources(): () => void {
+  const projectStore = useProjectStore();
+  return watch(
+    () =>
+      Object.values(projectStore.projects)
+        .filter((project) => project.isModified || project.status === null)
+        .map(localProjectSourceKey)
+        .toSorted()
+        .join("\u0000"),
+    refreshPendingProjectSources,
+  );
 }

@@ -657,12 +657,15 @@ let hiddenProjectIdsCache: string[] = [];
 function computeHiddenProjectIds(): string[] {
   const store = useProjectStore();
   const uiStore = useUiStore();
+  const mapStore = useMapStore();
   const hidden = new Set<string>();
-  if (uiStore.shapeEditor.project?.id && useMapStore().mode === "edit") {
+  if (uiStore.shapeEditor.project?.id && mapStore.mode === "edit") {
     hidden.add(uiStore.shapeEditor.project.id);
   }
-  for (const p of Object.values(store.projects)) {
-    if (p.isModified) hidden.add(p.id);
+  if (mapStore.mode === "edit") {
+    for (const project of Object.values(store.projects)) {
+      if (project.isModified) hidden.add(project.id);
+    }
   }
   return [...hidden];
 }

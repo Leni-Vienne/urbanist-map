@@ -1,25 +1,10 @@
 import { computed, reactive } from "vue";
-import { formDataToProjectFields } from "@/utils/projectFormHelpers";
+import { formDataToProjectFields, projectFormFieldsDiffer } from "@/utils/projectFormHelpers";
 import { useProjectStore } from "@/stores/projectStore";
 import { toastError } from "@/services/core/toast";
 import { t } from "@/locales";
 import { getProjectValidationErrors } from "@/utils/validationHelpers";
 import type { Project, ProjectFormData } from "@/types/index";
-
-function fieldsDiffer(
-  original: ProjectFormData[keyof ProjectFormData],
-  current: ProjectFormData[keyof ProjectFormData],
-): boolean {
-  if (original instanceof Date && current instanceof Date) {
-    return original.getTime() !== current.getTime();
-  }
-
-  if ((original instanceof Date && !current) || (!original && current instanceof Date)) {
-    return true;
-  }
-
-  return original !== current;
-}
 
 interface EditableProjectFormOptions {
   entityId: string;
@@ -43,14 +28,16 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
   const originalData = reactive({ ...options.initialData });
   const formData = reactive({ ...(options.currentData ?? options.initialData) });
 
-  function hasChanged(fieldName: keyof ProjectFormData): boolean {
-    return fieldsDiffer(originalData[fieldName], formData[fieldName]);
+  function fieldDiffersFromOriginal(fieldName: keyof ProjectFormData): boolean {
+    return projectFormFieldsDiffer(originalData[fieldName], formData[fieldName]);
   }
 
   const hasChanges = computed(() => {
     if (options.extraDirty?.()) return true;
     // oxlint-disable-next-line no-unsafe-type-assertion
-    return Object.keys(formData).some((key) => hasChanged(key as keyof ProjectFormData));
+    return Object.keys(formData).some((key) =>
+      fieldDiffersFromOriginal(key as keyof ProjectFormData),
+    );
   });
 
   function resetChanges() {
@@ -110,7 +97,6 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     formData,
     originalData,
     hasChanges,
-    hasChanged,
     resetChanges,
     submitChanges,
   };

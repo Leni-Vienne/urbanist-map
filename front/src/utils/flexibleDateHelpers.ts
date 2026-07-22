@@ -3,9 +3,9 @@ import type { FlexibleDateInput, DatePrecision } from "@shared/types/flexibleDat
 /** Convert a Date to a FlexibleDateInput at the given precision. */
 function dateToFlexibleInput(date: Date, precision: DatePrecision = "day"): FlexibleDateInput {
   return {
-    year: date.getFullYear(),
-    month: precision !== "year" ? date.getMonth() + 1 : undefined,
-    day: precision === "day" ? date.getDate() : undefined,
+    year: date.getUTCFullYear(),
+    month: precision !== "year" ? date.getUTCMonth() + 1 : undefined,
+    day: precision === "day" ? date.getUTCDate() : undefined,
     precision,
   };
 }
@@ -32,7 +32,7 @@ export function flexibleDateToDb(input: FlexibleDateInput | null | undefined): D
   if (!input) return null;
 
   const { year, month = 1, day = 1 } = input;
-  return new Date(year, month - 1, day);
+  return new Date(Date.UTC(year, month - 1, day));
 }
 
 /** Format a flexible date for display with localization. */

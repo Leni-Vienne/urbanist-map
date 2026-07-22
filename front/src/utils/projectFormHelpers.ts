@@ -36,6 +36,21 @@ export function projectToFormData(p: {
   };
 }
 
+export function projectFormFieldsDiffer(
+  original: ProjectFormData[keyof ProjectFormData],
+  current: ProjectFormData[keyof ProjectFormData],
+): boolean {
+  if (original instanceof Date && current instanceof Date) {
+    return original.getTime() !== current.getTime();
+  }
+
+  if ((original instanceof Date && !current) || (!original && current instanceof Date)) {
+    return true;
+  }
+
+  return original !== current;
+}
+
 export function formDataToProjectFields(f: ProjectFormData): Partial<Project> {
   return {
     name: f.name,
