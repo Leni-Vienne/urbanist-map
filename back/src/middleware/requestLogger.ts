@@ -2,18 +2,8 @@ import { createHmac } from "node:crypto";
 import type { Context, Next } from "hono";
 import { config as appConfig } from "../config";
 import { logger } from "../services/logger";
-import { addError } from "../services/errorAlerter";
 import { classifyRequest } from "../services/botClassifier";
 import { getClientIp } from "../utils/ip";
-
-// Only alert on errors from routes that the app actually serves
-// This is a proper allowlist approach - anything not matching is a bot probe
-const ALERTABLE_PATH_PREFIXES = ["/api/", "/trpc/", "/uploads/"];
-
-// Check if a path is from a route we actually serve (and thus worth alerting on)
-function shouldAlertOnPath(path: string): boolean {
-  return ALERTABLE_PATH_PREFIXES.some((prefix) => path.startsWith(prefix));
-}
 
 function getCloudflareHeaders(c: Context) {
   return {
@@ -115,17 +105,6 @@ export async function requestLogger(c: Context, next: Next) {
       // userAgent is wide and low-signal on success; keep it only on failures
       ...(status >= 400 ? { userAgent } : {}),
     });
-
-    // Track errors for alerting (4xx and 5xx), but only for routes we serve
-    if (status >= 400 && shouldAlertOnPath(path)) {
-      addError({
-        timestamp: Date.now(),
-        method,
-        path,
-        status,
-        ip,
-      });
-    }
   } catch (error) {
     const duration = Date.now() - startTime;
     // Reaching here means an unhandled throw bubbled past Hono's error handler,
@@ -149,18 +128,6 @@ export async function requestLogger(c: Context, next: Next) {
       ...(verdict.impostor ? { impostor: true } : {}),
       error: error instanceof Error ? error.message : String(error),
     });
-
-    // Track error for alerting, but only for routes we serve
-    if (shouldAlertOnPath(path)) {
-      addError({
-        timestamp: Date.now(),
-        method,
-        path,
-        status,
-        message: error instanceof Error ? error.message : String(error),
-        ip,
-      });
-    }
 
     throw error;
   }
