@@ -25,6 +25,8 @@ import {
   triggerClusterHover,
   clearHoverPreview,
   updateHoverPreviewPosition,
+  beginHoverPreviewGesture,
+  endHoverPreviewGesture,
   type HoverProjectData,
   type ClusterTagCount,
 } from "@/services/map/hoverPreviewState";
@@ -1009,12 +1011,15 @@ function registerMapInteractionListeners(mlMap: MaplibreMap): void {
     setCursorHoverState(mlMap, null, null);
   });
 
-  // The card is anchored to cursor pixels, but MapLibre stops firing mousemove during a
-  // drag-pan, so it would freeze on screen while the map slides underneath. Hide it instead.
-  // Right-click drag rotates/pitches without firing dragstart, so clear on those too.
-  mlMap.on("dragstart", clearHoverPreview);
-  mlMap.on("rotatestart", clearHoverPreview);
-  mlMap.on("pitchstart", clearHoverPreview);
+  // Camera gestures keep the card hidden for their whole duration. Rotate and pitch keep firing
+  // mousemove while the map turns under a still cursor, so a one-shot clear at gesture start is
+  // undone by the next hover. Right-click drag rotates/pitches without firing dragstart.
+  mlMap.on("dragstart", () => beginHoverPreviewGesture("drag"));
+  mlMap.on("dragend", () => endHoverPreviewGesture("drag"));
+  mlMap.on("rotatestart", () => beginHoverPreviewGesture("rotate"));
+  mlMap.on("rotateend", () => endHoverPreviewGesture("rotate"));
+  mlMap.on("pitchstart", () => beginHoverPreviewGesture("pitch"));
+  mlMap.on("pitchend", () => endHoverPreviewGesture("pitch"));
 
   mlMap.on("click", (event: MapMouseEvent) => {
     clearHoverPreview();

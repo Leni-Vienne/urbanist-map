@@ -51,9 +51,28 @@ function clearTimer(): void {
   }
 }
 
+/**
+ * Camera gestures currently in progress, keyed by gesture name. While non-empty the card stays
+ * hidden: the card is anchored to cursor pixels, but the map moves underneath the cursor, so a
+ * feature under the pointer is not the feature the user is pointing at.
+ */
+const activeGestures = new Set<string>();
+
 /** Hover previews are pointer-only; suppress them on mobile widths and touch frames. */
 function isHoverPreviewDisabled(): boolean {
-  return isMobile.value || globalThis.matchMedia("(hover: none)").matches;
+  return (
+    activeGestures.size > 0 || isMobile.value || globalThis.matchMedia("(hover: none)").matches
+  );
+}
+
+/** Open a camera gesture, hiding the card and blocking new previews until it closes. */
+export function beginHoverPreviewGesture(gesture: string): void {
+  activeGestures.add(gesture);
+  clearHoverPreview();
+}
+
+export function endHoverPreviewGesture(gesture: string): void {
+  activeGestures.delete(gesture);
 }
 
 /**
