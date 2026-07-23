@@ -1,10 +1,11 @@
 import * as registry from "@/services/overlay/mapLayers";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
-import maplibregl, {
+import * as maplibregl from "maplibre-gl";
+import {
+  LngLat,
   type GeoJSONSource,
   type Map as MaplibreMap,
   type MapMouseEvent,
-  LngLat,
 } from "maplibre-gl";
 import type { Feature, Polygon } from "geojson";
 import { getMap, getMapOrNull, currentZoomLevel } from "@/services/core/map";

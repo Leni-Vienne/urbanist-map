@@ -1,4 +1,4 @@
-import maplibre from "maplibre-gl";
+import * as maplibre from "maplibre-gl";
 import type { LatLng, OverlayPositionState } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";

@@ -47,7 +47,8 @@ import { toastSuccess, toastError } from "@/services/core/toast";
 import { ref, shallowRef, defineAsyncComponent } from "vue";
 import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
-import maplibregl, { type MapMouseEvent } from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
+import type { MapMouseEvent } from "maplibre-gl";
 import { useProjectStore } from "@/stores/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 

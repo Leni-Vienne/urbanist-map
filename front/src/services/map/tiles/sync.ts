@@ -11,6 +11,7 @@
  * delivered via tiles, the bbox tRPC fetch only returns pending content.
  */
 
+import type * as maplibregl from "maplibre-gl";
 import { getMapOrNull, onMapReady } from "@/services/core/map";
 import { throttle } from "@/utils/throttle";
 import { useOverlayStore } from "@/stores/overlayStore";

@@ -1,6 +1,7 @@
 import { ref, watch } from "vue";
 import type { FeatureCollection, MultiPolygon, Polygon } from "geojson";
 import type {
+  AllPaintProperties,
   GeoJSONSource,
   Map as MaplibreMap,
   RasterSourceSpecification,
@@ -122,7 +123,13 @@ export const currentTileLayer = ref<TileLayerType>("plan");
 
 // Original extrusion height/base expressions per layer, captured before flattening
 // so 3D can be restored on toggle-back.
-const originalExtrusionPaint = new Map<string, { height: unknown; base: unknown }>();
+const originalExtrusionPaint = new Map<
+  string,
+  {
+    height: AllPaintProperties["fill-extrusion-height"];
+    base: AllPaintProperties["fill-extrusion-base"];
+  }
+>();
 
 /**
  * Switch the basemap's buildings between 3D extrusion and flat footprints.
@@ -306,10 +313,10 @@ export function addTileLayer(): void {
   const mlMap = getMap();
   currentTileLayer.value = "plan";
 
-  // A dummy image prevents "styleimagemissing" errors for missing cluster icons.
-  // Registered once; the handler persists across setStyle() satellite switches.
-  mlMap.on("styleimagemissing", (e: { id: string }) => {
-    mlMap.addImage(e.id, { width: 1, height: 1, data: new Uint8ClampedArray(4) });
+  // A dummy image prevents missing-style-image errors for missing cluster icons.
+  // The resolver lives on the map instance, so it persists across setStyle() satellite switches.
+  mlMap.setMissingStyleImageResolver((id) => {
+    mlMap.addImage(id, { width: 1, height: 1, data: new Uint8ClampedArray(4) });
   });
 
   whenStyleLoaded(mlMap, () => {

@@ -1,8 +1,14 @@
-import maplibre, { type Map as MaplibreMap, type RequestParameters } from "maplibre-gl";
+import * as maplibre from "maplibre-gl";
+import type { Map as MaplibreMap, RequestParameters } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css"; // needed for maplibre controls and attribution styling
+import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import { ref, shallowRef } from "vue";
 import { getApiUrl } from "@/client";
 import { mapRotationEnabled } from "@/services/map/settings";
+
+// Registers the bundled worker URL used by every Map instance. Must run before the first Map
+// is constructed.
+maplibre.setWorkerUrl(workerUrl);
 
 export const OPENFREEMAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 

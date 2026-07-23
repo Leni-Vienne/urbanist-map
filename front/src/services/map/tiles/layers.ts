@@ -1,4 +1,6 @@
 import type {
+  AllLayoutProperties,
+  AllPaintProperties,
   Map as MaplibreMap,
   MapMouseEvent,
   PointLike,
@@ -553,7 +555,7 @@ function setLayerPaintProperty(
   const serialized = JSON.stringify(value);
   if (appliedLayerProperties.get(key) === serialized) return;
   appliedLayerProperties.set(key, serialized);
-  mlMap.setPaintProperty(layerId, name, value);
+  mlMap.setPaintProperty(layerId, name as keyof AllPaintProperties, value);
 }
 
 function setLayerLayoutProperty(
@@ -566,7 +568,7 @@ function setLayerLayoutProperty(
   const serialized = JSON.stringify(value);
   if (appliedLayerProperties.get(key) === serialized) return;
   appliedLayerProperties.set(key, serialized);
-  mlMap.setLayoutProperty(layerId, name, value);
+  mlMap.setLayoutProperty(layerId, name as keyof AllLayoutProperties, value);
 }
 
 /**

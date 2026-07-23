@@ -1,5 +1,6 @@
 import { watchEffect } from "vue";
-import maplibregl, { type LngLatBounds } from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
+import type { LngLatBounds } from "maplibre-gl";
 import { getMap } from "@/services/core/map";
 import { createOverlayMarkerElement, updateOverlayMarkerColor } from "@/services/map/markersSvg";
 import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";

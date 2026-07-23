@@ -1,5 +1,5 @@
 import { ref } from "vue";
-import type { Map as MaplibreMap, ExpressionSpecification } from "maplibre-gl";
+import type { AllLayoutProperties, Map as MaplibreMap, ExpressionSpecification } from "maplibre-gl";
 import { getMapOrNull } from "@/services/core/map";
 
 const STORAGE_KEY = "urbanist-map-label-lang";
@@ -125,7 +125,7 @@ export function applyMapLabelLanguage(
     }
 
     const value = useStyleDefault ? originalTextFields.get(layer.id) : nameExpression;
-    mlMap.setLayoutProperty(layer.id, "text-field", value);
+    mlMap.setLayoutProperty(layer.id, "text-field", value as AllLayoutProperties["text-field"]);
   }
 }
 
