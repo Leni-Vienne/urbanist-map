@@ -139,8 +139,9 @@ export function syncOverlaysFromTiles(): void {
 
     // Approved overlays that should be on the map for this viewport. Deduplicated by id.
     const featureMap = new Map<string, OverlayData>();
-    // Ids seen this pass but dropped by a client-side filter, so a duplicate feature for the same
-    // overlay is not re-tested.
+    // Ids seen this pass and dropped by a client-side filter. Deduplicates the filter test across
+    // duplicate features for one overlay, and is published so the reconciler cannot revive a
+    // rejected overlay from store data.
     const filtered = new Set<string>();
     for (const feat of allFeatures) {
       const { overlay, lastModifiedS, timelineStatus, tags, name } = decodeFootprint(feat);
@@ -166,7 +167,7 @@ export function syncOverlaysFromTiles(): void {
       }
     }
 
-    replaceApprovedOverlayDataCache(featureMap);
+    replaceApprovedOverlayDataCache(featureMap, filtered);
 
     // Creation and eviction from the cache is owned by the reconciler; just schedule it.
     runViewportRenderLoop();

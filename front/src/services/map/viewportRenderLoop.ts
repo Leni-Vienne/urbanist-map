@@ -13,7 +13,10 @@ import type { OverlayObject, OverlayData } from "@/types/index";
 import { visibleStates, selectedProjectTags } from "@/services/map/filters";
 import { createOverlayMarker, updateMarkerPosition } from "@/services/overlay/markers";
 import { resolveOverlayCorners } from "@/services/overlay/data";
-import { getApprovedOverlayDataFromTiles } from "@/services/map/tiles/approvedOverlayCache";
+import {
+  getApprovedOverlayDataFromTiles,
+  getFilterRejectedOverlayIds,
+} from "@/services/map/tiles/approvedOverlayCache";
 import { isValidQuad, sameCorners } from "@/services/overlay/transform";
 import { upsertOverlayFromWire } from "@/services/overlay/sync";
 import * as registry from "@/services/overlay/mapLayers";
@@ -151,7 +154,8 @@ function convergeOverlayDisplay(overlayObject: OverlayObject): boolean {
  *
  * Desired existence = zoom ≥ MIN_ZOOM_FOR_OVERLAYS ∧ mode/user visibility ∧ map filters ∧ resolved
  * corners intersect bounds; local overlays are exempt from the bounds test (only explicit deletion,
- * a mode switch or the zoom gate removes them).
+ * a mode switch or the zoom gate removes them). An overlay the tile sync rejected on a user filter
+ * is never desired, whichever data source resolves it.
  */
 function reconcileOverlayExistence(bounds: ViewportBounds): void {
   const overlayStore = useOverlayStore();
@@ -175,6 +179,7 @@ function reconcileOverlayExistence(bounds: ViewportBounds): void {
   }
 
   const tileManaged = getApprovedOverlayDataFromTiles();
+  const filterRejected = getFilterRejectedOverlayIds();
   // renderLoopOverlays holds only pending + session change-request overlays, delivered in edit and
   // moderation; view mode leaves the last edit session's list stale, so it is ignored there.
   const sessionById = new Map<string, OverlayData>();
@@ -224,10 +229,12 @@ function reconcileOverlayExistence(bounds: ViewportBounds): void {
       // this bbox, a moderation preview whose approved footprint left the viewport, a staged overlay
       // dragged away from its footprint): membership then keys on the resolved "marker" position, so
       // an overlay whose image sits away from its tile footprint stays alive while that position is
-      // in view.
+      // in view. Absence from the cache does not separate "a filter rejected it" from "its position
+      // left the viewport", so the rejected set is consulted before the position test.
       const data = sessionById.get(id) ?? liveObject ?? null;
       desired =
         data !== null &&
+        !filterRejected.has(id) &&
         isOverlayVisible(liveObject ?? data, mode, userId) &&
         matchesMapFilters(liveObject ?? data, mode) &&
         resolvedCornersInBounds(liveObject ?? data, bounds);

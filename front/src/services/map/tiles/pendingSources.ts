@@ -235,7 +235,7 @@ export function mergeProjectPointsForMode(
   renderPendingProjectSources(overlaysData, projectsData, mode);
 }
 
-export function refreshPendingProjectSources(): void {
+function refreshPendingProjectSources(): void {
   renderPendingProjectSources(cachedOverlaysData, cachedProjectsData, cachedMode);
 }
 
