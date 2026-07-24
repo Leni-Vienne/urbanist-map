@@ -23,6 +23,8 @@ interface FlyOptions {
    * pass a smaller value for content with no top toolbar (e.g. vector shapes/points).
    */
   mobileTopInset?: number;
+  /** Set the camera without animating. The move is then already complete when the call returns. */
+  instant?: boolean;
 }
 
 interface FlyToBoundsOptions extends FlyOptions {
@@ -150,6 +152,9 @@ function compensatePersistedPadding(padding: PaddingOptions | number): PaddingOp
 // Top inset clearing the overlay editing toolbar when navigating to an overlay on mobile.
 const MOBILE_OVERLAY_TOP_INSET = 140;
 
+// Top inset clearing the map's top control row, for content that carries no toolbar of its own.
+export const MOBILE_CONTENT_TOP_INSET = 70;
+
 // Resolves the padding for a camera move, then caps it to the container. When the mobile drawer
 // is open this intentionally overrides any caller-provided `p` so the target clears the drawer;
 // otherwise `p` is used (single inset, or [horizontal, vertical]), defaulting to 50px.
@@ -184,8 +189,8 @@ function scaledDuration(centerDistance: number, zoomDiff: number, maxDuration: n
 
 /**
  * Fly to a point, accounting for the mobile drawer covering the bottom of the screen. Returns true
- * if a flight started, false if it was skipped (camera already there) so callers waiting on
- * `moveend` can act immediately instead of hanging.
+ * if a flight started, false when none will fire `moveend` (camera already there, or `instant`), so
+ * callers waiting on that event can act immediately instead of hanging.
  */
 export function mobileAwareFlyTo(
   latlng: LatLngInput,
@@ -201,6 +206,11 @@ export function mobileAwareFlyTo(
 
   const zoomDiff = Math.abs(currentZoom - targetZoom);
   if (shouldSkipMove(target, zoomDiff, options.offset)) return false;
+
+  if (options.instant) {
+    mobileAwareJumpTo(target, targetZoom, options);
+    return false;
+  }
 
   const centerDistance = haversineMeters(center.lat, center.lng, target.lat, target.lng);
   const duration = scaledDuration(centerDistance, zoomDiff, options.duration ?? 1.5);
@@ -305,8 +315,9 @@ function mercatorZoomForBounds(
 }
 
 /**
- * Fit a bounds, with mobile-aware padding. Returns true if a move started, false if it was skipped
- * (bounds already framed) so callers waiting on `moveend` can act immediately instead of hanging.
+ * Fit a bounds, with mobile-aware padding. Returns true if a move started, false when none will fire
+ * `moveend` (bounds already framed, or `instant`), so callers waiting on that event can act
+ * immediately instead of hanging.
  */
 export function mobileAwareFlyToBounds(
   bounds: BoundsLike,
@@ -330,7 +341,7 @@ export function mobileAwareFlyToBounds(
     [west, south],
     [east, north],
   ];
-  const padding = resolvePadding(options.padding);
+  const padding = resolvePadding(options.padding, options.mobileTopInset);
   // cameraForBounds/fitBounds add the persisted transform padding to this value, so hand them the
   // compensated remainder; the mercator fallback computes from scratch and uses `padding` as is.
   const fitPadding = compensatePersistedPadding(padding);
@@ -363,7 +374,7 @@ export function mobileAwareFlyToBounds(
   if (!cameraForBoundsOk) {
     const center: LatLngInput = [(south + north) / 2, (west + east) / 2];
     const zoom = mercatorZoomForBounds(west, south, east, north, padding, options.maxZoom);
-    return mobileAwareFlyTo(center, zoom, { duration: options.duration });
+    return mobileAwareFlyTo(center, zoom, { duration: options.duration, instant: options.instant });
   }
 
   const centerDistance = haversineMeters(
@@ -376,17 +387,19 @@ export function mobileAwareFlyToBounds(
 
   if (centerDistance < boundsDistanceThreshold && zoomDiff < 0.1) return false; // already framed
 
-  const duration = scaledDuration(centerDistance, zoomDiff, options.duration ?? 1.5);
+  const duration = options.instant
+    ? 0
+    : scaledDuration(centerDistance, zoomDiff, options.duration ?? 1.5) * 1000;
 
   // fitBounds runs the same projection math as cameraForBounds, so guard it too.
   try {
     mlMap.fitBounds(llb, {
       maxZoom: options.maxZoom,
       padding: fitPadding,
-      duration: duration * 1000,
+      duration,
       essential: true,
     });
-    return true;
+    return !options.instant;
   } catch {
     /* projection edge case, see above */
     return false;
@@ -419,7 +432,7 @@ function getZoomForGeometrySize(sizeMeters: number, lat: number, lng: number): n
 export function flyToGeometry(
   latlng: LatLngInput,
   sizeM: number,
-  options: { fromMapClick?: boolean; instant?: boolean } = {},
+  options: FlyOptions & { fromMapClick?: boolean } = {},
 ): boolean {
   const mlMap = getMap();
   if (options.fromMapClick && !isMobile.value) return false;
@@ -432,16 +445,16 @@ export function flyToGeometry(
   // Cold deep link: the map already booted centered on the target, so set the final geometry-fit
   // zoom without an animation rather than flying from the boot zoom.
   if (options.instant) {
-    mobileAwareJumpTo(target, targetZoom);
+    mobileAwareJumpTo(target, targetZoom, options);
     return true;
   }
 
   if (targetZoom !== currentZoom) {
-    mobileAwareFlyTo(target, targetZoom);
+    mobileAwareFlyTo(target, targetZoom, options);
     return true;
   }
   // Same zoom: recenter the feature with drawer-aware padding, so it lands in the map area left
   // visible above the mobile drawer.
-  mobileAwarePanTo(target);
+  mobileAwarePanTo(target, options);
   return true;
 }

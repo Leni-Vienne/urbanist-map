@@ -3,8 +3,14 @@ import { trpc } from "@/client";
 import { useProjectStore } from "@/stores/projectStore";
 import { createProjectObject, getProjectDetailFields } from "@/utils/typeFactories";
 import { openProjectDetail } from "@/services/map/projectSelection";
-import { flyToGeometry } from "@/services/map/mapNavigation";
-import { onMapReady, bootedFromDeeplinkView } from "@/services/core/map";
+import { nextTick } from "vue";
+import {
+  flyToGeometry,
+  mobileAwareFlyToBounds,
+  MOBILE_CONTENT_TOP_INSET,
+} from "@/services/map/mapNavigation";
+import { computeShapeBounds } from "@/services/map/shapes/rendering";
+import { onMapReady, bootedFromDeeplinkView, DEEPLINK_FIT_MAX_ZOOM } from "@/services/core/map";
 
 import { loadOrNull } from "@/services/core/errorHandling";
 import { toastInfo } from "@/services/core/toast";
@@ -37,15 +43,25 @@ export async function handleProjectDeepLink(
     projectStore.upsertProjectSummary(project);
     projectStore.applyProjectDetail(project.id, getProjectDetailFields(project));
     const { lat, lng } = project;
-    // In production the map already booted centered on this project (the SEO shell injected its
-    // coords), so set the final zoom instantly instead of flying in from the default view. On the
-    // dev server, where no coords are injected, it falls back to the animated fly.
+    // In production the map already booted framed on this project (the SEO shell injected its
+    // bounds), so set the final camera instantly instead of flying in from the default view. On the
+    // dev server, where nothing is injected, it falls back to the animated move.
     const instant = bootedFromDeeplinkView.value;
+    const camera = { mobileTopInset: MOBILE_CONTENT_TOP_INSET, instant };
+    const shapeBounds = project.geometry ? computeShapeBounds(project.geometry.geometries) : null;
     onMapReady(() => {
-      if (typeof lat === "number" && typeof lng === "number") {
-        flyToGeometry([lat, lng], project.geometrySizeM ?? 0, { instant });
+      function frameProject(): void {
+        if (shapeBounds) {
+          mobileAwareFlyToBounds(shapeBounds, { maxZoom: DEEPLINK_FIT_MAX_ZOOM, ...camera });
+        } else if (typeof lat === "number" && typeof lng === "number") {
+          flyToGeometry([lat, lng], project.geometrySizeM ?? 0, camera);
+        }
       }
+
       openProjectDetail(project);
+      // Frame only once the detail is rendered: on mobile the bottom inset is measured off the
+      // drawer, and estimating it while the drawer is absent leaves the project under it.
+      void nextTick(frameProject);
     });
     return;
   }

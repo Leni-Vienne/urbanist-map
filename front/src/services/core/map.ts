@@ -43,6 +43,10 @@ function parseDeeplinkBounds(): [number, number, number, number] | null {
 // booted at the target.
 export const bootedFromDeeplinkView = ref(false);
 
+// Closest zoom a deep link frames its project at. The boot fit and the refit that follows share it,
+// so a cold deep link does not re-zoom once the project resolves.
+export const DEEPLINK_FIT_MAX_ZOOM = 17;
+
 export const currentZoomLevel = ref(12);
 export const currentBearing = ref(0);
 export const currentPitch = ref(0);
@@ -177,7 +181,10 @@ function createMapOptions(): maplibre.MapOptions {
     center: initialCenter,
     zoom: initialZoom,
     ...(deeplinkBounds
-      ? { bounds: deeplinkBounds, fitBoundsOptions: { padding: 50, maxZoom: 17 } }
+      ? {
+          bounds: deeplinkBounds,
+          fitBoundsOptions: { padding: 50, maxZoom: DEEPLINK_FIT_MAX_ZOOM },
+        }
       : {}),
     minZoom,
     maxZoom: 21,
