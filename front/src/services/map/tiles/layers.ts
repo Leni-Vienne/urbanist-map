@@ -31,6 +31,7 @@ import {
   type ClusterTagCount,
 } from "@/services/map/hoverPreviewState";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
+import { onModeTransition } from "@/services/map/modeTransition";
 import { getApiUrl } from "@/client";
 import { PROJECT_TAGS } from "@/constants/projectTags";
 import {
@@ -465,6 +466,26 @@ function getImageFilterExpression(): FilterSpecification | null {
 }
 
 /**
+ * Retires the center marker of a project whose approved overlay image renders in its place, from
+ * getEffectiveThreshold(MIN_ZOOM_FOR_OVERLAYS) up.
+ *
+ * has_image is aggregated over the whole grid cell on a cluster feature, so it can only retire a
+ * lone marker (cell_count == 1).
+ */
+function getOverlayCoveredPointFilter(): FilterSpecification | null {
+  if (useMapStore().mode !== "view") return null;
+  return [
+    "!",
+    [
+      "all",
+      ["==", ["get", "cell_count"], 1],
+      ["==", ["get", "has_image"], true],
+      [">=", ["zoom"], getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS)],
+    ],
+  ] as FilterSpecification;
+}
+
+/**
  * Build a name filter expression. Returns null if no name filter is active.
  */
 function getNameFilterExpression(): FilterSpecification | null {
@@ -589,7 +610,11 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
   const baseFilter = combineFilters(tagFilter, statusFilter, nameFilter, dateFilter, imageFilter);
 
   const shapesBaseFilter = combineFilters(hiddenFilter, baseFilter);
-  const pointsFilter = combineFilters(baseFilter, getSizeFilterExpressionForPoints());
+  const pointsFilter = combineFilters(
+    baseFilter,
+    getSizeFilterExpressionForPoints(),
+    getOverlayCoveredPointFilter(),
+  );
 
   const pointColor = getProjectPointColorExpression();
 
@@ -922,8 +947,22 @@ function watchSelectedHoverState(): () => void {
   );
 }
 
+// The vector filters read the map mode (see getOverlayCoveredPointFilter), so a mode change has to
+// re-apply them.
+function watchModeVectorFilters(): () => void {
+  return onModeTransition("vectorLayerFilters", () => {
+    const mlMap = getMapOrNull();
+    if (mlMap) applyTagFiltersToVectorLayers(mlMap);
+  });
+}
+
 export function watchTileLayerState(): () => void {
-  const stops = [watchHiddenProjects(), watchHiddenOverlays(), watchSelectedHoverState()];
+  const stops = [
+    watchHiddenProjects(),
+    watchHiddenOverlays(),
+    watchSelectedHoverState(),
+    watchModeVectorFilters(),
+  ];
 
   return function stopTileLayerStateWatchers(): void {
     for (const stop of stops.toReversed()) stop();

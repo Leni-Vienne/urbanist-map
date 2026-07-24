@@ -77,6 +77,21 @@ Sections are grouped by feature area:
   5.  Clicking on a cluster zooms/expands the cluster (cluster interaction is not regressed).
   6.  In areas where both relation and way features overlap, hover/click resolves to the relation feature when relation metadata is present (`relation_id` or `osm_type=relation`).
 
+### 1.7. Center Marker Handover to Shape and Overlay Image
+
+- **Scenario**: A project's center marker is retired by whatever renders in its place.
+- **Steps**:
+  1.  In View mode, find a project with no geometry and one approved `map` overlay.
+  2.  Zoom from z11 to z14 over it.
+  3.  Repeat with a no-geometry project that has no approved overlay.
+  4.  Repeat over a grid cell where a cluster marker (count label) contains an overlay-bearing project.
+- **Checks**:
+  1.  The marker is present below z13 (z12 on a ≤768px viewport) and gone from z13 (z12 on mobile) up, where the overlay image and its footprint border render instead.
+  2.  The no-overlay project keeps its marker at every zoom, including past z15.
+  3.  The cluster marker is unaffected and still expands on click.
+  4.  Switching to Edit or Moderation mode brings the marker back; returning to View retires it again.
+  5.  With the "only projects with images" filter on, View mode at z13+ shows overlay images and no lone markers.
+
 ## 2. Overlay Loading & Viewport Rendering
 
 ### 2.1. Viewport Path, Full Overlay Rendering
