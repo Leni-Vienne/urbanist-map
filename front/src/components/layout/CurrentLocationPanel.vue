@@ -106,7 +106,7 @@
           </div>
         </div>
 
-        <div v-if="isScrollable" class="scroll-fade-overlay"></div>
+        <div v-if="showScrollFade" class="scroll-fade-overlay"></div>
       </div>
     </div>
   </div>
@@ -128,7 +128,7 @@ const { projects, sortMode, sortReverse, isReady, navigateToProject, hoverProjec
 
 const scrollAreaRef = ref<HTMLElement | null>(null);
 const contentRef = ref<HTMLElement | null>(null);
-const { isScrollable } = useScrollFade(scrollAreaRef, contentRef);
+const { showScrollFade } = useScrollFade(scrollAreaRef, contentRef);
 
 // The project whose detail is open, used to link the open detail to its row in the list.
 const focusStore = useFocusStore();

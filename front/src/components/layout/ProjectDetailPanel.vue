@@ -148,7 +148,7 @@
               </div>
             </div>
           </div>
-          <div v-if="isScrollable" class="detail-scroll-fade"></div>
+          <div v-if="showScrollFade" class="detail-scroll-fade"></div>
         </div>
       </div>
     </template>
@@ -195,7 +195,7 @@ const lightbox = useTemplateRef<InstanceType<typeof ImageLightbox>>("lightbox");
 // Hide the scrollbar on the fields area and fade its bottom edge while there's more to scroll.
 const scrollAreaRef = ref<HTMLElement | null>(null);
 const contentRef = ref<HTMLElement | null>(null);
-const { isScrollable } = useScrollFade(scrollAreaRef, contentRef);
+const { showScrollFade } = useScrollFade(scrollAreaRef, contentRef);
 
 const projectStore = useProjectStore();
 const overlayStore = useOverlayStore();

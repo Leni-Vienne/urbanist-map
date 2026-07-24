@@ -93,7 +93,7 @@
       </div>
     </div>
 
-    <div v-if="isScrollable" class="scroll-fade-overlay"></div>
+    <div v-if="showScrollFade" class="scroll-fade-overlay"></div>
   </div>
 </template>
 
@@ -234,7 +234,7 @@ async function handleContributionClick(contribution: LatestContribution) {
 
 const scrollAreaRef = ref<HTMLElement | null>(null);
 const contentRef = ref<HTMLElement | null>(null);
-const { isScrollable } = useScrollFade(scrollAreaRef, contentRef);
+const { showScrollFade } = useScrollFade(scrollAreaRef, contentRef);
 
 onMounted(() => {
   fetchLatestContributions();

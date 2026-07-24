@@ -191,7 +191,7 @@
       </div>
     </div>
 
-    <div v-if="isScrollable" class="scroll-fade-overlay"></div>
+    <div v-if="showScrollFade" class="scroll-fade-overlay"></div>
   </div>
 </template>
 
@@ -277,7 +277,7 @@ const focusStore = useFocusStore();
 
 const scrollAreaRef = ref<HTMLElement | null>(null);
 const contentRef = ref<HTMLElement | null>(null);
-const { isScrollable } = useScrollFade(scrollAreaRef, contentRef);
+const { showScrollFade } = useScrollFade(scrollAreaRef, contentRef);
 
 // The selected project as it appears in the list, if it is one of `projects`. Lifted into the card.
 const selectedInListProject = computed(() =>
