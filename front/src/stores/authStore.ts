@@ -1,6 +1,7 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref, computed } from "vue";
-import { trpc, getApiUrl } from "@/client";
+import { trpc } from "@/client";
+import { getApiUrl } from "@/utils/apiUrl";
 
 // User type for our custom authentication
 interface User {

@@ -1,8 +1,9 @@
 import { useProjectStore } from "@/stores/projectStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
-import { trpc, getApiUrl } from "@/client";
-import { uploadImageFile } from "@/utils/uploadImageFile";
+import { trpc } from "@/client";
+import { getApiUrl } from "@/utils/apiUrl";
+import { uploadImageFile } from "@/services/submission/uploadImageFile";
 import { clearStagedRender } from "@/services/submission/stagedRenderState";
 import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
 import type { Project, OverlayObject, PendingOverlayModification } from "@/types/index";

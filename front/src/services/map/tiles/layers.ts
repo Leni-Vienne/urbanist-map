@@ -32,7 +32,7 @@ import {
 } from "@/services/map/hoverPreviewState";
 import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
 import { onModeTransition } from "@/services/map/modeTransition";
-import { getApiUrl } from "@/client";
+import { getApiUrl } from "@/utils/apiUrl";
 import { PROJECT_TAGS } from "@/constants/projectTags";
 import {
   SHAPE_LINE_WIDTH,

@@ -1,4 +1,4 @@
-import { getApiUrl } from "@/client";
+import { getApiUrl } from "@/utils/apiUrl";
 import { MAX_UPLOAD_FILE_SIZE_BYTES, MAX_UPLOAD_FILE_SIZE_MB } from "@shared/uploadLimits";
 import { t } from "@/locales";
 

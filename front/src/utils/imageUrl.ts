@@ -1,4 +1,4 @@
-import { getApiUrl } from "@/client";
+import { getApiUrl } from "@/utils/apiUrl";
 
 /**
  * Build the URL for an overlay image.
