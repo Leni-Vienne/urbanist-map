@@ -197,18 +197,27 @@ export function setupEventListeners(target: MaplibreMap): () => void {
   };
 }
 
-async function syncSessionDataForMode(newMode: AppMode, oldMode: AppMode): Promise<void> {
-  // The lists are mode-scoped; the mode being entered refetches its own.
+/**
+ * Drop the mode-session sets along with the layers and pending sources rendered from them, leaving
+ * the map to its tiles. Overlay store data is kept, so in-progress edits survive a round trip back
+ * to edit mode. Safe to call with no map mounted.
+ */
+export function resetMapSessionState(): void {
   clearMapSessionLists();
+  clearOverlayRenderState();
+  mergeProjectPointsForMode([], [], "view");
+  runViewportRenderLoop();
+}
 
-  // Switching TO view mode: drop rendered layer refs (tile rendering takes over) but keep
-  // overlay store data so in-progress edits survive the round-trip back to edit mode.
+async function syncSessionDataForMode(newMode: AppMode, oldMode: AppMode): Promise<void> {
+  // Switching TO view mode: tile rendering takes over.
   if (newMode === "view") {
-    clearOverlayRenderState();
-    mergeProjectPointsForMode([], [], "view");
-    runViewportRenderLoop();
+    resetMapSessionState();
     return;
   }
+
+  // The lists are mode-scoped; the mode being entered refetches its own.
+  clearMapSessionLists();
 
   // Switching TO edit or moderation: hide overlays not visible in the new mode
   const overlayStore = useOverlayStore();

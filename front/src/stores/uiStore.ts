@@ -133,6 +133,21 @@ export const useUiStore = defineStore("ui", () => {
     shapeEditor.value = { project: null };
   }
 
+  // Reset the state scoped to the signed-in user: the active tab (which the map mode derives from),
+  // every panel and dialog, and their retained entities. Viewport preferences are left alone.
+  function clearAllState() {
+    activeTab.value = "latest";
+    markerPlacementBarVisible.value = false;
+    moderatedContributionsDialogVisible.value = false;
+    hasUnacknowledgedModeratedContributions.value = false;
+    activeAccordionPanels.value = [];
+    closeProjectDialog();
+    closeProjectEditForm();
+    closeOverlayEditDialog();
+    closeImageUploadDialog();
+    closeShapeEditor();
+  }
+
   return {
     authModalVisible,
     authModalInitialMode,
@@ -159,6 +174,7 @@ export const useUiStore = defineStore("ui", () => {
     closeImageUploadDialog,
     openShapeEditor,
     closeShapeEditor,
+    clearAllState,
   };
 });
 

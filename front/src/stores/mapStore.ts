@@ -40,12 +40,12 @@ export const useMapStore = defineStore("map", () => {
     useModerationStore().resetModerationLoaded();
   }
 
-  // Derived, read-only. Edit requires authentication: an unauthenticated user can sit on the
-  // contribute tab (which shows the sign-in prompt) while the map stays in view mode. On sign-in
-  // the gate lifts and the mode follows automatically, no watcher needed.
+  // Derived, read-only. Edit and moderation require authentication, so an unauthenticated user
+  // resting on either tab leaves the map in view mode. On sign-in the gate lifts and the mode
+  // follows the tab automatically, no watcher needed.
   const mode = computed<AppMode>(() => {
     const target = tabToMode(uiStore.activeTab);
-    if (target === "edit" && !authStore.isAuthenticated) return "view";
+    if (target !== "view" && !authStore.isAuthenticated) return "view";
     return target;
   });
 

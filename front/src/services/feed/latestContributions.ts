@@ -30,9 +30,3 @@ export async function fetchLatestContributions(): Promise<void> {
     loading.value = false;
   }
 }
-
-export function clearLatestContributions(): void {
-  latestContributions.value = [];
-  loaded.value = false;
-  loading.value = false;
-}
