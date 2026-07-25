@@ -1,6 +1,6 @@
 import { LngLat } from "maplibre-gl";
 import { t } from "@/locales";
-import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
+import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useFocusStore } from "@/stores/focusStore";
 import type { OverlayObject } from "@/types/index";

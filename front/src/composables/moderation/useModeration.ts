@@ -6,7 +6,7 @@ import { useModerationStore } from "@/stores/moderationStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useMapStore } from "@/stores/mapStore";
 import { useAuthStore } from "@/stores/authStore";
-import { removeOverlayFromMapAndStore } from "@/services/core/entityRemoval";
+import { removeOverlayFromMapAndStore } from "@/services/entity/entityRemoval";
 import { refreshMapSessionData } from "@/services/map/viewportTriggers";
 import { t } from "@/locales";
 import type { Project } from "@/types/index";

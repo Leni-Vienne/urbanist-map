@@ -28,7 +28,7 @@ import {
 import { toastError, toastSuccess, toastInfo } from "@/services/core/toast";
 import { t } from "@/locales";
 import { buildThumbnailUrl } from "@/utils/imageUrl";
-import { deleteOverlayDirect } from "@/services/core/entityRemoval";
+import { deleteOverlayDirect } from "@/services/entity/entityRemoval";
 import { closeDetail } from "@/services/overlay/selection";
 import { revertOverlayFieldModification } from "@/services/overlay/sync";
 import type {

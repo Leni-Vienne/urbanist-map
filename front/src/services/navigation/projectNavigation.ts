@@ -2,8 +2,8 @@ import { LngLat, LngLatBounds } from "maplibre-gl";
 import { openOverlayDetail } from "@/services/overlay/selection";
 import { getMap } from "@/services/core/map";
 import * as registry from "@/services/overlay/mapLayers";
-import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
-import { handleProjectClickFromTile } from "@/services/map/projectSelection";
+import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
+import { handleProjectClickFromTile } from "@/services/core/projectSelection";
 import { isValidQuad } from "@/services/overlay/transform";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 

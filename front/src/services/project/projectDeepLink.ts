@@ -2,13 +2,13 @@ import { trpc } from "@/client";
 
 import { useProjectStore } from "@/stores/projectStore";
 import { createProjectObject, getProjectDetailFields } from "@/utils/typeFactories";
-import { openProjectDetail } from "@/services/map/projectSelection";
+import { openProjectDetail } from "@/services/core/projectSelection";
 import { nextTick } from "vue";
 import {
   flyToGeometry,
   mobileAwareFlyToBounds,
   MOBILE_CONTENT_TOP_INSET,
-} from "@/services/map/mapNavigation";
+} from "@/services/core/mapNavigation";
 import { computeShapeBounds } from "@/services/map/shapes/rendering";
 import { onMapReady, bootedFromDeeplinkView, DEEPLINK_FIT_MAX_ZOOM } from "@/services/core/map";
 

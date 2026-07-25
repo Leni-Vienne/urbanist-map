@@ -1,5 +1,5 @@
 import * as registry from "@/services/overlay/mapLayers";
-import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
+import { mobileAwareFlyTo } from "@/services/core/mapNavigation";
 import * as maplibregl from "maplibre-gl";
 import {
   LngLat,

@@ -26,7 +26,7 @@
 </template>
 
 <script setup lang="ts">
-import { markerColors } from "@/services/map/markersSvg";
+import { markerColors } from "@/services/core/markersSvg";
 
 function getBaseColor(colorKey: string): string {
   return markerColors[colorKey as keyof typeof markerColors];

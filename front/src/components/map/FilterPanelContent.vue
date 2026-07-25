@@ -150,7 +150,7 @@ import {
   lastModifiedDateRange,
   showOnlyWithImages,
   toggleShowOnlyWithImages,
-} from "@/services/map/filters";
+} from "@/services/core/filters";
 import type { TimelineStatus } from "../../../../back/src/db/schema";
 import {
   PROJECT_TAGS,

@@ -121,7 +121,7 @@ import {
 } from "@/services/navigation/projectNavigation";
 import type { LatestContribution } from "@/types/index";
 import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/selection";
-import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
+import { mobileAwareFlyTo } from "@/services/core/mapNavigation";
 import { LngLatBounds } from "maplibre-gl";
 
 const { t, locale } = useI18n();

@@ -167,7 +167,7 @@ import { undo, redo } from "@/services/overlay/history";
 import { showCropHandles, hideCropHandles, applyCrop } from "@/services/overlay/cropHandles";
 import { prepareOverlaySubmission } from "@/services/submission/submissionDialog";
 import { isOverlayUnsaved } from "@/services/overlay/unsavedState";
-import { confirmAndDeleteOverlay } from "@/services/core/entityRemoval";
+import { confirmAndDeleteOverlay } from "@/services/entity/entityRemoval";
 
 const { t } = useI18n();
 const overlayStore = useOverlayStore();

@@ -9,7 +9,7 @@ import type {
 } from "maplibre-gl";
 import { getMap, getMapOrNull } from "@/services/core/map";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
-import { handleProjectClickFromTile } from "@/services/map/projectSelection";
+import { handleProjectClickFromTile } from "@/services/core/projectSelection";
 import { handleBackgroundClick, openOverlayDetail } from "@/services/overlay/selection";
 import { VECTOR_QUERY_LAYERS } from "@/services/map/tiles/queryLayers";
 import { useOverlayStore } from "@/stores/overlayStore";
@@ -30,7 +30,7 @@ import {
   type HoverProjectData,
   type ClusterTagCount,
 } from "@/services/map/hoverPreviewState";
-import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
+import { mobileAwareFlyTo } from "@/services/core/mapNavigation";
 import { onModeTransition } from "@/services/map/modeTransition";
 import { getApiUrl } from "@/utils/apiUrl";
 import { PROJECT_TAGS } from "@/constants/projectTags";
@@ -49,7 +49,7 @@ import {
   sizeFilterRange,
   lastModifiedDateRange,
   showOnlyWithImages,
-} from "@/services/map/filters";
+} from "@/services/core/filters";
 
 /* oxlint-disable no-unsafe-type-assertion */ // disabled because maplibre-gl is clunky to type
 // Map style using grid-cell clustering with quality scoring plus a hover preview card.

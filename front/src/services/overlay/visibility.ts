@@ -1,6 +1,6 @@
 import type { OverlayObject, OverlayData } from "@/types/index";
 import type { AppMode } from "@shared/types";
-import { matchesSelectedTags, matchesTimelineStatusFilter } from "@/services/map/filters";
+import { matchesSelectedTags, matchesTimelineStatusFilter } from "@/services/core/filters";
 
 /**
  * Determine if an overlay should be visible in the current mode

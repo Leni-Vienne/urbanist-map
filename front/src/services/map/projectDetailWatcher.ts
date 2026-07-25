@@ -1,5 +1,5 @@
 import { watch } from "vue";
-import { hydrateProjectDetail } from "@/services/map/projectSelection";
+import { hydrateProjectDetail } from "@/services/core/projectSelection";
 import { useUiStore } from "@/stores/uiStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useFocusStore } from "@/stores/focusStore";

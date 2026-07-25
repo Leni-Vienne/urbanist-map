@@ -102,7 +102,7 @@ import { toastWarn, toastError } from "@/services/core/toast";
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 
-import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
+import { mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
 import {
   addLayersFromGeometry,
   deleteSelectedShape,

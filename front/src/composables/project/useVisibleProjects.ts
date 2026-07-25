@@ -2,10 +2,10 @@ import { ref, computed, onUnmounted, onActivated, onDeactivated } from "vue";
 import type * as maplibregl from "maplibre-gl";
 import { useFocusStore } from "@/stores/focusStore";
 import { getMap, getMapOrNull, onMapReady } from "@/services/core/map";
-import { handleProjectClickFromTile } from "@/services/map/projectSelection";
+import { handleProjectClickFromTile } from "@/services/core/projectSelection";
 import { VECTOR_QUERY_LAYERS } from "@/services/map/tiles/queryLayers";
-import { flyToGeometry } from "@/services/map/mapNavigation";
-import { lastModifiedDateRange, sizeFilterRange } from "@/services/map/filters";
+import { flyToGeometry } from "@/services/core/mapNavigation";
+import { lastModifiedDateRange, sizeFilterRange } from "@/services/core/filters";
 import { forEachPosition } from "@/utils/geojson";
 import { triggerProjectHover, clearHoverPreview } from "@/services/map/hoverPreviewState";
 

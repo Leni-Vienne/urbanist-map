@@ -14,7 +14,7 @@ import {
 } from "@/services/overlay/transform";
 import { openOverlayDetail } from "@/services/overlay/selection";
 import { clearAllMapContent } from "@/services/overlay/teardown";
-import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
+import { mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
 import type { LatLng, Overlay, PendingChangeRequest } from "@/types/index";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { toastError, toastWarn } from "@/services/core/toast";

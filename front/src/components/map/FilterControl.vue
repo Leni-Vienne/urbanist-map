@@ -43,7 +43,7 @@ import {
   selectedNameFilters,
   lastModifiedDateRange,
   showOnlyWithImages,
-} from "@/services/map/filters";
+} from "@/services/core/filters";
 import { isMobile } from "@/services/core/viewport";
 import FilterPanelContent from "@/components/map/FilterPanelContent.vue";
 

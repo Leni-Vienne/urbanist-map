@@ -209,7 +209,7 @@ import type { Project, Overlay, PendingChangeRequest } from "@/types/index";
 import { useUiStore } from "@/stores/uiStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { handleOverlayClickNavigation } from "@/services/overlay/clickHandler";
-import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
+import { mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
 import { getProjectShapeBounds, hasProjectShapes } from "@/services/map/shapes/registry";
 import { navigateToProject } from "@/services/navigation/projectNavigation";
 import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/selection";

@@ -4,7 +4,7 @@ import "maplibre-gl/dist/maplibre-gl.css"; // needed for maplibre controls and a
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import { ref, shallowRef } from "vue";
 import { getApiUrl } from "@/utils/apiUrl";
-import { mapRotationEnabled } from "@/services/map/settings";
+import { mapRotationEnabled } from "@/services/core/settings";
 
 // Registers the bundled worker URL used by every Map instance. Must run before the first Map
 // is constructed.

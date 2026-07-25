@@ -1,6 +1,6 @@
 import { nextTick } from "vue";
 import { navigateToProject } from "@/services/navigation/projectNavigation";
-import { mobileAwareFlyTo } from "@/services/map/mapNavigation";
+import { mobileAwareFlyTo } from "@/services/core/mapNavigation";
 import { navigateToOverlay } from "@/services/overlay/navigation";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useMapStore } from "@/stores/mapStore";

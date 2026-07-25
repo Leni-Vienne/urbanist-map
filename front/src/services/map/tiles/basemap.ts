@@ -30,7 +30,7 @@ import {
   applySky,
 } from "../basemapStyleOverrides";
 import { applyMapLabelLanguage } from "../mapLabelLanguage";
-import { show3DBuildings } from "@/services/map/settings";
+import { show3DBuildings } from "@/services/core/settings";
 import {
   selectedProjectTags,
   selectedStatusFilters,
@@ -38,7 +38,7 @@ import {
   selectedNameFilters,
   lastModifiedDateRange,
   showOnlyWithImages,
-} from "@/services/map/filters";
+} from "@/services/core/filters";
 import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 import { syncOverlaysFromTiles } from "@/services/map/tiles/sync";
 import { toastError } from "@/services/core/toast";

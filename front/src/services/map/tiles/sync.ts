@@ -26,7 +26,7 @@ import {
   matchesTimelineStatusFilter,
   matchesSelectedTags,
   matchesNameFilter,
-} from "@/services/map/filters";
+} from "@/services/core/filters";
 
 // lastModifiedS is Unix seconds (tile units). querySourceFeatures bypasses MapLibre layer
 // filters, so images must be date-checked here rather than relying on setFilter.

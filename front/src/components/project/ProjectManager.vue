@@ -53,9 +53,9 @@ import { useProjectStore } from "@/stores/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 
 import { getMap, getMapOrNull } from "@/services/core/map";
-import { createProjectPinElement } from "@/services/map/markersSvg";
+import { createProjectPinElement } from "@/services/core/markersSvg";
 import { createProject } from "@/services/project/projectMutations";
-import { openProjectDetail } from "@/services/map/projectSelection";
+import { openProjectDetail } from "@/services/core/projectSelection";
 import type { Project } from "@/types/index";
 
 import MarkerPlacementBar from "@/components/map/MarkerPlacementBar.vue";

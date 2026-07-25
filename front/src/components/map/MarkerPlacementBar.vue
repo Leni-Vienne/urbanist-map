@@ -45,7 +45,7 @@
 import { ref, watch, onUnmounted } from "vue";
 import { useMapStore } from "@/stores/mapStore";
 import { getMap } from "@/services/core/map";
-import { getMarkerSvg } from "@/services/map/markersSvg";
+import { getMarkerSvg } from "@/services/core/markersSvg";
 
 type Emits = {
   (e: "marker-coordinates", coordinates: { lat: number; lng: number }): void;

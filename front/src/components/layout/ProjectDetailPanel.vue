@@ -176,9 +176,9 @@ import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
 
 import { navigateToOverlay } from "@/services/overlay/navigation";
-import { flyToGeometry, mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
+import { flyToGeometry, mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
 import { computeShapeBounds } from "@/services/map/shapes/rendering";
-import { openProjectDetail, hydrateProjectDetail } from "@/services/map/projectSelection";
+import { openProjectDetail, hydrateProjectDetail } from "@/services/core/projectSelection";
 import { closeDetail } from "@/services/overlay/selection";
 
 import { buildImageUrl, imageRequiresCredentials } from "@/utils/imageUrl";

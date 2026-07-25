@@ -3,7 +3,7 @@ import type { Feature } from "geojson";
 import type { Project } from "@/types/index";
 import { getMap, getMapOrNull } from "@/services/core/map";
 import { useFocusStore } from "@/stores/focusStore";
-import { openProjectDetail } from "@/services/map/projectSelection";
+import { openProjectDetail } from "@/services/core/projectSelection";
 import { forEachPosition } from "@/utils/geojson";
 import {
   setShapeEntry,

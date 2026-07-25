@@ -56,7 +56,7 @@ import {
   toggle3DBuildings,
   mapRotationEnabled,
   toggleMapRotation,
-} from "@/services/map/settings";
+} from "@/services/core/settings";
 
 const { theme, toggle: toggleTheme } = useTheme();
 </script>

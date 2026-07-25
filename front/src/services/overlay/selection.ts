@@ -1,7 +1,7 @@
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useMapStore } from "@/stores/mapStore";
-import { ensureProjectSummary } from "@/services/map/projectSelection";
+import { ensureProjectSummary } from "@/services/core/projectSelection";
 import {
   getMarker,
   getRenderedOverlayIds,

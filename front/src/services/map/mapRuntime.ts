@@ -4,7 +4,7 @@
 // focus, history, preferences) is deliberately untouched: it outlives any one map.
 import { watch } from "vue";
 import type { Map as MaplibreMap } from "maplibre-gl";
-import { mapRotationEnabled } from "@/services/map/settings";
+import { mapRotationEnabled } from "@/services/core/settings";
 import { setupEventListeners, clearMapSessionLists } from "@/services/map/viewportTriggers";
 import { clearPendingProjectSourceCache } from "@/services/map/tiles/basemap";
 import { clearHybridInteractionHandlers } from "@/services/map/tiles/layers";

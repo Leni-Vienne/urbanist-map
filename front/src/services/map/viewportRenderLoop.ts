@@ -10,7 +10,7 @@ import {
   shouldDisplayOverlay,
 } from "@/services/overlay/visibility";
 import type { OverlayObject, OverlayData } from "@/types/index";
-import { visibleStates, selectedProjectTags } from "@/services/map/filters";
+import { visibleStates, selectedProjectTags } from "@/services/core/filters";
 import { createOverlayMarker, updateMarkerPosition } from "@/services/overlay/markers";
 import { resolveOverlayCorners } from "@/services/overlay/data";
 import {

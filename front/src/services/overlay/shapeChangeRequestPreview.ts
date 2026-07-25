@@ -3,9 +3,9 @@ import { useMapStore } from "@/stores/mapStore";
 
 import { t } from "@/locales";
 import { clearAllMapContent } from "@/services/overlay/teardown";
-import { mobileAwareFlyToBounds } from "@/services/map/mapNavigation";
+import { mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
 import { renderPreviewShapes, computeShapeBounds } from "@/services/map/shapes/rendering";
-import { openProjectDetail } from "@/services/map/projectSelection";
+import { openProjectDetail } from "@/services/core/projectSelection";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import type { PendingChangeRequest, Project } from "@/types/index";
 import { toastWarn } from "@/services/core/toast";

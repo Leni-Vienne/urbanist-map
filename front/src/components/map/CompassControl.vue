@@ -17,7 +17,7 @@ import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import CompassRose from "@/components/map/CompassRose.vue";
 import { getMap, currentBearing, currentPitch } from "@/services/core/map";
-import { mapRotationEnabled } from "@/services/map/settings";
+import { mapRotationEnabled } from "@/services/core/settings";
 
 const { t } = useI18n();
 
