@@ -66,7 +66,6 @@ export function getMapOrNull(): MaplibreMap | null {
   return currentMap.value;
 }
 
-// ── Readiness ────────────────────────────────────────────────────────────────
 // "Ready" is a property of one map instance, not of the module: a new map starts unready and must
 // never inherit the previous one's readiness. Callbacks queued for a map that gets destroyed before
 // it loads are dropped with it.
@@ -105,6 +104,33 @@ export function markMapReady(target: MaplibreMap): void {
 function resetMapReadiness(): void {
   readyMap = null;
   readyCallbacks.clear();
+}
+
+// setStyle() destroys every source and layer on the map. "before" fires while the outgoing style's
+// objects are still live, "after" once the incoming style has loaded and its layers are rebuilt.
+// Listeners are not scoped to a map instance and survive a remount, so module-level owners can
+// subscribe once at load.
+export type StyleSwitchPhase = "before" | "after";
+
+const styleSwitchCallbacks = new Set<(phase: StyleSwitchPhase) => void>();
+
+/** Run `run` on both phases of every basemap style swap. Returns an unsubscribe function. */
+export function onStyleSwitch(run: (phase: StyleSwitchPhase) => void): () => void {
+  styleSwitchCallbacks.add(run);
+  return function unsubscribeStyleSwitch(): void {
+    styleSwitchCallbacks.delete(run);
+  };
+}
+
+/** Run every style-switch listener for `phase`. A listener that throws does not stop the others. */
+export function emitStyleSwitch(phase: StyleSwitchPhase): void {
+  for (const run of [...styleSwitchCallbacks]) {
+    try {
+      run(phase);
+    } catch (error) {
+      console.error("Style-switch listener failed:", error);
+    }
+  }
 }
 
 // Minimum zoom scales with display resolution to avoid black borders at the map edges.

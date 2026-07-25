@@ -8,7 +8,13 @@ import {
   type MapMouseEvent,
 } from "maplibre-gl";
 import type { Feature, Polygon } from "geojson";
-import { getMap, getMapOrNull, currentZoomLevel } from "@/services/core/map";
+import {
+  getMap,
+  getMapOrNull,
+  currentZoomLevel,
+  onStyleSwitch,
+  type StyleSwitchPhase,
+} from "@/services/core/map";
 import {
   getImageHandle,
   setOverlayImageTransform,
@@ -521,7 +527,8 @@ export function showEditHandles(overlayObject: OverlayObject): void {
 // Re-adds the edit-handle source/layer that setStyle() drops on a basemap switch. The DOM corner
 // markers, SVG outline, and layer-scoped drag handlers survive the switch, but those handlers only
 // fire while their fill layer exists, so the overlay stays draggable only once the layer is back.
-export function reattachEditHandlesAfterStyleSwitch(): void {
+function reattachEditHandlesAfterStyleSwitch(phase: StyleSwitchPhase): void {
+  if (phase !== "after") return;
   if (!session) return;
   const mlMap = getMap();
   const transform = getCurrentTransform(session.id);
@@ -545,6 +552,8 @@ export function reattachEditHandlesAfterStyleSwitch(): void {
 
   refreshEditHandlesGeometry();
 }
+
+onStyleSwitch(reattachEditHandlesAfterStyleSwitch);
 
 export function hideEditHandles(): void {
   if (!session) return;

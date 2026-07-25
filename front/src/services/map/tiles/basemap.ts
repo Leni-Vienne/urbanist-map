@@ -7,7 +7,13 @@ import type {
   RasterSourceSpecification,
   StyleSpecification,
 } from "maplibre-gl";
-import { getMap, getMapOrNull, OPENFREEMAP_STYLE_URL, markMapReady } from "@/services/core/map";
+import {
+  getMap,
+  getMapOrNull,
+  OPENFREEMAP_STYLE_URL,
+  markMapReady,
+  emitStyleSwitch,
+} from "@/services/core/map";
 import { MAP_CONFIG } from "@/constants/mapConstants";
 import countryBboxes from "@/assets/country_bboxes.json";
 
@@ -24,8 +30,6 @@ import {
   applySky,
 } from "../basemapStyleOverrides";
 import { applyMapLabelLanguage } from "../mapLabelLanguage";
-import { dropImageHandlesForStyleSwitch } from "@/services/overlay/mapLayers";
-import { reattachEditHandlesAfterStyleSwitch } from "@/services/overlay/editing";
 import { show3DBuildings } from "@/services/map/settings";
 import {
   selectedProjectTags,
@@ -472,17 +476,17 @@ async function switchToStyle(style: StyleSpecification | string): Promise<void> 
         if (lastPendingProjectShapesGeojson) {
           updatePendingProjectShapesSource(lastPendingProjectShapesGeojson);
         }
-        dropImageHandlesForStyleSwitch();
-        // Re-add the selected overlay's edit-handle layer so it stays draggable.
-        reattachEditHandlesAfterStyleSwitch();
-        runViewportRenderLoop();
       } catch (error) {
         console.error("Failed to re-apply project layers after style switch:", error);
         toastError(error instanceof Error ? error.message : undefined, t("errors.mapInitFailed"));
       } finally {
+        // Unconditional: the phase fires even when re-applying the project layers threw.
+        emitStyleSwitch("after");
+        runViewportRenderLoop();
         resolve();
       }
     });
+    emitStyleSwitch("before");
     mlMap.setStyle(style);
   });
 }

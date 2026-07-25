@@ -66,13 +66,11 @@ const PROJECT_SHAPES_MIN_ZOOM = 3;
 /** Max zoom for MVT tile source */
 const MVT_SOURCE_MAX_ZOOM = 14;
 
-// ── Line styling constants ──────────────────────────────────────────────────
 // Overlay footprints use double width because half the stroke is covered by the overlay image.
 // They only render from MIN_ZOOM_FOR_OVERLAYS up, where a zoom ramp would already sit at its max,
 // so the width is flat.
 const FOOTPRINT_LINE_WIDTH = 2;
 
-// ── Interaction constants ───────────────────────────────────────────────────
 const VECTOR_HOVER_HIT_RADIUS_PX = 6;
 const HOVER_NONE_ID = "__none__";
 // Clicking a cluster marker zooms in by this many levels to spread its grid cell apart (the

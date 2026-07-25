@@ -5,7 +5,7 @@ import type {
   Map as MaplibreMap,
   PointLike,
 } from "maplibre-gl";
-import { getMap, getMapOrNull } from "@/services/core/map";
+import { getMap, getMapOrNull, onStyleSwitch, type StyleSwitchPhase } from "@/services/core/map";
 import {
   cornersToTransform,
   isValidQuad,
@@ -269,10 +269,12 @@ export function getEntryIds(): string[] {
   return [...entries.keys()];
 }
 
-// setStyle() (satellite switch) wipes every source and layer, including overlay image
-// sources, but leaves DOM markers untouched. Drops the now-dangling image handles so they are
-// re-created once the new style loads. No map removal needed here.
-export function dropImageHandlesForStyleSwitch(): void {
+// setStyle() (satellite switch) wipes every source and layer, including overlay image sources, but
+// leaves DOM markers untouched. Dropping the handles while the outgoing style is still current means
+// nothing addresses a destroyed source; the viewport reconcile re-creates them on the new style. No
+// map removal needed here.
+function dropImageHandlesForStyleSwitch(phase: StyleSwitchPhase): void {
+  if (phase !== "before") return;
   for (const [id, entry] of entries) {
     entry.imageHandle = null;
     if (entry.marker === null) {
@@ -280,6 +282,8 @@ export function dropImageHandlesForStyleSwitch(): void {
     }
   }
 }
+
+onStyleSwitch(dropImageHandlesForStyleSwitch);
 
 // Remove an overlay's image source + raster layer from the MapLibre map. Entries can outlive the
 // map (sign-out on a non-map route), and a removed map took its sources and layers with it.
