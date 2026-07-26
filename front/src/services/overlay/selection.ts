@@ -1,6 +1,5 @@
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useFocusStore } from "@/stores/focusStore";
-import { useMapStore } from "@/stores/mapStore";
 import { ensureProjectSummary } from "@/services/core/projectSelection";
 import {
   getMarker,
@@ -12,7 +11,7 @@ import {
 import type { LatLng } from "@/types/index";
 import { syncModerationCountryFromMapClick } from "@/services/moderation/moderationCountrySync";
 import { resolveOverlayCorners } from "@/services/overlay/data";
-import { hasOpenChangeRequest, showsSuggestedState } from "@/services/overlay/transform";
+import { hasOpenChangeRequest, showsSuggestedState } from "@/services/overlay/positionState";
 import { isOverlayUnsaved } from "@/services/overlay/unsavedState";
 
 /**
@@ -141,7 +140,6 @@ function isPointInCorners(point: LatLng, corners: LatLng[]): boolean {
  */
 export function handleBackgroundClick(lngLat: { lng: number; lat: number }): void {
   const overlayStore = useOverlayStore();
-  const mode = useMapStore().mode;
   const renderedIds = getRenderedOverlayIds();
 
   // Later-registered overlays are checked first. Registration order only approximates the
@@ -154,8 +152,7 @@ export function handleBackgroundClick(lngLat: { lng: number; lat: number }): voi
     // Approved overlays at their backend position are clicked via the vector-tile path.
     // Point-in-polygon runs for overlays whose live image can sit elsewhere: staged edits, and an
     // open change request shown at its suggested position (the tile footprint stays at baseline).
-    const showsSuggested =
-      hasOpenChangeRequest(overlay, mode) && showsSuggestedState(overlay, mode);
+    const showsSuggested = hasOpenChangeRequest(overlay) && showsSuggestedState(overlay);
     if (overlay.status === "approved" && !isOverlayUnsaved(overlay) && !showsSuggested) continue;
     // "marker" purpose resolves the live image position, which is where a click must hit.
     const corners = resolveOverlayCorners(overlay, "marker");

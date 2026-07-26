@@ -7,7 +7,8 @@ import {
   deriveOverlayFilename,
   scheduleOverlayReconcile,
 } from "@/services/overlay/mapLayers";
-import { isValidQuad, getEditModeRestingCorners } from "@/services/overlay/transform";
+import { isValidQuad } from "@/services/overlay/transform";
+import { getEditModeRestingCorners } from "@/services/overlay/positionState";
 
 // Build a history step, cloning corners so later mutations don't alias a stored step.
 export function makeHistoryState(

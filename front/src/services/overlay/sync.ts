@@ -9,12 +9,11 @@
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useMapStore } from "@/stores/mapStore";
 import { scheduleOverlayReconcile } from "@/services/overlay/mapLayers";
+import { isValidQuad, sameCorners } from "@/services/overlay/transform";
 import {
-  isValidQuad,
   getEditModeRestingCorners,
   reconcilePositionState,
-  sameCorners,
-} from "@/services/overlay/transform";
+} from "@/services/overlay/positionState";
 import { getEditModeDefaultCaption } from "@/services/overlay/unsavedState";
 import { createOverlayObject } from "@/utils/typeFactories";
 import type { ModifiableField, OverlayData, OverlayObject } from "@/types/index";

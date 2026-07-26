@@ -6,12 +6,8 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useMapStore } from "@/stores/mapStore";
 import { getOverlayBounds } from "@/services/overlay/markers";
 import * as registry from "@/services/overlay/mapLayers";
-import {
-  isValidQuad,
-  parsePointValue,
-  parseQuadValue,
-  getEditModeRestingCorners,
-} from "@/services/overlay/transform";
+import { isValidQuad, parsePointValue, parseQuadValue } from "@/services/overlay/transform";
+import { getEditModeRestingCorners } from "@/services/overlay/positionState";
 import { openOverlayDetail } from "@/services/overlay/selection";
 import { clearAllMapContent } from "@/services/overlay/teardown";
 import { mobileAwareFlyToBounds } from "@/services/core/mapNavigation";

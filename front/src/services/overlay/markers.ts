@@ -16,7 +16,7 @@ import { closeDetail, openOverlayDetail } from "@/services/overlay/selection";
 import { useFocusStore } from "@/stores/focusStore";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { resolveOverlayCorners } from "@/services/overlay/data";
-import { hasOpenChangeRequest, showsSuggestedState } from "@/services/overlay/transform";
+import { hasOpenChangeRequest, showsSuggestedState } from "@/services/overlay/positionState";
 import { isOverlayUnsaved } from "@/services/overlay/unsavedState";
 import { buildLngLatBounds } from "@/utils/cornersBounds";
 
@@ -100,7 +100,7 @@ function getOverlayMarkerColor(
 ): MarkerColor {
   // Extract overlay-specific properties (not present on all overlay types)
   const hasBeenModified = isOverlayUnsaved(overlayData);
-  const hasChangeRequest = hasOpenChangeRequest(overlayData, mode);
+  const hasChangeRequest = hasOpenChangeRequest(overlayData);
   const isTooBig = "isTooBig" in overlayData && overlayData.isTooBig === true;
   const isReplacement = Boolean(overlayData.replacesOverlayId);
   const status = overlayData.status;
@@ -114,7 +114,7 @@ function getOverlayMarkerColor(
   // Open change request without a staged local edit on top; a staged edit falls through to the
   // status colors below (orange in edit mode).
   if (hasChangeRequest && !hasBeenModified) {
-    if (showsSuggestedState(overlayData, mode)) return "yellow";
+    if (showsSuggestedState(overlayData)) return "yellow";
     if (status === "approved") return "green";
   }
 
@@ -133,15 +133,13 @@ function applyMarkerColorAndTooltip(
   overlayObject: OverlayObject,
   markerColor: MarkerColor,
 ): void {
-  const mapStore = useMapStore();
-
   updateOverlayMarkerColor(marker, markerColor);
 
   const element = marker.getElement();
 
   function getTooltipTextForOverlay(): string {
     const hasBeenModified = isOverlayUnsaved(overlayObject);
-    const hasChangeRequest = hasOpenChangeRequest(overlayObject, mapStore.mode);
+    const hasChangeRequest = hasOpenChangeRequest(overlayObject);
     const isReplacement = overlayObject.replacesOverlayId !== null;
     const isApproved = overlayObject.status === "approved";
     const isPending = overlayObject.status === "pending";
@@ -162,7 +160,7 @@ function applyMarkerColorAndTooltip(
       statusText = t("common.approved");
       if (hasBeenModified) {
         modifierText = t("markerTooltip.modifiers.modified");
-      } else if (hasChangeRequest && showsSuggestedState(overlayObject, mapStore.mode)) {
+      } else if (hasChangeRequest && showsSuggestedState(overlayObject)) {
         modifierText = t("markerTooltip.modifiers.viewingSuggested");
       } else if (hasChangeRequest) {
         modifierText = t("markerTooltip.modifiers.hasPendingChanges");

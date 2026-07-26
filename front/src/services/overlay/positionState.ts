@@ -1,0 +1,71 @@
+import type { LatLng, OverlayPositionState } from "@/types/index";
+import { isValidQuad } from "@/services/overlay/transform";
+import { useChangeRequestStore } from "@/stores/changeRequestStore";
+import { useMapStore } from "@/stores/mapStore";
+import { useModerationStore } from "@/stores/moderationStore";
+
+// Whether the overlay has an open change request as the current mode defines it: any requester's in
+// moderation (the country's pending set), otherwise the current user's own (`hasPendingChanges`).
+export function hasOpenChangeRequest(overlay: {
+  id: string;
+  hasPendingChanges?: boolean;
+}): boolean {
+  if (useMapStore().mode === "moderation") {
+    return useModerationStore().changeRequests.some(
+      (cr) => cr.entityType === "overlay" && cr.entityId === overlay.id,
+    );
+  }
+  return overlay.hasPendingChanges === true;
+}
+
+// The position an overlay shows in edit mode absent any staged edits: the suggested position of
+// the user's own open change request when one exists, otherwise the backend baseline.
+function getEditModeDefaultCorners(overlay: {
+  hasPendingChanges?: boolean;
+  suggestedCorners?: LatLng[];
+  baselineCorners: LatLng[] | null;
+}): LatLng[] | null {
+  if (overlay.hasPendingChanges === true && isValidQuad(overlay.suggestedCorners)) {
+    return overlay.suggestedCorners;
+  }
+  return overlay.baselineCorners;
+}
+
+// The edit-mode default, except when the user explicitly toggled "view approved position"
+// (positionState === "approved-toggled"), which shows the baseline. This is the position an
+// overlay with no staged edits rests at in edit mode, and the history seed / undo target.
+export function getEditModeRestingCorners(overlay: {
+  hasPendingChanges?: boolean;
+  suggestedCorners?: LatLng[];
+  baselineCorners: LatLng[] | null;
+  positionState?: OverlayPositionState;
+}): LatLng[] | null {
+  if (overlay.positionState === "approved-toggled") return overlay.baselineCorners;
+  return getEditModeDefaultCorners(overlay);
+}
+
+// The non-staged position state follows the presence of an open change request; a staged state is
+// preserved. The single reconciler that keeps positionState consistent with the backend CR flag.
+export function reconcilePositionState(overlay: {
+  hasPendingChanges?: boolean;
+  positionState: OverlayPositionState;
+}): OverlayPositionState {
+  if (overlay.positionState === "staged") return "staged";
+  if (overlay.hasPendingChanges !== true) return "baseline";
+  return overlay.positionState === "approved-toggled" ? "approved-toggled" : "suggested";
+}
+
+// Whether the map shows the suggested (proposed) state of an overlay's open change request.
+// Edit mode defaults to it (any state other than the explicit approved-position toggle, so
+// caption-only CRs still count). Non-edit modes show the approved state unless an explicit
+// moderation preview of the suggested position is active for this overlay.
+export function showsSuggestedState(overlay: {
+  id: string;
+  positionState?: OverlayPositionState;
+}): boolean {
+  if (useMapStore().mode === "edit") {
+    return overlay.positionState !== "approved-toggled";
+  }
+  const preview = useChangeRequestStore().previewState;
+  return preview.type === "suggested" && preview.overlayId === overlay.id;
+}
