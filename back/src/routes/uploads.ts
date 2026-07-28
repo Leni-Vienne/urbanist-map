@@ -1,7 +1,12 @@
 import { Hono } from "hono";
 import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod'
 import { eq } from "drizzle-orm";
-import { LocalFileStorage, getThumbnailFilename, compressImageIfNeeded } from "../lib/storage";
+import {
+  LocalFileStorage,
+  createR2StorageFromEnv,
+  getThumbnailFilename,
+  compressImageIfNeeded,
+} from "../lib/storage";
 import { exceedsPendingStorageQuota } from "../lib/storageQuota";
 import { MAX_UPLOAD_FILE_SIZE_BYTES, MAX_UPLOAD_FILE_SIZE_MB } from "@shared/uploadLimits";
 import { allowedDomains } from "../lib/corsConfig";
@@ -17,6 +22,11 @@ export const uploadsApp = new Hono<AppEnv>();
 
 // Always use local storage for initial uploads - images migrate to R2 on approval
 const storage = new LocalFileStorage();
+
+// Approved images live in R2 and not on local disk. In development, an R2 configuration makes
+// them readable, which a database populated by another environment needs.
+const readFallbackStorage =
+  process.env.NODE_ENV === "development" ? createR2StorageFromEnv() : null;
 
 const filenameParamSchema = z.object({
   filename: z
@@ -275,7 +285,8 @@ uploadsApp.get("/uploads/*", async (c) => {
       }
     }
 
-    const file = await storage.get(validatedFilename);
+    const file =
+      (await storage.get(validatedFilename)) ?? (await readFallbackStorage?.get(validatedFilename));
     if (!file) {
       return c.json({ error: "File not found" }, 404);
     }
