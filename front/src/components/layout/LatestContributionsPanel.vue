@@ -27,7 +27,7 @@
               class="w-13 h-13 md:w-15 md:h-15 rounded-xl overflow-hidden bg-content-hover-background border border-surface shrink-0 flex items-center justify-center relative"
             >
               <img
-                v-if="row.thumbnailUrl"
+                v-if="row.thumbnailUrl && !imageErrors[row.contribution.id]"
                 :src="row.thumbnailUrl"
                 class="w-full h-full object-cover"
                 alt=""
@@ -35,14 +35,20 @@
                 @error="(event) => handleImageError(event, row.contribution.id)"
                 @load="() => handleImageLoad(row.contribution.id)"
               />
-              <i
-                v-else-if="row.contribution.type === 'standalone'"
-                class="pi pi-building text-2xl text-primary-color"
-              ></i>
-              <i
-                v-else-if="imageErrors[row.contribution.id]"
-                class="pi pi-image text-2xl text-muted-color"
-              ></i>
+              <component
+                :is="row.icon"
+                v-else-if="row.icon"
+                class="w-7 h-7 md:w-8 md:h-8"
+                :style="{ color: row.color }"
+                :stroke-width="1.5"
+              />
+              <ShapeThumbnail
+                v-else-if="row.shape"
+                :geometry="row.shape"
+                class="w-11 h-11 md:w-13 md:h-13"
+                :style="{ color: row.color }"
+              />
+              <i v-else class="pi pi-image text-2xl text-muted-color"></i>
             </div>
 
             <!-- Contribution info -->
@@ -109,6 +115,8 @@ import {
   fetchLatestContributions,
 } from "@/services/feed/latestContributions";
 import { buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
+import { getProjectTagIcon, getProjectTagColor } from "@/constants/projectTags";
+import ShapeThumbnail from "@/components/common/ShapeThumbnail.vue";
 import { formatRelativeTime } from "@/utils/dateFormat";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
 import { useMapStore } from "@/stores/mapStore";
@@ -141,8 +149,8 @@ function getThumbnailFilename(contribution: LatestContribution): string | null {
   return contribution.renderFilename;
 }
 
-// Resolve the thumbnail URL and crossorigin flag once per contribution, instead of recomputing
-// them several times each in the template.
+// Resolve the thumbnail URL, crossorigin flag, category icon, tag color and shape once per
+// contribution, instead of recomputing them several times each in the template.
 const rows = computed(() =>
   contributions.value.map((contribution) => {
     const filename = getThumbnailFilename(contribution);
@@ -150,6 +158,9 @@ const rows = computed(() =>
     return {
       contribution,
       thumbnailUrl,
+      icon: getProjectTagIcon(contribution.tags),
+      color: getProjectTagColor(contribution.tags),
+      shape: contribution.type === "standalone" ? contribution.shape : null,
       crossorigin:
         thumbnailUrl && imageRequiresCredentials(thumbnailUrl)
           ? ("use-credentials" as const)

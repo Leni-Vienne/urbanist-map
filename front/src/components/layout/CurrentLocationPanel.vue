@@ -117,7 +117,7 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useVisibleProjects, type SortMode } from "@/composables/project/useVisibleProjects";
 import { useFocusStore } from "@/stores/focusStore";
-import { PROJECT_TAG_MAP } from "@/constants/projectTags";
+import { PROJECT_TAG_MAP, DEFAULT_TAG_COLOR } from "@/constants/projectTags";
 import PanelEmptyState from "@/components/common/PanelEmptyState.vue";
 import LinePreview from "@/components/common/LinePreview.vue";
 import { useScrollFade } from "@/composables/ui/useScrollFade";
@@ -157,8 +157,6 @@ const SORT_BUTTONS: { mode: SortMode; icon: string; i18nKey: string }[] = [
   { mode: "size", icon: "pi pi-expand", i18nKey: "onMap.sortSize" },
   { mode: "status", icon: "pi pi-calendar", i18nKey: "onMap.sortStatus" },
 ];
-
-const DEFAULT_TAG_COLOR = "#6b7280";
 
 function tagColor(firstTag: string): string {
   return PROJECT_TAG_MAP.get(firstTag)?.color ?? DEFAULT_TAG_COLOR;

@@ -90,6 +90,14 @@ function buildStandaloneProjectsQuery(importFilter: SQL, limit: number) {
       state: boundaryName("state"),
       countryCode: projects.countryCode,
       country: boundaryName("country"),
+      tags: projects.tags,
+      // Simplified, low-precision shape used as the thumbnail for untagged projects, which have no
+      // category icon to fall back on. Only fetched for those rows to keep the payload small.
+      shape: sql<GeoJSON.GeometryCollection | null>`CASE
+        WHEN ${projects.geometry} IS NOT NULL AND COALESCE(cardinality(${projects.tags}), 0) = 0
+        THEN ST_AsGeoJSON(ST_Simplify(${projects.geometry}, 0.00003), 5)::json
+        ELSE NULL
+      END`,
       lat: projects.lat,
       lng: projects.lng,
       // Bounding box of project geometry for flying to the right area when clicked
@@ -145,6 +153,8 @@ function mapStandaloneProject(p: StandaloneProjectRow, isImport: boolean) {
     state: p.state,
     countryCode: p.countryCode,
     country: p.country,
+    tags: p.tags ?? [],
+    shape: p.shape,
     lat: p.lat,
     lng: p.lng,
     isImport,
@@ -186,6 +196,7 @@ function buildLatestOverlaysQuery(limit: number) {
       state: boundaryName("state").as("state"),
       countryCode: projects.countryCode,
       country: boundaryName("country").as("country"),
+      tags: projects.tags,
       centroidLat: sql<number>`ST_Y(${overlays.centroid})`.as("centroidLat"),
       centroidLng: sql<number>`ST_X(${overlays.centroid})`.as("centroidLng"),
       corners: sql<{ lat: number; lng: number }[]>`(
@@ -226,6 +237,7 @@ function mapOverlayContribution(o: LatestOverlayRow) {
     state: o.state,
     countryCode: o.countryCode,
     country: o.country,
+    tags: o.tags ?? [],
     centroid:
       typeof o.centroidLat === "number" && typeof o.centroidLng === "number"
         ? { lat: o.centroidLat, lng: o.centroidLng }

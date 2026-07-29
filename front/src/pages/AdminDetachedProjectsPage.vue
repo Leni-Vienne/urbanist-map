@@ -43,7 +43,11 @@
       <Column :header="t('admin.detached.columns.project')">
         <template #body="{ data }">
           <div class="flex items-center gap-3">
-            <ShapeThumbnail :geometry="data.geometry" :title="data.name || undefined" />
+            <ShapeThumbnail
+              :geometry="data.geometry"
+              :title="data.name || undefined"
+              class="w-9 h-9"
+            />
             <div class="flex flex-col gap-1">
               <div class="flex items-center gap-2">
                 <span class="font-semibold">{{ data.name || t("admin.detached.unnamed") }}</span>
@@ -136,7 +140,11 @@
             <Column :header="t('admin.detached.columns.project')">
               <template #body="{ data: cand }">
                 <div class="flex items-center gap-3">
-                  <ShapeThumbnail :geometry="cand.geometry" :title="cand.name || undefined" />
+                  <ShapeThumbnail
+                    :geometry="cand.geometry"
+                    :title="cand.name || undefined"
+                    class="w-9 h-9"
+                  />
                   <div class="flex flex-col gap-1">
                     <div class="flex items-center gap-2">
                       <span class="font-medium">{{

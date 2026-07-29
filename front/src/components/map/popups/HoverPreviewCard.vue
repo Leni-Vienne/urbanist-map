@@ -85,7 +85,7 @@
 import { computed, nextTick, ref, watch, watchEffect } from "vue";
 import { useI18n } from "vue-i18n";
 import { hoverPreview, hoverPreviewX, hoverPreviewY } from "@/services/map/hoverPreviewState";
-import { PROJECT_TAG_MAP } from "@/constants/projectTags";
+import { PROJECT_TAG_MAP, DEFAULT_TAG_COLOR } from "@/constants/projectTags";
 import { UNTAGGED_PROJECT_FILTER } from "@/services/core/filters";
 import LinePreview from "@/components/common/LinePreview.vue";
 import { useFocusStore } from "@/stores/focusStore";
@@ -108,8 +108,6 @@ const sortedTagCounts = computed(() => {
   if (!preview || preview.type !== "cluster" || !preview.tagCounts) return [];
   return preview.tagCounts.toSorted((a, b) => b.count - a.count);
 });
-
-const DEFAULT_TAG_COLOR = "#6b7280";
 
 function tagChipStyle(slug: string): Record<string, string> {
   const tag = PROJECT_TAG_MAP.get(slug);
