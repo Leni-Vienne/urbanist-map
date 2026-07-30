@@ -4,9 +4,7 @@
          list never costs a navigation away from it. -->
     <div class="shrink-0 border-b border-surface">
       <div class="flex items-center gap-2 px-2 py-2">
-        <div
-          class="flex-1 min-w-0 flex items-center overflow-x-auto scrollbar-none [&::-webkit-scrollbar]:hidden"
-        >
+        <div class="shrink-0 flex items-center">
           <div role="group" :aria-label="t('contribution.filterBySource')" class="shrink-0">
             <SelectButton
               v-model="sourceSelection"
@@ -37,7 +35,9 @@
           />
         </div>
 
-        <MapAreaSearchControl class="shrink-0" />
+        <div class="map-area-action ml-auto shrink-0">
+          <MapAreaSearchControl />
+        </div>
       </div>
 
       <!-- Applied filters, removable in place. Relaxing a filter is the common case and needs no
@@ -53,15 +53,6 @@
           <i class="pi pi-times text-[0.6rem] text-muted-color"></i>
         </button>
         <button
-          v-if="kind !== 'all'"
-          type="button"
-          class="inline-flex items-center gap-1 pl-2 pr-1.5 py-0.5 rounded-full text-[0.7rem] font-medium bg-content-hover-background text-color border border-surface cursor-pointer transition-colors duration-150 hover:bg-black/5 dark:hover:bg-white/10"
-          @click="kindSelection = []"
-        >
-          {{ kind === "project" ? t("contribution.kindProjects") : t("contribution.kindImages") }}
-          <i class="pi pi-times text-[0.6rem] text-muted-color"></i>
-        </button>
-        <button
           v-for="filter in activeFilters"
           :key="filterKey(filter)"
           type="button"
@@ -70,13 +61,6 @@
         >
           {{ filterLabel(filter) }}
           <i class="pi pi-times text-[0.6rem] text-muted-color"></i>
-        </button>
-        <button
-          type="button"
-          class="text-[0.7rem] text-muted-color underline cursor-pointer bg-transparent border-0 px-1 py-0.5"
-          @click="clearChippedFilters"
-        >
-          {{ t("contribution.clearFilters") }}
         </button>
       </div>
 
@@ -116,29 +100,11 @@
         class="min-w-55 max-w-75 overflow-y-auto overflow-x-hidden pr-1"
         style="max-height: min(600px, 70svh)"
       >
-        <!-- Kind has no map equivalent, so it lives beside the shared palette rather than in it. -->
-        <p class="m-0 mb-1.5 text-xs font-semibold text-color-secondary uppercase tracking-wide">
-          {{ t("contribution.filterByKind") }}
-        </p>
-        <SelectButton
-          v-model="kindSelection"
-          :options="KIND_OPTIONS"
-          option-label="label"
-          option-value="value"
-          multiple
-          size="small"
-          class="mb-3"
-        />
-        <div class="border-t border-surface pt-3">
-          <FilterPanelContent />
-        </div>
+        <FilterPanelContent />
       </div>
     </Popover>
 
-    <div
-      ref="scrollAreaRef"
-      class="flex-1 min-h-0 overflow-y-auto scrollbar-none [&::-webkit-scrollbar]:hidden"
-    >
+    <div ref="scrollAreaRef" class="contribution-scroll-area flex-1 min-h-0 overflow-y-auto">
       <div v-if="rows.length > 0" ref="contentRef" class="flex flex-col">
         <div
           v-for="row in rows"
@@ -200,22 +166,10 @@
               }}</span>
             </div>
           </div>
-
-          <i
-            class="pi pi-chevron-right text-sm text-muted-color shrink-0 transition-colors duration-150 group-hover:text-(--p-text-color-secondary)"
-          ></i>
         </div>
 
-        <div v-if="hasMore" class="p-3">
-          <Button
-            class="w-full"
-            severity="secondary"
-            outlined
-            size="small"
-            :loading="isLoadingMore"
-            :label="t('contribution.loadMore')"
-            @click="loadMoreLatestContributions"
-          />
+        <div v-if="hasMore" ref="loadMoreSentinel" class="h-10 flex items-center justify-center">
+          <i v-if="isLoadingMore" class="pi pi-spin pi-spinner text-sm text-muted-color"></i>
         </div>
       </div>
 
@@ -249,7 +203,16 @@
 <script setup lang="ts">
 import { toastWarn } from "@/services/core/toast";
 
-import { ref, computed, onActivated, onDeactivated } from "vue";
+import {
+  computed,
+  nextTick,
+  onActivated,
+  onBeforeUnmount,
+  onDeactivated,
+  onMounted,
+  ref,
+  watch,
+} from "vue";
 import { useI18n } from "vue-i18n";
 import { canModerateCountry } from "@/services/moderation/moderationCountrySync";
 import {
@@ -258,9 +221,7 @@ import {
   isLoadingMore,
   hasMore,
   source,
-  kind,
   sourceSelection,
-  kindSelection,
   mapArea,
   osmLastSyncedAt,
   activateLatestContributions,
@@ -273,7 +234,6 @@ import {
   activeFilters,
   activeFilterCount,
   clearActiveFilter,
-  clearAllFilters,
   formatSizeM,
   type ActiveFilter,
 } from "@/services/core/filters";
@@ -309,36 +269,19 @@ const SOURCE_OPTIONS = computed(() => [
   { value: "osm" as const, label: t("contribution.sourceOsmShort") },
 ]);
 
-const KIND_OPTIONS = computed(() => [
-  { value: "project" as const, label: t("contribution.kindProjects") },
-  { value: "image" as const, label: t("contribution.kindImages") },
-]);
-
 // Drives the empty-state copy: an empty list means something different when the query was narrowed.
 const hasNarrowedQuery = computed(
-  () =>
-    activeFilterCount.value > 0 ||
-    source.value !== "all" ||
-    kind.value !== "all" ||
-    mapArea.value !== null,
+  () => activeFilterCount.value > 0 || source.value !== "all" || mapArea.value !== null,
 );
 
 // Everything reachable only through the popover, so the button can show that something is applied.
-const hasPopoverFilters = computed(() => activeFilterCount.value > 0 || kind.value !== "all");
-const hasChippedFilters = computed(
-  () => activeFilters.value.length > 0 || kind.value !== "all" || mapArea.value !== null,
-);
+const hasPopoverFilters = computed(() => activeFilterCount.value > 0);
+const hasChippedFilters = computed(() => activeFilters.value.length > 0 || mapArea.value !== null);
 const osmSyncLabel = computed(() =>
   t("contribution.osmDataUpdated", {
     time: formatRelativeTime(osmLastSyncedAt.value, t),
   }),
 );
-
-function clearChippedFilters(): void {
-  clearAllFilters();
-  kindSelection.value = [];
-  clearMapArea();
-}
 
 function browseOsmUpdates(): void {
   isOsmSyncExpanded.value = false;
@@ -490,8 +433,79 @@ async function handleContributionClick(contribution: LatestContribution) {
 
 const scrollAreaRef = ref<HTMLElement | null>(null);
 const contentRef = ref<HTMLElement | null>(null);
+const loadMoreSentinel = ref<HTMLElement | null>(null);
 const { showScrollFade } = useScrollFade(scrollAreaRef, contentRef);
+
+let loadMoreObserver: IntersectionObserver | null = null;
+
+function resetScrollForRefresh(loading: boolean): void {
+  if (loading) {
+    scrollAreaRef.value?.scrollTo({ top: 0 });
+  }
+}
+
+function observeLoadMore(): void {
+  loadMoreObserver?.disconnect();
+
+  const root = scrollAreaRef.value;
+  const sentinel = loadMoreSentinel.value;
+  if (!root || !sentinel || !hasMore.value) return;
+
+  loadMoreObserver ??= new IntersectionObserver(handleLoadMoreIntersect, {
+    root,
+    rootMargin: "0px 0px 240px",
+  });
+  loadMoreObserver.observe(sentinel);
+}
+
+function handleLoadMoreIntersect(entries: IntersectionObserverEntry[]): void {
+  if (!entries.some((entry) => entry.isIntersecting) || isLoadingMore.value || !hasMore.value) {
+    return;
+  }
+  void loadMoreLatestContributions();
+}
+
+function stopObservingLoadMore(): void {
+  loadMoreObserver?.disconnect();
+}
+
+watch(
+  () => [loadMoreSentinel.value, hasMore.value, isLoadingMore.value],
+  () => {
+    void nextTick().then(observeLoadMore);
+  },
+  { flush: "post" },
+);
+
+watch(isLoading, resetScrollForRefresh);
+
+onMounted(observeLoadMore);
+onActivated(observeLoadMore);
+onDeactivated(stopObservingLoadMore);
+onBeforeUnmount(stopObservingLoadMore);
 
 onActivated(activateLatestContributions);
 onDeactivated(deactivateLatestContributions);
 </script>
+
+<style scoped>
+.contribution-scroll-area {
+  scrollbar-width: thin;
+  scrollbar-color: var(--p-text-muted-color) transparent;
+}
+
+.contribution-scroll-area::-webkit-scrollbar {
+  width: 0.55rem;
+}
+
+.contribution-scroll-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.contribution-scroll-area::-webkit-scrollbar-thumb {
+  background: var(--p-text-muted-color);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+</style>

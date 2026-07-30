@@ -42,7 +42,6 @@ const getLatestContributionsSchema = z.object({
   limit: z.number().min(1).max(50).optional().default(20),
   cursor: feedCursorSchema.nullish(),
   source: z.enum(["all", "community", "osm"]).optional().default("all"),
-  kind: z.enum(["all", "project", "image"]).optional().default("all"),
   tags: z.array(z.string()).optional(),
   includeUntagged: z.boolean().optional(),
   statuses: z.array(z.string()).optional(),
@@ -495,7 +494,7 @@ function cacheKey(input: FeedInput): string | null {
     input.named === undefined &&
     !input.onlyWithImages &&
     input.mapArea === undefined;
-  return isDefaultPage ? `${input.source}|${input.kind}|${input.limit}` : null;
+  return isDefaultPage ? `${input.source}|${input.limit}` : null;
 }
 
 export const feedRouter = router({
@@ -522,17 +521,16 @@ export const feedRouter = router({
 
         // Over-fetch by one per stream so a full page can still tell whether more rows exist.
         const fetchSize = input.limit + 1;
-        const wantsOverlays = input.kind !== "project" && input.source !== "osm";
-        const wantsDirect = input.kind !== "image" && input.source !== "osm";
-        const wantsImported = input.kind !== "image" && input.source !== "community";
+        const wantsCommunity = input.source !== "osm";
+        const wantsImported = input.source !== "community";
 
         // An import with an approved user edit (importLockedAt set) counts as a human
         // contribution, so it joins the direct group rather than the import one.
         const [overlayRows, directRows, importedRows] = await Promise.all([
-          wantsOverlays
+          wantsCommunity
             ? buildLatestOverlaysQuery(fetchSize, input, input.cursor?.overlay)
             : Promise.resolve([]),
-          wantsDirect
+          wantsCommunity
             ? buildStandaloneProjectsQuery(
                 sql`(${projects.importSourceId} IS NULL OR ${projects.importLockedAt} IS NOT NULL)`,
                 fetchSize,

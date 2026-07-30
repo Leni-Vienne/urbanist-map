@@ -7,7 +7,7 @@
     size="small"
     raised
     :disabled="!canSearch || isLoading"
-    v-tooltip.bottom="tooltip ?? buttonLabel"
+    v-tooltip.bottom="tooltip ?? null"
     @click="searchCurrentArea"
   />
 </template>

@@ -8,7 +8,6 @@ type FeedCursor = RouterOutput["feed"]["getLatestContributions"]["nextCursor"];
 type OsmSyncStatus = RouterOutput["feed"]["getOsmSyncStatus"];
 
 export type ContributionSource = "all" | "community" | "osm";
-export type ContributionKind = "all" | "project" | "image";
 export type MapArea = {
   west: number;
   south: number;
@@ -28,7 +27,6 @@ const loadingMore = ref(false);
 // Empty or complete selection both mean "no narrowing", so the toggles stay independent and a
 // selected pair reads as selected instead of collapsing to a single All button.
 export const sourceSelection = ref<Exclude<ContributionSource, "all">[]>(["community"]);
-export const kindSelection = ref<Exclude<ContributionKind, "all">[]>([]);
 export const mapArea = ref<MapArea | null>(null);
 const osmSyncStatus = ref<OsmSyncStatus | null>(null);
 let hasLoadedOsmSyncStatus = false;
@@ -38,14 +36,12 @@ function soleSelection<T extends string>(values: T[]): T | "all" {
 }
 
 export const source = computed<ContributionSource>(() => soleSelection(sourceSelection.value));
-export const kind = computed<ContributionKind>(() => soleSelection(kindSelection.value));
 
 // Identifies the query the loaded rows belong to. Comparing it against the live one tells whether
 // the list is stale without keeping a copy of the filter state.
 const queryKey = computed(() =>
   JSON.stringify({
     source: source.value,
-    kind: kind.value,
     mapArea: mapArea.value,
     ...feedFilterInput.value,
   }),
@@ -68,7 +64,6 @@ function buildQueryInput(pageCursor: FeedCursor) {
   return {
     limit: PAGE_SIZE,
     source: source.value,
-    kind: kind.value,
     ...(mapArea.value && { mapArea: mapArea.value }),
     ...feedFilterInput.value,
     ...(pageCursor && { cursor: pageCursor }),
