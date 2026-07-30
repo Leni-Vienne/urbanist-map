@@ -179,7 +179,18 @@
     "noContributionsFound": "Aucune contribution trouvée.",
     "beFirstToAdd": "Soyez le premier à ajouter un projet urbain",
     "loadingContributions": "Chargement des contributions...",
-    "fromOpenStreetMap": "Depuis OpenStreetMap"
+    "noMatchingContributions": "Aucun résultat pour ces filtres.",
+    "tryWideningFilters": "Élargissez un filtre, ou ajoutez le premier depuis Contribuer.",
+    "filterBySource": "Filtrer par source",
+    "filterByKind": "Filtrer par type de contribution",
+    "sourceCommunity": "Communauté",
+    "sourceOsm": "OpenStreetMap",
+    "sourceOsmShort": "OSM",
+    "kindProjects": "Projets",
+    "kindImages": "Images",
+    "moreFilters": "Plus de filtres",
+    "clearFilters": "Tout effacer",
+    "loadMore": "Voir plus"
   },
   "onMap": {
     "noProjects": "Aucun projet visible",

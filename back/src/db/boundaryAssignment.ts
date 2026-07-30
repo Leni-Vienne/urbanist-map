@@ -19,8 +19,8 @@ export async function resolveCountryCode(lat: number, lng: number): Promise<stri
   return rows[0]?.country_code ?? null;
 }
 
-// All name variants ship to the client so it can pick by UI locale (matches the feed pattern):
-// `names?.[locale] ?? nameEn ?? name`. Keeps this endpoint locale-agnostic.
+// Every `name:*` variant ships so a consumer can resolve any requested language, which keeps this
+// endpoint locale-agnostic.
 export interface BoundaryPathEntry {
   osmId: string;
   name: string; // OSM `name` (usually local language)

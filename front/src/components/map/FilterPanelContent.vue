@@ -42,7 +42,11 @@
   </p>
   <div class="flex flex-col gap-1 mb-4">
     <label class="flex items-center gap-2 cursor-pointer text-sm text-color">
-      <input type="checkbox" :checked="showOnlyWithImages" @change="toggleShowOnlyWithImages" />
+      <Checkbox
+        :model-value="showOnlyWithImages"
+        :binary="true"
+        @update:model-value="toggleShowOnlyWithImages"
+      />
       {{ $t("map.controls.onlyWithImages") }}
     </label>
   </div>
@@ -56,10 +60,10 @@
       :key="timelineStatus"
       class="flex items-center gap-2 cursor-pointer text-sm text-color"
     >
-      <input
-        type="checkbox"
-        :checked="selectedStatusFilters.includes(timelineStatus)"
-        @change="toggleFilter(timelineStatus)"
+      <Checkbox
+        :model-value="selectedStatusFilters.includes(timelineStatus)"
+        :binary="true"
+        @update:model-value="toggleFilter(timelineStatus)"
       />
       <LinePreview :status="timelineStatus" :color="linePreviewColor" />
       {{ $t(labelKey) }}
@@ -75,18 +79,18 @@
       :key="nameVal"
       class="flex items-center gap-2 cursor-pointer text-sm text-color"
     >
-      <input
-        type="checkbox"
-        :checked="selectedNameFilters.includes(nameVal)"
-        @change="toggleNameFilter(nameVal)"
+      <Checkbox
+        :model-value="selectedNameFilters.includes(nameVal)"
+        :binary="true"
+        @update:model-value="toggleNameFilter(nameVal)"
       />
       {{ $t(`map.controls.${nameVal}`) }}
     </label>
     <label class="flex items-center gap-2 cursor-pointer text-sm text-color">
-      <input
-        type="checkbox"
-        :checked="selectedProjectTags.includes(untaggedFilter)"
-        @change="toggleProjectTagFilter(untaggedFilter)"
+      <Checkbox
+        :model-value="selectedProjectTags.includes(untaggedFilter)"
+        :binary="true"
+        @update:model-value="toggleProjectTagFilter(untaggedFilter)"
       />
       {{ $t("map.controls.untagged") }}
     </label>
@@ -100,8 +104,8 @@
       <!-- @vue-expect-error PrimeVue v-model type mismatch -->
       <Slider v-model="sizeSliderPositions" :min="0" :max="100" :step="1" range class="w-full" />
       <div class="flex justify-between mt-2 text-xs text-color-secondary">
-        <span>{{ formatSize(sizeFilterRange[0]) }}</span>
-        <span>{{ formatSize(sizeFilterRange[1]) }}</span>
+        <span>{{ formatSizeM(sizeFilterRange[0]) }}</span>
+        <span>{{ formatSizeM(sizeFilterRange[1]) }}</span>
       </div>
     </div>
   </div>
@@ -150,6 +154,7 @@ import {
   lastModifiedDateRange,
   showOnlyWithImages,
   toggleShowOnlyWithImages,
+  formatSizeM,
 } from "@/services/core/filters";
 import type { TimelineStatus } from "../../../../back/src/db/schema";
 import {
@@ -167,9 +172,22 @@ const { t } = useI18n();
 
 // Range slider that only ever commits a single active bound. Tiles carry per-cell min/max,
 // not a full distribution, so two active bounds would produce false cluster matches.
-function useSingleBoundSlider(max: number, commit: (minPos: number, maxPos: number) => void) {
+// `isDefault` rewinds the handles when the committed range is cleared from elsewhere.
+function useSingleBoundSlider(
+  max: number,
+  commit: (minPos: number, maxPos: number) => void,
+  isDefault: () => boolean,
+) {
   const positions = ref<[number, number]>([0, max]);
   const prev = ref<[number, number]>([0, max]);
+
+  watch(isDefault, (atDefault) => {
+    if (!atDefault) return;
+    const [minPos, maxPos] = positions.value;
+    if (minPos === 0 && maxPos === max) return;
+    prev.value = [0, max];
+    positions.value = [0, max];
+  });
 
   watch(positions, ([minPos, maxPos]) => {
     // Collapse crossed handles to the one that didn't move.
@@ -207,7 +225,12 @@ function commitSizeRange(minPos: number, maxPos: number) {
   sizeFilterRange.value = [posToMeters(minPos), posToMeters(maxPos)];
 }
 
-const sizeSliderPositions = useSingleBoundSlider(100, commitSizeRange);
+function sizeIsDefault(): boolean {
+  const [min, max] = sizeFilterRange.value;
+  return min === 0 && !Number.isFinite(max);
+}
+
+const sizeSliderPositions = useSingleBoundSlider(100, commitSizeRange, sizeIsDefault);
 
 // Date slider: reverse-logarithmic in "days ago" so the newest handle gets day-level
 // resolution near now (yesterday, 2 days ago...) while older positions span months and years.
@@ -219,7 +242,12 @@ const nowMs = currentDate.getTime();
 const originMs = new Date(DATE_SLIDER_ORIGIN_YEAR, 0, 1).getTime();
 const totalDaysSpan = Math.max(1, (nowMs - originMs) / MS_PER_DAY);
 
-const dateSliderPositions = useSingleBoundSlider(DATE_SLIDER_MAX, commitDateRange);
+function dateIsDefault(): boolean {
+  const [min, max] = lastModifiedDateRange.value;
+  return min === 0 && !Number.isFinite(max);
+}
+
+const dateSliderPositions = useSingleBoundSlider(DATE_SLIDER_MAX, commitDateRange, dateIsDefault);
 
 function posToDaysAgo(pos: number): number {
   return (totalDaysSpan + 1) ** ((DATE_SLIDER_MAX - pos) / DATE_SLIDER_MAX) - 1;
@@ -247,12 +275,6 @@ function commitDateRange(minPos: number, maxPos: number) {
 }
 
 const nameFilters: ("named" | "unnamed")[] = ["named", "unnamed"];
-
-function formatSize(meters: number): string {
-  if (!Number.isFinite(meters)) return "500km+";
-  if (meters >= 1000) return `${(meters / 1000).toFixed(1)}km`;
-  return `${meters}m`;
-}
 
 // "canceled" is omitted, too confusing for most users.
 const filters: {

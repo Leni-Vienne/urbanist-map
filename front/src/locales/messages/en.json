@@ -179,7 +179,18 @@
     "noContributionsFound": "No contributions found.",
     "beFirstToAdd": "Be the first to add a project",
     "loadingContributions": "Loading contributions...",
-    "fromOpenStreetMap": "From OpenStreetMap"
+    "noMatchingContributions": "Nothing matches these filters yet.",
+    "tryWideningFilters": "Widen a filter, or add the first one from Contribute.",
+    "filterBySource": "Filter by source",
+    "filterByKind": "Filter by contribution type",
+    "sourceCommunity": "Community",
+    "sourceOsm": "OpenStreetMap",
+    "sourceOsmShort": "OSM",
+    "kindProjects": "Projects",
+    "kindImages": "Images",
+    "moreFilters": "More filters",
+    "clearFilters": "Clear all",
+    "loadMore": "Load more"
   },
   "onMap": {
     "noProjects": "No projects visible",

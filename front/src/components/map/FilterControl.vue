@@ -36,29 +36,9 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import {
-  selectedStatusFilters,
-  selectedProjectTags,
-  sizeFilterRange,
-  selectedNameFilters,
-  lastModifiedDateRange,
-  showOnlyWithImages,
-} from "@/services/core/filters";
+import { activeFilterCount } from "@/services/core/filters";
 import { isMobile } from "@/services/core/viewport";
 import FilterPanelContent from "@/components/map/FilterPanelContent.vue";
-
-const activeFilterCount = computed(() => {
-  let count =
-    selectedStatusFilters.value.length +
-    selectedProjectTags.value.length +
-    selectedNameFilters.value.length;
-  if (Number.isFinite(sizeFilterRange.value[0]) && sizeFilterRange.value[0] > 0) count += 1;
-  if (Number.isFinite(sizeFilterRange.value[1])) count += 1;
-  if (lastModifiedDateRange.value[0] > 0) count += 1;
-  if (Number.isFinite(lastModifiedDateRange.value[1])) count += 1;
-  if (showOnlyWithImages.value) count += 1;
-  return count;
-});
 
 const FILTER_HINT_KEY = "filter-control-seen";
 const showFilterHint = ref(localStorage.getItem(FILTER_HINT_KEY) !== "1");

@@ -1,5 +1,5 @@
-// Project filter state (timeline status, tags, name, size, date, has-images) shared by
-// FilterControl, the vector tile layers, and viewport rendering.
+// Project filter state (timeline status, tags, name, size, date, has-images), shared by every
+// surface that narrows the project set.
 
 import { ref, computed } from "vue";
 import type { TimelineStatus } from "../../../../back/src/db/schema";
@@ -123,3 +123,123 @@ export function toggleFilter(status: TimelineStatus): void {
 
   selectedStatusFilters.value = [...selectedStatusFilters.value, status];
 }
+
+export function formatSizeM(meters: number): string {
+  if (!Number.isFinite(meters)) return "500km+";
+  if (meters >= 1000) return `${(meters / 1000).toFixed(1)}km`;
+  return `${meters}m`;
+}
+
+// One applied filter, in a form a list can render as a removable chip. Labels are left to the
+// caller so translation stays in the component layer.
+export type ActiveFilter =
+  | { kind: "tag"; slug: string }
+  | { kind: "untagged" }
+  | { kind: "status"; status: TimelineStatus }
+  | { kind: "name"; value: "named" | "unnamed" }
+  | { kind: "size"; min: number; max: number }
+  | { kind: "date"; min: number; max: number }
+  | { kind: "images" };
+
+export const activeFilters = computed<ActiveFilter[]>(() => {
+  const out: ActiveFilter[] = [];
+  for (const slug of selectedProjectTags.value) {
+    out.push(slug === UNTAGGED_PROJECT_FILTER ? { kind: "untagged" } : { kind: "tag", slug });
+  }
+  for (const status of selectedStatusFilters.value) {
+    out.push({ kind: "status", status });
+  }
+  for (const value of selectedNameFilters.value) {
+    out.push({ kind: "name", value });
+  }
+  const [minSize, maxSize] = sizeFilterRange.value;
+  if (minSize > 0 || Number.isFinite(maxSize)) {
+    out.push({ kind: "size", min: minSize, max: maxSize });
+  }
+  const [minDate, maxDate] = lastModifiedDateRange.value;
+  if (minDate > 0 || Number.isFinite(maxDate)) {
+    out.push({ kind: "date", min: minDate, max: maxDate });
+  }
+  if (showOnlyWithImages.value) {
+    out.push({ kind: "images" });
+  }
+  return out;
+});
+
+export const activeFilterCount = computed(() => activeFilters.value.length);
+
+function resetSizeFilter(): void {
+  sizeFilterRange.value = [0, Infinity];
+}
+
+function resetDateFilter(): void {
+  lastModifiedDateRange.value = [0, Infinity];
+}
+
+export function clearActiveFilter(filter: ActiveFilter): void {
+  switch (filter.kind) {
+    case "tag":
+      toggleProjectTagFilter(filter.slug);
+      return;
+    case "untagged":
+      toggleProjectTagFilter(UNTAGGED_PROJECT_FILTER);
+      return;
+    case "status":
+      toggleFilter(filter.status);
+      return;
+    case "name":
+      toggleNameFilter(filter.value);
+      return;
+    case "size":
+      resetSizeFilter();
+      return;
+    case "date":
+      resetDateFilter();
+      return;
+    case "images":
+      showOnlyWithImages.value = false;
+      return;
+    default:
+  }
+}
+
+export function clearAllFilters(): void {
+  selectedProjectTags.value = [];
+  selectedStatusFilters.value = [];
+  selectedNameFilters.value = [];
+  showOnlyWithImages.value = false;
+  resetSizeFilter();
+  resetDateFilter();
+}
+
+// The filter state in the shape the feed query takes. Infinity bounds are dropped rather than
+// serialized, so an absent bound means "unbounded" on the wire.
+export type FeedFilterInput = {
+  tags?: string[];
+  includeUntagged?: boolean;
+  statuses?: TimelineStatus[];
+  minSizeM?: number;
+  maxSizeM?: number;
+  modifiedAfterMs?: number;
+  modifiedBeforeMs?: number;
+  named?: "named" | "unnamed";
+  onlyWithImages?: boolean;
+};
+
+export const feedFilterInput = computed<FeedFilterInput>(() => {
+  const { includeUntagged, knownTags } = splitTagSelection();
+  const [minSize, maxSize] = sizeFilterRange.value;
+  const [minDate, maxDate] = lastModifiedDateRange.value;
+  const nameMode = getNameFilterMode();
+  return {
+    ...(knownTags.length > 0 && { tags: knownTags }),
+    ...(includeUntagged && { includeUntagged: true }),
+    ...(selectedStatusFilters.value.length > 0 && { statuses: [...selectedStatusFilters.value] }),
+    ...(minSize > 0 && { minSizeM: minSize }),
+    ...(Number.isFinite(maxSize) && { maxSizeM: maxSize }),
+    ...(minDate > 0 && { modifiedAfterMs: minDate }),
+    ...(Number.isFinite(maxDate) && { modifiedBeforeMs: maxDate }),
+    ...(nameMode !== "all" && { named: nameMode }),
+    ...(showOnlyWithImages.value && { onlyWithImages: true }),
+  };
+});
