@@ -1,7 +1,7 @@
 import { publicProcedure, router, TRPCError } from "../trpc";
 import { z } from "zod";
 import { db } from "../database";
-import { overlays, projects, adminBoundaries } from "../db/schema";
+import { overlays, projects, adminBoundaries, importSources } from "../db/schema";
 import { sql, eq, and, or, desc, type SQL } from "drizzle-orm";
 
 // Position of the last row consumed from one underlying query. Each query keeps its own, so a
@@ -17,6 +17,27 @@ const feedCursorSchema = z.object({
 type FeedPosition = z.infer<typeof feedPositionSchema>;
 type FeedCursor = z.infer<typeof feedCursorSchema>;
 
+const MAX_WEB_MERCATOR_LATITUDE = 85.05112878;
+
+const mapAreaSchema = z
+  .object({
+    west: z.number().min(-180).max(180),
+    south: z.number().min(-MAX_WEB_MERCATOR_LATITUDE).max(MAX_WEB_MERCATOR_LATITUDE),
+    east: z.number().min(-180).max(180),
+    north: z.number().min(-MAX_WEB_MERCATOR_LATITUDE).max(MAX_WEB_MERCATOR_LATITUDE),
+  })
+  .refine((bounds) => bounds.south < bounds.north, {
+    message: "Map area must have a positive height",
+  })
+  .refine(
+    (bounds) => {
+      const longitudeSpan =
+        bounds.west <= bounds.east ? bounds.east - bounds.west : 360 - bounds.west + bounds.east;
+      return longitudeSpan <= 90 && bounds.north - bounds.south <= 50;
+    },
+    { message: "Map area is too large" },
+  );
+
 const getLatestContributionsSchema = z.object({
   limit: z.number().min(1).max(50).optional().default(20),
   cursor: feedCursorSchema.nullish(),
@@ -31,14 +52,11 @@ const getLatestContributionsSchema = z.object({
   modifiedBeforeMs: z.number().optional(),
   named: z.enum(["named", "unnamed"]).optional(),
   onlyWithImages: z.boolean().optional(),
+  mapArea: mapAreaSchema.optional(),
 });
 
 type FeedInput = z.infer<typeof getLatestContributionsSchema>;
-
-// Longest run of same-source rows the merged list will emit while the other source still has
-// rows buffered. Keeps community contributions visible through a batch import without
-// partitioning the list, which would push fresh imports below stale community rows.
-const MAX_CONSECUTIVE_SAME_SOURCE = 3;
+type MapArea = z.infer<typeof mapAreaSchema>;
 
 // Name variants of one boundary. Shipping every locale the UI can render, rather than a single
 // resolved name, keeps the feed free of a locale param and its cached pages locale-agnostic.
@@ -142,6 +160,36 @@ function dateRangeConditions(input: FeedInput, dateExpr: SQL): SQL[] {
   return conditions;
 }
 
+function intersectsMapArea(geometry: SQL, area: MapArea): SQL {
+  const westToEast = sql`ST_MakeEnvelope(${area.west}, ${area.south}, ${area.east}, ${area.north}, 4326)`;
+  if (area.west <= area.east) {
+    return sql`(${geometry} && ${westToEast} AND ST_Intersects(${geometry}, ${westToEast}))`;
+  }
+
+  const westToDateline = sql`ST_MakeEnvelope(${area.west}, ${area.south}, 180, ${area.north}, 4326)`;
+  const datelineToEast = sql`ST_MakeEnvelope(-180, ${area.south}, ${area.east}, ${area.north}, 4326)`;
+  return sql`(
+    (${geometry} && ${westToDateline} AND ST_Intersects(${geometry}, ${westToDateline}))
+    OR (${geometry} && ${datelineToEast} AND ST_Intersects(${geometry}, ${datelineToEast}))
+  )`;
+}
+
+function standaloneMapAreaConditions(input: FeedInput): SQL[] {
+  if (!input.mapArea) return [];
+  const area = input.mapArea;
+  return [
+    sql`(
+      ${intersectsMapArea(sql`${projects.geometry}`, area)}
+      OR ${intersectsMapArea(sql`${projects.centerCoordinate}`, area)}
+    )`,
+  ];
+}
+
+function overlayMapAreaConditions(input: FeedInput): SQL[] {
+  if (!input.mapArea) return [];
+  return [intersectsMapArea(sql`${overlays.corners}`, input.mapArea)];
+}
+
 // Keyset predicate. Row comparison orders by date then id, matching the ORDER BY, so rows sharing
 // a timestamp are still split at an exact position.
 function keysetCondition(
@@ -190,6 +238,7 @@ function buildStandaloneProjectsQuery(
     importFilter,
     ...projectFilterConditions(input, projects.name),
     ...dateRangeConditions(input, contributionDate),
+    ...standaloneMapAreaConditions(input),
     ...keysetCondition(contributionDate, projects.id, position),
   ];
   // A standalone project's only image is its approved render.
@@ -334,6 +383,7 @@ function buildLatestOverlaysQuery(
         eq(overlays.kind, "map"),
         ...projectFilterConditions(input, overlayName),
         ...dateRangeConditions(input, contributionDate),
+        ...overlayMapAreaConditions(input),
       ),
     )
     .orderBy(overlays.projectId, desc(overlays.updatedAt))
@@ -393,44 +443,8 @@ function rowTime(row: PendingRow): number {
   return new Date(row.item.updatedAt).getTime();
 }
 
-type MergeSide = "community" | "imported";
-
-// Newest first, except that an over-long run of imports yields to a community row while one is
-// still buffered. The cap is one-way: it exists to keep a batch import from burying community
-// contributions, and capping community runs would instead push stale imports above fresh rows.
-function pickSide(
-  communityHead: PendingRow | undefined,
-  importedHead: PendingRow | undefined,
-  runSource: MergeSide | null,
-  runLength: number,
-): MergeSide {
-  if (!communityHead) return "imported";
-  if (!importedHead) return "community";
-  if (runSource === "imported" && runLength >= MAX_CONSECUTIVE_SAME_SOURCE) return "community";
-  return rowTime(communityHead) >= rowTime(importedHead) ? "community" : "imported";
-}
-
-// Newest-first merge of the community and import streams, capped so the list cannot show more
-// than MAX_CONSECUTIVE_SAME_SOURCE rows of one source while the other still has rows to give.
-// Rows passed over stay unconsumed and lead the next page.
 function mergeStreams(rows: PendingRow[], limit: number): PendingRow[] {
-  const community = rows.filter((row) => !row.item.isImport).toSorted(byNewest);
-  const imported = rows.filter((row) => row.item.isImport).toSorted(byNewest);
-
-  const out: PendingRow[] = [];
-  let runSource: MergeSide | null = null;
-  let runLength = 0;
-
-  while (out.length < limit && (community.length > 0 || imported.length > 0)) {
-    const take = pickSide(community[0], imported[0], runSource, runLength);
-    const next = take === "community" ? community.shift() : imported.shift();
-    if (!next) break;
-    out.push(next);
-    runLength = take === runSource ? runLength + 1 : 1;
-    runSource = take;
-  }
-
-  return out;
+  return rows.toSorted(byNewest).slice(0, limit);
 }
 
 function byNewest(a: PendingRow, b: PendingRow): number {
@@ -479,11 +493,20 @@ function cacheKey(input: FeedInput): string | null {
     input.modifiedAfterMs === undefined &&
     input.modifiedBeforeMs === undefined &&
     input.named === undefined &&
-    !input.onlyWithImages;
+    !input.onlyWithImages &&
+    input.mapArea === undefined;
   return isDefaultPage ? `${input.source}|${input.kind}|${input.limit}` : null;
 }
 
 export const feedRouter = router({
+  getOsmSyncStatus: publicProcedure.query(async () => {
+    const [row] = await db
+      .select({ lastSyncedAt: sql<Date | null>`MAX(${importSources.lastSyncAt})` })
+      .from(importSources)
+      .where(and(eq(importSources.type, "osm"), eq(importSources.enabled, true)));
+    return { lastSyncedAt: row?.lastSyncedAt ?? null };
+  }),
+
   getLatestContributions: publicProcedure
     .input(getLatestContributionsSchema)
     .query(async ({ input }): Promise<FeedPage> => {

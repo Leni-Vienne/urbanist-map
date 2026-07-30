@@ -1,8 +1,7 @@
 <template>
   <div :class="contentContainerClass">
     <KeepAlive>
-      <CurrentLocationPanel v-if="activeTab === 'currentLocation'" />
-      <LatestContributionsPanel v-else-if="activeTab === 'latest'" />
+      <LatestContributionsPanel v-if="activeTab === 'latest'" />
       <FilterPanel v-else-if="activeTab === 'filter'" />
       <ContributePanel v-else-if="activeTab === 'contribute' && authStore.isAuthenticated" />
       <ContributeGuestPanel v-else-if="activeTab === 'contribute' && !authStore.isAuthenticated" />
@@ -35,7 +34,6 @@ import LatestContributionsPanel from "./LatestContributionsPanel.vue";
 
 // Lazy load panels to reduce initial bundle size and allow Rolldown to deduplicate
 // shared async imports (e.g. ProjectAccordionPanel) across a single async chunk scope
-const CurrentLocationPanel = defineAsyncComponent(() => import("./CurrentLocationPanel.vue"));
 const FilterPanel = defineAsyncComponent(() => import("./FilterPanel.vue"));
 const ModerationPanel = defineAsyncComponent(() => import("./ModerationPanel.vue"));
 const ContributePanel = defineAsyncComponent(() => import("./ContributePanel.vue"));

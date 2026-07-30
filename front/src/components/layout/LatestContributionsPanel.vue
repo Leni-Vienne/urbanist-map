@@ -36,11 +36,22 @@
             :aria-label="t('contribution.moreFilters')"
           />
         </div>
+
+        <MapAreaSearchControl class="shrink-0" />
       </div>
 
       <!-- Applied filters, removable in place. Relaxing a filter is the common case and needs no
            trip back to the full palette. -->
       <div v-if="hasChippedFilters" class="flex flex-wrap items-center gap-1.5 px-2 pb-2">
+        <button
+          v-if="mapArea"
+          type="button"
+          class="inline-flex items-center gap-1 pl-2 pr-1.5 py-0.5 rounded-full text-[0.7rem] font-medium bg-content-hover-background text-color border border-surface cursor-pointer transition-colors duration-150 hover:bg-black/5 dark:hover:bg-white/10"
+          @click="clearMapArea"
+        >
+          {{ t("contribution.mapArea") }}
+          <i class="pi pi-times text-[0.6rem] text-muted-color"></i>
+        </button>
         <button
           v-if="kind !== 'all'"
           type="button"
@@ -67,6 +78,36 @@
         >
           {{ t("contribution.clearFilters") }}
         </button>
+      </div>
+
+      <div v-if="source !== 'osm' && osmLastSyncedAt" class="px-2 pb-1.5">
+        <button
+          type="button"
+          class="w-full flex items-center justify-between gap-2 px-1 py-1.5 text-xs text-muted-color bg-transparent border-0 cursor-pointer transition-colors duration-150 hover:text-color"
+          :aria-expanded="isOsmSyncExpanded"
+          @click="isOsmSyncExpanded = !isOsmSyncExpanded"
+        >
+          <span class="flex items-center gap-2 min-w-0">
+            <i class="pi pi-refresh text-[0.7rem] shrink-0"></i>
+            <span class="truncate">{{ osmSyncLabel }}</span>
+          </span>
+          <i
+            class="pi pi-chevron-down text-[0.65rem] shrink-0 transition-transform duration-150"
+            :class="isOsmSyncExpanded ? 'rotate-180' : ''"
+          ></i>
+        </button>
+
+        <div v-if="isOsmSyncExpanded" class="px-1 pb-1 pt-0.5 text-xs text-muted-color">
+          <p class="m-0 mb-1.5 leading-snug">{{ t("contribution.osmDataDescription") }}</p>
+          <button
+            type="button"
+            class="inline-flex items-center gap-1 p-0 text-xs font-medium text-primary-color bg-transparent border-0 cursor-pointer hover:text-primary-hover-color"
+            @click="browseOsmUpdates"
+          >
+            {{ t("contribution.browseOsmUpdates") }}
+            <i class="pi pi-arrow-right text-[0.65rem]"></i>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -220,9 +261,13 @@ import {
   kind,
   sourceSelection,
   kindSelection,
+  mapArea,
+  osmLastSyncedAt,
   activateLatestContributions,
   deactivateLatestContributions,
   loadMoreLatestContributions,
+  clearMapArea,
+  showOsmUpdates,
 } from "@/services/feed/latestContributions";
 import {
   activeFilters,
@@ -237,6 +282,7 @@ import { getProjectTagIcon, getProjectTagColor } from "@/constants/projectTags";
 import ShapeThumbnail from "@/components/common/ShapeThumbnail.vue";
 import PanelEmptyState from "@/components/common/PanelEmptyState.vue";
 import FilterPanelContent from "@/components/map/FilterPanelContent.vue";
+import MapAreaSearchControl from "@/components/map/MapAreaSearchControl.vue";
 import { formatRelativeTime } from "@/utils/dateFormat";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
 import { useMapStore } from "@/stores/mapStore";
@@ -256,6 +302,7 @@ const { t, te, locale } = useI18n();
 const mapStore = useMapStore();
 
 const { imageErrors, handleImageError, handleImageLoad } = useImageErrors();
+const isOsmSyncExpanded = ref(false);
 
 const SOURCE_OPTIONS = computed(() => [
   { value: "community" as const, label: t("contribution.sourceCommunity") },
@@ -269,16 +316,33 @@ const KIND_OPTIONS = computed(() => [
 
 // Drives the empty-state copy: an empty list means something different when the query was narrowed.
 const hasNarrowedQuery = computed(
-  () => activeFilterCount.value > 0 || source.value !== "all" || kind.value !== "all",
+  () =>
+    activeFilterCount.value > 0 ||
+    source.value !== "all" ||
+    kind.value !== "all" ||
+    mapArea.value !== null,
 );
 
 // Everything reachable only through the popover, so the button can show that something is applied.
 const hasPopoverFilters = computed(() => activeFilterCount.value > 0 || kind.value !== "all");
-const hasChippedFilters = computed(() => activeFilters.value.length > 0 || kind.value !== "all");
+const hasChippedFilters = computed(
+  () => activeFilters.value.length > 0 || kind.value !== "all" || mapArea.value !== null,
+);
+const osmSyncLabel = computed(() =>
+  t("contribution.osmDataUpdated", {
+    time: formatRelativeTime(osmLastSyncedAt.value, t),
+  }),
+);
 
 function clearChippedFilters(): void {
   clearAllFilters();
   kindSelection.value = [];
+  clearMapArea();
+}
+
+function browseOsmUpdates(): void {
+  isOsmSyncExpanded.value = false;
+  showOsmUpdates();
 }
 
 function getContributionImageUrl(filename: string): string {

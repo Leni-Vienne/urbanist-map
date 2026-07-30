@@ -7,12 +7,9 @@ import { useAuthStore } from "@/stores/authStore";
 import { useModerationStore } from "@/stores/moderationStore";
 
 // The active panel tab is the single source of truth; the map mode is derived from it.
-// view is reachable from two tabs (latest, currentLocation), so mode is a function of
-// tab but tab is not a function of mode, which is why tab has to be the source.
 function tabToMode(tab: PanelTab): AppMode {
   switch (tab) {
     case "latest":
-    case "currentLocation":
     case "filter":
       return "view";
     case "contribute":
@@ -49,12 +46,11 @@ export const useMapStore = defineStore("map", () => {
     return target;
   });
 
-  // The tab a given mode lands on. view picks Current Location when a country is selected
-  // (e.g. coming back from moderation), otherwise the Latest feed.
+  // The tab a given mode lands on.
   function modeToTab(targetMode: AppMode): PanelTab {
     switch (targetMode) {
       case "view":
-        return selectedCountryCode.value ? "currentLocation" : "latest";
+        return "latest";
       case "edit":
         return "contribute";
       case "moderation":

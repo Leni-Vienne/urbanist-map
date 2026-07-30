@@ -64,9 +64,8 @@
     "tags": "Tags"
   },
   "navigation": {
-    "latestContributions": "Latest",
-    "latestContributionsShort": "Latest",
-    "onMap": "On Map",
+    "latestContributions": "Explore",
+    "latestContributionsShort": "Explore",
     "filter": "Filter",
     "contribute": "Contribute",
     "unsavedOverlaysWarning": "You have unsaved images. Navigating will discard them. Continue?"
@@ -190,16 +189,14 @@
     "kindImages": "Images",
     "moreFilters": "More filters",
     "clearFilters": "Clear all",
-    "loadMore": "Load more"
-  },
-  "onMap": {
-    "noProjects": "No projects visible",
-    "noProjectsDetail": "Zoom in or pan the map to find projects",
-    "projectsVisible": "{count} project on screen | {count} projects on screen",
-    "sortRecent": "Sort by most recent",
-    "sortName": "Sort by name",
-    "sortSize": "Sort by size",
-    "sortStatus": "Sort by timeline status"
+    "loadMore": "Load more",
+    "mapArea": "Map area",
+    "searchMapArea": "Search this area",
+    "updateMapArea": "Update to this view",
+    "zoomInToSearchMapArea": "Zoom in to search this area",
+    "osmDataUpdated": "OSM data refreshed {time}",
+    "osmDataDescription": "OpenStreetMap data is synchronized daily and kept separate from community activity.",
+    "browseOsmUpdates": "Explore OpenStreetMap data"
   },
   "overlay": {
     "overlayName": "Image Name",

@@ -191,7 +191,7 @@ export interface OverlayObject extends OverlayData {
   positionState: OverlayPositionState;
 }
 
-export type PanelTab = "latest" | "currentLocation" | "filter" | "contribute" | "moderation";
+export type PanelTab = "latest" | "filter" | "contribute" | "moderation";
 
 // Wire shape of an overlay row as the contribution/moderation endpoints return it.
 type BackendOverlayMetadata =

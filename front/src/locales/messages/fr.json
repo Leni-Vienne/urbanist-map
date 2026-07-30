@@ -64,9 +64,8 @@
     "tags": "Catégories"
   },
   "navigation": {
-    "latestContributions": "Récents",
-    "latestContributionsShort": "Récentes",
-    "onMap": "Sur la carte",
+    "latestContributions": "Explorer",
+    "latestContributionsShort": "Explorer",
     "filter": "Filtrer",
     "contribute": "Contribuer",
     "unsavedOverlaysWarning": "Vous avez des images non enregistrées. La navigation les supprimera. Continuer ?"
@@ -190,16 +189,14 @@
     "kindImages": "Images",
     "moreFilters": "Plus de filtres",
     "clearFilters": "Tout effacer",
-    "loadMore": "Voir plus"
-  },
-  "onMap": {
-    "noProjects": "Aucun projet visible",
-    "noProjectsDetail": "Zoomez ou déplacez la carte pour trouver des projets",
-    "projectsVisible": "{count} projet à l'écran | {count} projets à l'écran",
-    "sortRecent": "Trier par plus récent",
-    "sortName": "Trier par nom",
-    "sortSize": "Trier par taille",
-    "sortStatus": "Trier par statut chronologique"
+    "loadMore": "Voir plus",
+    "mapArea": "Zone de la carte",
+    "searchMapArea": "Rechercher dans cette zone",
+    "updateMapArea": "Mettre à jour cette zone",
+    "zoomInToSearchMapArea": "Zoomez pour rechercher dans cette zone",
+    "osmDataUpdated": "Données OSM actualisées {time}",
+    "osmDataDescription": "Les données OpenStreetMap sont synchronisées chaque jour et séparées de l'activité de la communauté.",
+    "browseOsmUpdates": "Explorer les données OpenStreetMap"
   },
   "overlay": {
     "overlayName": "Nom de l'image",
