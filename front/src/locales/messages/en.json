@@ -178,6 +178,8 @@
     "noContributionsFound": "No contributions found.",
     "beFirstToAdd": "Be the first to add a project",
     "loadingContributions": "Loading contributions...",
+    "projectCountOne": "{count} project",
+    "projectCountMany": "{count} projects",
     "noMatchingContributions": "Nothing matches these filters yet.",
     "tryWideningFilters": "Widen a filter, or add the first one from Contribute.",
     "filterBySource": "Filter by source",

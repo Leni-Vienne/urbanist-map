@@ -44,9 +44,7 @@ const mapAreaSchema = z
     { message: "Map area is too large" },
   );
 
-const getLatestContributionsSchema = z.object({
-  limit: z.number().min(1).max(50).optional().default(20),
-  cursor: feedCursorSchema.nullish(),
+const feedQuerySchema = z.object({
   source: z.enum(["all", "community", "osm"]).optional().default("all"),
   tags: z.array(z.string()).optional(),
   includeUntagged: z.boolean().optional(),
@@ -60,7 +58,13 @@ const getLatestContributionsSchema = z.object({
   mapArea: mapAreaSchema.optional(),
 });
 
-type FeedInput = z.infer<typeof getLatestContributionsSchema>;
+const getLatestContributionsSchema = feedQuerySchema.extend({
+  limit: z.number().min(1).max(50).optional().default(20),
+  cursor: feedCursorSchema.nullish(),
+});
+
+type FeedInput = z.infer<typeof feedQuerySchema>;
+type FeedPageInput = z.infer<typeof getLatestContributionsSchema>;
 type MapArea = z.infer<typeof mapAreaSchema>;
 
 // Name variants of one boundary. Shipping every locale the UI can render, rather than a single
@@ -208,34 +212,29 @@ function keysetCondition(
   ];
 }
 
-// Builds the standalone-projects feed query (approved, no approved map overlay).
-// The candidate subquery keeps sorting and pagination independent from the recursive location and
-// geometry projections used to hydrate the selected page.
-function buildStandaloneProjectsQuery(
-  stream: "direct" | "imported",
-  limit: number,
-  input: FeedInput,
-  cursor: FeedStreamCursor | null | undefined,
-) {
-  const isImported = stream === "imported";
-  const contributionDate = isImported
+type StandaloneStream = "direct" | "imported";
+
+function standaloneContributionDate(stream: StandaloneStream): SQL<Date> {
+  return stream === "imported"
     ? sql<Date>`COALESCE(${projects.externalLastModified}, ${projects.updatedAt})`
     : sql<Date>`CASE
         WHEN ${projects.importLockedAt} IS NOT NULL THEN ${projects.updatedAt}
         ELSE COALESCE(${projects.externalLastModified}, ${projects.updatedAt})
       END`;
-  const importFilter = isImported
+}
+
+function standaloneImportFilter(stream: StandaloneStream): SQL {
+  return stream === "imported"
     ? sql`(${projects.importSourceId} IS NOT NULL AND ${projects.importLockedAt} IS NULL)`
     : sql`(${projects.importSourceId} IS NULL OR ${projects.importLockedAt} IS NOT NULL)`;
-  const approvedRender = sql`(
-    SELECT ${overlays.filename} FROM ${overlays}
-    WHERE ${overlays.projectId} = ${projects.id}
-    AND ${overlays.status} = 'approved'
-    AND ${overlays.kind} = 'render'
-    ORDER BY ${overlays.updatedAt} DESC
-    LIMIT 1
-  )`;
+}
 
+function standaloneConditions(
+  stream: StandaloneStream,
+  input: FeedInput,
+  cursor?: FeedStreamCursor | null,
+): SQL[] {
+  const contributionDate = standaloneContributionDate(stream);
   const conditions: SQL[] = [
     sql`${projects.status} = 'approved'`,
     sql`NOT EXISTS (
@@ -244,13 +243,13 @@ function buildStandaloneProjectsQuery(
       AND ${overlays.status} = 'approved'
       AND ${overlays.kind} = 'map'
     )`,
-    importFilter,
+    standaloneImportFilter(stream),
     ...projectFilterConditions(input, projects.name),
     ...dateRangeConditions(input, contributionDate),
     ...standaloneMapAreaConditions(input),
     ...keysetCondition(contributionDate, projects.id, cursor),
   ];
-  // A standalone project's only image is its approved render.
+
   if (input.onlyWithImages) {
     conditions.push(sql`EXISTS (
       SELECT 1 FROM ${overlays}
@@ -260,13 +259,35 @@ function buildStandaloneProjectsQuery(
     )`);
   }
 
+  return conditions;
+}
+
+// Builds the standalone-projects feed query (approved, no approved map overlay).
+// The candidate subquery keeps sorting and pagination independent from the recursive location and
+// geometry projections used to hydrate the selected page.
+function buildStandaloneProjectsQuery(
+  stream: StandaloneStream,
+  limit: number,
+  input: FeedInput,
+  cursor: FeedStreamCursor | null | undefined,
+) {
+  const contributionDate = standaloneContributionDate(stream);
+  const approvedRender = sql`(
+    SELECT ${overlays.filename} FROM ${overlays}
+    WHERE ${overlays.projectId} = ${projects.id}
+    AND ${overlays.status} = 'approved'
+    AND ${overlays.kind} = 'render'
+    ORDER BY ${overlays.updatedAt} DESC
+    LIMIT 1
+  )`;
+
   const candidates = db
     .select({
       id: projects.id,
       updatedAt: contributionDate.as("updatedAt"),
     })
     .from(projects)
-    .where(and(...conditions))
+    .where(and(...standaloneConditions(stream, input, cursor)))
     .orderBy(sql`${contributionDate} DESC, ${projects.id} DESC`)
     .limit(limit)
     .as("standalone_candidates");
@@ -361,6 +382,25 @@ function mapStandaloneProject(p: StandaloneProjectRow, isImport: boolean) {
   };
 }
 
+function overlayContributionDate(): SQL<Date> {
+  return sql<Date>`GREATEST(${overlays.updatedAt}, ${projects.updatedAt})`;
+}
+
+function overlayProjectName(): SQL<string> {
+  return sql<string>`COALESCE(${projects.name}, ${overlays.caption})`;
+}
+
+function overlayConditions(input: FeedInput): SQL[] {
+  return [
+    eq(overlays.status, "approved"),
+    eq(projects.status, "approved"),
+    eq(overlays.kind, "map"),
+    ...projectFilterConditions(input, overlayProjectName()),
+    ...dateRangeConditions(input, overlayContributionDate()),
+    ...overlayMapAreaConditions(input),
+  ];
+}
+
 // One feed entry per project: the most recently updated approved overlay.
 // DISTINCT ON (project) collapses a multi-overlay project to a single row so a
 // batch approval can't bury every other contribution.
@@ -369,10 +409,8 @@ function buildLatestOverlaysQuery(
   input: FeedInput,
   cursor: FeedStreamCursor | null | undefined,
 ) {
-  // Rank by the latest activity on the project: the overlay's date or a later
-  // project edit (e.g. an approval that bumped the project), whichever is newer.
-  const contributionDate = sql<Date>`GREATEST(${overlays.updatedAt}, ${projects.updatedAt})`;
-  const overlayName = sql<string>`COALESCE(${projects.name}, ${overlays.caption})`;
+  const contributionDate = overlayContributionDate();
+  const overlayName = overlayProjectName();
 
   const latestOverlayPerProject = db
     .selectDistinctOn([overlays.projectId], {
@@ -396,16 +434,7 @@ function buildLatestOverlaysQuery(
     })
     .from(overlays)
     .leftJoin(projects, eq(overlays.projectId, projects.id))
-    .where(
-      and(
-        eq(overlays.status, "approved"),
-        eq(projects.status, "approved"),
-        eq(overlays.kind, "map"),
-        ...projectFilterConditions(input, overlayName),
-        ...dateRangeConditions(input, contributionDate),
-        ...overlayMapAreaConditions(input),
-      ),
-    )
+    .where(and(...overlayConditions(input)))
     .orderBy(overlays.projectId, desc(overlays.updatedAt))
     .as("latest_overlay_per_project");
 
@@ -479,12 +508,18 @@ type FeedPage = {
 // keying the cache on a filter combination would make it unbounded.
 const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
 const firstPageCache = new Map<string, { page: FeedPage; timestamp: number }>();
+const COUNT_CACHE_MAX_ENTRIES = 128;
+const contributionCountCache = new Map<string, { count: number; timestamp: number }>();
+const pendingContributionCounts = new Map<string, Promise<number>>();
+let feedCacheGeneration = 0;
 
 export function invalidateLatestContributionsCache() {
   firstPageCache.clear();
+  contributionCountCache.clear();
+  feedCacheGeneration += 1;
 }
 
-function cacheKey(input: FeedInput): string | null {
+function cacheKey(input: FeedPageInput): string | null {
   const isDefaultPage =
     !input.cursor &&
     !input.tags?.length &&
@@ -500,6 +535,89 @@ function cacheKey(input: FeedInput): string | null {
   return isDefaultPage ? `${input.source}|${input.limit}` : null;
 }
 
+function contributionCountCacheKey(input: FeedInput): string {
+  return JSON.stringify({
+    ...input,
+    tags: input.tags?.toSorted(),
+    statuses: input.statuses?.toSorted(),
+  });
+}
+
+function cacheContributionCount(key: string, count: number, timestamp: number): void {
+  contributionCountCache.delete(key);
+  contributionCountCache.set(key, { count, timestamp });
+  while (contributionCountCache.size > COUNT_CACHE_MAX_ENTRIES) {
+    const oldestKey = contributionCountCache.keys().next().value;
+    if (oldestKey === undefined) return;
+    contributionCountCache.delete(oldestKey);
+  }
+}
+
+function standaloneProjectCount(stream: StandaloneStream, input: FeedInput): SQL<number> {
+  return sql<number>`(
+    SELECT COUNT(*)::int
+    FROM ${projects}
+    WHERE ${and(...standaloneConditions(stream, input))}
+  )`;
+}
+
+function overlayProjectCount(input: FeedInput): SQL<number> {
+  return sql<number>`(
+    SELECT COUNT(DISTINCT ${overlays.projectId})::int
+    FROM ${overlays}
+    INNER JOIN ${projects} ON ${overlays.projectId} = ${projects.id}
+    WHERE ${and(...overlayConditions(input))}
+  )`;
+}
+
+async function countLatestContributions(input: FeedInput): Promise<number> {
+  const wantsCommunity = input.source !== "osm";
+  const wantsImported = input.source !== "community";
+  const countExpressions: SQL<number>[] = [];
+  if (wantsCommunity) {
+    countExpressions.push(overlayProjectCount(input), standaloneProjectCount("direct", input));
+  }
+  if (wantsImported) {
+    countExpressions.push(standaloneProjectCount("imported", input));
+  }
+
+  const [row] = await db
+    .select({ count: sql<number>`(${sql.join(countExpressions, sql` + `)})::int` })
+    .from(sql`(SELECT 1) AS count_source`);
+  return row?.count ?? 0;
+}
+
+async function getCachedContributionCount(input: FeedInput): Promise<number> {
+  const key = contributionCountCacheKey(input);
+  const now = Date.now();
+  const hit = contributionCountCache.get(key);
+  if (hit && now - hit.timestamp < CACHE_TTL) {
+    contributionCountCache.delete(key);
+    contributionCountCache.set(key, hit);
+    return hit.count;
+  }
+
+  const generation = feedCacheGeneration;
+  const pendingKey = `${generation}|${key}`;
+  let pending = pendingContributionCounts.get(pendingKey);
+  if (!pending) {
+    pending = countLatestContributions(input);
+    pendingContributionCounts.set(pendingKey, pending);
+  }
+
+  try {
+    const count = await pending;
+    if (generation === feedCacheGeneration) {
+      cacheContributionCount(key, count, now);
+    }
+    return count;
+  } finally {
+    if (pendingContributionCounts.get(pendingKey) === pending) {
+      pendingContributionCounts.delete(pendingKey);
+    }
+  }
+}
+
 function shouldQueryStream(enabled: boolean, cursor: FeedStreamCursor | null | undefined): boolean {
   return enabled && cursor !== EXHAUSTED_STREAM;
 }
@@ -511,6 +629,19 @@ export const feedRouter = router({
       .from(importSources)
       .where(and(eq(importSources.type, "osm"), eq(importSources.enabled, true)));
     return { lastSyncedAt: row?.lastSyncedAt ?? null };
+  }),
+
+  getContributionCount: publicProcedure.input(feedQuerySchema).query(async ({ input }) => {
+    try {
+      return { count: await getCachedContributionCount(input) };
+    } catch (error) {
+      console.error("Error in getContributionCount:", error);
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Failed to count contributions",
+        cause: error,
+      });
+    }
   }),
 
   getLatestContributions: publicProcedure

@@ -24,6 +24,8 @@ const latestContributions = ref<LatestContribution[]>([]);
 const cursor = ref<FeedCursor>(null);
 const loading = ref(false);
 const loadingMore = ref(false);
+const latestProjectCount = ref<number | null>(null);
+const countLoading = ref(false);
 
 // Empty or complete selection both mean "no narrowing", so the toggles stay independent and a
 // selected pair reads as selected instead of collapsing to a single All button.
@@ -42,21 +44,23 @@ export const source = computed<ContributionSource>(() => soleSelection(sourceSel
 
 // Identifies the query the loaded rows belong to. Comparing it against the live one tells whether
 // the list is stale without keeping a copy of the filter state.
-const queryKey = computed(() =>
-  JSON.stringify({
-    source: source.value,
-    mapArea: mapArea.value,
-    ...feedFilterInput.value,
-  }),
-);
+const queryKey = computed(() => JSON.stringify(buildFilterQueryInput()));
 const loadedKey = ref<string | null>(null);
+const loadedCountKey = ref<string | null>(null);
+let requestedCountKey: string | null = null;
 
 // Only the newest request may write to the list; earlier ones are abandoned on arrival.
 let requestToken = 0;
+let countRequestToken = 0;
 
 export const contributions = computed(() => latestContributions.value);
 export const isLoading = computed(() => loading.value);
 export const isLoadingMore = computed(() => loadingMore.value);
+export const projectCount = computed(() => latestProjectCount.value);
+// The count survives a query change and is only replaced once the new one arrives, so narrowing the
+// feed never collapses the row it sits on. True while the shown count does not describe the live
+// query.
+export const isCountStale = computed(() => loadedCountKey.value !== queryKey.value);
 export const hasMore = computed(() => cursor.value !== null);
 export const osmLastSyncedAt = computed(() => osmSyncStatus.value?.lastSyncedAt ?? null);
 export const showOsmSyncNotice = computed(
@@ -68,12 +72,18 @@ export const showOsmSyncNotice = computed(
 // breakpoint tears a panel down and builds another without the tab ever changing.
 export const isFeedActive = computed(() => useUiStore().activeTab === "latest");
 
-function buildQueryInput(pageCursor: FeedCursor) {
+function buildFilterQueryInput() {
   return {
-    limit: PAGE_SIZE,
     source: source.value,
     ...(mapArea.value && { mapArea: mapArea.value }),
     ...feedFilterInput.value,
+  };
+}
+
+function buildQueryInput(pageCursor: FeedCursor) {
+  return {
+    limit: PAGE_SIZE,
+    ...buildFilterQueryInput(),
     ...(pageCursor && { cursor: pageCursor }),
   };
 }
@@ -87,12 +97,48 @@ async function fetchPage(pageCursor: FeedCursor) {
   );
 }
 
+function ensureContributionCount(key: string): void {
+  if (loadedCountKey.value === key || (countLoading.value && requestedCountKey === key)) return;
+  void refreshContributionCount(key);
+}
+
+function invalidateContributionCount(): void {
+  countRequestToken += 1;
+  loadedCountKey.value = null;
+  requestedCountKey = null;
+  countLoading.value = false;
+}
+
+async function refreshContributionCount(key: string): Promise<void> {
+  countRequestToken += 1;
+  const token = countRequestToken;
+  requestedCountKey = key;
+  loadedCountKey.value = null;
+  countLoading.value = true;
+  try {
+    const result = await loadOrNull(async () =>
+      trpc.feed.getContributionCount.query(buildFilterQueryInput()),
+    );
+    if (token !== countRequestToken || !result) return;
+    latestProjectCount.value = result.count;
+    loadedCountKey.value = key;
+  } finally {
+    if (token === countRequestToken) {
+      countLoading.value = false;
+      requestedCountKey = null;
+    }
+  }
+}
+
 // Discards the current list and loads page one for the live query.
 async function refreshLatestContributions(): Promise<void> {
   requestToken += 1;
   const token = requestToken;
   loadingMore.value = false;
   const key = queryKey.value;
+  // Alongside the page, not after it: the count is its own query and waiting on the list only
+  // widens the window where the shown count is stale.
+  ensureContributionCount(key);
   loading.value = true;
   try {
     const result = await fetchPage(null);
@@ -131,7 +177,9 @@ export function activateLatestContributions(): void {
   void loadOsmSyncStatus();
   if (loadedKey.value !== queryKey.value && !loading.value) {
     void refreshLatestContributions();
+    return;
   }
+  ensureContributionCount(queryKey.value);
 }
 
 // Bounding the feed to a viewport asks what is in that place, so it widens the selection to every
@@ -173,6 +221,7 @@ function clearLoadedContributions(): void {
   cursor.value = null;
   loadedKey.value = null;
   loadingMore.value = false;
+  invalidateContributionCount();
 }
 
 function sameMapArea(left: MapArea | null, right: MapArea): boolean {

@@ -178,6 +178,8 @@
     "noContributionsFound": "Aucune contribution trouvée.",
     "beFirstToAdd": "Soyez le premier à ajouter un projet urbain",
     "loadingContributions": "Chargement des contributions...",
+    "projectCountOne": "{count} projet",
+    "projectCountMany": "{count} projets",
     "noMatchingContributions": "Aucun résultat pour ces filtres.",
     "tryWideningFilters": "Élargissez un filtre, ou ajoutez le premier depuis Contribuer.",
     "filterBySource": "Filtrer par source",

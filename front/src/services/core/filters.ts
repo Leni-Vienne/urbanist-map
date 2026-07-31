@@ -203,15 +203,6 @@ export function clearActiveFilter(filter: ActiveFilter): void {
   }
 }
 
-export function clearAllFilters(): void {
-  selectedProjectTags.value = [];
-  selectedStatusFilters.value = [];
-  selectedNameFilters.value = [];
-  showOnlyWithImages.value = false;
-  resetSizeFilter();
-  resetDateFilter();
-}
-
 // The filter state in the shape the feed query takes. Infinity bounds are dropped rather than
 // serialized, so an absent bound means "unbounded" on the wire.
 export type FeedFilterInput = {

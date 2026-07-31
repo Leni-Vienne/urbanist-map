@@ -42,7 +42,19 @@
 
       <!-- Applied filters, removable in place. Relaxing a filter is the common case and needs no
            trip back to the full palette. -->
-      <div v-if="hasChippedFilters" class="flex flex-wrap items-center gap-1.5 px-2 pb-2">
+      <div
+        v-if="isCountStale || projectCount !== null || hasChippedFilters"
+        class="flex flex-wrap items-center gap-1.5 px-2 pb-2"
+      >
+        <span
+          v-if="projectCount !== null"
+          class="text-xs text-muted-color whitespace-nowrap mr-0.5 transition-opacity duration-150"
+          :class="isCountStale ? 'opacity-50' : ''"
+          aria-live="polite"
+        >
+          {{ projectCountLabel }}
+        </span>
+        <span v-else-if="isCountStale" class="text-xs text-muted-color" aria-hidden="true">…</span>
         <button
           v-if="mapArea"
           type="button"
@@ -238,6 +250,8 @@ import {
   contributions,
   isLoading,
   isLoadingMore,
+  isCountStale,
+  projectCount,
   hasMore,
   source,
   sourceSelection,
@@ -306,6 +320,15 @@ const osmSyncLabel = computed(() =>
     time: formatRelativeTime(osmLastSyncedAt.value, t),
   }),
 );
+const projectCountLabel = computed(formatProjectCount);
+
+function formatProjectCount(): string {
+  const count = projectCount.value;
+  if (count === null) return "";
+  const formatted = new Intl.NumberFormat(locale.value).format(count);
+  const key = count === 1 ? "contribution.projectCountOne" : "contribution.projectCountMany";
+  return t(key, { count: formatted });
+}
 
 function browseOsmUpdates(): void {
   isOsmSyncExpanded.value = false;
