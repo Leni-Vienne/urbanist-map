@@ -3,19 +3,25 @@ import { z } from "zod";
 import { db } from "../database";
 import { overlays, projects, adminBoundaries, importSources } from "../db/schema";
 import { sql, eq, and, or, desc, type SQL } from "drizzle-orm";
+import {
+  advanceFeedCursor,
+  EXHAUSTED_STREAM,
+  type FeedCursor,
+  type FeedStreamCursor,
+  type FeedStreamName,
+  type FetchedCounts,
+} from "./feedCursor";
 
 // Position of the last row consumed from one underlying query. Each query keeps its own, so a
 // page boundary never falls between two rows sharing a timestamp.
 const feedPositionSchema = z.object({ date: z.string(), id: z.string() });
+const feedStreamCursorSchema = z.union([feedPositionSchema, z.literal(EXHAUSTED_STREAM)]);
 
 const feedCursorSchema = z.object({
-  overlay: feedPositionSchema.nullish(),
-  direct: feedPositionSchema.nullish(),
-  imported: feedPositionSchema.nullish(),
+  overlay: feedStreamCursorSchema.nullish(),
+  direct: feedStreamCursorSchema.nullish(),
+  imported: feedStreamCursorSchema.nullish(),
 });
-
-type FeedPosition = z.infer<typeof feedPositionSchema>;
-type FeedCursor = z.infer<typeof feedCursorSchema>;
 
 const MAX_WEB_MERCATOR_LATITUDE = 85.05112878;
 
@@ -194,29 +200,33 @@ function overlayMapAreaConditions(input: FeedInput): SQL[] {
 function keysetCondition(
   dateExpr: SQL,
   idExpr: SQL | typeof projects.id,
-  position: FeedPosition | null | undefined,
+  cursor: FeedStreamCursor | null | undefined,
 ): SQL[] {
-  if (!position) return [];
+  if (!cursor || cursor === EXHAUSTED_STREAM) return [];
   return [
-    sql`(${dateExpr}, ${idExpr}) < (${new Date(position.date)}::timestamptz, ${position.id}::uuid)`,
+    sql`(${dateExpr}, ${idExpr}) < (${new Date(cursor.date)}::timestamptz, ${cursor.id}::uuid)`,
   ];
 }
 
 // Builds the standalone-projects feed query (approved, no approved map overlay).
-// importFilter splits user-created projects (importSourceId IS NULL) from OSM/citydata imports.
+// The candidate subquery keeps sorting and pagination independent from the recursive location and
+// geometry projections used to hydrate the selected page.
 function buildStandaloneProjectsQuery(
-  importFilter: SQL,
+  stream: "direct" | "imported",
   limit: number,
   input: FeedInput,
-  position: FeedPosition | null | undefined,
+  cursor: FeedStreamCursor | null | undefined,
 ) {
-  // Imported projects normally sort by their source modification date, but once a user edit
-  // has been approved (importLockedAt set) we switch to updatedAt so the approved contribution
-  // surfaces in the feed instead of staying buried at the stale OSM date.
-  const contributionDate = sql<Date>`CASE
-    WHEN ${projects.importLockedAt} IS NOT NULL THEN ${projects.updatedAt}
-    ELSE COALESCE(${projects.externalLastModified}, ${projects.updatedAt})
-  END`;
+  const isImported = stream === "imported";
+  const contributionDate = isImported
+    ? sql<Date>`COALESCE(${projects.externalLastModified}, ${projects.updatedAt})`
+    : sql<Date>`CASE
+        WHEN ${projects.importLockedAt} IS NOT NULL THEN ${projects.updatedAt}
+        ELSE COALESCE(${projects.externalLastModified}, ${projects.updatedAt})
+      END`;
+  const importFilter = isImported
+    ? sql`(${projects.importSourceId} IS NOT NULL AND ${projects.importLockedAt} IS NULL)`
+    : sql`(${projects.importSourceId} IS NULL OR ${projects.importLockedAt} IS NOT NULL)`;
   const approvedRender = sql`(
     SELECT ${overlays.filename} FROM ${overlays}
     WHERE ${overlays.projectId} = ${projects.id}
@@ -238,12 +248,28 @@ function buildStandaloneProjectsQuery(
     ...projectFilterConditions(input, projects.name),
     ...dateRangeConditions(input, contributionDate),
     ...standaloneMapAreaConditions(input),
-    ...keysetCondition(contributionDate, projects.id, position),
+    ...keysetCondition(contributionDate, projects.id, cursor),
   ];
   // A standalone project's only image is its approved render.
   if (input.onlyWithImages) {
-    conditions.push(sql`${approvedRender} IS NOT NULL`);
+    conditions.push(sql`EXISTS (
+      SELECT 1 FROM ${overlays}
+      WHERE ${overlays.projectId} = ${projects.id}
+      AND ${overlays.status} = 'approved'
+      AND ${overlays.kind} = 'render'
+    )`);
   }
+
+  const candidates = db
+    .select({
+      id: projects.id,
+      updatedAt: contributionDate.as("updatedAt"),
+    })
+    .from(projects)
+    .where(and(...conditions))
+    .orderBy(sql`${contributionDate} DESC, ${projects.id} DESC`)
+    .limit(limit)
+    .as("standalone_candidates");
 
   return db
     .select({
@@ -254,7 +280,7 @@ function buildStandaloneProjectsQuery(
       // A standalone project has no map overlay but may have an approved render (artist's
       // impression). Surface its filename so the feed shows the render thumbnail instead of a generic icon.
       renderFilename: sql<string | null>`${approvedRender}`,
-      updatedAt: contributionDate,
+      updatedAt: candidates.updatedAt,
       city: boundaryName("city"),
       state: boundaryName("state"),
       countryCode: projects.countryCode,
@@ -290,10 +316,9 @@ function buildStandaloneProjectsQuery(
         number | null
       >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_X(ST_PointOnSurface(${projects.geometry})) ELSE NULL END`,
     })
-    .from(projects)
-    .where(and(...conditions))
-    .orderBy(sql`${contributionDate} DESC, ${projects.id} DESC`)
-    .limit(limit);
+    .from(candidates)
+    .innerJoin(projects, eq(projects.id, candidates.id))
+    .orderBy(desc(candidates.updatedAt), desc(candidates.id));
 }
 
 type StandaloneProjectRow = Awaited<ReturnType<typeof buildStandaloneProjectsQuery>>[number];
@@ -342,7 +367,7 @@ function mapStandaloneProject(p: StandaloneProjectRow, isImport: boolean) {
 function buildLatestOverlaysQuery(
   limit: number,
   input: FeedInput,
-  position: FeedPosition | null | undefined,
+  cursor: FeedStreamCursor | null | undefined,
 ) {
   // Rank by the latest activity on the project: the overlay's date or a later
   // project edit (e.g. an approval that bumped the project), whichever is newer.
@@ -394,7 +419,7 @@ function buildLatestOverlaysQuery(
         ...keysetCondition(
           sql`${latestOverlayPerProject.updatedAt}`,
           sql`${latestOverlayPerProject.id}`,
-          position,
+          cursor,
         ),
       ),
     )
@@ -431,8 +456,7 @@ type LatestContributionItem =
 
 // A fetched row tagged with the query it came from, so the emitted page can advance exactly the
 // cursors it consumed.
-type StreamName = "overlay" | "direct" | "imported";
-type PendingRow = { stream: StreamName; item: LatestContributionItem };
+type PendingRow = { stream: FeedStreamName; item: LatestContributionItem };
 
 function rowTime(row: PendingRow): number {
   return new Date(row.item.updatedAt).getTime();
@@ -444,23 +468,6 @@ function mergeStreams(rows: PendingRow[], limit: number): PendingRow[] {
 
 function byNewest(a: PendingRow, b: PendingRow): number {
   return rowTime(b) - rowTime(a);
-}
-
-// Each stream advances to the last row the page actually emitted from it; a stream that
-// contributed nothing keeps the cursor it came in with.
-function advanceCursor(emitted: PendingRow[], previous: FeedCursor | null | undefined): FeedCursor {
-  const next: FeedCursor = {
-    overlay: previous?.overlay ?? null,
-    direct: previous?.direct ?? null,
-    imported: previous?.imported ?? null,
-  };
-  for (const row of emitted) {
-    next[row.stream] = {
-      date: new Date(row.item.updatedAt).toISOString(),
-      id: row.item.id,
-    };
-  }
-  return next;
 }
 
 type FeedPage = {
@@ -493,6 +500,10 @@ function cacheKey(input: FeedInput): string | null {
   return isDefaultPage ? `${input.source}|${input.limit}` : null;
 }
 
+function shouldQueryStream(enabled: boolean, cursor: FeedStreamCursor | null | undefined): boolean {
+  return enabled && cursor !== EXHAUSTED_STREAM;
+}
+
 export const feedRouter = router({
   getOsmSyncStatus: publicProcedure.query(async () => {
     const [row] = await db
@@ -519,28 +530,21 @@ export const feedRouter = router({
         const fetchSize = input.limit + 1;
         const wantsCommunity = input.source !== "osm";
         const wantsImported = input.source !== "community";
+        const queryOverlays = shouldQueryStream(wantsCommunity, input.cursor?.overlay);
+        const queryDirect = shouldQueryStream(wantsCommunity, input.cursor?.direct);
+        const queryImported = shouldQueryStream(wantsImported, input.cursor?.imported);
 
         // An import with an approved user edit (importLockedAt set) counts as a human
         // contribution, so it joins the direct group rather than the import one.
         const [overlayRows, directRows, importedRows] = await Promise.all([
-          wantsCommunity
+          queryOverlays
             ? buildLatestOverlaysQuery(fetchSize, input, input.cursor?.overlay)
             : Promise.resolve([]),
-          wantsCommunity
-            ? buildStandaloneProjectsQuery(
-                sql`(${projects.importSourceId} IS NULL OR ${projects.importLockedAt} IS NOT NULL)`,
-                fetchSize,
-                input,
-                input.cursor?.direct,
-              )
+          queryDirect
+            ? buildStandaloneProjectsQuery("direct", fetchSize, input, input.cursor?.direct)
             : Promise.resolve([]),
-          wantsImported
-            ? buildStandaloneProjectsQuery(
-                sql`(${projects.importSourceId} IS NOT NULL AND ${projects.importLockedAt} IS NULL)`,
-                fetchSize,
-                input,
-                input.cursor?.imported,
-              )
+          queryImported
+            ? buildStandaloneProjectsQuery("imported", fetchSize, input, input.cursor?.imported)
             : Promise.resolve([]),
         ]);
 
@@ -560,9 +564,17 @@ export const feedRouter = router({
         ];
 
         const emitted = mergeStreams(pending, input.limit);
+        const fetchedCounts: FetchedCounts = {
+          overlay: queryOverlays ? overlayRows.length : null,
+          direct: queryDirect ? directRows.length : null,
+          imported: queryImported ? importedRows.length : null,
+        };
         const page: FeedPage = {
           items: emitted.map((row) => row.item),
-          nextCursor: emitted.length < pending.length ? advanceCursor(emitted, input.cursor) : null,
+          nextCursor:
+            emitted.length < pending.length
+              ? advanceFeedCursor(emitted, input.cursor, fetchedCounts, fetchSize)
+              : null,
         };
 
         if (key) {

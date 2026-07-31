@@ -1,0 +1,2 @@
+CREATE INDEX "idx_projects_feed_imported_recency" ON "projects" (COALESCE("external_last_modified", "updated_at"),"id") WHERE "status" = 'approved' AND "import_source_id" IS NOT NULL AND "import_locked_at" IS NULL;--> statement-breakpoint
+CREATE INDEX "idx_projects_feed_direct_recency" ON "projects" ((CASE WHEN "import_locked_at" IS NOT NULL THEN "updated_at" ELSE COALESCE("external_last_modified", "updated_at") END),"id") WHERE "status" = 'approved' AND ("import_source_id" IS NULL OR "import_locked_at" IS NOT NULL);
