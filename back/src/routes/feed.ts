@@ -244,10 +244,6 @@ function buildStandaloneProjectsQuery(
   if (input.onlyWithImages) {
     conditions.push(sql`${approvedRender} IS NOT NULL`);
   }
-  // Unnamed projects are noise in a recency feed, so they stay out unless explicitly asked for.
-  if (input.named !== "unnamed") {
-    conditions.push(sql`${projects.name} IS NOT NULL`);
-  }
 
   return db
     .select({

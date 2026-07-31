@@ -151,12 +151,9 @@
           <div class="flex-1 min-w-0">
             <h2
               class="text-[13px] md:text-sm font-semibold truncate leading-tight mb-0.5"
-              :class="row.contribution.name ? 'text-color' : 'text-muted-color italic'"
+              :class="row.isPlaceholderTitle ? 'text-muted-color italic' : 'text-color'"
             >
-              {{
-                row.contribution.name ||
-                (row.contribution.type === "overlay" ? t("overlay.untitled") : t("project.unnamed"))
-              }}
+              {{ row.title }}
             </h2>
             <div class="text-xs text-muted-color truncate mb-0.5">
               {{ getLocationDisplay(row.contribution) }}
@@ -243,7 +240,7 @@ import {
   type ActiveFilter,
 } from "@/services/core/filters";
 import { buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
-import { getProjectTagIcon, getProjectTagColor } from "@/constants/projectTags";
+import { getProjectTagIcon, getProjectTagColor, getProjectTagSlug } from "@/constants/projectTags";
 import ShapeThumbnail from "@/components/common/ShapeThumbnail.vue";
 import PanelEmptyState from "@/components/common/PanelEmptyState.vue";
 import FilterPanelContent from "@/components/map/FilterPanelContent.vue";
@@ -308,15 +305,32 @@ function getThumbnailFilename(contribution: LatestContribution): string | null {
   return contribution.renderFilename;
 }
 
-// Resolve the thumbnail URL, crossorigin flag, category icon, tag color and shape once per
+// A nameless contribution is described by its category rather than announced as missing, so the
+// row still says what the thing is. Only an untagged one falls back to a placeholder.
+function getTitle(contribution: LatestContribution): { title: string; isPlaceholder: boolean } {
+  if (contribution.name) {
+    return { title: contribution.name, isPlaceholder: false };
+  }
+  const slug = getProjectTagSlug(contribution.tags);
+  if (slug) {
+    return { title: t(`tags.${slug}`), isPlaceholder: false };
+  }
+  const fallback = contribution.type === "overlay" ? "overlay.untitled" : "project.unnamed";
+  return { title: t(fallback), isPlaceholder: true };
+}
+
+// Resolve the thumbnail URL, crossorigin flag, title, category icon, tag color and shape once per
 // contribution, instead of recomputing them several times each in the template.
 const rows = computed(() =>
   contributions.value.map((contribution) => {
     const filename = getThumbnailFilename(contribution);
     const thumbnailUrl = filename ? getContributionImageUrl(filename) : null;
+    const { title, isPlaceholder } = getTitle(contribution);
     return {
       contribution,
       thumbnailUrl,
+      title,
+      isPlaceholderTitle: isPlaceholder,
       icon: getProjectTagIcon(contribution.tags),
       color: getProjectTagColor(contribution.tags),
       shape: contribution.type === "standalone" ? contribution.shape : null,
