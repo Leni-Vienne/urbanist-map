@@ -100,7 +100,8 @@
     <p class="m-0 mb-2 text-xs font-semibold text-color-secondary uppercase tracking-wide">
       {{ $t("map.controls.filterBySize") }}
     </p>
-    <div class="px-1">
+    <!-- The horizontal padding holds the handles, which overhang the track ends by half their width -->
+    <div class="px-2.5">
       <!-- @vue-expect-error PrimeVue v-model type mismatch -->
       <Slider v-model="sizeSliderPositions" :min="0" :max="100" :step="1" range class="w-full" />
       <div class="flex justify-between mt-2 text-xs text-color-secondary">
@@ -114,7 +115,7 @@
     <p class="m-0 mb-2 text-xs font-semibold text-color-secondary uppercase tracking-wide">
       {{ $t("map.controls.filterByLastModified") }}
     </p>
-    <div class="px-1">
+    <div class="px-2.5">
       <!-- @vue-expect-error PrimeVue v-model type mismatch -->
       <Slider
         v-model="dateSliderPositions"

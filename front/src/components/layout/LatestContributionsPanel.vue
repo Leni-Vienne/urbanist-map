@@ -1,7 +1,8 @@
 <template>
   <div class="relative h-full flex flex-col">
-    <!-- Controls. The filter surface opens here rather than in the Filter tab, so narrowing the
-         list never costs a navigation away from it. -->
+    <!-- Controls. On desktop the filter surface opens in a popover here, so narrowing the list
+         never costs a navigation away from it; on mobile there is no room for it beside the list,
+         so it opens the Filter tab instead. -->
     <div class="shrink-0 border-b border-surface">
       <div class="flex items-center gap-2 px-2 py-2">
         <div class="shrink-0 flex items-center">
@@ -19,24 +20,23 @@
 
         <i v-if="isLoading" class="pi pi-spin pi-spinner text-sm text-muted-color shrink-0"></i>
 
+        <div class="ml-auto min-w-0">
+          <MapAreaSearchControl />
+        </div>
+
         <div class="relative inline-flex shrink-0">
           <span
             v-if="hasPopoverFilters"
             class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-content-background pointer-events-none z-10"
           />
           <Button
-            @click="toggleFilterPopover"
+            @click="openFilters"
             icon="pi pi-sliders-h"
             size="small"
             severity="secondary"
-            text
             v-tooltip.top="t('contribution.moreFilters')"
             :aria-label="t('contribution.moreFilters')"
           />
-        </div>
-
-        <div class="map-area-action ml-auto shrink-0">
-          <MapAreaSearchControl />
         </div>
       </div>
 
@@ -64,7 +64,7 @@
         </button>
       </div>
 
-      <div v-if="source !== 'osm' && osmLastSyncedAt" class="px-2 pb-1.5">
+      <div v-if="showOsmSyncNotice" class="px-2 pb-1.5">
         <button
           type="button"
           class="w-full flex items-center justify-between gap-2 px-1 py-1.5 text-xs text-muted-color bg-transparent border-0 cursor-pointer transition-colors duration-150 hover:text-color"
@@ -95,7 +95,8 @@
       </div>
     </div>
 
-    <Popover ref="filterPopover" appendTo="body">
+    <Popover ref="filterPopover" appendTo="body" :pt="{ root: { class: 'filter-popover' } }">
+      <!-- overflow-x hidden removes the spurious horizontal scrollbar from the sliders -->
       <div
         class="min-w-55 max-w-75 overflow-y-auto overflow-x-hidden pr-1"
         style="max-height: min(600px, 70svh)"
@@ -115,7 +116,11 @@
           @mouseleave="handleContributionLeave(row.contribution)"
         >
           <div
-            class="w-13 h-13 md:w-15 md:h-15 rounded-xl overflow-hidden bg-content-hover-background border border-surface shrink-0 flex items-center justify-center relative"
+            class="contribution-thumbnail w-13 h-13 md:w-15 md:h-15 rounded-lg overflow-hidden shrink-0 flex items-center justify-center relative"
+            :style="{ '--thumbnail-color': row.color }"
+            :class="{
+              'border border-surface': row.thumbnailUrl && !imageErrors[row.contribution.id],
+            }"
           >
             <img
               v-if="row.thumbnailUrl && !imageErrors[row.contribution.id]"
@@ -224,8 +229,8 @@ import {
   sourceSelection,
   mapArea,
   osmLastSyncedAt,
+  showOsmSyncNotice,
   activateLatestContributions,
-  deactivateLatestContributions,
   loadMoreLatestContributions,
   clearMapArea,
   showOsmUpdates,
@@ -246,6 +251,8 @@ import MapAreaSearchControl from "@/components/map/MapAreaSearchControl.vue";
 import { formatRelativeTime } from "@/utils/dateFormat";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
 import { useMapStore } from "@/stores/mapStore";
+import { useUiStore } from "@/stores/uiStore";
+import { isMobile } from "@/services/core/viewport";
 
 import { useScrollFade } from "@/composables/ui/useScrollFade";
 import {
@@ -260,6 +267,7 @@ import { LngLatBounds } from "maplibre-gl";
 
 const { t, te, locale } = useI18n();
 const mapStore = useMapStore();
+const uiStore = useUiStore();
 
 const { imageErrors, handleImageError, handleImageLoad } = useImageErrors();
 const isOsmSyncExpanded = ref(false);
@@ -322,7 +330,11 @@ const rows = computed(() =>
 
 const filterPopover = ref<{ toggle(event: Event): void } | null>(null);
 
-function toggleFilterPopover(event: Event) {
+function openFilters(event: Event) {
+  if (isMobile.value) {
+    uiStore.activeTab = "filter";
+    return;
+  }
   filterPopover.value?.toggle(event);
 }
 
@@ -485,7 +497,6 @@ onDeactivated(stopObservingLoadMore);
 onBeforeUnmount(stopObservingLoadMore);
 
 onActivated(activateLatestContributions);
-onDeactivated(deactivateLatestContributions);
 </script>
 
 <style scoped>
@@ -507,5 +518,9 @@ onDeactivated(deactivateLatestContributions);
   border: 2px solid transparent;
   border-radius: 999px;
   background-clip: padding-box;
+}
+
+.contribution-thumbnail {
+  background-color: color-mix(in srgb, var(--thumbnail-color) 10%, transparent);
 }
 </style>

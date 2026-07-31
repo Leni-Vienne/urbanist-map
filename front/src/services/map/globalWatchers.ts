@@ -16,6 +16,7 @@ import {
 import { watchViewportModeData, refreshMapSessionData } from "@/services/map/viewportTriggers";
 import { watchTileLayerState, syncTileLayerState } from "@/services/map/tiles/layers";
 import { watchShapeHighlighting } from "@/services/map/projectDetailWatcher";
+import { watchMapAreaOutline, syncMapAreaOutline } from "@/services/map/mapAreaOutline";
 
 /**
  * Install the watchers and callback registrations owned by one MapView mount.
@@ -33,6 +34,7 @@ export function startMapStateCoordinator(): () => void {
     watchViewportModeData(),
     watchTileLayerState(),
     watchShapeHighlighting(),
+    watchMapAreaOutline(),
   ];
 
   let stopped = false;
@@ -53,4 +55,5 @@ export async function activateMapStateCoordinator(target: MaplibreMap): Promise<
   await refreshMapSessionData();
   if (getMapOrNull() !== target) return;
   syncTileLayerState();
+  syncMapAreaOutline();
 }

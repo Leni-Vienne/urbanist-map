@@ -72,7 +72,7 @@ body {
 }
 
 /* Remove right padding from the filter popover content so the scrollbar sits flush with the edge */
-.filter-control-popover .p-popover-content {
+.filter-popover .p-popover-content {
   padding-right: 0;
 }
 

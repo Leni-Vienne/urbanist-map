@@ -1,6 +1,7 @@
 import { computed, ref, watch } from "vue";
 import { trpc, type RouterOutput } from "@/client";
 import { loadOrNull } from "@/services/core/errorHandling";
+import { useUiStore } from "@/stores/uiStore";
 import { feedFilterInput } from "@/services/core/filters";
 import type { LatestContribution } from "@/types/index";
 
@@ -31,6 +32,8 @@ export const mapArea = ref<MapArea | null>(null);
 const osmSyncStatus = ref<OsmSyncStatus | null>(null);
 let hasLoadedOsmSyncStatus = false;
 
+const osmEverSelected = ref(false);
+
 function soleSelection<T extends string>(values: T[]): T | "all" {
   return values.length === 1 ? (values[0] ?? "all") : "all";
 }
@@ -51,14 +54,19 @@ const loadedKey = ref<string | null>(null);
 // Only the newest request may write to the list; earlier ones are abandoned on arrival.
 let requestToken = 0;
 
-// The panel drives this so a filter change with the tab closed costs no request.
-const isActive = ref(false);
-
 export const contributions = computed(() => latestContributions.value);
 export const isLoading = computed(() => loading.value);
 export const isLoadingMore = computed(() => loadingMore.value);
 export const hasMore = computed(() => cursor.value !== null);
 export const osmLastSyncedAt = computed(() => osmSyncStatus.value?.lastSyncedAt ?? null);
+export const showOsmSyncNotice = computed(
+  () => !osmEverSelected.value && osmLastSyncedAt.value !== null,
+);
+// True while the tab hosting this feed is the one on screen, so a filter change with the tab closed
+// costs no request. Read from the shared tab state rather than the panel's own mount hooks: desktop
+// and mobile render separate panel components, and swapping one for the other across the viewport
+// breakpoint tears a panel down and builds another without the tab ever changing.
+export const isFeedActive = computed(() => useUiStore().activeTab === "latest");
 
 function buildQueryInput(pageCursor: FeedCursor) {
   return {
@@ -120,18 +128,16 @@ export async function loadMoreLatestContributions(): Promise<void> {
 
 // Loads only when the list does not already match the live query, so re-entering the tab is free.
 export function activateLatestContributions(): void {
-  isActive.value = true;
   void loadOsmSyncStatus();
   if (loadedKey.value !== queryKey.value && !loading.value) {
     void refreshLatestContributions();
   }
 }
 
-export function deactivateLatestContributions(): void {
-  isActive.value = false;
-}
-
+// Bounding the feed to a viewport asks what is in that place, so it widens the selection to every
+// source rather than answering from whichever of the two happens to be toggled on.
 export function setMapArea(bounds: MapArea): void {
+  sourceSelection.value = ["community", "osm"];
   if (sameMapArea(mapArea.value, bounds)) return;
   changeMapArea(bounds);
 }
@@ -144,7 +150,7 @@ export function clearMapArea(): void {
 function changeMapArea(bounds: MapArea | null): void {
   clearLoadedContributions();
   mapArea.value = bounds;
-  if (!isActive.value) {
+  if (!isFeedActive.value) {
     void refreshLatestContributions();
   }
 }
@@ -179,8 +185,12 @@ function sameMapArea(left: MapArea | null, right: MapArea): boolean {
   );
 }
 
+watch(sourceSelection, (selection) => {
+  osmEverSelected.value ||= selection.includes("osm");
+});
+
 watch(queryKey, () => {
-  if (isActive.value) {
+  if (isFeedActive.value) {
     void refreshLatestContributions();
   }
 });

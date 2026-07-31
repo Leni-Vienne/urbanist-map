@@ -188,9 +188,9 @@
     "clearFilters": "Tout effacer",
     "loadMore": "Voir plus",
     "mapArea": "Zone de la carte",
-    "searchMapArea": "Rechercher dans cette zone",
-    "updateMapArea": "Mettre à jour cette zone",
-    "zoomInToSearchMapArea": "Zoomez pour rechercher dans cette zone",
+    "searchMapArea": "Filtrer cette zone",
+    "updateMapArea": "Actualiser la zone",
+    "zoomInToSearchMapArea": "Zoomez pour filtrer cette zone",
     "osmDataUpdated": "Données OSM actualisées {time}",
     "osmDataDescription": "Les données OpenStreetMap sont synchronisées chaque jour et séparées de l'activité de la communauté.",
     "browseOsmUpdates": "Explorer les données OpenStreetMap"

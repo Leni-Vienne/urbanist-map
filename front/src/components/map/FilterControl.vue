@@ -22,7 +22,7 @@
     />
   </div>
 
-  <Popover ref="filterPanel" appendTo="body" :pt="{ root: { class: 'filter-control-popover' } }">
+  <Popover ref="filterPanel" appendTo="body" :pt="{ root: { class: 'filter-popover' } }">
     <!-- overflow-x hidden removes the spurious horizontal scrollbar from the sliders -->
     <div
       class="min-w-55 max-w-75 overflow-y-auto overflow-x-hidden pr-1"

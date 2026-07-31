@@ -93,19 +93,28 @@ function shouldApplyMobileOffset(): boolean {
   return isMobile.value;
 }
 
-// Measures the rendered drawer instead of estimating from mobileDrawerHeightPercent: the drawer is
-// sized in vh while innerHeight tracks the visible viewport, and the map container (h-screen) can
-// extend below it (mobile URL bar), so an estimate undershoots and content hides under the drawer.
-function getMobileDrawerBottomPaddingPx(): number {
-  const margin = 30; // margin above the drawer edge
+/**
+ * Height in px of the map container hidden behind the mobile drawer, 0 where nothing covers it.
+ *
+ * Measures the rendered drawer instead of estimating from mobileDrawerHeightPercent: the drawer is
+ * sized in vh while innerHeight tracks the visible viewport, and the map container (h-screen) can
+ * extend below it (mobile URL bar), so an estimate undershoots and content hides under the drawer.
+ */
+export function getMobileDrawerOcclusionPx(): number {
+  if (!isMobile.value) return 0;
   const drawer = document.querySelector(".draggable-drawer");
   if (drawer) {
     const containerBottom = getMap().getContainer().getBoundingClientRect().bottom;
     const drawerTop = drawer.getBoundingClientRect().top;
-    return Math.max(0, containerBottom - drawerTop) + margin;
+    return Math.max(0, containerBottom - drawerTop);
   }
   const uiStore = useUiStore();
-  return (uiStore.mobileDrawerHeightPercent / 100) * globalThis.innerHeight + margin;
+  return (uiStore.mobileDrawerHeightPercent / 100) * globalThis.innerHeight;
+}
+
+function getMobileDrawerBottomPaddingPx(): number {
+  const margin = 30; // margin above the drawer edge
+  return getMobileDrawerOcclusionPx() + margin;
 }
 
 // Caps padding so opposing insets never exceed the container; otherwise cameraForBounds produces
