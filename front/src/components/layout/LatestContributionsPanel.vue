@@ -173,6 +173,23 @@
         <div v-if="hasMore" ref="loadMoreSentinel" class="h-10 flex items-center justify-center">
           <i v-if="isLoadingMore" class="pi pi-spin pi-spinner text-sm text-muted-color"></i>
         </div>
+
+        <!-- End of a community-only list: the rest of the map's activity is one toggle away, and the
+             end of the list is where that is worth offering. -->
+        <div
+          v-else-if="showOsmInvite"
+          class="flex flex-col items-center gap-1 px-2 py-4 text-center border-t border-surface"
+        >
+          <span class="text-xs text-muted-color">{{ t("contribution.endOfCommunityFeed") }}</span>
+          <button
+            type="button"
+            class="inline-flex items-center gap-1 p-0 text-xs font-medium text-primary-color bg-transparent border-0 cursor-pointer hover:text-primary-hover-color"
+            @click="showOsmUpdates"
+          >
+            {{ t("contribution.switchToOsm") }}
+            <i class="pi pi-arrow-right text-[0.65rem]"></i>
+          </button>
+        </div>
       </div>
 
       <PanelEmptyState
@@ -278,6 +295,8 @@ const SOURCE_OPTIONS = computed(() => [
 const hasNarrowedQuery = computed(
   () => activeFilterCount.value > 0 || source.value !== "all" || mapArea.value !== null,
 );
+
+const showOsmInvite = computed(() => source.value === "community" && !hasMore.value);
 
 // Everything reachable only through the popover, so the button can show that something is applied.
 const hasPopoverFilters = computed(() => activeFilterCount.value > 0);

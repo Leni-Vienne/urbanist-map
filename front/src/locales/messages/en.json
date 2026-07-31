@@ -191,6 +191,8 @@
     "searchMapArea": "Search this area",
     "updateMapArea": "Update to this view",
     "zoomInToSearchMapArea": "Zoom in to search this area",
+    "endOfCommunityFeed": "That's every website contribution.",
+    "switchToOsm": "Browse OpenStreetMap projects",
     "osmDataUpdated": "OSM data refreshed {time}",
     "osmDataDescription": "OpenStreetMap data is synchronized daily and kept separate from community activity.",
     "browseOsmUpdates": "Explore OpenStreetMap data"

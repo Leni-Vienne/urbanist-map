@@ -191,6 +191,8 @@
     "searchMapArea": "Filtrer cette zone",
     "updateMapArea": "Actualiser la zone",
     "zoomInToSearchMapArea": "Zoomez pour filtrer cette zone",
+    "endOfCommunityFeed": "Fin des contributions du site.",
+    "switchToOsm": "Voir les projets OpenStreetMap",
     "osmDataUpdated": "Données OSM actualisées {time}",
     "osmDataDescription": "Les données OpenStreetMap sont synchronisées chaque jour et séparées de l'activité de la communauté.",
     "browseOsmUpdates": "Explorer les données OpenStreetMap"
