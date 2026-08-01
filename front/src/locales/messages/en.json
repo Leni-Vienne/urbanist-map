@@ -190,9 +190,6 @@
     "clearFilters": "Clear all",
     "loadMore": "Load more",
     "mapArea": "Map area",
-    "searchMapArea": "Search this area",
-    "updateMapArea": "Update to this view",
-    "zoomInToSearchMapArea": "Zoom in to search this area",
     "endOfCommunityFeed": "That's every website contribution.",
     "switchToOsm": "Browse OpenStreetMap projects",
     "osmDataUpdated": "OSM data refreshed {time}",
@@ -251,6 +248,9 @@
     "clusterProjectsPlus": "(+{count} projects)",
     "controls": {
       "filterProjects": "Filter projects by status",
+      "filterByArea": "Area",
+      "onlyVisibleArea": "Limit to the visible area",
+      "zoomInToFilterArea": "Zoom in to filter by area",
       "filterByStatus": "Timeline",
       "filterByName": "Name",
       "filterByImages": "Images",
@@ -473,7 +473,6 @@
     }
   },
   "controls": {
-    "filter": "Filter Projects",
     "language": "Language",
     "mapLanguage": "Map language",
     "mapLanguageDefault": "English + local alphabets",

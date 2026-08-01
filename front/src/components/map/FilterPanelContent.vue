@@ -3,6 +3,27 @@
     {{ $t("map.controls.filterByStatusAndTags") }}
   </h3>
 
+  <p class="m-0 mb-1.5 text-xs font-semibold text-color-secondary uppercase tracking-wide">
+    {{ $t("map.controls.filterByArea") }}
+  </p>
+  <div class="flex flex-col gap-1 mb-4">
+    <label
+      class="flex items-center gap-2 text-sm text-color"
+      :class="canPickArea ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'"
+    >
+      <Checkbox
+        :model-value="isAreaFiltered"
+        :binary="true"
+        :disabled="!canPickArea"
+        @update:model-value="toggleMapAreaFilter"
+      />
+      {{ $t("map.controls.onlyVisibleArea") }}
+    </label>
+    <p v-if="!canPickArea" class="m-0 text-[0.7rem] italic text-color-secondary">
+      {{ $t("map.controls.zoomInToFilterArea") }}
+    </p>
+  </div>
+
   <div class="flex items-center justify-between mb-1.5">
     <p class="m-0 text-xs font-semibold text-color-secondary uppercase tracking-wide">
       {{ $t("map.controls.filterByTags") }}
@@ -140,8 +161,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from "vue";
+import { ref, watch, computed, onUnmounted } from "vue";
+import type { Map as MaplibreMap } from "maplibre-gl";
 import { useI18n } from "vue-i18n";
+import { onMapReady } from "@/services/core/map";
+import { canFilterVisibleArea, getVisibleMapArea } from "@/services/map/visibleMapArea";
+import { clearMapArea, mapArea, setMapArea } from "@/services/feed/latestContributions";
 import {
   selectedStatusFilters,
   selectedProjectTags,
@@ -170,6 +195,41 @@ import LinePreview from "@/components/common/LinePreview.vue";
 withDefaults(defineProps<{ showHeading?: boolean }>(), { showHeading: true });
 
 const { t } = useI18n();
+
+// The area is captured when the box is ticked and then held, so panning away never rewrites it.
+const canFilterArea = ref(false);
+const isAreaFiltered = computed(() => mapArea.value !== null);
+const canPickArea = computed(() => canFilterArea.value || isAreaFiltered.value);
+
+let listeningMap: MaplibreMap | null = null;
+const stopWaitingForMap = onMapReady(trackVisibleArea);
+
+onUnmounted(releaseVisibleArea);
+
+function releaseVisibleArea(): void {
+  stopWaitingForMap();
+  listeningMap?.off("move", refreshAreaGate);
+  listeningMap = null;
+}
+
+function trackVisibleArea(target: MaplibreMap): void {
+  listeningMap = target;
+  refreshAreaGate();
+  target.on("move", refreshAreaGate);
+}
+
+function refreshAreaGate(): void {
+  canFilterArea.value = canFilterVisibleArea();
+}
+
+function toggleMapAreaFilter(checked: boolean): void {
+  if (!checked) {
+    clearMapArea();
+    return;
+  }
+  const area = getVisibleMapArea();
+  if (area) setMapArea(area);
+}
 
 // Range slider that only ever commits a single active bound. Tiles carry per-cell min/max,
 // not a full distribution, so two active bounds would produce false cluster matches.

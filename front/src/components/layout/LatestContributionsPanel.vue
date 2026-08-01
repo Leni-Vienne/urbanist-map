@@ -5,26 +5,30 @@
          so it opens the Filter tab instead. -->
     <div class="shrink-0 border-b border-surface">
       <div class="flex items-center gap-2 px-2 py-2">
-        <div class="shrink-0 flex items-center">
-          <div role="group" :aria-label="t('contribution.filterBySource')" class="shrink-0">
-            <SelectButton
-              v-model="sourceSelection"
-              :options="SOURCE_OPTIONS"
-              option-label="label"
-              option-value="value"
-              multiple
-              size="small"
-            />
-          </div>
+        <div role="group" :aria-label="t('contribution.filterBySource')" class="shrink-0">
+          <SelectButton
+            v-model="sourceSelection"
+            :options="SOURCE_OPTIONS"
+            option-label="label"
+            option-value="value"
+            multiple
+            size="small"
+          />
         </div>
+
+        <span
+          v-if="projectCount !== null"
+          class="min-w-0 truncate text-xs text-muted-color transition-opacity duration-150"
+          :class="isCountStale ? 'opacity-50' : ''"
+          aria-live="polite"
+        >
+          {{ projectCountLabel }}
+        </span>
+        <span v-else-if="isCountStale" class="text-xs text-muted-color" aria-hidden="true">…</span>
 
         <i v-if="isLoading" class="pi pi-spin pi-spinner text-sm text-muted-color shrink-0"></i>
 
-        <div class="ml-auto min-w-0">
-          <MapAreaSearchControl />
-        </div>
-
-        <div class="relative inline-flex shrink-0">
+        <div class="relative ml-auto inline-flex shrink-0">
           <span
             v-if="hasPopoverFilters"
             class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-content-background pointer-events-none z-10"
@@ -42,19 +46,7 @@
 
       <!-- Applied filters, removable in place. Relaxing a filter is the common case and needs no
            trip back to the full palette. -->
-      <div
-        v-if="isCountStale || projectCount !== null || hasChippedFilters"
-        class="flex flex-wrap items-center gap-1.5 px-2 pb-2"
-      >
-        <span
-          v-if="projectCount !== null"
-          class="text-xs text-muted-color whitespace-nowrap mr-0.5 transition-opacity duration-150"
-          :class="isCountStale ? 'opacity-50' : ''"
-          aria-live="polite"
-        >
-          {{ projectCountLabel }}
-        </span>
-        <span v-else-if="isCountStale" class="text-xs text-muted-color" aria-hidden="true">…</span>
+      <div v-if="hasChippedFilters" class="flex flex-wrap items-center gap-1.5 px-2 pb-2">
         <button
           v-if="mapArea"
           type="button"
@@ -277,7 +269,6 @@ import { getProjectTagIcon, getProjectTagColor, getProjectTagSlug } from "@/cons
 import ShapeThumbnail from "@/components/common/ShapeThumbnail.vue";
 import PanelEmptyState from "@/components/common/PanelEmptyState.vue";
 import FilterPanelContent from "@/components/map/FilterPanelContent.vue";
-import MapAreaSearchControl from "@/components/map/MapAreaSearchControl.vue";
 import { formatRelativeTime } from "@/utils/dateFormat";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
 import { useFocusStore } from "@/stores/focusStore";
@@ -317,7 +308,7 @@ const hasNarrowedQuery = computed(
 const showOsmInvite = computed(() => source.value === "community" && !hasMore.value);
 
 // Everything reachable only through the popover, so the button can show that something is applied.
-const hasPopoverFilters = computed(() => activeFilterCount.value > 0);
+const hasPopoverFilters = computed(() => activeFilterCount.value > 0 || mapArea.value !== null);
 const hasChippedFilters = computed(() => activeFilters.value.length > 0 || mapArea.value !== null);
 const osmSyncLabel = computed(() =>
   t("contribution.osmDataUpdated", {
