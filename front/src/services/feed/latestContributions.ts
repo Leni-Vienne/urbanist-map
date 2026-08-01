@@ -1,4 +1,4 @@
-import { computed, ref, watch } from "vue";
+import { computed, ref, shallowRef, watch } from "vue";
 import { trpc, type RouterOutput } from "@/client";
 import { loadOrNull } from "@/services/core/errorHandling";
 import { useUiStore } from "@/stores/uiStore";
@@ -20,7 +20,7 @@ const PAGE_SIZE = 20;
 
 // Latest contributions (overlays + standalone projects) from all users. Module-level singleton
 // state, shared across every consumer.
-const latestContributions = ref<LatestContribution[]>([]);
+const latestContributions = shallowRef<LatestContribution[]>([]);
 const cursor = ref<FeedCursor>(null);
 const loading = ref(false);
 const loadingMore = ref(false);
@@ -31,8 +31,8 @@ const countLoading = ref(false);
 // selected pair reads as selected instead of collapsing to a single All button.
 export const sourceSelection = ref<Exclude<ContributionSource, "all">[]>(["community"]);
 export const mapArea = ref<MapArea | null>(null);
-const osmSyncStatus = ref<OsmSyncStatus | null>(null);
-let hasLoadedOsmSyncStatus = false;
+const osmSyncStatus = shallowRef<OsmSyncStatus | null>(null);
+let osmSyncStatusRequest: Promise<void> | null = null;
 
 const osmEverSelected = ref(false);
 
@@ -47,6 +47,7 @@ export const source = computed<ContributionSource>(() => soleSelection(sourceSel
 const queryKey = computed(() => JSON.stringify(buildFilterQueryInput()));
 const loadedKey = ref<string | null>(null);
 const loadedCountKey = ref<string | null>(null);
+let requestedKey: string | null = null;
 let requestedCountKey: string | null = null;
 
 // Only the newest request may write to the list; earlier ones are abandoned on arrival.
@@ -130,12 +131,21 @@ async function refreshContributionCount(key: string): Promise<void> {
   }
 }
 
+// Loads page one unless the live query is already shown or already on its way, so a query change, a
+// tab switch and a panel activation cannot each start the same request.
+function ensureLatestContributions(): void {
+  const key = queryKey.value;
+  if (loadedKey.value === key || requestedKey === key) return;
+  void refreshLatestContributions();
+}
+
 // Discards the current list and loads page one for the live query.
 async function refreshLatestContributions(): Promise<void> {
   requestToken += 1;
   const token = requestToken;
   loadingMore.value = false;
   const key = queryKey.value;
+  requestedKey = key;
   // Alongside the page, not after it: the count is its own query and waiting on the list only
   // widens the window where the shown count is stale.
   ensureContributionCount(key);
@@ -149,6 +159,7 @@ async function refreshLatestContributions(): Promise<void> {
   } finally {
     if (token === requestToken) {
       loading.value = false;
+      requestedKey = null;
     }
   }
 }
@@ -172,13 +183,10 @@ export async function loadMoreLatestContributions(): Promise<void> {
   }
 }
 
-// Loads only when the list does not already match the live query, so re-entering the tab is free.
+// The on-screen edge of the feed: it catches up with any query change made while the tab was away.
 export function activateLatestContributions(): void {
   void loadOsmSyncStatus();
-  if (loadedKey.value !== queryKey.value && !loading.value) {
-    void refreshLatestContributions();
-    return;
-  }
+  ensureLatestContributions();
   ensureContributionCount(queryKey.value);
 }
 
@@ -195,24 +203,32 @@ export function clearMapArea(): void {
   changeMapArea(null);
 }
 
+// Picking an area is a map gesture, so the list is fetched even with the tab closed: the user is
+// about to open it, and the wait is spent on the map instead of on an empty panel.
 function changeMapArea(bounds: MapArea | null): void {
   clearLoadedContributions();
   mapArea.value = bounds;
-  if (!isFeedActive.value) {
-    void refreshLatestContributions();
-  }
+  ensureLatestContributions();
 }
 
 export function showOsmUpdates(): void {
   sourceSelection.value = ["osm"];
 }
 
-async function loadOsmSyncStatus(): Promise<void> {
-  if (hasLoadedOsmSyncStatus) return;
+// Fetched once and then held. Sharing the in-flight promise keeps back-to-back activations to one
+// request; a failed attempt drops it so the next activation retries.
+function loadOsmSyncStatus(): Promise<void> {
+  osmSyncStatusRequest ??= fetchOsmSyncStatus();
+  return osmSyncStatusRequest;
+}
+
+async function fetchOsmSyncStatus(): Promise<void> {
   const result = await loadOrNull(async () => trpc.feed.getOsmSyncStatus.query());
-  if (!result) return;
+  if (!result) {
+    osmSyncStatusRequest = null;
+    return;
+  }
   osmSyncStatus.value = result;
-  hasLoadedOsmSyncStatus = true;
 }
 
 function clearLoadedContributions(): void {
@@ -220,6 +236,7 @@ function clearLoadedContributions(): void {
   latestContributions.value = [];
   cursor.value = null;
   loadedKey.value = null;
+  requestedKey = null;
   loadingMore.value = false;
   invalidateContributionCount();
 }
@@ -238,8 +255,11 @@ watch(sourceSelection, (selection) => {
   osmEverSelected.value ||= selection.includes("osm");
 });
 
+// Only the on-screen edge is watched here: `isFeedActive` reads a Pinia store, which is not yet
+// installed when this module is imported. The tab coming back on screen is picked up by
+// activateLatestContributions instead.
 watch(queryKey, () => {
   if (isFeedActive.value) {
-    void refreshLatestContributions();
+    ensureLatestContributions();
   }
 });

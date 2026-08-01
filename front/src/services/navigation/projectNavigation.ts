@@ -7,11 +7,10 @@ import { handleProjectClickFromTile } from "@/services/core/projectSelection";
 import { isValidQuad } from "@/services/overlay/transform";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 
-/** Zoom to an overlay and optionally select it once rendered. */
+/** Zoom to an overlay and select it once rendered. */
 export function zoomToOverlayAndSelect(
   overlayId: string,
   corners: { lat: number; lng: number }[],
-  autoSelect = true,
 ): boolean {
   if (!isValidQuad(corners)) return false;
 
@@ -52,7 +51,7 @@ export function zoomToOverlayAndSelect(
   // settles). Give up after ~5s for overlays that never render.
   function selectWhenReady(): void {
     function select(): void {
-      if (autoSelect) openOverlayDetail(overlayId);
+      openOverlayDetail(overlayId);
     }
     function onReadyTimeout(): void {
       console.warn("Overlay did not render in time, aborting auto-select", overlayId);

@@ -161,7 +161,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, onUnmounted } from "vue";
+import { ref, computed, onUnmounted } from "vue";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { useI18n } from "vue-i18n";
 import { onMapReady } from "@/services/core/map";
@@ -177,10 +177,14 @@ import {
   sizeFilterRange,
   selectedNameFilters,
   toggleNameFilter,
-  lastModifiedDateRange,
   showOnlyWithImages,
   toggleShowOnlyWithImages,
   formatSizeM,
+  sizeSliderPositions,
+  dateSliderPositions,
+  DATE_SLIDER_MAX,
+  posToDaysAgo,
+  posToMs,
 } from "@/services/core/filters";
 import type { TimelineStatus } from "../../../../back/src/db/schema";
 import {
@@ -231,95 +235,6 @@ function toggleMapAreaFilter(checked: boolean): void {
   if (area) setMapArea(area);
 }
 
-// Range slider that only ever commits a single active bound. Tiles carry per-cell min/max,
-// not a full distribution, so two active bounds would produce false cluster matches.
-// `isDefault` rewinds the handles when the committed range is cleared from elsewhere.
-function useSingleBoundSlider(
-  max: number,
-  commit: (minPos: number, maxPos: number) => void,
-  isDefault: () => boolean,
-) {
-  const positions = ref<[number, number]>([0, max]);
-  const prev = ref<[number, number]>([0, max]);
-
-  watch(isDefault, (atDefault) => {
-    if (!atDefault) return;
-    const [minPos, maxPos] = positions.value;
-    if (minPos === 0 && maxPos === max) return;
-    prev.value = [0, max];
-    positions.value = [0, max];
-  });
-
-  watch(positions, ([minPos, maxPos]) => {
-    // Collapse crossed handles to the one that didn't move.
-    if (minPos > maxPos) {
-      const [prevMin] = prev.value;
-      positions.value = minPos !== prevMin ? [maxPos, maxPos] : [minPos, minPos];
-      return;
-    }
-    const [prevMin, prevMax] = prev.value;
-    if (minPos !== prevMin && minPos > 0 && maxPos < max) {
-      positions.value = [minPos, max];
-      return;
-    }
-    if (maxPos !== prevMax && maxPos < max && minPos > 0) {
-      positions.value = [0, maxPos];
-      return;
-    }
-    prev.value = [minPos, maxPos];
-    commit(minPos, maxPos);
-  });
-
-  return positions;
-}
-
-// Logarithmic slider: positions [0, 100] → meters. Position 100 = Infinity (no upper limit).
-const LOG_SCALE_REF = 500_001;
-
-function posToMeters(pos: number): number {
-  if (pos <= 0) return 0;
-  if (pos >= 100) return Infinity;
-  return Math.round(LOG_SCALE_REF ** (pos / 100) - 1);
-}
-
-function commitSizeRange(minPos: number, maxPos: number) {
-  sizeFilterRange.value = [posToMeters(minPos), posToMeters(maxPos)];
-}
-
-function sizeIsDefault(): boolean {
-  const [min, max] = sizeFilterRange.value;
-  return min === 0 && !Number.isFinite(max);
-}
-
-const sizeSliderPositions = useSingleBoundSlider(100, commitSizeRange, sizeIsDefault);
-
-// Date slider: reverse-logarithmic in "days ago" so the newest handle gets day-level
-// resolution near now (yesterday, 2 days ago...) while older positions span months and years.
-const DATE_SLIDER_ORIGIN_YEAR = 2004;
-const DATE_SLIDER_MAX = 100;
-const MS_PER_DAY = 86_400_000;
-const currentDate = new Date();
-const nowMs = currentDate.getTime();
-const originMs = new Date(DATE_SLIDER_ORIGIN_YEAR, 0, 1).getTime();
-const totalDaysSpan = Math.max(1, (nowMs - originMs) / MS_PER_DAY);
-
-function dateIsDefault(): boolean {
-  const [min, max] = lastModifiedDateRange.value;
-  return min === 0 && !Number.isFinite(max);
-}
-
-const dateSliderPositions = useSingleBoundSlider(DATE_SLIDER_MAX, commitDateRange, dateIsDefault);
-
-function posToDaysAgo(pos: number): number {
-  return (totalDaysSpan + 1) ** ((DATE_SLIDER_MAX - pos) / DATE_SLIDER_MAX) - 1;
-}
-
-function posToMs(pos: number): number {
-  if (pos <= 0) return originMs;
-  if (pos >= DATE_SLIDER_MAX) return nowMs;
-  return nowMs - posToDaysAgo(pos) * MS_PER_DAY;
-}
-
 function formatDateSlider(pos: number): string {
   const daysAgo = Math.round(posToDaysAgo(pos));
   if (daysAgo <= 0) return t("map.controls.today");
@@ -327,12 +242,6 @@ function formatDateSlider(pos: number): string {
   if (daysAgo < 30) return t("map.controls.daysAgo", { n: daysAgo });
   const d = new Date(posToMs(pos));
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-
-function commitDateRange(minPos: number, maxPos: number) {
-  const minMs = minPos <= 0 ? 0 : posToMs(minPos);
-  const maxMs = maxPos >= DATE_SLIDER_MAX ? Infinity : posToMs(maxPos);
-  lastModifiedDateRange.value = [minMs, maxMs];
 }
 
 const nameFilters: ("named" | "unnamed")[] = ["named", "unnamed"];

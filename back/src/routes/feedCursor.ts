@@ -1,6 +1,6 @@
 export const EXHAUSTED_STREAM = "exhausted" as const;
 
-export type FeedPosition = { date: string; id: string };
+type FeedPosition = { date: string; id: string };
 export type FeedStreamCursor = FeedPosition | typeof EXHAUSTED_STREAM;
 export type FeedCursor = {
   overlay?: FeedStreamCursor | null;
