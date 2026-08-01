@@ -14,7 +14,7 @@ annotations:
         spec: {}
         version: v0
 cursorSync: "Off"
-description: Request traffic, bot classification, and identity analysis for the selected backend. All counts are origin-side — only requests that reach the API backend appear. The Pages-hosted frontend, edge-cached assets, and requests Cloudflare blocks never reach it, so Cloudflare's zone-wide visitor numbers sit far above every panel here. Health checks (/api/health) are excluded by the bot classification filters. Route panels normalise paths into templates at query time - path is a log field, not a Loki label, so it is parsed per request rather than indexed. Use the time picker to select the aggregation window; only the request-rate panel charts time.
+description: Request traffic, bot classification, and identity analysis for the selected backend. All counts are origin-side — only requests that reach the API backend appear. The Pages-hosted frontend, edge-cached assets, and requests Cloudflare blocks never reach it, so Cloudflare's zone-wide visitor numbers sit far above every panel here. Health checks (/api/health) are excluded by the bot classification filters. Route panels normalise paths into templates at query time - path is a log field, not a Loki label, so it is parsed per request rather than indexed. Use the time picker to select the aggregation window. The Traffic variable narrows every panel except the four classification panels, which fix their own botKind by design. Unknown is a verdict of no evidence rather than a claim of human traffic - a route the SPA never fetches from a browser, such as /seo/project/{slug}, produces no human signal and is unknown for every request.
 editable: true
 elements:
   panel-1:
@@ -39,11 +39,11 @@ elements:
                     expr: |-
                       count by (cfCountry, botKind) (
                         sum by (cfCountry, botKind, visitorId) (
-                          count_over_time({container=~".*${backend:regex}", cfCountry!="", botKind!=""} | json visitorId [$__range])
+                          count_over_time({container=~".*${backend:regex}", cfCountry!="", botKind=~"${botKind:regex}"} | json visitorId [$__range])
                         )
                       ) and on (cfCountry) topk(15, count by (cfCountry) (
                         sum by (cfCountry, visitorId) (
-                          count_over_time({container=~".*${backend:regex}", cfCountry!="", botKind!=""} | json visitorId [$__range])
+                          count_over_time({container=~".*${backend:regex}", cfCountry!="", botKind=~"${botKind:regex}"} | json visitorId [$__range])
                         )
                       ))
                     instant: true
@@ -171,7 +171,7 @@ elements:
                     app: grafana-assistant-app
                     direction: backward
                     editorMode: code
-                    expr: 100 * sum(count_over_time({container=~".*${backend:regex}", botKind="bot"} [$__range])) / sum(count_over_time({container=~".*${backend:regex}", botKind!=""} [$__range]))
+                    expr: 100 * sum(count_over_time({container=~".*${backend:regex}", botKind="bot"} [$__range])) / sum(count_over_time({container=~".*${backend:regex}", botKind=~"bot|human"} [$__range]))
                     instant: true
                     queryType: instant
                     range: false
@@ -179,7 +179,7 @@ elements:
                 refId: A
           queryOptions: {}
           transformations: []
-      description: Percentage of classified requests identified as bots in the selected time window.
+      description: "Bots as a percentage of requests that carry a decided verdict. Unknown requests are excluded from both sides of the ratio rather than counted as human: a visitor is unknown when no evidence tier fired, which is not evidence of being human. Routes that trigger no human-signal path — /seo/project/{slug} in particular — are unknown for every request, so the excluded share is large and this percentage describes only the decided remainder."
       id: 10
       links: []
       title: Bot traffic share
@@ -612,7 +612,7 @@ elements:
                     expr: |-
                       count(
                         sum by (ip) (
-                          count_over_time({container=~".*${backend:regex}", botKind!=""} | json ip [$__range])
+                          count_over_time({container=~".*${backend:regex}", botKind=~"${botKind:regex}"} | json ip [$__range])
                         )
                       )
                     instant: true
@@ -679,7 +679,7 @@ elements:
                       topk(25,
                         sum by (route, botKind) (
                           count_over_time(
-                            {container=~".*${backend:regex}", botKind!=""}
+                            {container=~".*${backend:regex}", botKind=~"${botKind:regex}"}
                             | json path="path"
                             | label_format route=`{{ regexReplaceAll "^/api/tiles/.*" .path "/api/tiles/{z}/{x}/{y}" }}`
                             | label_format route=`{{ regexReplaceAll "^/uploads/.*" .route "/uploads/*" }}`
@@ -812,7 +812,7 @@ elements:
                     expr: |-
                       label_replace(
                         quantile_over_time(0.10,
-                          {container=~".*${backend:regex}", botKind!=""}
+                          {container=~".*${backend:regex}", botKind=~"${botKind:regex}"}
                           | json path="path", duration="duration", status="status" | __error__="" | status < 400 | path=~"/(api|trpc|uploads|seo)/.*" | label_format route=`{{ regexReplaceAll "^/api/tiles/.*" .path "/api/tiles/{z}/{x}/{y}" }}` | label_format route=`{{ regexReplaceAll "^/uploads/.*" .route "/uploads/*" }}` | label_format route=`{{ regexReplaceAll "^/seo/project/.*" .route "/seo/project/{slug}" }}` | label_format route=`{{ regexReplaceAll ",.*" .route "" }}` | label_format route=`{{ regexReplaceAll "/[0-9]+" .route "/{id}" }}` | unwrap duration
                           [$__range]
                         ) by (route),
@@ -821,7 +821,7 @@ elements:
                       or
                       label_replace(
                         quantile_over_time(0.25,
-                          {container=~".*${backend:regex}", botKind!=""}
+                          {container=~".*${backend:regex}", botKind=~"${botKind:regex}"}
                           | json path="path", duration="duration", status="status" | __error__="" | status < 400 | path=~"/(api|trpc|uploads|seo)/.*" | label_format route=`{{ regexReplaceAll "^/api/tiles/.*" .path "/api/tiles/{z}/{x}/{y}" }}` | label_format route=`{{ regexReplaceAll "^/uploads/.*" .route "/uploads/*" }}` | label_format route=`{{ regexReplaceAll "^/seo/project/.*" .route "/seo/project/{slug}" }}` | label_format route=`{{ regexReplaceAll ",.*" .route "" }}` | label_format route=`{{ regexReplaceAll "/[0-9]+" .route "/{id}" }}` | unwrap duration
                           [$__range]
                         ) by (route),
@@ -830,7 +830,7 @@ elements:
                       or
                       label_replace(
                         quantile_over_time(0.50,
-                          {container=~".*${backend:regex}", botKind!=""}
+                          {container=~".*${backend:regex}", botKind=~"${botKind:regex}"}
                           | json path="path", duration="duration", status="status" | __error__="" | status < 400 | path=~"/(api|trpc|uploads|seo)/.*" | label_format route=`{{ regexReplaceAll "^/api/tiles/.*" .path "/api/tiles/{z}/{x}/{y}" }}` | label_format route=`{{ regexReplaceAll "^/uploads/.*" .route "/uploads/*" }}` | label_format route=`{{ regexReplaceAll "^/seo/project/.*" .route "/seo/project/{slug}" }}` | label_format route=`{{ regexReplaceAll ",.*" .route "" }}` | label_format route=`{{ regexReplaceAll "/[0-9]+" .route "/{id}" }}` | unwrap duration
                           [$__range]
                         ) by (route),
@@ -839,7 +839,7 @@ elements:
                       or
                       label_replace(
                         quantile_over_time(0.75,
-                          {container=~".*${backend:regex}", botKind!=""}
+                          {container=~".*${backend:regex}", botKind=~"${botKind:regex}"}
                           | json path="path", duration="duration", status="status" | __error__="" | status < 400 | path=~"/(api|trpc|uploads|seo)/.*" | label_format route=`{{ regexReplaceAll "^/api/tiles/.*" .path "/api/tiles/{z}/{x}/{y}" }}` | label_format route=`{{ regexReplaceAll "^/uploads/.*" .route "/uploads/*" }}` | label_format route=`{{ regexReplaceAll "^/seo/project/.*" .route "/seo/project/{slug}" }}` | label_format route=`{{ regexReplaceAll ",.*" .route "" }}` | label_format route=`{{ regexReplaceAll "/[0-9]+" .route "/{id}" }}` | unwrap duration
                           [$__range]
                         ) by (route),
@@ -848,7 +848,7 @@ elements:
                       or
                       label_replace(
                         quantile_over_time(0.90,
-                          {container=~".*${backend:regex}", botKind!=""}
+                          {container=~".*${backend:regex}", botKind=~"${botKind:regex}"}
                           | json path="path", duration="duration", status="status" | __error__="" | status < 400 | path=~"/(api|trpc|uploads|seo)/.*" | label_format route=`{{ regexReplaceAll "^/api/tiles/.*" .path "/api/tiles/{z}/{x}/{y}" }}` | label_format route=`{{ regexReplaceAll "^/uploads/.*" .route "/uploads/*" }}` | label_format route=`{{ regexReplaceAll "^/seo/project/.*" .route "/seo/project/{slug}" }}` | label_format route=`{{ regexReplaceAll ",.*" .route "" }}` | label_format route=`{{ regexReplaceAll "/[0-9]+" .route "/{id}" }}` | unwrap duration
                           [$__range]
                         ) by (route),
@@ -857,7 +857,7 @@ elements:
                       or
                       label_replace(
                         quantile_over_time(0.95,
-                          {container=~".*${backend:regex}", botKind!=""}
+                          {container=~".*${backend:regex}", botKind=~"${botKind:regex}"}
                           | json path="path", duration="duration", status="status" | __error__="" | status < 400 | path=~"/(api|trpc|uploads|seo)/.*" | label_format route=`{{ regexReplaceAll "^/api/tiles/.*" .path "/api/tiles/{z}/{x}/{y}" }}` | label_format route=`{{ regexReplaceAll "^/uploads/.*" .route "/uploads/*" }}` | label_format route=`{{ regexReplaceAll "^/seo/project/.*" .route "/seo/project/{slug}" }}` | label_format route=`{{ regexReplaceAll ",.*" .route "" }}` | label_format route=`{{ regexReplaceAll "/[0-9]+" .route "/{id}" }}` | unwrap duration
                           [$__range]
                         ) by (route),
@@ -866,7 +866,7 @@ elements:
                       or
                       label_replace(
                         quantile_over_time(0.99,
-                          {container=~".*${backend:regex}", botKind!=""}
+                          {container=~".*${backend:regex}", botKind=~"${botKind:regex}"}
                           | json path="path", duration="duration", status="status" | __error__="" | status < 400 | path=~"/(api|trpc|uploads|seo)/.*" | label_format route=`{{ regexReplaceAll "^/api/tiles/.*" .path "/api/tiles/{z}/{x}/{y}" }}` | label_format route=`{{ regexReplaceAll "^/uploads/.*" .route "/uploads/*" }}` | label_format route=`{{ regexReplaceAll "^/seo/project/.*" .route "/seo/project/{slug}" }}` | label_format route=`{{ regexReplaceAll ",.*" .route "" }}` | label_format route=`{{ regexReplaceAll "/[0-9]+" .route "/{id}" }}` | unwrap duration
                           [$__range]
                         ) by (route),
@@ -968,6 +968,181 @@ elements:
               sort: desc
             xField: quantile
         version: 13.2.0-29316898481
+  panel-14:
+    kind: Panel
+    spec:
+      data:
+        kind: QueryGroup
+        spec:
+          queries:
+            - kind: PanelQuery
+              spec:
+                hidden: false
+                query:
+                  datasource:
+                    name: grafanacloud-logs
+                  group: loki
+                  kind: DataQuery
+                  spec:
+                    app: grafana-assistant-app
+                    direction: backward
+                    editorMode: code
+                    expr: |-
+                      quantile_over_time(0.95,
+                        {container=~".*${backend:regex}", botKind=~"${botKind:regex}"}
+                        | json path="path", duration="duration", status="status" | __error__="" | status < 400 | path=~"/(api|trpc|uploads|seo)/.*" | label_format route=`{{ regexReplaceAll "^/api/tiles/.*" .path "/api/tiles/{z}/{x}/{y}" }}` | label_format route=`{{ regexReplaceAll "^/uploads/.*" .route "/uploads/*" }}` | label_format route=`{{ regexReplaceAll "^/seo/project/.*" .route "/seo/project/{slug}" }}` | label_format route=`{{ regexReplaceAll ",.*" .route "" }}` | label_format route=`{{ regexReplaceAll "/[0-9]+" .route "/{id}" }}` | unwrap duration
+                        [$__auto]
+                      ) by (route)
+                    instant: false
+                    legendFormat: "{{route}}"
+                    queryType: range
+                    range: true
+                  version: v0
+                refId: A
+          queryOptions: {}
+          transformations: []
+      description: "p95 latency per route charted over time, which locates when a route degraded. The percentile-curve panel above answers the other half — whether a route is slow throughout or only in its tail — and reads over the whole window at once, so it cannot show onset. Buckets follow the time picker via $__auto, so a wide window smooths short spikes; narrow the range to resolve them. Same filters as the curve: successful requests to served prefixes, paths normalised into route templates. A route with too few requests in a bucket produces no point, so sparse routes appear as broken lines rather than as zero."
+      id: 14
+      links: []
+      title: p95 latency over time per route
+      vizConfig:
+        group: timeseries
+        kind: VizConfig
+        spec:
+          fieldConfig:
+            defaults:
+              color:
+                mode: palette-classic
+              custom:
+                axisBorderShow: false
+                axisCenteredZero: false
+                axisColorMode: text
+                axisLabel: p95 latency
+                axisPlacement: auto
+                barAlignment: 0
+                barWidthFactor: 0.6
+                drawStyle: line
+                fillOpacity: 0
+                gradientMode: none
+                hideFrom:
+                  legend: false
+                  tooltip: false
+                  viz: false
+                insertNulls: false
+                lineInterpolation: linear
+                lineWidth: 2
+                pointSize: 5
+                scaleDistribution:
+                  type: linear
+                showPoints: auto
+                spanNulls: false
+                thresholdsStyle:
+                  mode: "off"
+              thresholds:
+                mode: absolute
+                steps:
+                  - color: green
+                    value: 0
+              unit: ms
+            overrides: []
+          options:
+            legend:
+              calcs:
+                - lastNotNull
+                - max
+              displayMode: table
+              overflow: ellipsis
+              placement: right
+              showLegend: true
+            tooltip:
+              hideZeros: false
+              mode: multi
+              sort: desc
+        version: 13.2.0-29316898481
+  panel-15:
+    kind: Panel
+    spec:
+      data:
+        kind: QueryGroup
+        spec:
+          queries:
+            - kind: PanelQuery
+              spec:
+                hidden: false
+                query:
+                  datasource:
+                    name: grafanacloud-logs
+                  group: loki
+                  kind: DataQuery
+                  spec:
+                    app: grafana-assistant-app
+                    direction: backward
+                    editorMode: code
+                    expr: |-
+                      sum by (visitorId) (
+                        count_over_time(
+                          {container=~".*${backend:regex}", botKind=~"${botKind:regex}"}
+                          | json visitorId="visitorId", path="path"
+                          | path=~`/trpc/(.*,)?project\.getById(,.*)?`
+                          [$__range]
+                        )
+                      )
+                    instant: true
+                    queryType: instant
+                    range: false
+                  version: v0
+                refId: A
+          queryOptions: {}
+          transformations: []
+      description: How the load on project.getById is spread across visitors. Each bar counts the visitors that made exactly that many calls in the selected window, so a tall bar at 1 with a thin tail to the right means many visitors opening one project each, while mass on the right means a few visitors driving the endpoint. The tRPC client batches, so a call is counted whatever position it holds in its batch path - this differs from the route panels above, which attribute a batch to its first procedure. Identity is the same anonymous per-IP visitor the other panels count, not the logged-in account. Bucket size is one request; a single heavy visitor stretches the axis, so raise it in panel options when the tail is long.
+      id: 15
+      links: []
+      title: project.getById calls per visitor
+      vizConfig:
+        group: histogram
+        kind: VizConfig
+        spec:
+          fieldConfig:
+            defaults:
+              color:
+                fixedColor: blue
+                mode: fixed
+              custom:
+                axisBorderShow: false
+                axisCenteredZero: false
+                axisColorMode: text
+                axisLabel: Visitors
+                axisPlacement: auto
+                fillOpacity: 80
+                gradientMode: none
+                hideFrom:
+                  legend: false
+                  tooltip: false
+                  viz: false
+                lineWidth: 1
+                scaleDistribution:
+                  type: linear
+              displayName: Visitors
+              thresholds:
+                mode: absolute
+                steps:
+                  - color: blue
+                    value: 0
+            overrides: []
+          options:
+            bucketOffset: 0
+            bucketSize: 1
+            combine: false
+            legend:
+              calcs: []
+              displayMode: list
+              placement: bottom
+              showLegend: false
+            tooltip:
+              hideZeros: false
+              mode: single
+              sort: none
+        version: 13.2.0-29316898481
 layout:
   kind: GridLayout
   spec:
@@ -1030,11 +1205,20 @@ layout:
         spec:
           element:
             kind: ElementReference
+            name: panel-14
+          height: 9
+          width: 24
+          x: 0
+          "y": 38
+      - kind: GridLayoutItem
+        spec:
+          element:
+            kind: ElementReference
             name: panel-3
           height: 9
           width: 12
           x: 0
-          "y": 38
+          "y": 47
       - kind: GridLayoutItem
         spec:
           element:
@@ -1043,7 +1227,16 @@ layout:
           height: 9
           width: 12
           x: 12
-          "y": 38
+          "y": 47
+      - kind: GridLayoutItem
+        spec:
+          element:
+            kind: ElementReference
+            name: panel-15
+          height: 9
+          width: 24
+          x: 0
+          "y": 56
 links: []
 liveNow: false
 preferences:
@@ -1089,6 +1282,38 @@ variables:
           value: preview-backend
           selected: false
       multi: false
+      includeAll: false
+      hide: dontHide
+      skipUrlSync: false
+      allowCustomValue: false
+  # The three values are enumerated rather than discovered, and there is no All option: every panel
+  # selects on botKind to drop health checks, which are served before the request logger and carry no
+  # verdict. An All expanding to a match-everything regex would pull them back in.
+  - kind: CustomVariable
+    spec:
+      name: botKind
+      label: Traffic
+      query: bot,human,unknown
+      current:
+        text:
+          - bot
+          - human
+          - unknown
+        value:
+          - bot
+          - human
+          - unknown
+      options:
+        - text: bot
+          value: bot
+          selected: true
+        - text: human
+          value: human
+          selected: true
+        - text: unknown
+          value: unknown
+          selected: true
+      multi: true
       includeAll: false
       hide: dontHide
       skipUrlSync: false

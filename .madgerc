@@ -4,5 +4,11 @@
     "js",
     "vue"
   ],
-  "tsConfig": "./tsconfig.json"
+  "tsConfig": "./tsconfig.json",
+  "excludeRegExp": ["^node_modules/", "^dist/", "junk", "components.d.ts", "back"],
+  "detectiveOptions": {
+    "ts": {
+      "skipTypeImports": true
+    }
+  }
 }

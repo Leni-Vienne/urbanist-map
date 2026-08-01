@@ -187,8 +187,6 @@
     "sourceOsm": "OpenStreetMap",
     "sourceOsmShort": "OSM",
     "moreFilters": "More filters",
-    "clearFilters": "Clear all",
-    "loadMore": "Load more",
     "mapArea": "Map area",
     "endOfCommunityFeed": "That's every website contribution.",
     "switchToOsm": "Browse OpenStreetMap projects",

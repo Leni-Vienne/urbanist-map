@@ -71,7 +71,7 @@ export const showOsmSyncNotice = computed(
 // costs no request. Read from the shared tab state rather than the panel's own mount hooks: desktop
 // and mobile render separate panel components, and swapping one for the other across the viewport
 // breakpoint tears a panel down and builds another without the tab ever changing.
-export const isFeedActive = computed(() => useUiStore().activeTab === "latest");
+const isFeedActive = computed(() => useUiStore().activeTab === "latest");
 
 function buildFilterQueryInput() {
   return {

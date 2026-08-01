@@ -1,7 +1,7 @@
 <template>
   <div :class="contentContainerClass">
     <KeepAlive>
-      <LatestContributionsPanel v-if="activeTab === 'latest'" />
+      <ExplorePanel v-if="activeTab === 'latest'" />
       <FilterPanel v-else-if="activeTab === 'filter'" />
       <ContributePanel v-else-if="activeTab === 'contribute' && authStore.isAuthenticated" />
       <ContributeGuestPanel v-else-if="activeTab === 'contribute' && !authStore.isAuthenticated" />
@@ -29,7 +29,7 @@ import { computed, defineAsyncComponent } from "vue";
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
 
-import LatestContributionsPanel from "./LatestContributionsPanel.vue";
+import ExplorePanel from "./ExplorePanel.vue";
 
 // Lazy load panels to reduce initial bundle size and allow Rolldown to deduplicate
 // shared async imports (e.g. ProjectAccordionPanel) across a single async chunk scope

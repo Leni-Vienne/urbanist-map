@@ -4,7 +4,8 @@
     "front/src/index.html",
     "back/src/index.ts",
     "back/src/scripts/**/*",
-    "package.json"
+    "package.json",
+    "**/*.test.ts"
   ],
   "project": ["front/src/**/*.{ts,js,vue}", "shared/**/*.{ts,js,vue}", "back/**/*.{ts,js}"],
   "ignore": [
