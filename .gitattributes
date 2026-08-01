@@ -2,3 +2,5 @@
 
 scripts/osm-extract/*.sh text eol=lf
 scripts/osm-extract/*.py text eol=lf
+
+drizzle/**/snapshot.json linguist-generated
