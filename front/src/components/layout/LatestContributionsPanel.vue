@@ -122,7 +122,9 @@
         <div
           v-for="row in rows"
           :key="row.contribution.id"
+          :ref="(element) => registerRow(row.contribution.id, element)"
           class="group flex items-center gap-3 px-2 py-2 cursor-pointer transition-all duration-150 hover:bg-black/5 dark:hover:bg-white/10 active:bg-black/5 dark:active:bg-white/10 active:scale-[0.98]"
+          :class="{ 'contribution-row-selected': isSelectedRow(row.contribution) }"
           @click="handleContributionClick(row.contribution)"
           @mouseenter="handleContributionHover(row.contribution)"
           @mouseleave="handleContributionLeave(row.contribution)"
@@ -278,6 +280,7 @@ import FilterPanelContent from "@/components/map/FilterPanelContent.vue";
 import MapAreaSearchControl from "@/components/map/MapAreaSearchControl.vue";
 import { formatRelativeTime } from "@/utils/dateFormat";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
+import { useFocusStore } from "@/stores/focusStore";
 import { useMapStore } from "@/stores/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { isMobile } from "@/services/core/viewport";
@@ -296,6 +299,7 @@ import { LngLatBounds } from "maplibre-gl";
 const { t, te, locale } = useI18n();
 const mapStore = useMapStore();
 const uiStore = useUiStore();
+const focusStore = useFocusStore();
 
 const { imageErrors, handleImageError, handleImageLoad } = useImageErrors();
 const isOsmSyncExpanded = ref(false);
@@ -499,10 +503,39 @@ async function handleContributionClick(contribution: LatestContribution) {
   }
 }
 
+// The row whose detail is docked above the list, so the list still says which one the panel
+// describes. An overlay selection carries its parent project id too, so match on the row's own kind.
+function isSelectedRow(contribution: LatestContribution): boolean {
+  return contribution.type === "overlay"
+    ? contribution.id === focusStore.selectedOverlayId
+    : contribution.id === focusStore.selectedProjectId;
+}
+
 const scrollAreaRef = ref<HTMLElement | null>(null);
 const contentRef = ref<HTMLElement | null>(null);
 const loadMoreSentinel = ref<HTMLElement | null>(null);
 const { showScrollFade } = useScrollFade(scrollAreaRef, contentRef);
+
+const selectedRowId = computed(() => focusStore.selectedOverlayId ?? focusStore.selectedProjectId);
+
+const rowElements = new Map<string, HTMLElement>();
+
+function registerRow(id: string, element: unknown): void {
+  if (element instanceof HTMLElement) {
+    rowElements.set(id, element);
+  } else {
+    rowElements.delete(id);
+  }
+}
+
+// Opening the detail claims height from the list, which can leave the picked row below the fold.
+// Centering keeps it visible through the shrink; a selection made on the map is simply absent here.
+function revealSelectedRow(id: string | null): void {
+  if (!id) return;
+  rowElements.get(id)?.scrollIntoView({ block: "center", behavior: "smooth" });
+}
+
+watch(selectedRowId, revealSelectedRow, { flush: "post" });
 
 let loadMoreObserver: IntersectionObserver | null = null;
 
@@ -578,5 +611,9 @@ onActivated(activateLatestContributions);
 
 .contribution-thumbnail {
   background-color: color-mix(in srgb, var(--thumbnail-color) 10%, transparent);
+}
+
+.contribution-row-selected {
+  background-color: color-mix(in srgb, var(--p-primary-color) 10%, transparent);
 }
 </style>

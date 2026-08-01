@@ -8,7 +8,7 @@
            clicking anywhere (except the close button, links and images, which stop propagation)
            recenters the map on the project. The chevron on the right marks the region as clickable. -->
       <div
-        class="flex flex-col flex-1 min-h-0 transition-colors duration-150"
+        class="flex flex-col flex-auto min-h-0 transition-colors duration-150"
         :class="{ 'cursor-pointer hover:bg-black/5 dark:hover:bg-white/10': canRecenter }"
         @click="handleRecenter"
       >
@@ -74,8 +74,9 @@
         </div>
 
         <!-- Project fields + overlay section (links and images inside stop propagation so they
-             keep their own click behavior instead of recentering). -->
-        <div class="relative flex-1 min-h-0">
+             keep their own click behavior instead of recentering). Sizes to its content when the
+             host leaves the panel's height open, and scrolls in place when the host fixes it. -->
+        <div class="relative flex-auto min-h-0">
           <div
             ref="scrollAreaRef"
             class="h-full px-4 pt-3 pb-4 overflow-y-auto overscroll-contain scrollbar-none [&::-webkit-scrollbar]:hidden"
