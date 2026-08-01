@@ -1,8 +1,15 @@
 import type { GeoJSONSource, Map as MaplibreMap } from "maplibre-gl";
 import type { Feature, FeatureCollection, MultiPolygon, Polygon, Position } from "geojson";
-import { watch } from "vue";
+import { computed, watch } from "vue";
 import { getMapOrNull, onStyleSwitch, type StyleSwitchPhase } from "@/services/core/map";
-import { isFeedActive, mapArea, type MapArea } from "@/services/feed/latestContributions";
+import { mapArea, type MapArea } from "@/services/feed/latestContributions";
+import { useUiStore } from "@/stores/uiStore";
+
+// The area filter is picked from the feed's filter surface, which mobile hosts in a tab of its own.
+const isAreaFilterOnScreen = computed(() => {
+  const tab = useUiStore().activeTab;
+  return tab === "latest" || tab === "filter";
+});
 
 const SOURCE_ID = "map-area-filter";
 const SCRIM_LAYER_ID = "map-area-filter-scrim";
@@ -126,7 +133,7 @@ export function syncMapAreaOutline(): void {
   const mlMap = getMapOrNull();
   if (!mlMap?.isStyleLoaded()) return;
 
-  const area = isFeedActive.value ? mapArea.value : null;
+  const area = isAreaFilterOnScreen.value ? mapArea.value : null;
   if (!area) {
     removeAreaLayers(mlMap);
     return;
@@ -150,5 +157,5 @@ onStyleSwitch(reattachAfterStyleSwitch);
 
 /** Keep the drawn bounds in step with the filter and with the tab that owns it. */
 export function watchMapAreaOutline(): () => void {
-  return watch([mapArea, isFeedActive], syncMapAreaOutline);
+  return watch([mapArea, isAreaFilterOnScreen], syncMapAreaOutline);
 }
