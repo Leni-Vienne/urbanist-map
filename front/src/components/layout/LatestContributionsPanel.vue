@@ -270,6 +270,7 @@ import ShapeThumbnail from "@/components/common/ShapeThumbnail.vue";
 import PanelEmptyState from "@/components/common/PanelEmptyState.vue";
 import FilterPanelContent from "@/components/map/FilterPanelContent.vue";
 import { formatRelativeTime } from "@/utils/dateFormat";
+import { formatBoundaryLocation } from "@/utils/locationDisplay";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
 import { useFocusStore } from "@/stores/focusStore";
 import { useMapStore } from "@/stores/mapStore";
@@ -420,35 +421,8 @@ function filterLabel(filter: ActiveFilter): string {
   }
 }
 
-// Prefer the name in the current UI locale, falling back to English, then the boundary's local name.
-function localizedName(level: LatestContribution["city"]): string | null {
-  if (!level) {
-    return null;
-  }
-  return level.names?.[locale.value] ?? level.nameEn ?? level.name;
-}
-
-// Builds "City, State, Country (CODE)" from the boundary-derived levels, skipping missing levels and
-// collapsing duplicate names (city-states like Berlin repeat the same name across levels).
 function getLocationDisplay(contribution: LatestContribution): string {
-  const parts: string[] = [];
-  for (const level of [contribution.city, contribution.state, contribution.country]) {
-    const name = localizedName(level);
-    if (name && !parts.includes(name)) {
-      parts.push(name);
-    }
-  }
-  const place = parts.join(", ");
-  if (place && contribution.countryCode) {
-    return `${place} (${contribution.countryCode})`;
-  }
-  if (place) {
-    return place;
-  }
-  if (contribution.countryCode) {
-    return contribution.countryCode;
-  }
-  return t("project.noLocation");
+  return formatBoundaryLocation(contribution, locale.value) || t("project.noLocation");
 }
 
 function handleContributionHover(contribution: LatestContribution) {

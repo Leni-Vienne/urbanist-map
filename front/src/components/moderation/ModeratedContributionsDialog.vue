@@ -32,7 +32,9 @@
       <div v-for="item in moderatedContributions" :key="item.id" class="flex gap-4">
         <!-- Thumbnail -->
         <div
-          class="shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-content-hover-background flex items-center justify-center"
+          class="contribution-thumbnail shrink-0 w-20 h-20 rounded-xl overflow-hidden flex items-center justify-center"
+          :style="{ '--thumbnail-color': getProjectTagColor(item.tags) }"
+          :class="{ 'border border-surface': item.type === 'overlay' && item.filename }"
         >
           <!-- Overlay thumbnail -->
           <img
@@ -42,12 +44,14 @@
             class="w-full h-full object-cover"
             @error="handleImageError"
           />
-          <!-- Standalone project icon -->
-          <i
+          <!-- Standalone projects stand in with their category icon; untagged ones keep a generic building. -->
+          <component
+            :is="getProjectTagIcon(item.tags) ?? Building"
             v-else-if="item.type === 'standalone'"
-            class="pi pi-building text-primary-color"
-            style="font-size: 2.5rem"
-          ></i>
+            class="w-10 h-10"
+            :style="{ color: getProjectTagColor(item.tags) }"
+            :stroke-width="1.5"
+          />
         </div>
 
         <!-- Content -->
@@ -124,13 +128,16 @@ import { computed, ref, onMounted } from "vue";
 import { storeToRefs } from "pinia";
 import { useModeratedContributionsStore } from "@/stores/moderatedContributionsStore";
 
+import { Building } from "@lucide/vue";
+import { getProjectTagIcon, getProjectTagColor } from "@/constants/projectTags";
 import { buildThumbnailUrl } from "@/utils/imageUrl";
 import { formatRelativeTime } from "@/utils/dateFormat";
+import { formatBoundaryLocation, type BoundaryLevels } from "@/utils/locationDisplay";
 import { useI18n } from "vue-i18n";
 import { handleImageError } from "@/utils/imageErrorHandler";
 
 const isVisible = defineModel<boolean>("visible", { default: false });
-const { t } = useI18n();
+const { t, locale } = useI18n();
 
 const moderatedContributionsStore = useModeratedContributionsStore();
 const { moderatedContributions, isLoading } = storeToRefs(moderatedContributionsStore);
@@ -148,15 +155,8 @@ onMounted(() => {
   ensureModeratedContributions();
 });
 
-function getLocationDisplay(item: {
-  countryName: string | null;
-  countryCode: string | null;
-}): string {
-  return (
-    (item.countryName && item.countryCode
-      ? `${item.countryName} (${item.countryCode})`
-      : (item.countryName ?? item.countryCode)) ?? ""
-  );
+function getLocationDisplay(item: BoundaryLevels): string {
+  return formatBoundaryLocation(item, locale.value);
 }
 
 async function handleAcknowledgeAll() {
@@ -180,3 +180,9 @@ async function handleAcknowledgeAll() {
   }
 }
 </script>
+
+<style scoped>
+.contribution-thumbnail {
+  background-color: color-mix(in srgb, var(--thumbnail-color) 10%, transparent);
+}
+</style>

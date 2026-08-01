@@ -3,15 +3,15 @@ import * as z from "zod";
 import { overlays, projects, users } from "../db/schema";
 import { sql, eq, ne, and, or, inArray } from "drizzle-orm";
 import { db, type Database } from "../database";
-import { buildOverlayQuery, buildOverlayVisibilityCondition, isUserBlocked } from "../db/helpers";
+import {
+  boundaryName,
+  buildOverlayQuery,
+  buildOverlayVisibilityCondition,
+  isUserBlocked,
+} from "../db/helpers";
 import type { AppMode } from "@shared/types";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { deleteLocalImages } from "../lib/imageCleanup";
-
-// Country display name resolved from the level-2 (country) admin boundary matching a country_code.
-const countryNameSql = sql<
-  string | null
->`(SELECT ab.name FROM admin_boundaries ab WHERE ab.admin_level = 2 AND ab.country_code = ${projects.countryCode} LIMIT 1)`;
 import {
   checkPendingLimitForNewContribution,
   checkTotalContributionLimit,
@@ -519,7 +519,10 @@ export const overlayRouter = router({
           replacedByOverlayId: overlays.replacedByOverlayId,
           projectName: projects.name,
           countryCode: projects.countryCode,
-          countryName: countryNameSql,
+          city: boundaryName("city"),
+          state: boundaryName("state"),
+          country: boundaryName("country"),
+          tags: projects.tags,
         })
         .from(overlays)
         .leftJoin(projects, eq(overlays.projectId, projects.id))
@@ -549,7 +552,10 @@ export const overlayRouter = router({
           lat: projects.lat,
           lng: projects.lng,
           countryCode: projects.countryCode,
-          countryName: countryNameSql,
+          city: boundaryName("city"),
+          state: boundaryName("state"),
+          country: boundaryName("country"),
+          tags: projects.tags,
         })
         .from(projects)
         .where(
@@ -563,9 +569,9 @@ export const overlayRouter = router({
         );
 
       // Combine and sort by updatedAt
-      const combined = [...moderatedOverlays, ...moderatedProjects].toSorted(
-        (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime(),
-      );
+      const combined = [...moderatedOverlays, ...moderatedProjects]
+        .toSorted((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+        .map((item) => ({ ...item, tags: item.tags ?? [] }));
 
       return combined;
     } catch (error) {

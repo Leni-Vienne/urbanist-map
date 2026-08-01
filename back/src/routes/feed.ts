@@ -1,8 +1,9 @@
 import { publicProcedure, router, TRPCError } from "../trpc";
 import { z } from "zod";
 import { db } from "../database";
-import { overlays, projects, adminBoundaries, importSources } from "../db/schema";
+import { overlays, projects, importSources } from "../db/schema";
 import { sql, eq, and, or, desc, type SQL } from "drizzle-orm";
+import { boundaryName, textArray } from "../db/helpers";
 import {
   advanceFeedCursor,
   EXHAUSTED_STREAM,
@@ -66,61 +67,6 @@ const getLatestContributionsSchema = feedQuerySchema.extend({
 type FeedInput = z.infer<typeof feedQuerySchema>;
 type FeedPageInput = z.infer<typeof getLatestContributionsSchema>;
 type MapArea = z.infer<typeof mapAreaSchema>;
-
-// Name variants of one boundary. Shipping every locale the UI can render, rather than a single
-// resolved name, keeps the feed free of a locale param and its cached pages locale-agnostic.
-type LocalizedBoundaryName = {
-  name: string; // OSM `name` (usually local language)
-  nameEn: string | null; // OSM `name:en`
-  names: Record<string, string> | null; // `name:*` variants for BOUNDARY_NAME_LOCALES
-};
-
-// Locales whose OSM `name:<code>` variant reaches the client; must cover the app's selectable UI
-// locales, minus English, which travels as nameEn. A boundary carries up to ~260 `name:*` variants
-// (France alone), so this projection is worth kilobytes per row. An omitted locale falls back to
-// the English or native name.
-const BOUNDARY_NAME_LOCALES = ["fr"];
-
-// Location source for a project, resolved by walking its assigned admin boundary's parent_id chain
-// (projects.admin_boundary_id -> admin_boundaries). `pick` maps to an OSM admin_level bucket:
-//   city    -> deepest of 6..8 (prefers the municipality at 8, e.g. Montréal/Paris; falls back to a
-//              county at 6 where no level-8 exists).
-//   state   -> level 4 exactly: the canonical province/region (Québec, Ontario, Île-de-France).
-//              Odd levels are informal groupings we must skip (5 = "Golden Horseshoe", 3 = "France
-//              métropolitaine").
-//   country -> level 2.
-// Returns NULL when the project has no assigned boundary or the chain lacks that grade.
-function boundaryName(pick: "city" | "state" | "country"): SQL<LocalizedBoundaryName | null> {
-  const range = {
-    city: sql`admin_level BETWEEN 6 AND 8`,
-    state: sql`admin_level = 4`,
-    country: sql`admin_level = 2`,
-  }[pick];
-  return sql<LocalizedBoundaryName | null>`(
-    WITH RECURSIVE chain AS (
-      SELECT osm_id, parent_id, admin_level, name, name_en, names
-      FROM ${adminBoundaries} WHERE osm_id = ${projects.adminBoundaryId}
-      UNION ALL
-      SELECT b.osm_id, b.parent_id, b.admin_level, b.name, b.name_en, b.names
-      FROM ${adminBoundaries} b JOIN chain c ON b.osm_id = c.parent_id
-    )
-    SELECT json_build_object('name', name, 'nameEn', name_en, 'names', (
-      SELECT json_object_agg(n.k, n.v)
-      FROM jsonb_each_text(COALESCE(names, '{}'::jsonb)) AS n(k, v)
-      WHERE n.k = ANY(${textArray(BOUNDARY_NAME_LOCALES)})
-    ))
-    FROM chain WHERE ${range} ORDER BY admin_level DESC LIMIT 1
-  )`;
-}
-
-// Binds one param per element, so the value reaches Postgres as an array rather than as a
-// comma-separated parameter list.
-function textArray(values: string[]): SQL {
-  return sql`ARRAY[${sql.join(
-    values.map((value) => sql`${value}`),
-    sql`, `,
-  )}]::text[]`;
-}
 
 // Project-level predicates shared by every feed query. `nameColumn` differs per query because an
 // overlay falls back to its caption when its project is unnamed.

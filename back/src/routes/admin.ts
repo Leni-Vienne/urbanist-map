@@ -5,14 +5,10 @@ import { db } from "../database";
 import { deleteImages, executePendingDeletions } from "../lib/imageCleanup";
 import { TRPCError } from "@trpc/server";
 import * as z from "zod";
+import { countryNameSql } from "../db/helpers";
 
 // Admin-only router for managing users and their content
 // All endpoints require admin role
-
-// Country display name resolved from the level-2 (country) admin boundary matching a country_code.
-const countryNameSql = sql<
-  string | null
->`(SELECT ab.name FROM admin_boundaries ab WHERE ab.admin_level = 2 AND ab.country_code = ${projects.countryCode} LIMIT 1)`;
 
 async function loadCountryDetails(userId: string, countryCode: string) {
   const countryProjects = await db
