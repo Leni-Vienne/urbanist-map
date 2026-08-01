@@ -37,7 +37,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import type CreateProjectForm from "@/components/forms/CreateProjectForm.vue";
+import CreateProjectForm from "@/components/forms/CreateProjectForm.vue";
 import type { Project } from "@/types/index";
 
 defineProps<{

@@ -53,12 +53,10 @@
                 :overlay-changes-map="overlayChangesMap"
                 :is-contribute-panel="isContributePanel"
                 :show-user-stats-link="showUserStatsLink"
-                :show-edit-buttons="selectedCardIsExternal ? false : showEditButtons"
                 hide-chevron
                 :on-navigate-to-overlay="navigateToOverlayById"
                 :on-overlay-click="onOverlayClick"
                 @show-user-stats="(data) => emit('show-user-stats', data)"
-                @edit-project="handleProjectClick"
                 @project-click="emit('external-project-click')"
                 @highlight-project="handleProjectHighlight"
                 @remove-project-highlight="handleProjectUnhighlight"
@@ -125,11 +123,9 @@
               :overlay-changes-map="overlayChangesMap"
               :is-contribute-panel="isContributePanel"
               :show-user-stats-link="showUserStatsLink"
-              :show-edit-buttons="showEditButtons"
               :on-navigate-to-overlay="navigateToOverlayById"
               :on-overlay-click="onOverlayClick"
               @show-user-stats="(data) => emit('show-user-stats', data)"
-              @edit-project="handleProjectClick"
               @project-click="handleCardClick"
               @highlight-project="handleProjectHighlight"
               @remove-project-highlight="handleProjectUnhighlight"
@@ -230,7 +226,6 @@ interface Props {
   isContributePanel?: boolean;
   showUserStatsLink?: boolean;
   disableAutoModeSwitch?: boolean;
-  showEditButtons?: boolean;
   // Id of the map-selected project. When it matches a project in `projects`, that project is lifted
   // out of the list and shown in the "Selected project" card at the top.
   selectedProjectId?: string | null;
@@ -251,7 +246,6 @@ const props = withDefaults(defineProps<Props>(), {
   isContributePanel: false,
   showUserStatsLink: false,
   disableAutoModeSwitch: false,
-  showEditButtons: false,
   selectedProjectId: null,
   pinnedExternalProject: null,
   keepContentVisible: false,

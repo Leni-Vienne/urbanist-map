@@ -553,7 +553,6 @@ function transformOverlayDataWithChangeRequests(
       corners: approvedCorners,
       suggestedCorners: suggestedCorners ?? undefined,
       suggestedCaption: suggestedCaption ?? undefined,
-      distance: 0,
       project: {
         ...row.project,
         importSource: row.importSource,

@@ -11,7 +11,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, reactive } from "vue";
+import { ref, reactive } from "vue";
 import { useI18n } from "vue-i18n";
 import { getScopedProjectValidationErrors } from "@/utils/validationHelpers";
 import { toastError } from "@/services/core/toast";
@@ -35,12 +35,6 @@ const timelineStatus = ref<
 const emit = defineEmits<{
   submit: [project: Partial<Project>];
 }>();
-
-watch(
-  () => props.project,
-  (p) => Object.assign(formData, projectToFormData(p)),
-  { deep: true },
-);
 
 function handleSubmit() {
   const errors = getScopedProjectValidationErrors(formData, timelineStatus.value);

@@ -54,15 +54,11 @@ export const viewportRouter = router({
       const projectsData = await db
         .select({
           ...PROJECT_COLUMNS,
-          overlayCount: sql<number>`COUNT(CASE WHEN ${overlays.status} = 'approved' OR ${overlays.authorId} = ${userId} THEN 1 END)::int`,
           importSource: importSources,
         })
         .from(projects)
-        .leftJoin(overlays, eq(overlays.projectId, projects.id))
         .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
-        .where(and(sql`${projects.ownerId} = ${userId}`, sql`${projects.status} != 'approved'`))
-        // projects.geometry (PostGIS) can't be used in B-tree equality, so group by PKs only.
-        .groupBy(projects.id, importSources.id);
+        .where(and(sql`${projects.ownerId} = ${userId}`, sql`${projects.status} != 'approved'`));
 
       return { overlays: overlaysData, projects: projectsData };
     } catch (error) {
@@ -130,15 +126,11 @@ export const viewportRouter = router({
         const projectsData = await db
           .select({
             ...PROJECT_COLUMNS,
-            overlayCount: sql<number>`COUNT(CASE WHEN ${overlays.status} = 'approved' OR ${overlays.status} = 'pending' THEN 1 END)::int`,
             importSource: importSources,
           })
           .from(projects)
-          .leftJoin(overlays, eq(overlays.projectId, projects.id))
           .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
-          .where(and(buildProjectVisibilityCondition(user, "moderation", true), countryCondition))
-          // projects.geometry (PostGIS) can't be used in B-tree equality, so group by PKs only.
-          .groupBy(projects.id, importSources.id);
+          .where(and(buildProjectVisibilityCondition(user, "moderation", true), countryCondition));
 
         return { overlays: overlaysData, projects: projectsData };
       } catch (error) {

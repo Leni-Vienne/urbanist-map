@@ -1,5 +1,5 @@
 <template>
-  <DraggableDrawer v-model:height-percent="drawerHeight" @height-changed="handleHeightChanged">
+  <DraggableDrawer v-model:height-percent="drawerHeight">
     <!-- Mode controls above drawer on mobile, with individual floor clamping -->
     <template #above="{ drawerHeightPx }">
       <div class="relative w-full h-0 pointer-events-none">
@@ -139,10 +139,6 @@ const drawerHeight = computed({
     uiStore.mobileDrawerHeightPercent = Math.min(75, value);
   },
 });
-
-function handleHeightChanged(height: number) {
-  uiStore.mobileDrawerHeightPercent = Math.min(90, height);
-}
 </script>
 
 <style scoped>

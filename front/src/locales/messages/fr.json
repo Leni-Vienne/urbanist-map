@@ -760,12 +760,8 @@
     "replacementOverlayCreated": "Image de remplacement créée",
     "replacementOverlayDetail": "Votre image de remplacement a été créée et est prête à être modifiée",
     "projectCreatedSuccess": "Projet créé avec succès",
-    "projectUpdateSuccess": "Projet mis à jour",
-    "projectUpdateDetail": "Modifications du projet enregistrées localement",
-    "projectUpdateFailed": "Échec de la mise à jour",
     "projectCreationFailed": "Échec de la création du projet",
-    "projectCreationFailedDetail": "Échec de la création du projet. Veuillez réessayer.",
-    "projectUpdateFailedDetail": "Échec de l'enregistrement des modifications du projet"
+    "projectCreationFailedDetail": "Échec de la création du projet. Veuillez réessayer."
   },
   "admin": {
     "reports": {

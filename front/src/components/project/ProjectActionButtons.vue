@@ -2,7 +2,6 @@
   <div class="flex flex-row flex-wrap gap-1.5">
     <!-- Edit button -->
     <button
-      v-if="showEdit"
       class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-color hover:text-primary-hover-color hover:bg-[color-mix(in_srgb,var(--p-primary-color)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--p-primary-color)_30%,transparent)]"
       @click.stop="$emit('edit', project)"
       v-tooltip.top="editTooltip"
@@ -12,7 +11,6 @@
 
     <!-- Add image button -->
     <button
-      v-if="showAddImage"
       class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-(--p-text-color-secondary) hover:text-color hover:bg-content-hover-background hover:border-surface"
       @click.stop="$emit('add-image', project)"
       v-tooltip.top="$t('project.addImages')"
@@ -22,7 +20,6 @@
 
     <!-- Draw shapes button -->
     <button
-      v-if="showDraw"
       class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-(--p-text-color-secondary) hover:text-color hover:bg-content-hover-background hover:border-surface"
       @click.stop="$emit('draw', project)"
       v-tooltip.top="$t('shapes.drawShapes')"
@@ -32,7 +29,6 @@
 
     <!-- Save/submit button -->
     <button
-      v-if="showSave"
       class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center transition-all duration-150 text-sm text-green-500"
       :class="
         isModified
@@ -72,19 +68,11 @@ import type { Project } from "@/types/index";
 
 interface Props {
   project: Project;
-  showEdit?: boolean;
-  showAddImage?: boolean;
-  showDraw?: boolean;
-  showSave?: boolean;
   showDelete?: boolean;
   isModified?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  showEdit: false,
-  showAddImage: false,
-  showDraw: false,
-  showSave: false,
   showDelete: false,
   isModified: false,
 });

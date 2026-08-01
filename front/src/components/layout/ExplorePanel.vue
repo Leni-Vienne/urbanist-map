@@ -134,8 +134,7 @@
               class="w-full h-full object-cover"
               alt=""
               :crossorigin="row.crossorigin"
-              @error="(event) => handleImageError(event, row.contribution.id)"
-              @load="() => handleImageLoad(row.contribution.id)"
+              @error="() => handleImageError(row.contribution.id)"
             />
             <component
               :is="row.icon"
@@ -293,7 +292,7 @@ const mapStore = useMapStore();
 const uiStore = useUiStore();
 const focusStore = useFocusStore();
 
-const { imageErrors, handleImageError, handleImageLoad } = useImageErrors();
+const { imageErrors, handleImageError } = useImageErrors();
 const isOsmSyncExpanded = ref(false);
 
 const SOURCE_OPTIONS = computed(() => [

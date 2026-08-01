@@ -7,8 +7,6 @@ interface WikidataEntity {
   logoUrl: string | null;
   /** P18: main image URL (Wikimedia Commons) */
   imageUrl: string | null;
-  /** P2048: building/structure height converted to metres */
-  heightM: number | null;
 }
 
 // Module-level session cache keyed by "Q123:en", persists across component mounts
@@ -35,7 +33,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 // P154 = logo image (Wikimedia Commons filename)
 // P18  = main image (Wikimedia Commons filename)
-// P2048 = height of structure
 function getStringClaim(claims: Record<string, unknown>, property: string): string | null {
   const arr = claims[property];
   const statement = Array.isArray(arr) ? arr[0] : undefined;
@@ -45,30 +42,6 @@ function getStringClaim(claims: Record<string, unknown>, property: string): stri
   const dv = snak.datavalue;
   if (!isRecord(dv) || dv.type !== "string") return null;
   return typeof dv.value === "string" ? dv.value : null;
-}
-
-function getHeightMetres(claims: Record<string, unknown>): number | null {
-  const arr = claims.P2048; // P2048 = height of structure
-  const statement = Array.isArray(arr) ? arr[0] : undefined;
-  if (!isRecord(statement)) return null;
-  const snak = statement.mainsnak;
-  if (!isRecord(snak) || snak.snaktype !== "value") return null;
-  const dv = snak.datavalue;
-  if (!isRecord(dv) || dv.type !== "quantity") return null;
-  // quantity datavalue: { amount: "+42.5", unit: "http://www.wikidata.org/entity/Q11573", … }
-  const qty = dv.value;
-  if (!isRecord(qty)) return null;
-  const amount = Number.parseFloat(String(qty.amount));
-  if (Number.isNaN(amount)) return null;
-
-  // unit is a full entity URL; we match by the trailing Q-id
-  const unit = typeof qty.unit === "string" ? qty.unit : "";
-  if (unit.endsWith("Q11573")) return amount; // Q11573  = metre
-  if (unit.endsWith("Q174728")) return amount / 100; // Q174728 = centimetre
-  if (unit.endsWith("Q3710")) return amount * 0.3048; // Q3710   = foot
-  if (unit.endsWith("Q218593")) return amount * 0.0254; // Q218593 = inch
-  if (unit === "1") return amount; // dimensionless, assume metres
-  return null;
 }
 
 async function fetchEntity(id: string, lang: string): Promise<WikidataEntity | null> {
@@ -99,7 +72,6 @@ async function fetchEntity(id: string, lang: string): Promise<WikidataEntity | n
       description,
       logoUrl: logoFilename ? commonsUrl(logoFilename) : null,
       imageUrl: imageFilename ? commonsUrl(imageFilename) : null,
-      heightM: getHeightMetres(claims),
     };
   } catch {
     return null;
@@ -113,7 +85,7 @@ function extractWikidataId(externalProperties: unknown): string | null {
 }
 
 /**
- * Fetch and cache Wikidata entity data (description, logo, image, building height).
+ * Fetch and cache Wikidata entity data (description, logo, image).
  * Takes a project's `externalProperties` and derives the Wikidata Q-id from it.
  * Results are cached for the session so each Q-id is fetched at most once per locale.
  */

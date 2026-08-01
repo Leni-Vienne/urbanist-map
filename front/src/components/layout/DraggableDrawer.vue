@@ -65,7 +65,6 @@ const MAX_HEIGHT_PERCENT = 75;
 
 const emit = defineEmits<{
   "update:heightPercent": [value: number];
-  heightChanged: [value: number];
 }>();
 
 const isDragging = ref(false);
@@ -120,7 +119,6 @@ watch(
       if (wasAtMinimum) {
         currentHeight.value = newMinPercent;
         emit("update:heightPercent", newMinPercent);
-        emit("heightChanged", newMinPercent);
       }
     }
   },
@@ -165,7 +163,6 @@ function handleTouchMove(e: TouchEvent) {
 
   // Emit updates during drag for continuous reactivity
   emit("update:heightPercent", newHeight);
-  emit("heightChanged", newHeight);
 }
 
 function handleTouchEnd() {
@@ -197,7 +194,6 @@ function handleMouseDown(e: MouseEvent) {
 
     // Emit updates during drag for continuous reactivity
     emit("update:heightPercent", newHeight);
-    emit("heightChanged", newHeight);
   }
 
   function handleMouseUp() {
@@ -220,7 +216,6 @@ function finalizePosition() {
   }
 
   emit("update:heightPercent", currentHeight.value);
-  emit("heightChanged", currentHeight.value);
 }
 
 onMounted(() => {

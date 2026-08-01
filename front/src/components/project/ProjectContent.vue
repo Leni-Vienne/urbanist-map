@@ -30,18 +30,10 @@
           </div>
         </div>
 
-        <!-- Actions column - edit button or chevron (inline action buttons render at card bottom) -->
+        <!-- Actions column - navigation chevron (inline action buttons render at card bottom) -->
         <div class="flex flex-col gap-1.5 shrink-0 self-center" @click.stop>
-          <button
-            v-if="!$slots['project-actions'] && showEditButtons"
-            class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-color hover:text-primary-hover-color hover:bg-[color-mix(in_srgb,var(--p-primary-color)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--p-primary-color)_40%,transparent)]"
-            @click.stop="$emit('edit-project', project)"
-            v-tooltip.top="$t('common.edit')"
-          >
-            <i class="pi pi-pencil"></i>
-          </button>
           <i
-            v-else-if="!hideChevron"
+            v-if="!hideChevron"
             class="pi pi-chevron-right text-sm text-muted-color shrink-0 transition-colors duration-150"
           ></i>
         </div>
@@ -118,8 +110,7 @@
                   ? 'use-credentials'
                   : undefined
               "
-              @error="(event) => handleImageError(event, overlay.id)"
-              @load="() => handleImageLoad(overlay.id)"
+              @error="() => handleImageError(overlay.id)"
             />
             <i v-if="imageErrors[overlay.id]" class="pi pi-image text-2xl text-muted-color"></i>
           </div>
@@ -226,7 +217,6 @@ interface Props {
   overlayChangesMap: Map<string, PendingChangeRequest[]>;
   isContributePanel: boolean;
   showUserStatsLink?: boolean;
-  showEditButtons?: boolean;
   // Hide the project-level navigation chevron (e.g. in the "selected project" card).
   hideChevron?: boolean;
   // Render as a plain card (a <div>) instead of an AccordionContent, for use outside an Accordion.
@@ -247,7 +237,6 @@ const emit = defineEmits<{
       reportCount?: number;
     },
   ];
-  "edit-project": [project: Project];
   "project-click": [project: Project];
   "highlight-project": [project: Project];
   "remove-project-highlight": [project: Project];
@@ -255,7 +244,7 @@ const emit = defineEmits<{
   "remove-highlight": [overlayId: string];
 }>();
 
-const { imageErrors, handleImageError, handleImageLoad } = useImageErrors();
+const { imageErrors, handleImageError } = useImageErrors();
 
 // OSM-imported projects have no on-site contributor and their updatedAt is just
 // the import date, so the contributor line carries no meaning: hide it for them.

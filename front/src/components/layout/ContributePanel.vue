@@ -4,7 +4,6 @@
     :projects="filteredProjects"
     :is-loading="isLoading"
     :change-requests="changeRequestStore.pendingChangeRequests"
-    :show-edit-buttons="true"
     :selected-project-id="selectedProjectId"
     :pinned-external-project="pinnedExternalProject"
     :keep-content-visible="allContributions.length > 0"
@@ -25,10 +24,6 @@
     <template #project-actions="{ project, isExternal }">
       <ProjectActionButtons
         :project="project"
-        show-edit
-        show-add-image
-        show-draw
-        show-save
         :show-delete="!isExternal"
         :is-modified="isProjectModified(project.id)"
         @edit="handleEditProjectClick"

@@ -151,7 +151,7 @@
       "
     />
 
-    <ImageLightbox ref="lightbox" />
+    <ImageLightbox v-if="showWikidataMedia" ref="lightbox" />
   </div>
 </template>
 

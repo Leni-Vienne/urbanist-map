@@ -760,12 +760,8 @@
     "replacementOverlayCreated": "Replacement Image Created",
     "replacementOverlayDetail": "Your replacement image has been created and is ready for editing",
     "projectCreatedSuccess": "Project created successfully",
-    "projectUpdateSuccess": "Project Updated",
-    "projectUpdateDetail": "Project changes saved locally",
-    "projectUpdateFailed": "Update Failed",
     "projectCreationFailed": "Project Creation Failed",
-    "projectCreationFailedDetail": "Failed to create the project. Please try again.",
-    "projectUpdateFailedDetail": "Failed to save project changes"
+    "projectCreationFailedDetail": "Failed to create the project. Please try again."
   },
   "admin": {
     "reports": {

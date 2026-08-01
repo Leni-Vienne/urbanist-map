@@ -44,9 +44,23 @@ export type PendingChangeRequest =
 
 export type LatestContribution = RouterOutput["feed"]["getLatestContributions"]["items"][number];
 
-// Base runtime project type - extends DB schema with computed fields.
-// indexable is a server-only SEO column, never selected into client queries, so it is omitted here.
-export interface Project extends Omit<DBProject, "status" | "tags" | "slug" | "indexable"> {
+// Base runtime project type - extends DB schema with computed fields. Server-side storage and
+// import-bookkeeping columns (indexable, centerCoordinate, adminBoundaryId, lastImportedAt,
+// importLockedAt, detachedAt, rejectionReason) are omitted: no frontend surface reads them, and
+// keeping them out makes over-fetching visible at the type boundary.
+export interface Project extends Omit<
+  DBProject,
+  | "status"
+  | "tags"
+  | "slug"
+  | "indexable"
+  | "centerCoordinate"
+  | "adminBoundaryId"
+  | "lastImportedAt"
+  | "importLockedAt"
+  | "detachedAt"
+  | "rejectionReason"
+> {
   // Override status to allow null for local unsubmitted projects
   status: ApprovalStatus | null;
   // Permanent SEO slug for the /project/<slug> deep link. Selected only by getById/getBySlug, so it
@@ -81,9 +95,6 @@ export interface Project extends Omit<DBProject, "status" | "tags" | "slug" | "i
   ownerApprovedCount?: number | null;
   ownerRejectedCount?: number | null;
   ownerReportCount?: number;
-
-  // Cached overlay count for list views that don't hydrate the full overlays array.
-  overlayCount?: number;
 
   // The project's render (artist's impression), attached by project.getById. Scoped server-side to
   // approved or the requester's own pending render. undefined = not loaded; null = loaded, none.
@@ -133,17 +144,10 @@ type ApiOverlayData = RouterOutput["viewport"]["getEditSessionData"]["overlays"]
 // - optional fields that are absent on locally-constructed overlays
 export type OverlayData = Omit<
   ApiOverlayData,
-  | "status"
-  | "project"
-  | "distance"
-  | "corners"
-  | "suggestedCorners"
-  | "suggestedCaption"
-  | "hasPendingChanges"
+  "status" | "project" | "corners" | "suggestedCorners" | "suggestedCaption" | "hasPendingChanges"
 > & {
   status: ApprovalStatus | null;
   project?: ApiOverlayData["project"] | Project | null;
-  distance?: number;
   // The immutable backend/approved corners, or null when the overlay has no placed footprint
   // (an un-placed local upload before its corners are computed, or a render with null corners).
   // The live edited position lives on the GL image (getOverlayImageCorners) and undo steps in

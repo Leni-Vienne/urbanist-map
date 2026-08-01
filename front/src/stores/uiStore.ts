@@ -5,9 +5,11 @@ import type { Project, OverlayObject, PanelTab } from "@/types/index";
 // Minimal overlay data needed to open the edit dialog (caption editor only)
 export type OverlayEditTarget = Pick<OverlayObject, "id" | "caption">;
 
+// The project creation dialog is always opened on a freshly placed marker, so the seed it carries
+// is that marker's position.
 interface ProjectDialogState {
   visible: boolean;
-  project?: Partial<Project>;
+  project?: Pick<Project, "lat" | "lng">;
 }
 
 interface EditFormState {
@@ -70,7 +72,7 @@ export const useUiStore = defineStore("ui", () => {
     authModalVisible.value = true;
   }
 
-  function openProjectDialog(project?: Partial<Project>) {
+  function openProjectDialog(project: Pick<Project, "lat" | "lng">) {
     projectDialog.value = {
       visible: true,
       project,

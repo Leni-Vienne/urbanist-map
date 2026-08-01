@@ -74,7 +74,6 @@ const markerPlacementBar = ref<InstanceType<typeof MarkerPlacementBar> | null>(n
 const tempMarker = shallowRef<maplibregl.Marker | null>(null);
 const mapClickHandler = ref<((e: MapMouseEvent) => void) | null>(null);
 
-const { projects } = storeToRefs(projectStore);
 const { projectEditForm } = storeToRefs(uiStore);
 
 function onMarkerCoordinatesSelected(coordinates: { lat: number; lng: number }) {
@@ -126,59 +125,25 @@ function onDialogVisibilityChange(visible: boolean) {
   }
 }
 
-async function handleNewProjectCreation(project: Partial<Project>): Promise<void> {
-  const projectId = createProject({
-    ...project,
-    isModified: true,
-  });
-
-  const hasNoOverlays = !project.overlayIds || project.overlayIds.length === 0;
-  if (hasNoOverlays && typeof project.lat === "number" && typeof project.lng === "number") {
-    const storedProject = projectStore.projects[projectId];
-    if (storedProject) {
-      openProjectDetail(storedProject);
-    }
-    toastSuccess($t("toasts.projectCreatedSuccess"));
-  }
-}
-
-function handleProjectUpdate(project: Partial<Project>): void {
-  const projectId = project.id;
-  if (!projectId) {
-    console.warn("Project ID is undefined in handleProjectUpdate");
-    return;
-  }
-
-  if (projects.value[projectId]) {
-    projectStore.updateProject(projectId, {
-      ...project,
-      overlayIds: projects.value[projectId].overlayIds || [],
-      isModified: true,
-    });
-
-    toastSuccess($t("toasts.projectUpdateDetail"), $t("toasts.projectUpdateSuccess"));
-  }
-}
-
-async function handleProjectSubmitted(project: Partial<Project>) {
-  if (!project) return;
-
+function handleProjectSubmitted(project: Partial<Project>) {
   try {
     uiStore.closeProjectDialog();
 
-    if (project.id) {
-      handleProjectUpdate(project);
-    } else {
-      await handleNewProjectCreation(project);
+    const projectId = createProject({
+      ...project,
+      isModified: true,
+    });
+
+    if (typeof project.lat === "number" && typeof project.lng === "number") {
+      const storedProject = projectStore.projects[projectId];
+      if (storedProject) {
+        openProjectDetail(storedProject);
+      }
+      toastSuccess($t("toasts.projectCreatedSuccess"));
     }
   } catch (error) {
-    console.error("Error with project:", error);
-    toastError(
-      project.id
-        ? $t("toasts.projectUpdateFailedDetail")
-        : $t("toasts.projectCreationFailedDetail"),
-      project.id ? $t("toasts.projectUpdateFailed") : $t("toasts.projectCreationFailed"),
-    );
+    console.error("Error creating project:", error);
+    toastError($t("toasts.projectCreationFailedDetail"), $t("toasts.projectCreationFailed"));
   }
 }
 </script>

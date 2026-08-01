@@ -175,7 +175,7 @@ const authStore = useAuthStore();
 
 const { project, overlay } = useDetailProject();
 
-// Wikidata entity for the current project (logo, description, height)
+// Wikidata entity for the current project (logo, image)
 const { entity: wikidataEntity } = useWikidataEntity(
   computed(() => project.value?.externalProperties),
 );
