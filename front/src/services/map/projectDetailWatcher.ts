@@ -1,6 +1,8 @@
 import { watch } from "vue";
 import { hydrateProjectDetail } from "@/services/core/projectSelection";
+import { closeDetail } from "@/services/overlay/selection";
 import { useUiStore } from "@/stores/uiStore";
+import { useMapStore } from "@/stores/mapStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { highlightProjectShapes, unhighlightProjectShapes } from "@/services/map/shapes/registry";
@@ -99,11 +101,24 @@ export function watchShapeHighlighting(): () => void {
   );
 }
 
+// Moderation reviews pending submissions, a set the other modes never show. Crossing that boundary
+// in either direction drops the selection so neither side inherits the other's context; view and
+// edit share a world, so a selection carries between them.
+function watchModerationSelectionIsolation(): () => void {
+  const mapStore = useMapStore();
+
+  return watch(() => mapStore.mode === "moderation", closeDetail);
+}
+
 /**
  * Install the app-lifetime focus projections that do not require a MapLibre instance.
  */
 export function startDetailWatcher(): () => void {
-  const stops = [watchProjectUrlSync(), watchSelectedPanelCleanup()];
+  const stops = [
+    watchProjectUrlSync(),
+    watchSelectedPanelCleanup(),
+    watchModerationSelectionIsolation(),
+  ];
 
   return function stopDetailWatcher(): void {
     for (const stop of stops.toReversed()) stop();

@@ -37,12 +37,7 @@
                 class="text-sm font-semibold leading-snug wrap-break-word"
                 :class="project?.name ? 'text-color' : 'text-muted-color italic'"
               >
-                {{
-                  project?.name ||
-                  (project?.importSource?.type === "osm"
-                    ? $t("project.osmName")
-                    : $t("project.unnamed"))
-                }}
+                {{ displayName }}
               </span>
             </div>
             <!-- Right: edit + close buttons (stop propagation so they don't recenter) -->
@@ -81,71 +76,43 @@
             ref="scrollAreaRef"
             class="h-full px-4 pt-3 pb-4 overflow-y-auto overscroll-contain scrollbar-none [&::-webkit-scrollbar]:hidden"
           >
-            <div ref="contentRef" class="flex flex-row items-start gap-3">
-              <div class="flex-1 min-w-0">
-                <ProjectMetadataCard :project="project" />
+            <div ref="contentRef">
+              <ProjectMetadataCard :project="project" />
 
-                <!-- Wikidata main image (P18) shown at the bottom of the metadata section. Click to zoom. -->
-                <div v-if="wikidataEntity?.imageUrl" class="mt-3 pt-3 border-t border-surface">
-                  <img
-                    :src="wikidataEntity.imageUrl"
-                    class="w-full rounded-lg object-cover max-h-48 cursor-zoom-in"
-                    referrerpolicy="no-referrer"
-                    loading="lazy"
-                    v-tooltip.top="$t('overlay.viewFullImage')"
-                    @click.stop="
-                      lightbox?.open({
-                        url: wikidataEntity?.imageUrl,
-                        header:
-                          project?.name ||
-                          (project?.importSource?.type === 'osm'
-                            ? $t('project.osmName')
-                            : $t('project.unnamed')),
-                        referrerpolicy: 'no-referrer',
-                      })
-                    "
-                  />
-                </div>
+              <!-- Project imagery below the metadata: the Wikidata main image (P18) and the
+                   user-contributed render. Click to view full size. -->
+              <div
+                v-for="image in images"
+                :key="image.url"
+                class="mt-3 pt-3 border-t border-surface flex flex-col gap-1.5"
+              >
+                <span v-if="image.label" class="text-xs font-semibold text-muted-color">{{
+                  image.label
+                }}</span>
+                <img
+                  :src="image.url"
+                  :crossorigin="image.crossorigin"
+                  :referrerpolicy="image.referrerpolicy"
+                  class="w-full rounded-lg object-cover max-h-48 cursor-zoom-in"
+                  loading="lazy"
+                  v-tooltip.top="$t('overlay.viewFullImage')"
+                  @click.stop="lightbox?.open(image)"
+                />
+              </div>
 
-                <!-- Render (artist's impression): a user-contributed, non-georeferenced project image.
-             Added/replaced via the project edit form, not here. Click to view full size. -->
-                <div
-                  v-if="renderImageUrl"
-                  class="mt-3 pt-3 border-t border-surface flex flex-col gap-1.5"
+              <!-- Show view original button for pending replacements -->
+              <div
+                v-if="overlay?.replacesOverlayId && overlay?.status === 'pending'"
+                class="mt-3 pt-3 border-t border-surface"
+              >
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-2 font-medium text-sm text-purple-600 dark:text-purple-300 bg-purple-50 dark:bg-purple-400/12 border border-purple-200 dark:border-purple-400/40 rounded-md cursor-pointer px-3 py-1.5 transition-all w-full justify-center hover:bg-purple-100 dark:hover:bg-purple-400/20 hover:border-purple-300 dark:hover:border-purple-400/60 hover:text-purple-700 dark:hover:text-purple-200"
+                  @click.stop="handleViewOriginalOverlay(overlay.replacesOverlayId)"
                 >
-                  <span class="text-xs font-semibold text-muted-color">{{
-                    $t("render.label")
-                  }}</span>
-                  <img
-                    :src="renderImageUrl"
-                    :crossorigin="renderImageCrossorigin"
-                    class="w-full rounded-lg object-cover max-h-48 cursor-zoom-in"
-                    loading="lazy"
-                    v-tooltip.top="$t('overlay.viewFullImage')"
-                    @click.stop="
-                      lightbox?.open({
-                        url: renderImageUrl,
-                        header: $t('render.label'),
-                        crossorigin: renderImageCrossorigin,
-                      })
-                    "
-                  />
-                </div>
-
-                <!-- Show view original button for pending replacements -->
-                <div
-                  v-if="overlay?.replacesOverlayId && overlay?.status === 'pending'"
-                  class="mt-3 pt-3 border-t border-surface"
-                >
-                  <button
-                    type="button"
-                    class="inline-flex items-center gap-2 font-medium text-sm text-purple-600 dark:text-purple-300 bg-purple-50 dark:bg-purple-400/12 border border-purple-200 dark:border-purple-400/40 rounded-md cursor-pointer px-3 py-1.5 transition-all w-full justify-center hover:bg-purple-100 dark:hover:bg-purple-400/20 hover:border-purple-300 dark:hover:border-purple-400/60 hover:text-purple-700 dark:hover:text-purple-200"
-                    @click.stop="handleViewOriginalOverlay(overlay.replacesOverlayId)"
-                  >
-                    <i class="pi pi-arrow-left text-sm"></i>
-                    {{ $t("overlay.viewOriginalOverlay") }}
-                  </button>
-                </div>
+                  <i class="pi pi-arrow-left text-sm"></i>
+                  {{ $t("overlay.viewOriginalOverlay") }}
+                </button>
               </div>
             </div>
           </div>
@@ -161,33 +128,37 @@
 <script setup lang="ts">
 import { toastError } from "@/services/core/toast";
 
-import { computed, nextTick, ref, useTemplateRef, watch } from "vue";
-import { storeToRefs } from "pinia";
+import { computed, ref, useTemplateRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
+import { useDetailProject } from "@/composables/project/useDetailProject";
 import { useWikidataEntity } from "@/composables/project/useWikidataEntity";
 import { useScrollFade } from "@/composables/ui/useScrollFade";
 import { isMobile } from "@/services/core/viewport";
 
-import { useProjectStore } from "@/stores/projectStore";
-import { useOverlayStore } from "@/stores/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useMapStore } from "@/stores/mapStore";
-import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
 
 import { navigateToOverlay } from "@/services/overlay/navigation";
 import { flyToGeometry, mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
 import { computeShapeBounds } from "@/services/map/shapes/rendering";
-import { openProjectDetail, hydrateProjectDetail } from "@/services/core/projectSelection";
+import { openProjectForEditing } from "@/services/core/projectSelection";
 import { closeDetail } from "@/services/overlay/selection";
 
 import { buildImageUrl, imageRequiresCredentials } from "@/utils/imageUrl";
-import { createProjectObject } from "@/utils/typeFactories";
-import type { OverlayData, Project } from "@/types/index";
 
 import ProjectMetadataCard from "@/components/map/popups/ProjectMetadataCard.vue";
 import ImageLightbox from "@/components/common/ImageLightbox.vue";
+
+// A full-size-viewable image, shaped so it can be handed straight to the lightbox.
+interface DetailImage {
+  url: string;
+  header: string;
+  label?: string;
+  crossorigin?: "use-credentials";
+  referrerpolicy?: "no-referrer";
+}
 
 const { t } = useI18n();
 
@@ -198,50 +169,51 @@ const scrollAreaRef = ref<HTMLElement | null>(null);
 const contentRef = ref<HTMLElement | null>(null);
 const { showScrollFade } = useScrollFade(scrollAreaRef, contentRef);
 
-const projectStore = useProjectStore();
-const overlayStore = useOverlayStore();
 const uiStore = useUiStore();
 const mapStore = useMapStore();
-const focusStore = useFocusStore();
 const authStore = useAuthStore();
-const { liveOverlays } = storeToRefs(overlayStore);
-const { projects } = storeToRefs(projectStore);
-const { selection } = storeToRefs(focusStore);
 
-const overlay = computed(() => {
-  if (selection.value?.kind !== "overlay") return null;
-  return liveOverlays.value[selection.value.overlayId] ?? null;
+const { project, overlay } = useDetailProject();
+
+// Wikidata entity for the current project (logo, description, height)
+const { entity: wikidataEntity } = useWikidataEntity(
+  computed(() => project.value?.externalProperties),
+);
+
+const displayName = computed(() => {
+  const current = project.value;
+  if (current?.name) return current.name;
+  return current?.importSource?.type === "osm" ? t("project.osmName") : t("project.unnamed");
 });
 
-function convertAndCacheBackendProject(
-  backendProject: NonNullable<OverlayData["project"]>,
-): Project {
-  const existing = projects.value[backendProject.id];
-  if (existing) return existing;
+// Project render (artist's impression), delivered with the project by project.getById. The backend
+// already scopes this to approved or the user's own pending render.
+const renderImageUrl = computed(() => {
+  const render = project.value?.render;
+  if (!render || render.status !== "approved") return null;
+  return buildImageUrl(render.filename, false);
+});
 
-  const overlayIds = Object.values(liveOverlays.value)
-    .filter((o) => o.projectId === backendProject.id)
-    .map((o) => o.id);
+const images = computed<DetailImage[]>(() => {
+  const list: DetailImage[] = [];
 
-  const project = createProjectObject({ ...backendProject, overlayIds });
-  projectStore.addProject(project);
-
-  return project;
-}
-
-// The detail panel is view-only, so show the original approved data for locally-modified projects.
-function getEffectiveProject(projectId: string): Project | undefined {
-  const localProject = projects.value[projectId];
-  if (!localProject) return undefined;
-  if (localProject.isModified) {
-    const original = projectStore.getOriginalProject(projectId);
-    if (original) return original as Project;
+  const wikidataUrl = wikidataEntity.value?.imageUrl;
+  if (wikidataUrl) {
+    list.push({ url: wikidataUrl, header: displayName.value, referrerpolicy: "no-referrer" });
   }
-  return localProject;
-}
 
-// The project behind whichever detail is open (overlay's parent or the standalone project).
-const activeProjectId = computed(() => focusStore.selectedProjectId);
+  const renderUrl = renderImageUrl.value;
+  if (renderUrl) {
+    list.push({
+      url: renderUrl,
+      header: t("render.label"),
+      label: t("render.label"),
+      crossorigin: imageRequiresCredentials(renderUrl) ? "use-credentials" : undefined,
+    });
+  }
+
+  return list;
+});
 
 // When another project is picked while the panel stays open, the content swaps in place with no
 // signal. Echo the open transition (short fade + slide-up) and scroll back to the top so the switch
@@ -260,57 +232,11 @@ function replayContentRefresh() {
   );
 }
 
-watch(activeProjectId, (id, previousId) => {
-  if (id && previousId && id !== previousId) replayContentRefresh();
-});
-
-const project = computed<Project | undefined>(() => {
-  const id = activeProjectId.value;
-  if (!id) return undefined;
-
-  const localProject = getEffectiveProject(id);
-  if (localProject) return localProject;
-
-  // Not in the store: fall back to the backend project joined onto the open overlay detail.
-  const currentOverlay = overlay.value;
-  if (currentOverlay?.project?.id === id) {
-    return convertAndCacheBackendProject(currentOverlay.project);
-  }
-
-  return undefined;
-});
-
-// Project render (artist's impression), delivered with the project by project.getById. The backend
-// already scopes this to approved or the user's own pending render.
-const renderImage = computed(() => project.value?.render ?? null);
-
-// Summary selections render immediately, then fetch the detail capabilities needed by this panel.
 watch(
   () => project.value?.id,
-  async (id) => {
-    const current = project.value;
-    if (!id || !current || current.status === null || projectStore.getHydratedProject(id)) return;
-
-    await hydrateProjectDetail(id);
+  (id, previousId) => {
+    if (id && previousId && id !== previousId) replayContentRefresh();
   },
-  { immediate: true },
-);
-
-const renderImageUrl = computed(() => {
-  const render = renderImage.value;
-  if (!render || render.status !== "approved") return null;
-  return buildImageUrl(render.filename, false);
-});
-
-const renderImageCrossorigin = computed(() =>
-  renderImageUrl.value && imageRequiresCredentials(renderImageUrl.value)
-    ? "use-credentials"
-    : undefined,
-);
-
-// Wikidata entity for the current project (logo, description, height)
-const { entity: wikidataEntity } = useWikidataEntity(
-  computed(() => project.value?.externalProperties),
 );
 
 // A neutral header block anchors the panel on desktop; on mobile the drawer already frames it.
@@ -342,10 +268,8 @@ function handleRecenter() {
 // and edit mode shows the contribute panel where these actions already live.
 const canEdit = computed(() => mapStore.mode === "view" && project.value !== undefined);
 
-// Switch to edit mode and carry the current project in as the pinned, expanded selection so the
-// contribute panel surfaces its actions right away. Switching tabs clears the open detail
-// (PanelContent watcher), so re-select after that runs.
-async function handleEdit() {
+// Carry the current project into edit mode so the contribute panel surfaces its actions right away.
+function handleEdit() {
   const target = project.value;
   if (!target) return;
 
@@ -354,9 +278,7 @@ async function handleEdit() {
     return;
   }
 
-  mapStore.setMode("edit");
-  await nextTick();
-  openProjectDetail(target);
+  openProjectForEditing(target);
 }
 
 // Back returns to the panel's tab list, closing whichever detail is open.

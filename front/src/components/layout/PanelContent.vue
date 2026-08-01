@@ -25,10 +25,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, watch } from "vue";
+import { computed, defineAsyncComponent } from "vue";
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
-import { closeDetail } from "@/services/overlay/selection";
 
 import LatestContributionsPanel from "./LatestContributionsPanel.vue";
 
@@ -44,13 +43,6 @@ const uiStore = useUiStore();
 
 // Tab is read straight from the store (single source of truth, see mapStore.mode).
 const activeTab = computed(() => uiStore.activeTab);
-
-// The open detail belongs to the tab/mode it was selected in (slide-over in view/moderation, the
-// pinned card in edit). Switching tabs drops it so a stale selection can't surface in another mode
-// (e.g. an edit-mode selection reappearing as a slide-over in moderation).
-watch(activeTab, () => {
-  closeDetail();
-});
 
 defineProps<{
   contentContainerClass: string;

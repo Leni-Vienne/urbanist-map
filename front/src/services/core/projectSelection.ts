@@ -1,6 +1,7 @@
 import type { Project, HydratedProject } from "@/types/index";
 import { useProjectStore } from "@/stores/projectStore";
 import { useFocusStore } from "@/stores/focusStore";
+import { useMapStore } from "@/stores/mapStore";
 import { useModerationStore } from "@/stores/moderationStore";
 import { trpc } from "@/client";
 import { createProjectObject, getProjectDetailFields } from "@/utils/typeFactories";
@@ -29,6 +30,14 @@ export function openProjectDetail(project: Project): void {
   // In moderation mode, switch the panel to this project's country so its pending
   // submissions load and the detail watcher's scroll request can resolve.
   syncModerationCountryFromMapClick(project.countryCode);
+}
+
+/**
+ * Enter edit mode with `project` pinned, so the contribute panel opens on it.
+ */
+export function openProjectForEditing(project: Project): void {
+  useMapStore().setMode("edit");
+  openProjectDetail(project);
 }
 
 /**
