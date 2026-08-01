@@ -265,9 +265,12 @@ export class R2StorageS3 implements StorageInterface {
   ): Promise<{ body: ReadableStream; contentType?: string } | null> {
     try {
       const s3file = this.client.file(filename);
+      // stream() is lazy and resolves for absent keys; stat() both rejects on a miss and
+      // carries the stored content type, which s3file.type does not.
+      const { type } = await s3file.stat();
       return {
         body: s3file.stream(),
-        contentType: s3file.type || "application/octet-stream",
+        contentType: type || "application/octet-stream",
       };
     } catch {
       return null;
@@ -284,6 +287,18 @@ export class R2StorageS3 implements StorageInterface {
       console.warn(`Failed to delete file ${filename} from R2:`, error);
     }
   }
+}
+
+// Returns null unless the four R2 variables are all set.
+export function createR2StorageFromEnv(): R2StorageS3 | null {
+  const endpoint = process.env.R2_ENDPOINT;
+  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+  const bucketName = process.env.R2_BUCKET_NAME;
+  if (!endpoint || !accessKeyId || !secretAccessKey || !bucketName) {
+    return null;
+  }
+  return new R2StorageS3({ endpoint, accessKeyId, secretAccessKey, bucketName });
 }
 
 export function getThumbnailFilename(filename: string): string {

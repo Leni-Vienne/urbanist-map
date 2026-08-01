@@ -25,6 +25,15 @@
       <PanelTabs v-model:active-tab="activeTab" variant="desktop" />
     </div>
 
+    <!-- Selected project/overlay detail, docked above the tab content so the list it was picked from
+         stays visible and browsable. Sized by its content up to a cap, past which the panel's own
+         fields area scrolls. -->
+    <Transition name="detail-dock">
+      <div v-if="detailVisible" class="detail-dock shrink-0 border-b border-surface">
+        <ProjectDetailPanel />
+      </div>
+    </Transition>
+
     <!-- Scrollable content area -->
     <PanelContent content-container-class="flex-1 overflow-y-auto flex flex-col min-h-0" />
 
@@ -69,14 +78,6 @@
         </a>
       </template>
     </div>
-
-    <!-- Selected project/overlay detail as a slide-over covering the whole panel. Its own close
-         button (ProjectDetailPanel) hides it again, revealing the panel below. -->
-    <Transition name="detail-slide-over">
-      <div v-if="detailVisible" class="absolute inset-0 z-20 bg-content-background">
-        <ProjectDetailPanel />
-      </div>
-    </Transition>
   </div>
 </template>
 
@@ -96,29 +97,34 @@ const { detailVisible, activeTab } = useDetailPanel();
 </script>
 
 <style scoped>
-/* Detail slide-over enters from the panel's left edge and fades, sliding back out on close. */
-.detail-slide-over-enter-active,
-.detail-slide-over-leave-active {
+/* Sized by its content so a sparse detail costs the list nothing, capped so a rich one can't crowd
+   it out. The flex column is what makes the cap bite: the panel shrinks into it and thereby gains
+   the definite height its fields area needs in order to scroll. */
+.detail-dock {
+  display: flex;
+  flex-direction: column;
+  max-height: min(45%, 26rem);
+}
+
+/* The dock grows and shrinks in place, pushing the list down rather than covering it. */
+.detail-dock-enter-active,
+.detail-dock-leave-active {
+  overflow: hidden;
   transition:
-    transform 0.25s ease-out,
+    max-height 0.25s ease-out,
     opacity 0.25s ease-out;
 }
 
-.detail-slide-over-enter-from,
-.detail-slide-over-leave-to {
-  transform: translateX(-100%);
+.detail-dock-enter-from,
+.detail-dock-leave-to {
+  max-height: 0;
   opacity: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .detail-slide-over-enter-active,
-  .detail-slide-over-leave-active {
+  .detail-dock-enter-active,
+  .detail-dock-leave-active {
     transition: opacity 0.25s ease-out;
-  }
-
-  .detail-slide-over-enter-from,
-  .detail-slide-over-leave-to {
-    transform: none;
   }
 }
 </style>

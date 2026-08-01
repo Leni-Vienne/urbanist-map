@@ -33,11 +33,8 @@
         </div>
       </div>
 
-      <!-- Right column: Filter + Zoom, stacked below the top controls -->
+      <!-- Right column: Zoom + compass, stacked below the top controls -->
       <div class="absolute top-18 right-4 z-1000 flex flex-col items-end gap-3 pointer-events-none">
-        <div class="pointer-events-auto">
-          <FilterControl />
-        </div>
         <ZoomControls />
         <CompassControl />
       </div>
@@ -86,7 +83,6 @@ const OverlayFloatingToolbar = defineAsyncComponent(
   () => import("@/components/map/OverlayFloatingToolbar.vue"),
 );
 const mapUIBundle = import("@/components/map/mapUIBundle");
-const FilterControl = defineAsyncComponent(() => mapUIBundle.then((m) => m.FilterControl));
 const UserMenu = defineAsyncComponent(() => mapUIBundle.then((m) => m.UserMenu));
 const CitySearch = defineAsyncComponent(() => mapUIBundle.then((m) => m.CitySearch));
 const SettingsButton = defineAsyncComponent(() => mapUIBundle.then((m) => m.SettingsButton));

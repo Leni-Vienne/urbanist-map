@@ -1,7 +1,7 @@
 import { logger } from "./logger";
 import {
   LocalFileStorage,
-  R2StorageS3,
+  createR2StorageFromEnv,
   getThumbnailFilename,
   streamToBuffer,
 } from "../lib/storage";
@@ -38,22 +38,12 @@ export function queueR2Migration(filename: string): void {
 }
 
 async function migrateFileToR2(filename: string): Promise<void> {
-  const endpoint = process.env.R2_ENDPOINT;
-  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
-  const bucketName = process.env.R2_BUCKET_NAME;
-
-  if (!endpoint || !accessKeyId || !secretAccessKey || !bucketName) {
+  const r2Storage = createR2StorageFromEnv();
+  if (!r2Storage) {
     throw new Error("R2 configuration missing");
   }
 
   const localStorage = new LocalFileStorage();
-  const r2Storage = new R2StorageS3({
-    endpoint,
-    accessKeyId,
-    secretAccessKey,
-    bucketName,
-  });
 
   const [localFile, thumbnailFile] = await Promise.all([
     localStorage.get(filename),

@@ -271,6 +271,19 @@ export const projects = pgTable(
     index("idx_projects_external_id").on(table.externalId),
     index("idx_projects_last_imported").on(table.lastImportedAt),
     index("idx_projects_external_last_modified").on(table.externalLastModified), // For filtering stale imported data
+    index("idx_projects_feed_imported_recency")
+      .on(sql`COALESCE(${table.externalLastModified}, ${table.updatedAt})`, table.id)
+      .where(
+        sql`${table.status} = 'approved' AND ${table.importSourceId} IS NOT NULL AND ${table.importLockedAt} IS NULL`,
+      ),
+    index("idx_projects_feed_direct_recency")
+      .on(
+        sql`(CASE WHEN ${table.importLockedAt} IS NOT NULL THEN ${table.updatedAt} ELSE COALESCE(${table.externalLastModified}, ${table.updatedAt}) END)`,
+        table.id,
+      )
+      .where(
+        sql`${table.status} = 'approved' AND (${table.importSourceId} IS NULL OR ${table.importLockedAt} IS NOT NULL)`,
+      ),
     index("idx_projects_admin_boundary").on(table.adminBoundaryId),
     // Partial: the sitemap and SEO lookups only ever scan indexable rows (~4.5k of ~500k).
     index("idx_projects_indexable")

@@ -1,8 +1,7 @@
 <template>
   <div :class="contentContainerClass">
     <KeepAlive>
-      <CurrentLocationPanel v-if="activeTab === 'currentLocation'" />
-      <LatestContributionsPanel v-else-if="activeTab === 'latest'" />
+      <LatestContributionsPanel v-if="activeTab === 'latest'" />
       <FilterPanel v-else-if="activeTab === 'filter'" />
       <ContributePanel v-else-if="activeTab === 'contribute' && authStore.isAuthenticated" />
       <ContributeGuestPanel v-else-if="activeTab === 'contribute' && !authStore.isAuthenticated" />
@@ -26,16 +25,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, watch } from "vue";
+import { computed, defineAsyncComponent } from "vue";
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
-import { closeDetail } from "@/services/overlay/selection";
 
 import LatestContributionsPanel from "./LatestContributionsPanel.vue";
 
 // Lazy load panels to reduce initial bundle size and allow Rolldown to deduplicate
 // shared async imports (e.g. ProjectAccordionPanel) across a single async chunk scope
-const CurrentLocationPanel = defineAsyncComponent(() => import("./CurrentLocationPanel.vue"));
 const FilterPanel = defineAsyncComponent(() => import("./FilterPanel.vue"));
 const ModerationPanel = defineAsyncComponent(() => import("./ModerationPanel.vue"));
 const ContributePanel = defineAsyncComponent(() => import("./ContributePanel.vue"));
@@ -46,13 +43,6 @@ const uiStore = useUiStore();
 
 // Tab is read straight from the store (single source of truth, see mapStore.mode).
 const activeTab = computed(() => uiStore.activeTab);
-
-// The open detail belongs to the tab/mode it was selected in (slide-over in view/moderation, the
-// pinned card in edit). Switching tabs drops it so a stale selection can't surface in another mode
-// (e.g. an edit-mode selection reappearing as a slide-over in moderation).
-watch(activeTab, () => {
-  closeDetail();
-});
 
 defineProps<{
   contentContainerClass: string;

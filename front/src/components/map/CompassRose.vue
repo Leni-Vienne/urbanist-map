@@ -1,4 +1,5 @@
 <template>
+  <!-- From Lucid "Compass" icon -->
   <svg :width="size" :height="size" viewBox="0 0 24 24" class="block">
     <circle
       cx="12"

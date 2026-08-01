@@ -2,20 +2,22 @@ import { db } from "../database";
 import { scheduledDeletions } from "../db/schema";
 import { lte, eq } from "drizzle-orm";
 import { appendFile, readdir, unlink } from "node:fs/promises";
-import { LocalFileStorage, R2StorageS3, getThumbnailFilename } from "./storage";
+import {
+  LocalFileStorage,
+  R2StorageS3,
+  createR2StorageFromEnv,
+  getThumbnailFilename,
+} from "./storage";
 import type { StorageInterface } from "./types";
 
 const THUMBNAIL_RETENTION_DAYS = 15;
 
 function createR2Storage(): R2StorageS3 {
-  const endpoint = process.env.R2_ENDPOINT;
-  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
-  const bucketName = process.env.R2_BUCKET_NAME;
-  if (!endpoint || !accessKeyId || !secretAccessKey || !bucketName) {
+  const storage = createR2StorageFromEnv();
+  if (!storage) {
     throw new Error("Missing R2 configuration environment variables");
   }
-  return new R2StorageS3({ endpoint, accessKeyId, secretAccessKey, bucketName });
+  return storage;
 }
 
 /**

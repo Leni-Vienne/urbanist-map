@@ -64,9 +64,8 @@
     "tags": "Tags"
   },
   "navigation": {
-    "latestContributions": "Latest",
-    "latestContributionsShort": "Latest",
-    "onMap": "On Map",
+    "latestContributions": "Explore",
+    "latestContributionsShort": "Explore",
     "filter": "Filter",
     "contribute": "Contribute",
     "unsavedOverlaysWarning": "You have unsaved images. Navigating will discard them. Continue?"
@@ -179,16 +178,23 @@
     "noContributionsFound": "No contributions found.",
     "beFirstToAdd": "Be the first to add a project",
     "loadingContributions": "Loading contributions...",
-    "fromOpenStreetMap": "From OpenStreetMap"
-  },
-  "onMap": {
-    "noProjects": "No projects visible",
-    "noProjectsDetail": "Zoom in or pan the map to find projects",
-    "projectsVisible": "{count} project on screen | {count} projects on screen",
-    "sortRecent": "Sort by most recent",
-    "sortName": "Sort by name",
-    "sortSize": "Sort by size",
-    "sortStatus": "Sort by timeline status"
+    "projectCountOne": "{count} project",
+    "projectCountMany": "{count} projects",
+    "noMatchingContributions": "Nothing matches these filters yet.",
+    "tryWideningFilters": "Widen a filter, or add the first one from Contribute.",
+    "filterBySource": "Filter by source",
+    "sourceCommunity": "Website",
+    "sourceOsm": "OpenStreetMap",
+    "sourceOsmShort": "OSM",
+    "moreFilters": "More filters",
+    "clearFilters": "Clear all",
+    "loadMore": "Load more",
+    "mapArea": "Map area",
+    "endOfCommunityFeed": "That's every website contribution.",
+    "switchToOsm": "Browse OpenStreetMap projects",
+    "osmDataUpdated": "OSM data refreshed {time}",
+    "osmDataDescription": "OpenStreetMap data is synchronized daily and kept separate from community activity.",
+    "browseOsmUpdates": "Explore OpenStreetMap data"
   },
   "overlay": {
     "overlayName": "Image Name",
@@ -242,6 +248,9 @@
     "clusterProjectsPlus": "(+{count} projects)",
     "controls": {
       "filterProjects": "Filter projects by status",
+      "filterByArea": "Area",
+      "onlyVisibleArea": "Limit to the visible area",
+      "zoomInToFilterArea": "Zoom in to filter by area",
       "filterByStatus": "Timeline",
       "filterByName": "Name",
       "filterByImages": "Images",
@@ -464,7 +473,6 @@
     }
   },
   "controls": {
-    "filter": "Filter Projects",
     "language": "Language",
     "mapLanguage": "Map language",
     "mapLanguageDefault": "English + local alphabets",

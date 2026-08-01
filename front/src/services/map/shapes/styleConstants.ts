@@ -28,9 +28,8 @@ export const SHAPE_LINE_WIDTH_HOVER: ExpressionSpecification = [
 export const SHAPE_LONG_DASH: [number, number] = [4, 2];
 export const SHAPE_SHORT_DASH: [number, number] = [0.2, 2];
 
-// SVG-preview equivalents of the map dasharrays, keyed by timeline status, for the 28×10
-// line previews (stroke-width 2.5, round linecap) in FilterControl and CurrentLocationPanel.
-// "" renders a solid line. Keys are TimelineStatus values.
+// SVG-preview equivalents of the map dasharrays, keyed by timeline status. "" renders a solid
+// line. Keys are TimelineStatus values.
 export const STATUS_PREVIEW_DASHARRAY: Record<string, string> = {
   proposed: "0,5",
   planned: "7,6",

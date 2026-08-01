@@ -1,8 +1,6 @@
 <template>
   <!-- Dashed line preview matching the map stroke style for a project's timeline status -->
-  <svg width="28" height="10" class="shrink-0" :aria-hidden="title ? undefined : 'true'">
-    <!-- :title doesn't work in SVG, <title> is the SVG-native tooltip/label -->
-    <title v-if="title">{{ title }}</title>
+  <svg width="28" height="10" class="shrink-0" aria-hidden="true">
     <line
       x1="0"
       y1="5"
@@ -23,6 +21,5 @@ defineProps<{
   // A TimelineStatus value; unknown statuses render solid.
   status: string;
   color: string;
-  title?: string;
 }>();
 </script>

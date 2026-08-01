@@ -1,4 +1,4 @@
-import { ref, watch, onMounted, onActivated, onBeforeUnmount, type Ref } from "vue";
+import { ref, watch, onActivated, onBeforeUnmount, type Ref } from "vue";
 
 // Sub-pixel slack so fractional scroll metrics still resolve as "at the bottom".
 const BOTTOM_EPSILON = 1;
@@ -18,31 +18,40 @@ export function useScrollFade(
 
   const scrollObserver = new ResizeObserver(updateScrollFade);
 
-  onMounted(() => {
-    const el = scrollAreaRef.value;
+  // Both elements can arrive after mount and be swapped out (a v-if'd scroll area), so the
+  // listener and observations follow the refs rather than being bound once.
+  function bindScrollArea(el: HTMLElement | null, previous: HTMLElement | null | undefined): void {
+    if (previous) {
+      scrollObserver.unobserve(previous);
+      previous.removeEventListener("scroll", updateScrollFade);
+    }
     if (el) {
       scrollObserver.observe(el);
       el.addEventListener("scroll", updateScrollFade, { passive: true });
     }
     updateScrollFade();
-  });
+  }
 
-  onActivated(updateScrollFade);
-
-  onBeforeUnmount(() => {
-    scrollObserver.disconnect();
-    scrollAreaRef.value?.removeEventListener("scroll", updateScrollFade);
-  });
-
-  watch(contentRef, (el, oldEl) => {
-    if (oldEl) scrollObserver.unobserve(oldEl);
+  function bindContent(el: HTMLElement | null, previous: HTMLElement | null | undefined): void {
+    if (previous) scrollObserver.unobserve(previous);
     if (el) {
       scrollObserver.observe(el);
       updateScrollFade();
     } else {
       showScrollFade.value = false;
     }
-  });
+  }
+
+  function releaseScrollArea(): void {
+    scrollObserver.disconnect();
+    scrollAreaRef.value?.removeEventListener("scroll", updateScrollFade);
+  }
+
+  watch(scrollAreaRef, bindScrollArea, { immediate: true });
+  watch(contentRef, bindContent);
+
+  onActivated(updateScrollFade);
+  onBeforeUnmount(releaseScrollArea);
 
   return { showScrollFade };
 }

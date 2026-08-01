@@ -1,7 +1,5 @@
 <template>
   <svg
-    :width="size"
-    :height="size"
     viewBox="0 0 100 100"
     class="shrink-0 text-primary-color"
     :aria-hidden="title ? undefined : 'true'"
@@ -17,6 +15,7 @@
         stroke="currentColor"
         stroke-width="1.5"
         stroke-linejoin="round"
+        vector-effect="non-scaling-stroke"
       />
       <polyline
         v-for="(line, i) in shapes.lines"
@@ -27,6 +26,7 @@
         stroke-width="1.5"
         stroke-linecap="round"
         stroke-linejoin="round"
+        vector-effect="non-scaling-stroke"
       />
       <circle
         v-for="(pt, i) in shapes.points"
@@ -47,16 +47,16 @@ import { computed } from "vue";
 
 type Position = [number, number];
 
+// The svg carries no intrinsic size: it is sized by the class the caller puts on it.
 const props = withDefaults(
   defineProps<{
     geometry: GeoJSON.GeometryCollection | GeoJSON.Geometry | null | undefined;
-    size?: number;
     title?: string;
   }>(),
-  { size: 36, title: "" },
+  { title: "" },
 );
 
-const PADDING = 8;
+const PADDING = 4;
 
 // Recursively collect every [lng, lat] position out of an arbitrarily nested coordinates array.
 function collectPositions(coords: unknown): Position[] {

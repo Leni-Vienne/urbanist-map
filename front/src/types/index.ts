@@ -42,7 +42,7 @@ type OverlayDataSource = "tile" | "bbox" | "local";
 export type PendingChangeRequest =
   RouterOutput["moderation"]["getPendingSubmissions"]["changeRequests"][0];
 
-export type LatestContribution = RouterOutput["feed"]["getLatestContributions"][number];
+export type LatestContribution = RouterOutput["feed"]["getLatestContributions"]["items"][number];
 
 // Base runtime project type - extends DB schema with computed fields.
 // indexable is a server-only SEO column, never selected into client queries, so it is omitted here.
@@ -191,7 +191,7 @@ export interface OverlayObject extends OverlayData {
   positionState: OverlayPositionState;
 }
 
-export type PanelTab = "latest" | "currentLocation" | "filter" | "contribute" | "moderation";
+export type PanelTab = "latest" | "filter" | "contribute" | "moderation";
 
 // Wire shape of an overlay row as the contribution/moderation endpoints return it.
 type BackendOverlayMetadata =

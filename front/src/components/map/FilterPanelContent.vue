@@ -3,6 +3,27 @@
     {{ $t("map.controls.filterByStatusAndTags") }}
   </h3>
 
+  <p class="m-0 mb-1.5 text-xs font-semibold text-color-secondary uppercase tracking-wide">
+    {{ $t("map.controls.filterByArea") }}
+  </p>
+  <div class="flex flex-col gap-1 mb-4">
+    <label
+      class="flex items-center gap-2 text-sm text-color"
+      :class="canPickArea ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'"
+    >
+      <Checkbox
+        :model-value="isAreaFiltered"
+        :binary="true"
+        :disabled="!canPickArea"
+        @update:model-value="toggleMapAreaFilter"
+      />
+      {{ $t("map.controls.onlyVisibleArea") }}
+    </label>
+    <p v-if="!canPickArea" class="m-0 text-[0.7rem] italic text-color-secondary">
+      {{ $t("map.controls.zoomInToFilterArea") }}
+    </p>
+  </div>
+
   <div class="flex items-center justify-between mb-1.5">
     <p class="m-0 text-xs font-semibold text-color-secondary uppercase tracking-wide">
       {{ $t("map.controls.filterByTags") }}
@@ -42,7 +63,11 @@
   </p>
   <div class="flex flex-col gap-1 mb-4">
     <label class="flex items-center gap-2 cursor-pointer text-sm text-color">
-      <input type="checkbox" :checked="showOnlyWithImages" @change="toggleShowOnlyWithImages" />
+      <Checkbox
+        :model-value="showOnlyWithImages"
+        :binary="true"
+        @update:model-value="toggleShowOnlyWithImages"
+      />
       {{ $t("map.controls.onlyWithImages") }}
     </label>
   </div>
@@ -56,10 +81,10 @@
       :key="timelineStatus"
       class="flex items-center gap-2 cursor-pointer text-sm text-color"
     >
-      <input
-        type="checkbox"
-        :checked="selectedStatusFilters.includes(timelineStatus)"
-        @change="toggleFilter(timelineStatus)"
+      <Checkbox
+        :model-value="selectedStatusFilters.includes(timelineStatus)"
+        :binary="true"
+        @update:model-value="toggleFilter(timelineStatus)"
       />
       <LinePreview :status="timelineStatus" :color="linePreviewColor" />
       {{ $t(labelKey) }}
@@ -75,18 +100,18 @@
       :key="nameVal"
       class="flex items-center gap-2 cursor-pointer text-sm text-color"
     >
-      <input
-        type="checkbox"
-        :checked="selectedNameFilters.includes(nameVal)"
-        @change="toggleNameFilter(nameVal)"
+      <Checkbox
+        :model-value="selectedNameFilters.includes(nameVal)"
+        :binary="true"
+        @update:model-value="toggleNameFilter(nameVal)"
       />
       {{ $t(`map.controls.${nameVal}`) }}
     </label>
     <label class="flex items-center gap-2 cursor-pointer text-sm text-color">
-      <input
-        type="checkbox"
-        :checked="selectedProjectTags.includes(untaggedFilter)"
-        @change="toggleProjectTagFilter(untaggedFilter)"
+      <Checkbox
+        :model-value="selectedProjectTags.includes(untaggedFilter)"
+        :binary="true"
+        @update:model-value="toggleProjectTagFilter(untaggedFilter)"
       />
       {{ $t("map.controls.untagged") }}
     </label>
@@ -96,12 +121,13 @@
     <p class="m-0 mb-2 text-xs font-semibold text-color-secondary uppercase tracking-wide">
       {{ $t("map.controls.filterBySize") }}
     </p>
-    <div class="px-1">
+    <!-- The horizontal padding holds the handles, which overhang the track ends by half their width -->
+    <div class="px-2.5">
       <!-- @vue-expect-error PrimeVue v-model type mismatch -->
       <Slider v-model="sizeSliderPositions" :min="0" :max="100" :step="1" range class="w-full" />
       <div class="flex justify-between mt-2 text-xs text-color-secondary">
-        <span>{{ formatSize(sizeFilterRange[0]) }}</span>
-        <span>{{ formatSize(sizeFilterRange[1]) }}</span>
+        <span>{{ formatSizeM(sizeFilterRange[0]) }}</span>
+        <span>{{ formatSizeM(sizeFilterRange[1]) }}</span>
       </div>
     </div>
   </div>
@@ -110,7 +136,7 @@
     <p class="m-0 mb-2 text-xs font-semibold text-color-secondary uppercase tracking-wide">
       {{ $t("map.controls.filterByLastModified") }}
     </p>
-    <div class="px-1">
+    <div class="px-2.5">
       <!-- @vue-expect-error PrimeVue v-model type mismatch -->
       <Slider
         v-model="dateSliderPositions"
@@ -135,8 +161,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from "vue";
+import { ref, computed, onUnmounted } from "vue";
+import type { Map as MaplibreMap } from "maplibre-gl";
 import { useI18n } from "vue-i18n";
+import { onMapReady } from "@/services/core/map";
+import { canFilterVisibleArea, getVisibleMapArea } from "@/services/map/visibleMapArea";
+import { clearMapArea, mapArea, setMapArea } from "@/services/feed/latestContributions";
 import {
   selectedStatusFilters,
   selectedProjectTags,
@@ -147,9 +177,14 @@ import {
   sizeFilterRange,
   selectedNameFilters,
   toggleNameFilter,
-  lastModifiedDateRange,
   showOnlyWithImages,
   toggleShowOnlyWithImages,
+  formatSizeM,
+  sizeSliderPositions,
+  dateSliderPositions,
+  DATE_SLIDER_MAX,
+  posToDaysAgo,
+  posToMs,
 } from "@/services/core/filters";
 import type { TimelineStatus } from "../../../../back/src/db/schema";
 import {
@@ -165,70 +200,39 @@ withDefaults(defineProps<{ showHeading?: boolean }>(), { showHeading: true });
 
 const { t } = useI18n();
 
-// Range slider that only ever commits a single active bound. Tiles carry per-cell min/max,
-// not a full distribution, so two active bounds would produce false cluster matches.
-function useSingleBoundSlider(max: number, commit: (minPos: number, maxPos: number) => void) {
-  const positions = ref<[number, number]>([0, max]);
-  const prev = ref<[number, number]>([0, max]);
+// The area is captured when the box is ticked and then held, so panning away never rewrites it.
+const canFilterArea = ref(false);
+const isAreaFiltered = computed(() => mapArea.value !== null);
+const canPickArea = computed(() => canFilterArea.value || isAreaFiltered.value);
 
-  watch(positions, ([minPos, maxPos]) => {
-    // Collapse crossed handles to the one that didn't move.
-    if (minPos > maxPos) {
-      const [prevMin] = prev.value;
-      positions.value = minPos !== prevMin ? [maxPos, maxPos] : [minPos, minPos];
-      return;
-    }
-    const [prevMin, prevMax] = prev.value;
-    if (minPos !== prevMin && minPos > 0 && maxPos < max) {
-      positions.value = [minPos, max];
-      return;
-    }
-    if (maxPos !== prevMax && maxPos < max && minPos > 0) {
-      positions.value = [0, maxPos];
-      return;
-    }
-    prev.value = [minPos, maxPos];
-    commit(minPos, maxPos);
-  });
+let listeningMap: MaplibreMap | null = null;
+const stopWaitingForMap = onMapReady(trackVisibleArea);
 
-  return positions;
+onUnmounted(releaseVisibleArea);
+
+function releaseVisibleArea(): void {
+  stopWaitingForMap();
+  listeningMap?.off("move", refreshAreaGate);
+  listeningMap = null;
 }
 
-// Logarithmic slider: positions [0, 100] → meters. Position 100 = Infinity (no upper limit).
-const LOG_SCALE_REF = 500_001;
-
-function posToMeters(pos: number): number {
-  if (pos <= 0) return 0;
-  if (pos >= 100) return Infinity;
-  return Math.round(LOG_SCALE_REF ** (pos / 100) - 1);
+function trackVisibleArea(target: MaplibreMap): void {
+  listeningMap = target;
+  refreshAreaGate();
+  target.on("move", refreshAreaGate);
 }
 
-function commitSizeRange(minPos: number, maxPos: number) {
-  sizeFilterRange.value = [posToMeters(minPos), posToMeters(maxPos)];
+function refreshAreaGate(): void {
+  canFilterArea.value = canFilterVisibleArea();
 }
 
-const sizeSliderPositions = useSingleBoundSlider(100, commitSizeRange);
-
-// Date slider: reverse-logarithmic in "days ago" so the newest handle gets day-level
-// resolution near now (yesterday, 2 days ago...) while older positions span months and years.
-const DATE_SLIDER_ORIGIN_YEAR = 2004;
-const DATE_SLIDER_MAX = 100;
-const MS_PER_DAY = 86_400_000;
-const currentDate = new Date();
-const nowMs = currentDate.getTime();
-const originMs = new Date(DATE_SLIDER_ORIGIN_YEAR, 0, 1).getTime();
-const totalDaysSpan = Math.max(1, (nowMs - originMs) / MS_PER_DAY);
-
-const dateSliderPositions = useSingleBoundSlider(DATE_SLIDER_MAX, commitDateRange);
-
-function posToDaysAgo(pos: number): number {
-  return (totalDaysSpan + 1) ** ((DATE_SLIDER_MAX - pos) / DATE_SLIDER_MAX) - 1;
-}
-
-function posToMs(pos: number): number {
-  if (pos <= 0) return originMs;
-  if (pos >= DATE_SLIDER_MAX) return nowMs;
-  return nowMs - posToDaysAgo(pos) * MS_PER_DAY;
+function toggleMapAreaFilter(checked: boolean): void {
+  if (!checked) {
+    clearMapArea();
+    return;
+  }
+  const area = getVisibleMapArea();
+  if (area) setMapArea(area);
 }
 
 function formatDateSlider(pos: number): string {
@@ -240,19 +244,7 @@ function formatDateSlider(pos: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-function commitDateRange(minPos: number, maxPos: number) {
-  const minMs = minPos <= 0 ? 0 : posToMs(minPos);
-  const maxMs = maxPos >= DATE_SLIDER_MAX ? Infinity : posToMs(maxPos);
-  lastModifiedDateRange.value = [minMs, maxMs];
-}
-
 const nameFilters: ("named" | "unnamed")[] = ["named", "unnamed"];
-
-function formatSize(meters: number): string {
-  if (!Number.isFinite(meters)) return "500km+";
-  if (meters >= 1000) return `${(meters / 1000).toFixed(1)}km`;
-  return `${meters}m`;
-}
 
 // "canceled" is omitted, too confusing for most users.
 const filters: {

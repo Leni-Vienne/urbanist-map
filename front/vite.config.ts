@@ -8,6 +8,7 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { visualizer } from "rollup-plugin-visualizer";
 import { qrcode } from "vite-plugin-qrcode";
+import { stringify } from "yaml";
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -42,28 +43,33 @@ export default defineConfig(({ mode }) => {
         name: "bundle-report-clean",
         apply: "build",
         generateBundle(_, bundle) {
-          const report: any = {};
+          const fullReport: Record<string, string[]> = {};
+          const lightReport: Record<string, string[]> = {};
           const root = process.cwd();
 
           Object.entries(bundle).forEach(([fileName, chunk]) => {
             if (chunk.type === "chunk") {
-              // We just "delete" the root path string from every file path
-              report[fileName] = Object.keys(chunk.modules).map((m) => {
-                // 1. Force both paths to use forward slashes /
-                const cleanRoot = root.replaceAll(/\\/g, "/");
+              const cleanRoot = root.replaceAll(/\\/g, "/");
+              const modules = Object.keys(chunk.modules).map((m) => {
                 const cleanModule = m.replaceAll(/\\/g, "/");
-
-                // 2. Now the replace will actually find the match
                 return cleanModule.replace(cleanRoot, "");
               });
+
+              fullReport[fileName] = modules;
+
+              const lightModules = modules.filter(
+                (m) =>
+                  !m.includes("node_modules") && !m.startsWith("\0") && !m.startsWith("virtual:"),
+              );
+              if (lightModules.length > 0) {
+                lightReport[fileName] = lightModules;
+              }
             }
           });
 
           fs.mkdirSync("./.bundle-report", { recursive: true });
-          fs.writeFileSync(
-            "./.bundle-report/full-bundle-report.json",
-            JSON.stringify(report, null, 2),
-          );
+          fs.writeFileSync("./.bundle-report/full-bundle-report.yml", stringify(fullReport));
+          fs.writeFileSync("./.bundle-report/light-bundle-report.yml", stringify(lightReport));
         },
       },
       vue(),
@@ -99,6 +105,7 @@ export default defineConfig(({ mode }) => {
       include: [
         "terra-draw",
         "terra-draw-maplibre-gl-adapter",
+        "@lucide/vue",
         "primevue/selectbutton",
         "primevue/autocomplete",
         "primevue/badge",

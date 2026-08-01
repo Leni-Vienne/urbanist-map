@@ -7,11 +7,10 @@ import { handleProjectClickFromTile } from "@/services/core/projectSelection";
 import { isValidQuad } from "@/services/overlay/transform";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 
-/** Zoom to an overlay and optionally select it once rendered. */
+/** Zoom to an overlay and select it once rendered. */
 export function zoomToOverlayAndSelect(
   overlayId: string,
   corners: { lat: number; lng: number }[],
-  autoSelect = true,
 ): boolean {
   if (!isValidQuad(corners)) return false;
 
@@ -52,7 +51,7 @@ export function zoomToOverlayAndSelect(
   // settles). Give up after ~5s for overlays that never render.
   function selectWhenReady(): void {
     function select(): void {
-      if (autoSelect) openOverlayDetail(overlayId);
+      openOverlayDetail(overlayId);
     }
     function onReadyTimeout(): void {
       console.warn("Overlay did not render in time, aborting auto-select", overlayId);
@@ -71,31 +70,18 @@ export function zoomToOverlayAndSelect(
   return true;
 }
 
-// Open the project detail once the camera settles. moveend never fires when the flight was skipped
-// (camera already at target), so open directly in that case to avoid hanging.
-function openDetailAfterFlight(flew: boolean, projectId: string): void {
-  function openDetail(): void {
-    void handleProjectClickFromTile(projectId);
-  }
-  if (flew) {
-    void getMap().once("moveend", openDetail);
-  } else {
-    openDetail();
-  }
-}
-
 /**
- * Navigate to a project by coordinates. Flies to the point, then opens the popup.
+ * Navigate to a project by coordinates. Opens the detail and flies to the point concurrently;
+ * the detail resolves the project by id and so does not depend on the camera or on rendered tiles.
  */
 export function navigateToProject(lat: number, lng: number, projectId?: string): void {
   try {
+    if (projectId) {
+      void handleProjectClickFromTile(projectId);
+    }
     // Drawer-aware padding centers the feature in the map area above the mobile drawer (desktop
     // centers it in the full viewport).
-    const flew = mobileAwareFlyTo([lat, lng], 18);
-
-    if (projectId) {
-      openDetailAfterFlight(flew, projectId);
-    }
+    mobileAwareFlyTo([lat, lng], 18);
   } catch (error) {
     console.error("Failed to navigate to marker project:", error);
     throw error;
@@ -108,8 +94,8 @@ export function navigateToProject(lat: number, lng: number, projectId?: string):
  */
 export function navigateToProjectBounds(bounds: LngLatBounds, projectId: string): void {
   try {
-    const flew = mobileAwareFlyToBounds(bounds, { maxZoom: 18 });
-    openDetailAfterFlight(flew, projectId);
+    void handleProjectClickFromTile(projectId);
+    mobileAwareFlyToBounds(bounds, { maxZoom: 18 });
   } catch (error) {
     console.error("Failed to navigate to marker project bounds:", error);
     throw error;

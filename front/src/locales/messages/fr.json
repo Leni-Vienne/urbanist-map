@@ -64,9 +64,8 @@
     "tags": "Catégories"
   },
   "navigation": {
-    "latestContributions": "Récents",
-    "latestContributionsShort": "Récentes",
-    "onMap": "Sur la carte",
+    "latestContributions": "Explorer",
+    "latestContributionsShort": "Explorer",
     "filter": "Filtrer",
     "contribute": "Contribuer",
     "unsavedOverlaysWarning": "Vous avez des images non enregistrées. La navigation les supprimera. Continuer ?"
@@ -179,16 +178,23 @@
     "noContributionsFound": "Aucune contribution trouvée.",
     "beFirstToAdd": "Soyez le premier à ajouter un projet urbain",
     "loadingContributions": "Chargement des contributions...",
-    "fromOpenStreetMap": "Depuis OpenStreetMap"
-  },
-  "onMap": {
-    "noProjects": "Aucun projet visible",
-    "noProjectsDetail": "Zoomez ou déplacez la carte pour trouver des projets",
-    "projectsVisible": "{count} projet à l'écran | {count} projets à l'écran",
-    "sortRecent": "Trier par plus récent",
-    "sortName": "Trier par nom",
-    "sortSize": "Trier par taille",
-    "sortStatus": "Trier par statut chronologique"
+    "projectCountOne": "{count} projet",
+    "projectCountMany": "{count} projets",
+    "noMatchingContributions": "Aucun résultat pour ces filtres.",
+    "tryWideningFilters": "Élargissez un filtre, ou ajoutez le premier depuis Contribuer.",
+    "filterBySource": "Filtrer par source",
+    "sourceCommunity": "Site",
+    "sourceOsm": "OpenStreetMap",
+    "sourceOsmShort": "OSM",
+    "moreFilters": "Plus de filtres",
+    "clearFilters": "Tout effacer",
+    "loadMore": "Voir plus",
+    "mapArea": "Zone de la carte",
+    "endOfCommunityFeed": "Fin des contributions du site.",
+    "switchToOsm": "Voir les projets OpenStreetMap",
+    "osmDataUpdated": "Données OSM actualisées {time}",
+    "osmDataDescription": "Les données OpenStreetMap sont synchronisées chaque jour et séparées de l'activité de la communauté.",
+    "browseOsmUpdates": "Explorer les données OpenStreetMap"
   },
   "overlay": {
     "overlayName": "Nom de l'image",
@@ -242,6 +248,9 @@
     "clusterProjectsPlus": "(+{count} projets)",
     "controls": {
       "filterProjects": "Filtrer les projets par statut",
+      "filterByArea": "Zone",
+      "onlyVisibleArea": "Limiter à la zone visible",
+      "zoomInToFilterArea": "Zoomez pour filtrer par zone",
       "filterByStatus": "Chronologie",
       "filterByName": "Nom",
       "filterByImages": "Images",
@@ -464,7 +473,6 @@
     }
   },
   "controls": {
-    "filter": "Filtrer les projets",
     "language": "Langue",
     "mapLanguage": "Langue de la carte",
     "mapLanguageDefault": "Anglais + alphabets locaux",

@@ -13,6 +13,8 @@
     "db:migrate": "cd back && bun --env-file=../.env --bun run drizzle-kit migrate --config=drizzle.config.ts",
     "boundaries:import": "bun ./back/src/scripts/import-boundaries.ts ./scripts/osm-extract/planet-latest_boundaries.geojsonl",
     "osm:import": "bun ./back/src/scripts/import-osm.ts",
+    "osm:stats": "bun ./back/src/scripts/stats-osm.ts",
+    "osm:geojson": "bun ./back/src/scripts/stats-osm-geojson.ts",
     "migrate:r2-thumbnails": "cd back && bun --env-file=../.env run src/scripts/generate-r2-thumbnails.ts",
     "cleanup:images": "cd back && bun --env-file=../.env run src/scripts/cleanup-images.ts",
     "unused-translations": "bun run scripts/find-unused-translations.ts",
@@ -20,14 +22,16 @@
     "jscpd": "bunx jscpd .",
     "oxfmt": "bunx oxfmt",
     "lint": "bunx oxlint --type-aware --format=stylish && bunx vue-tsc --noEmit",
-    "deps:analyze": "madge --json front/src > deps-analysis.json",
+    "deps:analyze": "madge front/src > .bundle-report/deps-analysis.txt",
     "deps:circular": "madge --circular --warning front/src",
     "deps:orphans": "madge --orphans front/src",
+    "deps:test": "madge --summary front/src",
     "prepare": "husky",
     "rules": "bun run ../code-rules/src/cli/analyze.ts --audit --output findings.txt"
   },
   "dependencies": {
     "@hono/trpc-server": "^0.4.2",
+    "@lucide/vue": "^1.27.0",
     "@primeuix/themes": "^2.0.3",
     "@tailwindcss/vite": "^4.3.3",
     "@trpc/client": "^11.18.0",
@@ -71,12 +75,13 @@
     "lint-staged": "^17.2.0",
     "madge": "^8.0.0",
     "oxfmt": "^0.60.0",
-    "oxlint": "^1.75.0",
+    "oxlint": "^1.76.0",
     "oxlint-tsgolint": "^7.0.2001",
     "rollup-plugin-visualizer": "^7.0.1",
     "ts-morph": "^28.0.0",
     "unplugin-vue-components": "^32.1.0",
-    "vite-plugin-vue-devtools": "^8.1.5"
+    "vite-plugin-vue-devtools": "^8.1.5",
+    "yaml": "^2.9.0"
   },
   "lint-staged": {
     "*": "bunx oxfmt --no-error-on-unmatched-pattern"

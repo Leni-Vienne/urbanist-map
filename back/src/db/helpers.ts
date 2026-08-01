@@ -4,6 +4,7 @@ import { db, type Database } from "../database";
 import {
   projects,
   overlays,
+  adminBoundaries,
   changeRequests,
   users,
   userReports,
@@ -37,9 +38,11 @@ export async function generateUniqueProjectSlug(input: {
 
 // Country display name resolved from the level-2 (country) admin boundary matching a project's
 // country_code. Replaces the former join to the dropped `countries` table.
-const countryNameSql = sql<
+// The outer column is written qualified: a drizzle column reference is emitted bare in a
+// join-free query, and a bare `country_code` inside the subquery binds to `ab`, matching every row.
+export const countryNameSql = sql<
   string | null
->`(SELECT ab.name FROM admin_boundaries ab WHERE ab.admin_level = 2 AND ab.country_code = ${projects.countryCode} LIMIT 1)`;
+>`(SELECT ab.name FROM admin_boundaries ab WHERE ab.admin_level = 2 AND ab.country_code = "projects"."country_code" LIMIT 1)`;
 
 // Full administrative breadcrumb (deepest boundary up to the country), deepest-first, mirroring
 // project.getById's resolveBoundaryPath so list views render the same location as the detail panel.
@@ -57,7 +60,7 @@ const boundaryPathSql = sql<
   WITH RECURSIVE chain AS (
     SELECT osm_id, parent_id, name, name_en, names, admin_level, 1 AS depth
     FROM admin_boundaries
-    WHERE osm_id = ${projects.adminBoundaryId}
+    WHERE osm_id = "projects"."admin_boundary_id"
     UNION ALL
     SELECT ab.osm_id, ab.parent_id, ab.name, ab.name_en, ab.names, ab.admin_level, c.depth + 1
     FROM admin_boundaries ab
@@ -70,6 +73,64 @@ const boundaryPathSql = sql<
   )
   FROM chain
 ), '[]'::json)`;
+
+// Name variants of one boundary. Shipping every locale the UI can render, rather than a single
+// resolved name, keeps a response free of a locale param and its cached pages locale-agnostic.
+export type LocalizedBoundaryName = {
+  name: string; // OSM `name` (usually local language)
+  nameEn: string | null; // OSM `name:en`
+  names: Record<string, string> | null; // `name:*` variants for BOUNDARY_NAME_LOCALES
+};
+
+// Locales whose OSM `name:<code>` variant reaches the client; must cover the app's selectable UI
+// locales, minus English, which travels as nameEn. A boundary carries up to ~260 `name:*` variants
+// (France alone), so this projection is worth kilobytes per row. An omitted locale falls back to
+// the English or native name.
+const BOUNDARY_NAME_LOCALES = ["fr"];
+
+// Binds one param per element, so the value reaches Postgres as an array rather than as a
+// comma-separated parameter list.
+export function textArray(values: string[]): SQL {
+  return sql`ARRAY[${sql.join(
+    values.map((value) => sql`${value}`),
+    sql`, `,
+  )}]::text[]`;
+}
+
+// Location source for a project, resolved by walking its assigned admin boundary's parent_id chain
+// (projects.admin_boundary_id -> admin_boundaries). `pick` maps to an OSM admin_level bucket:
+//   city    -> deepest of 6..8 (prefers the municipality at 8, e.g. Montréal/Paris; falls back to a
+//              county at 6 where no level-8 exists).
+//   state   -> level 4 exactly: the canonical province/region (Québec, Ontario, Île-de-France).
+//              Odd levels are informal groupings we must skip (5 = "Golden Horseshoe", 3 = "France
+//              métropolitaine").
+//   country -> level 2.
+// Returns NULL when the project has no assigned boundary or the chain lacks that grade.
+// The outer column is written qualified for the reason given on countryNameSql.
+export function boundaryName(
+  pick: "city" | "state" | "country",
+): SQL<LocalizedBoundaryName | null> {
+  const range = {
+    city: sql`admin_level BETWEEN 6 AND 8`,
+    state: sql`admin_level = 4`,
+    country: sql`admin_level = 2`,
+  }[pick];
+  return sql<LocalizedBoundaryName | null>`(
+    WITH RECURSIVE chain AS (
+      SELECT osm_id, parent_id, admin_level, name, name_en, names
+      FROM ${adminBoundaries} WHERE osm_id = "projects"."admin_boundary_id"
+      UNION ALL
+      SELECT b.osm_id, b.parent_id, b.admin_level, b.name, b.name_en, b.names
+      FROM ${adminBoundaries} b JOIN chain c ON b.osm_id = c.parent_id
+    )
+    SELECT json_build_object('name', name, 'nameEn', name_en, 'names', (
+      SELECT json_object_agg(n.k, n.v)
+      FROM jsonb_each_text(COALESCE(names, '{}'::jsonb)) AS n(k, v)
+      WHERE n.k = ANY(${textArray(BOUNDARY_NAME_LOCALES)})
+    ))
+    FROM chain WHERE ${range} ORDER BY admin_level DESC LIMIT 1
+  )`;
+}
 
 interface PaginationFilters {
   countryCode?: string;
