@@ -217,7 +217,6 @@ const fileInputRef = ref<HTMLInputElement>();
 const selectedFile = ref<File | null>(null);
 const selectedFileName = ref("");
 const imagePreviewUrl = ref("");
-const imageDataUrl = ref("");
 const fileSizeError = ref("");
 
 // Which step of the dialog is showing. Replacement is overlay-specific, so it skips the chooser.
@@ -263,7 +262,6 @@ function clearSelection() {
   selectedFile.value = null;
   selectedFileName.value = "";
   imagePreviewUrl.value = "";
-  imageDataUrl.value = "";
   fileSizeError.value = "";
   if (fileInputRef.value) {
     fileInputRef.value.value = "";
@@ -331,9 +329,7 @@ function processFile(file: File) {
 
     const reader = new FileReader();
     reader.addEventListener("load", () => {
-      const dataUrl = reader.result as string;
-      imageDataUrl.value = dataUrl;
-      imagePreviewUrl.value = dataUrl;
+      imagePreviewUrl.value = reader.result as string;
     });
     reader.readAsDataURL(file);
   } catch (error) {
@@ -343,7 +339,7 @@ function processFile(file: File) {
 }
 
 function handleConfirm() {
-  if (!selectedFile.value || !imageDataUrl.value) return;
+  if (!selectedFile.value || !imagePreviewUrl.value) return;
 
   const projectId = uiStore.imageUploadDialog.projectId;
   if (!projectId) {
@@ -362,7 +358,7 @@ function confirmOverlay(projectId: string) {
   try {
     const replacementId = overlayStore.replacementOverlayId;
 
-    addOverlay(imageDataUrl.value, projectId, replacementId ?? undefined);
+    addOverlay(imagePreviewUrl.value, projectId, replacementId ?? undefined);
 
     if (replacementId) {
       toastSuccess(t("toasts.replacementOverlayDetail"), t("toasts.replacementOverlayCreated"));
@@ -384,7 +380,7 @@ function confirmRender(projectId: string, file: File) {
     // Stage the render exactly like the project form does, then mark the project modified so the
     // popup's "Submit change request" picks it up. It rides the same submission pipeline as every
     // other change; nothing uploads until the user confirms the submission.
-    setStagedRender(projectId, { file, previewUrl: imageDataUrl.value });
+    setStagedRender(projectId, { file, previewUrl: imagePreviewUrl.value });
     projectStore.updateProject(projectId, { isModified: true });
     toastSuccess(t("imageUpload.renderStagedDetail"), t("imageUpload.renderStaged"));
     uiStore.closeImageUploadDialog();

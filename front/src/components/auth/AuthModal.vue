@@ -314,8 +314,8 @@ const usernameError = ref("");
 const forgotPasswordEmail = ref("");
 const resetLinkSent = ref(false);
 const registrationSuccess = ref(false);
-const captchaToken = ref("");
-const turnstileWidgetId = ref<string | null>(null);
+let captchaToken = "";
+let turnstileWidgetId: string | null = null;
 
 // Single "last used" sign-in hint, read when the modal opens.
 const lastUsed = ref<{ method: "email" | "google" | "osm"; email: string | null } | null>(null);
@@ -408,8 +408,8 @@ async function renderTurnstile() {
 
   if (globalThis.turnstile && document.querySelector("#turnstile-widget")) {
     // Reset if already rendered to avoid duplicates
-    if (turnstileWidgetId.value) {
-      globalThis.turnstile.remove(turnstileWidgetId.value);
+    if (turnstileWidgetId) {
+      globalThis.turnstile.remove(turnstileWidgetId);
     }
 
     const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
@@ -418,13 +418,13 @@ async function renderTurnstile() {
       return; // Skip rendering if no key (dev mode)
     }
 
-    turnstileWidgetId.value = globalThis.turnstile.render("#turnstile-widget", {
+    turnstileWidgetId = globalThis.turnstile.render("#turnstile-widget", {
       sitekey: siteKey,
       callback: (token: string) => {
-        captchaToken.value = token;
+        captchaToken = token;
       },
       "expired-callback": () => {
-        captchaToken.value = "";
+        captchaToken = "";
       },
       theme: "auto",
     });
@@ -432,11 +432,11 @@ async function renderTurnstile() {
 }
 
 function resetTurnstile() {
-  if (globalThis.turnstile && turnstileWidgetId.value) {
-    globalThis.turnstile.remove(turnstileWidgetId.value);
-    turnstileWidgetId.value = null;
+  if (globalThis.turnstile && turnstileWidgetId) {
+    globalThis.turnstile.remove(turnstileWidgetId);
+    turnstileWidgetId = null;
   }
-  captchaToken.value = "";
+  captchaToken = "";
 }
 
 // Helper to translate error messages (handles both i18n keys and plain text)
@@ -503,12 +503,7 @@ async function handleSubmit() {
         errorMessage.value = translateError(result.error) || $t("auth.error.loginFailed");
       }
     } else {
-      const result = await authStore.signUp(
-        form.email,
-        form.password,
-        form.username,
-        captchaToken.value,
-      );
+      const result = await authStore.signUp(form.email, form.password, form.username, captchaToken);
       if (result.success) {
         registrationSuccess.value = true;
         errorMessage.value = "";
@@ -519,9 +514,9 @@ async function handleSubmit() {
         } else {
           errorMessage.value = translateError(result.error) || $t("auth.error.registrationFailed");
         }
-        if (globalThis.turnstile && turnstileWidgetId.value) {
-          globalThis.turnstile.reset(turnstileWidgetId.value);
-          captchaToken.value = "";
+        if (globalThis.turnstile && turnstileWidgetId) {
+          globalThis.turnstile.reset(turnstileWidgetId);
+          captchaToken = "";
         }
       }
     }

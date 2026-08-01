@@ -230,7 +230,7 @@ const countryDetails = reactive<
 const showDeleteDialog = ref(false);
 const deleteTargetType = ref<"project" | "overlay" | null>(null);
 const projectToDelete = ref<ProjectType | null>(null);
-const overlayToDelete = ref<OverlayType | null>(null);
+let overlayToDelete: OverlayType | null = null;
 const deleteReason = ref("");
 const isDeleting = ref(false);
 
@@ -310,7 +310,7 @@ function confirmDeleteProject(project: ProjectType) {
 }
 
 function confirmDeleteOverlay(overlay: OverlayType) {
-  overlayToDelete.value = overlay;
+  overlayToDelete = overlay;
   deleteTargetType.value = "overlay";
   deleteReason.value = "";
   showDeleteDialog.value = true;
@@ -370,9 +370,9 @@ async function adminDeleteProject() {
 }
 
 async function adminDeleteOverlay() {
-  if (!overlayToDelete.value) return;
+  if (!overlayToDelete) return;
 
-  const overlayId = overlayToDelete.value.id;
+  const overlayId = overlayToDelete.id;
 
   isDeleting.value = true;
   try {

@@ -223,7 +223,7 @@ const viewedChangeRequestIds = ref<string[]>([]);
 
 const showConflictsDialog = ref(false);
 const pendingConflicts = ref<ReplacementConflicts | null>(null);
-const pendingOverlayId = ref<string | null>(null);
+let pendingOverlayId: string | null = null;
 const isProcessingConflicts = ref(false);
 
 const showReportDialog = ref(false);
@@ -375,7 +375,7 @@ async function handleApproveOverlay(id: string) {
       if (conflicts.hasConflicts) {
         // Show confirmation dialog
         pendingConflicts.value = conflicts;
-        pendingOverlayId.value = id;
+        pendingOverlayId = id;
         showConflictsDialog.value = true;
         return; // Wait for user confirmation
       }
@@ -406,22 +406,22 @@ async function proceedWithApproval(id: string, handleConflicts = false) {
 
 // Handle confirmation from replacement conflicts dialog
 async function handleConfirmReplacement() {
-  if (!pendingOverlayId.value) return;
+  if (!pendingOverlayId) return;
 
   isProcessingConflicts.value = true;
   try {
-    await proceedWithApproval(pendingOverlayId.value, true); // Pass true to handle conflicts
+    await proceedWithApproval(pendingOverlayId, true); // Pass true to handle conflicts
   } finally {
     isProcessingConflicts.value = false;
     showConflictsDialog.value = false;
-    pendingOverlayId.value = null;
+    pendingOverlayId = null;
     pendingConflicts.value = null;
   }
 }
 
 function handleCancelReplacement() {
   showConflictsDialog.value = false;
-  pendingOverlayId.value = null;
+  pendingOverlayId = null;
   pendingConflicts.value = null;
 }
 

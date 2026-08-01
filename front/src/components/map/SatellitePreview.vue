@@ -38,7 +38,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, watch } from "vue";
 import {
   currentTileLayer,
   switchTileLayer,
@@ -51,11 +51,11 @@ defineProps<{
   inDrawer?: boolean;
 }>();
 
-const lastSatelliteLayer = ref<Exclude<TileLayerType, "plan">>("esri");
+let lastSatelliteLayer: Exclude<TileLayerType, "plan"> = "esri";
 
 watch(currentTileLayer, (newVal) => {
   if (newVal !== "plan") {
-    lastSatelliteLayer.value = newVal;
+    lastSatelliteLayer = newVal;
   }
 });
 
@@ -63,18 +63,18 @@ const isSatellite = computed(() => {
   return currentTileLayer.value !== "plan";
 });
 
-const isToggling = ref(false);
+let isToggling = false;
 
 async function toggleLayer() {
-  if (isToggling.value) return;
-  isToggling.value = true;
+  if (isToggling) return;
+  isToggling = true;
   setTimeout(() => {
-    isToggling.value = false;
+    isToggling = false;
   }, 500);
   if (isSatellite.value) {
     await switchTileLayer("plan");
   } else {
-    await switchTileLayer(lastSatelliteLayer.value);
+    await switchTileLayer(lastSatelliteLayer);
   }
 }
 </script>

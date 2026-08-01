@@ -44,7 +44,7 @@
 <script setup lang="ts">
 import { toastSuccess, toastError } from "@/services/core/toast";
 
-import { ref, shallowRef, defineAsyncComponent } from "vue";
+import { ref, defineAsyncComponent } from "vue";
 import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 import * as maplibregl from "maplibre-gl";
@@ -71,15 +71,15 @@ const uiStore = useUiStore();
 
 const { t: $t } = useI18n();
 const markerPlacementBar = ref<InstanceType<typeof MarkerPlacementBar> | null>(null);
-const tempMarker = shallowRef<maplibregl.Marker | null>(null);
-const mapClickHandler = ref<((e: MapMouseEvent) => void) | null>(null);
+let tempMarker: maplibregl.Marker | null = null;
+let mapClickHandler: ((e: MapMouseEvent) => void) | null = null;
 
 const { projectEditForm } = storeToRefs(uiStore);
 
 function onMarkerCoordinatesSelected(coordinates: { lat: number; lng: number }) {
-  if (tempMarker.value) {
-    tempMarker.value.remove();
-    tempMarker.value = null;
+  if (tempMarker) {
+    tempMarker.remove();
+    tempMarker = null;
   }
 
   uiStore.openProjectDialog({
@@ -91,13 +91,13 @@ function onMarkerCoordinatesSelected(coordinates: { lat: number; lng: number }) 
 function handleMapClick(e: MapMouseEvent) {
   const coordinates = { lat: e.lngLat.lat, lng: e.lngLat.lng };
 
-  if (tempMarker.value) {
-    tempMarker.value.remove();
-    tempMarker.value = null;
+  if (tempMarker) {
+    tempMarker.remove();
+    tempMarker = null;
   }
 
   const element = createProjectPinElement("orange");
-  tempMarker.value = new maplibregl.Marker({ element, anchor: "bottom" })
+  tempMarker = new maplibregl.Marker({ element, anchor: "bottom" })
     .setLngLat([coordinates.lng, coordinates.lat])
     .addTo(getMap());
 
@@ -107,20 +107,20 @@ function handleMapClick(e: MapMouseEvent) {
 }
 
 function onMarkerModeEnabled() {
-  mapClickHandler.value = handleMapClick;
+  mapClickHandler = handleMapClick;
   getMap().on("click", handleMapClick);
 }
 
 function onDialogVisibilityChange(visible: boolean) {
   if (!visible) {
-    if (tempMarker.value) {
-      tempMarker.value.remove();
-      tempMarker.value = null;
+    if (tempMarker) {
+      tempMarker.remove();
+      tempMarker = null;
     }
 
-    if (mapClickHandler.value) {
-      getMapOrNull()?.off("click", mapClickHandler.value);
-      mapClickHandler.value = null;
+    if (mapClickHandler) {
+      getMapOrNull()?.off("click", mapClickHandler);
+      mapClickHandler = null;
     }
   }
 }

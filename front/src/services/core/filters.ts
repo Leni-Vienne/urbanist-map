@@ -136,24 +136,24 @@ function singleBoundSlider(
   isDefault: () => boolean,
 ) {
   const positions = ref<[number, number]>([0, max]);
-  const prev = ref<[number, number]>([0, max]);
+  let prev: [number, number] = [0, max];
 
   watch(isDefault, (atDefault) => {
     if (!atDefault) return;
     const [minPos, maxPos] = positions.value;
     if (minPos === 0 && maxPos === max) return;
-    prev.value = [0, max];
+    prev = [0, max];
     positions.value = [0, max];
   });
 
   watch(positions, ([minPos, maxPos]) => {
     // Collapse crossed handles to the one that didn't move.
     if (minPos > maxPos) {
-      const [prevMin] = prev.value;
+      const [prevMin] = prev;
       positions.value = minPos !== prevMin ? [maxPos, maxPos] : [minPos, minPos];
       return;
     }
-    const [prevMin, prevMax] = prev.value;
+    const [prevMin, prevMax] = prev;
     if (minPos !== prevMin && minPos > 0 && maxPos < max) {
       positions.value = [minPos, max];
       return;
@@ -162,7 +162,7 @@ function singleBoundSlider(
       positions.value = [0, maxPos];
       return;
     }
-    prev.value = [minPos, maxPos];
+    prev = [minPos, maxPos];
     commit(minPos, maxPos);
   });
 

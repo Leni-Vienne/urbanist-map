@@ -68,8 +68,8 @@ const emit = defineEmits<{
 }>();
 
 const isDragging = ref(false);
-const startY = ref(0);
-const startHeight = ref(0);
+let startY = 0;
+let startHeight = 0;
 const currentHeight = ref(props.heightPercent);
 const viewportHeight = ref(0);
 
@@ -143,8 +143,8 @@ function handleTouchStart(e: TouchEvent) {
   if (!touch) return;
 
   isDragging.value = true;
-  startY.value = touch.clientY;
-  startHeight.value = currentHeight.value;
+  startY = touch.clientY;
+  startHeight = currentHeight.value;
   viewportHeight.value = globalThis.innerHeight;
 }
 
@@ -155,10 +155,10 @@ function handleTouchMove(e: TouchEvent) {
   const touch = e.touches[0];
   if (!touch) return;
 
-  const deltaY = startY.value - touch.clientY;
+  const deltaY = startY - touch.clientY;
   const deltaPercent = (deltaY / viewportHeight.value) * 100;
 
-  const newHeight = Math.min(MAX_HEIGHT_PERCENT, startHeight.value + deltaPercent);
+  const newHeight = Math.min(MAX_HEIGHT_PERCENT, startHeight + deltaPercent);
   currentHeight.value = newHeight;
 
   // Emit updates during drag for continuous reactivity
@@ -179,17 +179,17 @@ function handleMouseDown(e: MouseEvent) {
   }
 
   isDragging.value = true;
-  startY.value = e.clientY;
-  startHeight.value = currentHeight.value;
+  startY = e.clientY;
+  startHeight = currentHeight.value;
   viewportHeight.value = globalThis.innerHeight;
 
   function handleMouseMove(moveEvent: MouseEvent) {
     if (!isDragging.value) return;
 
-    const deltaY = startY.value - moveEvent.clientY;
+    const deltaY = startY - moveEvent.clientY;
     const deltaPercent = (deltaY / viewportHeight.value) * 100;
 
-    const newHeight = Math.min(MAX_HEIGHT_PERCENT, startHeight.value + deltaPercent);
+    const newHeight = Math.min(MAX_HEIGHT_PERCENT, startHeight + deltaPercent);
     currentHeight.value = newHeight;
 
     // Emit updates during drag for continuous reactivity
