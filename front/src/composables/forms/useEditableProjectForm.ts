@@ -13,8 +13,6 @@ interface EditableProjectFormOptions {
   // Full project the form was opened with. Used to seed the store when the project
   // isn't already present (e.g. opened from a tile/moderation source, or evicted by clearAllState).
   getSourceProject?: () => Project | undefined;
-  // Extra dirtiness beyond the scalar form fields (e.g. a staged render image).
-  extraDirty?: () => boolean;
   onSubmitted?: () => void;
   onClose?: () => void;
 }
@@ -33,7 +31,6 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
   }
 
   const hasChanges = computed(() => {
-    if (options.extraDirty?.()) return true;
     // oxlint-disable-next-line no-unsafe-type-assertion
     return Object.keys(formData).some((key) =>
       fieldDiffersFromOriginal(key as keyof ProjectFormData),
@@ -45,12 +42,9 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
   }
 
   function applyLocalEdit() {
-    // Each source resolves to a Project, so any of them can serve as the spread base.
     // getSourceProject is the project the form was opened with, for sources not yet in the store.
     const baseProject: Project | undefined =
-      projectStore.projects[options.entityId] ??
-      projectStore.userContributions[options.entityId] ??
-      options.getSourceProject?.();
+      projectStore.projects[options.entityId] ?? options.getSourceProject?.();
 
     if (!baseProject) {
       console.error("[useEditableProjectForm] project not found:", options.entityId);
@@ -58,8 +52,6 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     }
 
     const formFields = formDataToProjectFields(formData);
-
-    projectStore.updateProjectInUserContributions(options.entityId, formFields);
 
     projectStore.updateProject(options.entityId, {
       ...baseProject,

@@ -4,34 +4,33 @@
       type="button"
       class="appearance-none font-[inherit] bg-transparent border-0 text-left flex items-center py-[0.35rem] px-2 w-full cursor-pointer rounded text-color transition-colors duration-200 text-[0.9rem] hover:bg-black/5 dark:hover:bg-white/10"
       @click="toggleMenu"
-      ref="languageMenuRef"
       :aria-label="$t('controls.language')"
       @dblclick.stop
     >
       <i class="pi pi-language text-base"></i>
       <span class="ml-2">{{ $t("controls.language") }}</span>
-      <span class="ml-auto text-sm text-muted-color">{{ currentLocale.toUpperCase() }}</span>
+      <span class="ml-auto text-sm text-muted-color">{{ locale.toUpperCase() }}</span>
     </button>
 
     <Popover ref="languagePopover">
       <div class="flex flex-col w-40">
         <button
-          v-for="locale in availableLocales"
-          :key="locale.code"
+          v-for="availableLocale in availableLocales"
+          :key="availableLocale.code"
           type="button"
           class="appearance-none font-[inherit] border-0 text-left flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded w-full transition-colors duration-150 disabled:opacity-70 disabled:cursor-wait"
           :class="
-            currentLocale === locale.code
+            locale === availableLocale.code
               ? 'bg-primary-50 text-primary-700'
               : 'bg-transparent hover:bg-black/5 dark:hover:bg-white/10'
           "
           :disabled="isLoading"
-          @click="changeLocale(locale.code)"
+          @click="changeLocale(availableLocale.code)"
         >
-          <span class="text-lg">{{ locale.flag }}</span>
-          <span class="text-sm font-medium">{{ locale.name }}</span>
+          <span class="text-lg">{{ availableLocale.flag }}</span>
+          <span class="text-sm font-medium">{{ availableLocale.name }}</span>
           <i
-            v-if="isLoading && loadingLocale === locale.code"
+            v-if="isLoading && loadingLocale === availableLocale.code"
             class="pi pi-spin pi-spinner ml-auto"
           ></i>
         </button>
@@ -52,7 +51,6 @@ import {
 } from "../../locales";
 
 const { locale } = useI18n();
-const currentLocale = ref<Locale>("en");
 const languagePopover = ref<{
   visible: boolean;
   toggle(event: Event): void;
@@ -62,7 +60,6 @@ const isLoading = ref(false);
 const loadingLocale = ref<Locale | null>(null);
 
 onMounted(() => {
-  currentLocale.value = locale.value as Locale;
   window.addEventListener("resize", handleResize);
 });
 
@@ -81,7 +78,7 @@ function toggleMenu(event: Event) {
 }
 
 async function changeLocale(newLocale: Locale): Promise<void> {
-  if (isLoading.value || newLocale === currentLocale.value) return;
+  if (isLoading.value || newLocale === locale.value) return;
 
   isLoading.value = true;
   loadingLocale.value = newLocale;
@@ -94,7 +91,6 @@ async function changeLocale(newLocale: Locale): Promise<void> {
     }
 
     locale.value = newLocale;
-    currentLocale.value = newLocale;
     saveLocale(newLocale);
     languagePopover.value?.hide();
 

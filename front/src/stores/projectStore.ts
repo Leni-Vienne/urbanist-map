@@ -255,12 +255,6 @@ export const useProjectStore = defineStore("project", () => {
     if (overlay) Object.assign(overlay, updates);
   }
 
-  function updateProjectInUserContributions(projectId: string, updates: Partial<Project>) {
-    if (!userContributionsLoaded.value) return;
-    const project = projects.value[projectId];
-    if (project && contributionIds.value[projectId]) Object.assign(project, updates);
-  }
-
   function removeOverlayFromUserContributions(overlayId: string, currentUserId?: string) {
     if (!userContributionsLoaded.value) {
       return;
@@ -380,7 +374,6 @@ export const useProjectStore = defineStore("project", () => {
     addRenderToUserContributions,
     addProjectToUserContributions,
     updateOverlayInUserContributions,
-    updateProjectInUserContributions,
     removeOverlayFromUserContributions,
     removeProjectFromUserContributions,
 

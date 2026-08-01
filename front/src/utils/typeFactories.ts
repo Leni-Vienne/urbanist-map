@@ -31,7 +31,7 @@ export function overlayWireToData<T extends { corners: LatLng[]; caption?: strin
  * Create a new Project instance with defaults
  */
 // eslint-disable-next-line complexity
-export function createProjectObject(data: ProjectInput = {}): Project {
+export function createProjectObject(data: ProjectInput): Project {
   const id = data.id ?? uuidv4();
 
   return {
@@ -91,7 +91,7 @@ export function getProjectDetailFields(project: Project): ProjectDetailFields {
  * Create a new OverlayObject instance with defaults
  */
 // eslint-disable-next-line complexity
-export function createOverlayObject(data: Partial<OverlayObject> = {}): OverlayObject {
+export function createOverlayObject(data: Partial<OverlayObject>): OverlayObject {
   const id = data.id ?? uuidv4();
   // Preserve null status for local overlays (not yet submitted to backend)
   // Only default to "pending" if status is undefined, NOT if it's null

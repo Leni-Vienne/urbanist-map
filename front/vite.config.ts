@@ -187,7 +187,7 @@ export default defineConfig(({ mode }) => {
                   id.includes("node_modules/@primeuix/utils/dist/eventbus") ||
                   /node_modules\/(?:pinia|@trpc|superjson|is-what|copy-anything|uuid)\//.test(id),
               },
-              // Consolidate the ~19 tiny own-code chunks that Rolldown extracts because they
+              // Consolidate the tiny own-code chunks that Rolldown extracts because they
               // are shared between the entry and lazy-loaded components. All confirmed loaded
               // on initial page view (zoomed out, logged out), so merging them cuts HTTP
               // requests without pulling anything new into the initial load.
@@ -197,19 +197,16 @@ export default defineConfig(({ mode }) => {
                   /\/front\/src\/stores\/(?:authStore|uiStore|projectStore|overlayStore|mapStore|focusStore|moderationStore|changeRequestStore)\.ts/.test(
                     id,
                   ) ||
-                  /\/front\/src\/services\/core\/(?:toast|errorHandling|map|viewport)\.ts/.test(
+                  /\/front\/src\/services\/core\/(?:toast|errorHandling|map|viewport|filters|settings|mapNavigation|projectSelection|markersSvg)\.ts/.test(
                     id,
                   ) ||
-                  /\/front\/src\/services\/map\/(?:filters|settings|mapNavigation|projectSelection|markersSvg)\.ts/.test(
-                    id,
-                  ) ||
-                  /\/front\/src\/services\/overlay\/(?:markers|visibility|changeRequestPreviewSync|data|selection|mapLayers|transform|history|editing)\.ts/.test(
+                  /\/front\/src\/services\/overlay\/(?:markers|visibility|changeRequestPreview|data|selection|mapLayers|transform|history|editing|unsavedState)\.ts/.test(
                     id,
                   ) ||
                   /\/front\/src\/services\/(?:moderation\/moderationCountrySync|submission\/stagedRenderState|project\/projectMutations)\.ts/.test(
                     id,
                   ) ||
-                  /\/front\/src\/utils\/(?:unsavedState|typeFactories|geojson|imageUrl|markerColors|cornersBounds)\.ts/.test(
+                  /\/front\/src\/utils\/(?:typeFactories|geojson|imageUrl|cornersBounds)\.ts/.test(
                     id,
                   ) ||
                   id.includes("/front/src/constants/mapConstants.ts") ||

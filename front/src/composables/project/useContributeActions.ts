@@ -32,13 +32,13 @@ async function handleDeleteProjectClick(project: Project): Promise<void> {
 }
 
 // New project button click: opens the marker placement bar (after an auth gate and a clean slate).
-function handleNewProjectClick(): boolean {
+function handleNewProjectClick(): void {
   const authStore = useAuthStore();
   const uiStore = useUiStore();
 
   if (!authStore.isAuthenticated) {
     uiStore.openAuthModal();
-    return false;
+    return;
   }
 
   // Close any open detail and clear selection for a clean slate
@@ -47,7 +47,6 @@ function handleNewProjectClick(): boolean {
   // Always switch to edit mode when contributing (no-op if already in edit mode)
   useMapStore().setMode("edit");
   uiStore.markerPlacementBarVisible = true;
-  return true;
 }
 
 export function useContributeActions(
@@ -138,9 +137,7 @@ export function useContributeActions(
     await startShapeEditing(project.id, approvedGeometry);
   }
 
-  // Navigate to the external pinned project using the same logic as a map click. The Project
-  // argument lacks geometry; the resolved selection carries the lat/lng/geometry needed to fly.
-  function handleExternalProjectClick(_project: Project): void {
+  function handleExternalProjectClick(): void {
     const fullProject = focusStore.selectedProject;
     if (!fullProject) return;
     openProjectDetail(fullProject);

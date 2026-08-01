@@ -289,7 +289,16 @@ async function submitProjectChangeRequest(project: Project, changes: FieldChange
 // to remember the full cascade.
 function applyOptimisticPublishedProject(project: Project, changeType: SubmissionChangeType): void {
   const projectStore = useProjectStore();
-  projectStore.updateProject(project.id, { isModified: false, status: "pending" });
+  projectStore.updateProject(project.id, {
+    isModified: false,
+    status: "pending",
+    ...(changeType === "update_pending" && {
+      name: project.name,
+      description: project.description,
+      sourceUrl: project.sourceUrl,
+      updatedAt: new Date(),
+    }),
+  });
   projectStore.cacheProjectBackendState(project.id);
 
   const updated = projectStore.projects[project.id];
@@ -298,15 +307,6 @@ function applyOptimisticPublishedProject(project: Project, changeType: Submissio
   if (changeType === "create") {
     projectStore.addProjectToUserContributions(updated);
     return;
-  }
-
-  if (changeType === "update_pending") {
-    projectStore.updateProjectInUserContributions(project.id, {
-      name: project.name,
-      description: project.description,
-      sourceUrl: project.sourceUrl,
-      updatedAt: new Date(),
-    });
   }
 }
 

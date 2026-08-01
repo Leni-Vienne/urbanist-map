@@ -74,11 +74,9 @@ export function zoomToOverlayAndSelect(
  * Navigate to a project by coordinates. Opens the detail and flies to the point concurrently;
  * the detail resolves the project by id and so does not depend on the camera or on rendered tiles.
  */
-export function navigateToProject(lat: number, lng: number, projectId?: string): void {
+export function navigateToProject(lat: number, lng: number, projectId: string): void {
   try {
-    if (projectId) {
-      void handleProjectClickFromTile(projectId);
-    }
+    void handleProjectClickFromTile(projectId);
     // Drawer-aware padding centers the feature in the map area above the mobile drawer (desktop
     // centers it in the full viewport).
     mobileAwareFlyTo([lat, lng], 18);

@@ -4,8 +4,6 @@ import { toastError } from "@/services/core/toast";
 interface ErrorHandlingOptions {
   /** Toast message to show on error */
   errorMessage?: string;
-  /** Whether to rethrow error after handling (default: false) */
-  rethrow?: boolean;
 }
 
 /**
@@ -22,7 +20,7 @@ export async function loadOrNull<T>(
   fn: () => T | Promise<T>,
   options: ErrorHandlingOptions = {},
 ): Promise<T | null> {
-  const { errorMessage, rethrow = false } = options;
+  const { errorMessage } = options;
 
   try {
     return await fn();
@@ -31,10 +29,6 @@ export async function loadOrNull<T>(
 
     if (errorMessage) {
       toastError(errorMessage, "Error");
-    }
-
-    if (rethrow) {
-      throw error;
     }
 
     return null;

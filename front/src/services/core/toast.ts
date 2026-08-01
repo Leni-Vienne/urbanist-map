@@ -7,8 +7,6 @@ interface ToastMessage {
   summary?: string;
   detail?: string;
   life?: number;
-  group?: string;
-  closable?: boolean;
 }
 
 function showToast(message: ToastMessage): void {

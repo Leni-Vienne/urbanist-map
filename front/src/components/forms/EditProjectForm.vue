@@ -74,8 +74,8 @@ const currentProjectData = computed(() => {
   if (storeProject?.isModified) {
     return projectToFormData(storeProject);
   }
-  // Fall back to originalProject (authoritative backend state) rather than props.project,
-  // which may hold stale data from the userContributions cache
+  // Fall back to the authoritative backend snapshot rather than the project object captured when
+  // the form opened.
   return projectToFormData(originalProject.value);
 });
 

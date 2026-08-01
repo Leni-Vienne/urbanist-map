@@ -317,9 +317,9 @@ export function clearEntry(id: string): void {
  * Clear all entries from the registry.
  * @param preserveMarkers - If true, only remove the image layers and keep the marker refs +
  *                          markers on the map, so the pins don't flicker while the images are
- *                          re-created. If false (default, full reset), remove both.
+ *                          re-created. If false, remove both.
  */
-export function clearAll(preserveMarkers = false): void {
+export function clearAll(preserveMarkers: boolean): void {
   creating.clear();
 
   for (const [id, entry] of entries) {

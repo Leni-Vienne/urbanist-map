@@ -227,7 +227,6 @@ export const useAuthStore = defineStore("auth", () => {
           const result: { user: User | null; infoMessage: string | null } = await response.json();
           user.value = result.user;
           infoMessage.value = result.infoMessage;
-          if (!result.user) return;
         } else {
           user.value = null;
           infoMessage.value = null;

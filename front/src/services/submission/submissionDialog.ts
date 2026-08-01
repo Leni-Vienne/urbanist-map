@@ -269,12 +269,11 @@ export function prepareSubmission(project: Project | null, overlay?: OverlayObje
   showSubmissionDialog.value = true;
 }
 
-// Submit an overlay. Resolves its project (caller hint, then the store) for the full project path;
-// when it can't (overlay selected from the map, project never loaded), prepareSubmission runs
-// overlay-only off the overlay's projectId.
-export function prepareOverlaySubmission(overlay: OverlayObject, project?: Project | null): void {
-  const resolved =
-    project ?? (overlay.projectId ? useProjectStore().projects[overlay.projectId] : null);
+// Submit an overlay. Resolves its project from the store for the full project path; when it can't
+// (overlay selected from the map, project never loaded), prepareSubmission runs overlay-only off
+// the overlay's projectId.
+export function prepareOverlaySubmission(overlay: OverlayObject): void {
+  const resolved = overlay.projectId ? useProjectStore().projects[overlay.projectId] : null;
   prepareSubmission(resolved ?? null, overlay);
 }
 

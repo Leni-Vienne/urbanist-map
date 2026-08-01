@@ -1,7 +1,7 @@
 import type { FlexibleDateInput, DatePrecision } from "@shared/types/flexibleDate";
 
 /** Convert a Date to a FlexibleDateInput at the given precision. */
-function dateToFlexibleInput(date: Date, precision: DatePrecision = "day"): FlexibleDateInput {
+function dateToFlexibleInput(date: Date, precision: DatePrecision): FlexibleDateInput {
   return {
     year: date.getUTCFullYear(),
     month: precision !== "year" ? date.getUTCMonth() + 1 : undefined,
@@ -16,7 +16,7 @@ function dateToFlexibleInput(date: Date, precision: DatePrecision = "day"): Flex
  */
 export function dbToFlexibleDate(
   date: Date | null | undefined,
-  savedPrecision: DatePrecision | null = null,
+  savedPrecision: DatePrecision | null | undefined,
 ): FlexibleDateInput | null {
   if (!date) return null;
 

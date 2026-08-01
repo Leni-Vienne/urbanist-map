@@ -18,20 +18,19 @@ export interface ProjectDateFields {
 }
 
 type ResolvedDateRange =
-  | { kind: "proposed"; value: string; precision: DatePrecision }
+  | { kind: "proposed"; value: string }
   | { kind: "period"; start: string; end: string }
-  | { kind: "start"; value: string; precision: DatePrecision }
-  | { kind: "end"; value: string; precision: DatePrecision }
+  | { kind: "start"; value: string }
+  | { kind: "end"; value: string }
   | { kind: "none" };
 
-// Resolve which date(s) a project row should show. Shared by both formatters below so the
-// proposed/period/start/end priority lives in one place.
+// Resolve which date(s) a project row should show so the proposed/period/start/end priority lives
+// in one place.
 function resolveProjectDateRange(f: ProjectDateFields): ResolvedDateRange {
   if (f.timelineStatus === "proposed" && f.proposalDate) {
     return {
       kind: "proposed",
       value: formatFlexibleDate(dbToFlexibleDate(f.proposalDate, f.proposalDatePrecision)),
-      precision: f.proposalDatePrecision,
     };
   }
 
@@ -43,13 +42,12 @@ function resolveProjectDateRange(f: ProjectDateFields): ResolvedDateRange {
     : null;
 
   if (start && end) return { kind: "period", start, end };
-  if (start) return { kind: "start", value: start, precision: f.startDatePrecision };
-  if (end) return { kind: "end", value: end, precision: f.endDatePrecision };
+  if (start) return { kind: "start", value: start };
+  if (end) return { kind: "end", value: end };
   if (f.proposalDate) {
     return {
       kind: "proposed",
       value: formatFlexibleDate(dbToFlexibleDate(f.proposalDate, f.proposalDatePrecision)),
-      precision: f.proposalDatePrecision,
     };
   }
 

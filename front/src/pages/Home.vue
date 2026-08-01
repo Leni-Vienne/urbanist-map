@@ -88,6 +88,7 @@ import { showSubmissionDialog } from "@/services/submission/submissionDialogStat
 import { useTabNavigation } from "@/composables/layout/useTabNavigation";
 import { handleProjectDeepLink } from "@/services/project/projectDeepLink";
 import { useModeratedContributionsStore } from "@/stores/moderatedContributionsStore";
+import { isMobile } from "@/services/core/viewport";
 
 import MapView from "@/components/map/MapView.vue";
 import SideMenu from "@/components/layout/SideMenu.vue";
@@ -191,13 +192,6 @@ watch(
   { immediate: true },
 );
 
-const windowWidth = ref(typeof globalThis !== "undefined" ? globalThis.innerWidth : 1024);
-const isMobile = computed(() => windowWidth.value <= 768);
-
-function updateWindowWidth() {
-  windowWidth.value = globalThis.innerWidth;
-}
-
 async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
   const project = uiStore.shapeEditor.project;
   if (!project) return;
@@ -230,7 +224,6 @@ async function handleShapesCancel() {
 }
 
 onMounted(async () => {
-  globalThis.addEventListener("resize", updateWindowWidth);
   maintenanceTickInterval = globalThis.setInterval(() => {
     now.value = new Date();
   }, 30_000);
@@ -282,7 +275,6 @@ function getErrorMessage(error: string): string {
 }
 
 onUnmounted(() => {
-  globalThis.removeEventListener("resize", updateWindowWidth);
   if (maintenanceTickInterval !== undefined) {
     globalThis.clearInterval(maintenanceTickInterval);
   }

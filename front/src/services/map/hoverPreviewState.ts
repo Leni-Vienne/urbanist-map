@@ -87,18 +87,8 @@ export function triggerProjectHover(
   data: HoverProjectData,
   x: number,
   y: number,
-  immediate = false,
 ): void {
   if (isHoverPreviewDisabled()) return;
-
-  if (immediate) {
-    clearTimer();
-    pendingHoverId = projectId;
-    hoverPreviewX.value = x;
-    hoverPreviewY.value = y;
-    hoverPreview.value = { type: "project", projectId, data };
-    return;
-  }
 
   // Card already visible for this project, only update position refs (no content re-render)
   if (hoverPreview.value?.type === "project" && hoverPreview.value.projectId === projectId) {

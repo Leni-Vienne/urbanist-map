@@ -42,7 +42,7 @@ import type { AppMode } from "@shared/types";
 import { t } from "@/locales";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import type { OverlayObject, LatLng } from "@/types/index";
-import { createOverlayObject, createProjectObject } from "@/utils/typeFactories";
+import { createOverlayObject } from "@/utils/typeFactories";
 import { addOverlayToProjectWithId } from "@/services/project/projectMutations";
 import { openOverlayDetail, whenImageReadyIfSelected } from "@/services/overlay/selection";
 import { resolveOverlayCorners } from "@/services/overlay/data";
@@ -144,14 +144,7 @@ export function addOverlay(
     currentZoomLevel.value < getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
   const projectStore = useProjectStore();
 
-  // Fall back to userContributions if not found in the main project store
-  let project = projectStore.projects[projectId];
-  if (!project) {
-    const userContribution = projectStore.userContributions[projectId];
-    if (userContribution) {
-      project = createProjectObject(userContribution);
-    }
-  }
+  const project = projectStore.projects[projectId];
 
   async function createAndSetupOverlay(): Promise<void> {
     const corners = await defaultCornersForNewOverlay(imageUrl, target);

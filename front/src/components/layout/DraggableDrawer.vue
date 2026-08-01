@@ -2,7 +2,6 @@
   <Teleport to="body">
     <div class="fixed inset-0 z-1100 pointer-events-none">
       <div
-        ref="drawerRef"
         class="draggable-drawer fixed bottom-0 left-0 right-0 bg-content-background rounded-t-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.15)] flex flex-col overflow-visible z-1101 touch-none pointer-events-auto"
         :style="drawerStyle"
         @touchstart="handleTouchStart"

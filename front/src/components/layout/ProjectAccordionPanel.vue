@@ -59,7 +59,7 @@
                 :on-overlay-click="onOverlayClick"
                 @show-user-stats="(data) => emit('show-user-stats', data)"
                 @edit-project="handleProjectClick"
-                @project-click="(p) => emit('external-project-click', p)"
+                @project-click="emit('external-project-click')"
                 @highlight-project="handleProjectHighlight"
                 @remove-project-highlight="handleProjectUnhighlight"
                 @highlight-overlay="highlightOverlayById"
@@ -267,7 +267,7 @@ const emit = defineEmits<{
       reportCount?: number;
     },
   ];
-  "external-project-click": [project: Project];
+  "external-project-click": [];
 }>();
 
 const { t } = useI18n();
