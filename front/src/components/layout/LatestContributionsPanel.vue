@@ -161,8 +161,8 @@
             >
               {{ row.title }}
             </h2>
-            <div class="text-xs text-muted-color truncate mb-0.5">
-              {{ getLocationDisplay(row.contribution) }}
+            <div v-if="row.subtitle" class="text-xs text-muted-color truncate mb-0.5">
+              {{ row.subtitle }}
             </div>
             <div class="flex items-center gap-1.5 text-xs text-muted-color">
               <span>{{ formatRelativeTime(row.contribution.updatedAt, t) }}</span>
@@ -265,12 +265,12 @@ import {
   type ActiveFilter,
 } from "@/services/core/filters";
 import { buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
-import { getProjectTagIcon, getProjectTagColor, getProjectTagSlug } from "@/constants/projectTags";
+import { getProjectTagIcon, getProjectTagColor } from "@/constants/projectTags";
 import ShapeThumbnail from "@/components/common/ShapeThumbnail.vue";
 import PanelEmptyState from "@/components/common/PanelEmptyState.vue";
 import FilterPanelContent from "@/components/map/FilterPanelContent.vue";
 import { formatRelativeTime } from "@/utils/dateFormat";
-import { formatBoundaryLocation } from "@/utils/locationDisplay";
+import { boundaryLocationParts, formatBoundaryLocation } from "@/utils/locationDisplay";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
 import { useFocusStore } from "@/stores/focusStore";
 import { useMapStore } from "@/stores/mapStore";
@@ -343,31 +343,48 @@ function getThumbnailFilename(contribution: LatestContribution): string | null {
   return contribution.renderFilename;
 }
 
-// A nameless contribution is described by its category rather than announced as missing, so the
-// row still says what the thing is. Only an untagged one falls back to a placeholder.
-function getTitle(contribution: LatestContribution): { title: string; isPlaceholder: boolean } {
+// A nameless contribution is identified by where it is: the deepest known place becomes its title
+// and the rest of the breadcrumb its subtitle, its category being carried by the icon tile. Only
+// one that is nameless and placeless falls back to a placeholder.
+function getHeadings(contribution: LatestContribution): {
+  title: string;
+  isPlaceholder: boolean;
+  subtitle: string;
+} {
   if (contribution.name) {
-    return { title: contribution.name, isPlaceholder: false };
+    const location = formatBoundaryLocation(contribution, locale.value);
+    return {
+      title: contribution.name,
+      isPlaceholder: false,
+      subtitle: location || t("project.noLocation"),
+    };
   }
-  const slug = getProjectTagSlug(contribution.tags);
-  if (slug) {
-    return { title: t(`tags.${slug}`), isPlaceholder: false };
+  const [place, ...ancestors] = boundaryLocationParts(contribution, locale.value);
+  if (place) {
+    const trail = ancestors.join(", ");
+    const code = contribution.countryCode;
+    return {
+      title: place,
+      isPlaceholder: false,
+      subtitle: trail && code ? `${trail} (${code})` : trail,
+    };
   }
   const fallback = contribution.type === "overlay" ? "overlay.untitled" : "project.unnamed";
-  return { title: t(fallback), isPlaceholder: true };
+  return { title: t(fallback), isPlaceholder: true, subtitle: t("project.noLocation") };
 }
 
-// Resolve the thumbnail URL, crossorigin flag, title, category icon, tag color and shape once per
-// contribution, instead of recomputing them several times each in the template.
+// Resolve the thumbnail URL, crossorigin flag, headings, category icon, tag color and shape once
+// per contribution, instead of recomputing them several times each in the template.
 const rows = computed(() =>
   contributions.value.map((contribution) => {
     const filename = getThumbnailFilename(contribution);
     const thumbnailUrl = filename ? getContributionImageUrl(filename) : null;
-    const { title, isPlaceholder } = getTitle(contribution);
+    const { title, isPlaceholder, subtitle } = getHeadings(contribution);
     return {
       contribution,
       thumbnailUrl,
       title,
+      subtitle,
       isPlaceholderTitle: isPlaceholder,
       icon: getProjectTagIcon(contribution.tags),
       color: getProjectTagColor(contribution.tags),
@@ -419,10 +436,6 @@ function filterLabel(filter: ActiveFilter): string {
     default:
       return "";
   }
-}
-
-function getLocationDisplay(contribution: LatestContribution): string {
-  return formatBoundaryLocation(contribution, locale.value) || t("project.noLocation");
 }
 
 function handleContributionHover(contribution: LatestContribution) {

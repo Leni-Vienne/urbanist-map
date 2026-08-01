@@ -73,13 +73,6 @@ export function getProjectTagIcon(tags: string[]): Component | null {
   return PROJECT_TAG_MAP.get(firstTag)?.icon ?? null;
 }
 
-/** Resolve a project's first tag to its slug; null when untagged or the tag is unknown. */
-export function getProjectTagSlug(tags: string[]): string | null {
-  const firstTag = tags[0];
-  if (!firstTag) return null;
-  return PROJECT_TAG_MAP.has(firstTag) ? firstTag : null;
-}
-
 // Tags that also carry the implicit `building` tag (the building-category tags plus the
 // generic `building` itself). Grouped separately in the filter UI.
 export const BUILDING_CATEGORY_TAGS = new Set([
