@@ -111,10 +111,8 @@ app.use(
   trpcServer({
     router: appRouter,
     async createContext(_opts: FetchCreateContextFnOptions, c: Context) {
-      const session = c.get("session");
       return {
-        user: await resolveSessionUser(session),
-        session,
+        user: await resolveSessionUser(c.get("session")),
         hono: c,
       };
     },

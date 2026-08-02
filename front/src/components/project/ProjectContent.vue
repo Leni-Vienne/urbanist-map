@@ -160,13 +160,9 @@
           </div>
 
           <!-- Overlay action buttons slot -->
-          <div v-if="$slots['overlay-actions']" class="flex flex-col gap-2" @click.stop>
+          <div class="flex flex-col gap-2" @click.stop>
             <slot name="overlay-actions" :overlay="overlay" :project="project"></slot>
           </div>
-          <i
-            v-else
-            class="pi pi-chevron-right text-sm text-muted-color shrink-0 transition-colors duration-150 group-hover:text-(--p-text-color-secondary)"
-          ></i>
         </div>
 
         <div class="cursor-default" @click.stop>

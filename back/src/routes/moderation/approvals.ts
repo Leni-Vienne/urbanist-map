@@ -91,18 +91,9 @@ export const approvalProcedures = {
               projectRecord.status !== "pending" &&
               !(input.status === "rejected" && projectRecord.status === "approved")
             ) {
-              return {
-                success: false,
-                error: "Project already processed",
-                currentStatus: projectRecord.status,
-              };
+              return { success: false, error: "Project already processed" };
             } else {
-              return {
-                success: false,
-                error: "Version mismatch",
-                expectedVersion: input.expectedVersion,
-                currentVersion: projectRecord.version,
-              };
+              return { success: false, error: "Version mismatch" };
             }
           }
 
@@ -243,20 +234,11 @@ export const approvalProcedures = {
           }
 
           if (overlayRecord.version !== input.expectedVersion) {
-            return {
-              success: false,
-              error: "Version mismatch",
-              expectedVersion: input.expectedVersion,
-              currentVersion: overlayRecord.version,
-            };
+            return { success: false, error: "Version mismatch" };
           }
 
           if (overlayRecord.status !== "pending") {
-            return {
-              success: false,
-              error: "Overlay already processed",
-              currentStatus: overlayRecord.status,
-            };
+            return { success: false, error: "Overlay already processed" };
           }
 
           let competingReplacements: { id: string; filename: string; authorId: string | null }[] =

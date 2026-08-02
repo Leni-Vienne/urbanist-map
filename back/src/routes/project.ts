@@ -16,7 +16,6 @@ import {
   buildOverlayModerationQuery,
   buildOverlayVisibilityCondition,
   buildPaginationConditions,
-  buildPaginationResponse,
   isUserBlocked,
   generateUniqueProjectSlug,
   PROJECT_COLUMNS,
@@ -300,8 +299,6 @@ export const projectRouter = router({
             console.error(`Failed to delete images for overlay ${overlay.id}:`, error);
           }
         }
-
-        return { success: true };
       } catch (error) {
         console.error("Error deleting project:", error);
         if (error instanceof TRPCError) throw error;
@@ -427,7 +424,6 @@ export const projectRouter = router({
         .select({
           lat: deletedProjects.lat,
           lng: deletedProjects.lng,
-          status: deletedProjects.status,
         })
         .from(deletedProjects)
         .where(eq(deletedProjects.slug, input.slug))
@@ -440,7 +436,6 @@ export const projectRouter = router({
           gone: true as const,
           lat: tombstone.lat,
           lng: tombstone.lng,
-          projectStatus: tombstone.status,
         };
       }
 
@@ -624,13 +619,7 @@ export const projectRouter = router({
           });
         });
 
-        // Build pagination response using shared helper (only for owned projects, as contributed are not paginated)
-        const paginationResponse = buildPaginationResponse(ownedProjects, input.limit);
-
-        return {
-          projects: projectsWithOverlays,
-          pagination: paginationResponse.pagination,
-        };
+        return { projects: projectsWithOverlays };
       } catch (error) {
         console.error("Error fetching all projects:", error);
         throw new TRPCError({

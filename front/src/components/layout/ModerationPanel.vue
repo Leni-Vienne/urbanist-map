@@ -544,15 +544,15 @@ function handleRejectChange(changeId: string, userId: string | null) {
 
 // Execute change request rejection after confirmation
 async function executeRejectChange(changeId: string): Promise<boolean> {
-  const result = await rejectChangeRequests([changeId]);
+  const rejected = await rejectChangeRequests([changeId]);
 
-  if (result) {
+  if (rejected) {
     moderationStore.decrementPendingCount(selectedCountryCode.value);
     toastInfo(t("moderation.changeRejectedDetail"), t("moderation.changeRejected"));
   } else {
     toastError(t("moderation.rejectionFailedDetail"), t("moderation.rejectionFailed"));
   }
 
-  return result !== null;
+  return rejected;
 }
 </script>

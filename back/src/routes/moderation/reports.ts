@@ -31,26 +31,13 @@ export const reportProcedures = {
           )
           .limit(1);
 
-        if (existingReport.length > 0) {
-          return { success: true, alreadyReported: true };
-        }
+        if (existingReport.length > 0) return;
 
         await db.insert(userReports).values({
           reportedUserId: input.userId,
           reportedBy: moderatorId,
           reason: input.reason,
         });
-
-        const reportCount = await db
-          .select({ count: sql<string>`COUNT(*)` })
-          .from(userReports)
-          .where(eq(userReports.reportedUserId, input.userId));
-
-        return {
-          success: true,
-          alreadyReported: false,
-          totalReports: Number(reportCount[0]?.count ?? 1),
-        };
       } catch (error) {
         console.error("Error reporting user:", error);
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to report user" });
@@ -320,12 +307,6 @@ export const reportProcedures = {
         } catch (error) {
           console.error(`Failed to delete images for overlay ${input.id}:`, error);
         }
-
-        return {
-          success: true,
-          deletedOverlayId: input.id,
-          deletedFilename: overlay.filename,
-        };
       } catch (error) {
         console.error("Error deleting overlay:", error);
         if (error instanceof TRPCError) throw error;

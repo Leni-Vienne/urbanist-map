@@ -7,7 +7,6 @@ import { getClientIp } from "../utils/ip";
 
 function getCloudflareHeaders(c: Context) {
   return {
-    cfConnectingIp: c.req.header("CF-Connecting-IP"),
     cfCountry: c.req.header("CF-IPCountry"),
     cfRay: c.req.header("CF-Ray"),
   };

@@ -164,17 +164,6 @@ export const accountRouter = router({
 
       // Send verification email
       await sendVerificationEmail(email, plainVerificationToken);
-
-      return {
-        success: true,
-        message: "auth.success.registered",
-        user: {
-          id: newUser.id,
-          email: newUser.email,
-          username: newUser.username,
-          emailVerified: newUser.emailVerified,
-        },
-      };
     } catch (error) {
       // If the code threw a TRPCError (intentional client/server error), rethrow it
       // So that the specific message (i18n key) is preserved and can be translated on the client.
@@ -254,8 +243,6 @@ export const accountRouter = router({
 
         // Return user data for frontend to update state
         return {
-          success: true,
-          message: "Email verified successfully",
           user: {
             id: matchedUser.id,
             email: matchedUser.email,
@@ -339,11 +326,7 @@ export const accountRouter = router({
           console.error("Password reset background processing error:", error);
         }
       })();
-      // SECURITY: Always return the same response immediately (no timing leak, no info leak)
-      return {
-        success: true,
-        message: "If an account with this email exists, a password reset link has been sent.",
-      };
+      // SECURITY: Return immediately and identically for every email (no timing leak, no info leak)
     }),
 
   // Reset password
@@ -391,11 +374,7 @@ export const accountRouter = router({
       // A reset must revoke credentials already issued, including any stolen session.
       await deleteUserSessions(matchedUser.id);
 
-      return {
-        success: true,
-        email: matchedUser.email,
-        message: "Password reset successfully. Please log in with your new password.",
-      };
+      return { email: matchedUser.email };
     } catch (error) {
       if (error instanceof TRPCError) throw error;
       console.error("Password reset error:", error);

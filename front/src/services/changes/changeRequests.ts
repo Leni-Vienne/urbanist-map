@@ -38,17 +38,17 @@ export async function approveChangeRequests(changeRequestIds: string[]) {
   }
 }
 
-export async function rejectChangeRequests(changeRequestIds: string[]) {
+export async function rejectChangeRequests(changeRequestIds: string[]): Promise<boolean> {
   try {
-    const result = await trpc.changes.rejectChangeRequests.mutate({ changeRequestIds });
+    await trpc.changes.rejectChangeRequests.mutate({ changeRequestIds });
 
     useChangeRequestStore().removeChangeRequests(changeRequestIds);
     useModerationStore().removeChangeRequests(changeRequestIds);
 
-    return result;
+    return true;
   } catch (error) {
     console.error("Failed to reject change requests:", error);
-    return null;
+    return false;
   }
 }
 
@@ -77,12 +77,12 @@ function handleOverlayStateAfterDeletion(changeRequest: ChangeRequest) {
   clearOverlayChangeRequestState(overlayObject);
 }
 
-export async function deleteChangeRequest(changeRequestId: string) {
+export async function deleteChangeRequest(changeRequestId: string): Promise<boolean> {
   const store = useChangeRequestStore();
   const changeRequest = store.pendingChangeRequests.find((cr) => cr.id === changeRequestId);
 
   try {
-    const result = await trpc.changes.deleteChangeRequest.mutate({ id: changeRequestId });
+    await trpc.changes.deleteChangeRequest.mutate({ id: changeRequestId });
 
     if (changeRequest) {
       store.removeChangeRequest(changeRequestId);
@@ -93,9 +93,9 @@ export async function deleteChangeRequest(changeRequestId: string) {
       }
     }
 
-    return result;
+    return true;
   } catch (error) {
     console.error("Failed to delete change request:", error);
-    return null;
+    return false;
   }
 }

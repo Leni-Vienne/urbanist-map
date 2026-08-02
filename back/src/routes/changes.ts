@@ -403,8 +403,6 @@ export const changesRouter = router({
           lat: entityLat,
           lng: entityLng,
         });
-
-        return { success: true };
       } catch (error) {
         if (error instanceof TRPCError) {
           throw error;
@@ -456,8 +454,6 @@ export const changesRouter = router({
         }
 
         await db.delete(changeRequests).where(eq(changeRequests.id, input.id));
-
-        return { success: true };
       } catch (error) {
         console.error("Error deleting change request:", error);
         if (error instanceof TRPCError) throw error;
@@ -507,7 +503,7 @@ export const changesRouter = router({
     .mutation(async ({ input, ctx }) => {
       try {
         if (input.changeRequestIds.length === 0) {
-          return { success: true, resolvedChangeRequestIds: [] };
+          return { resolvedChangeRequestIds: [] };
         }
 
         const moderatorUserId = await authorizeChangeRequestBatch(input.changeRequestIds, ctx.user);
@@ -615,7 +611,6 @@ export const changesRouter = router({
         }
 
         return {
-          success: true,
           resolvedChangeRequestIds: [
             ...changesToApprove.map((change) => change.id),
             ...conflictedChangeRequestIds,
@@ -635,9 +630,7 @@ export const changesRouter = router({
     .input(rejectChangeRequestSchema)
     .mutation(async ({ input, ctx }) => {
       try {
-        if (input.changeRequestIds.length === 0) {
-          return { success: true };
-        }
+        if (input.changeRequestIds.length === 0) return;
 
         const moderatorUserId = await authorizeChangeRequestBatch(input.changeRequestIds, ctx.user);
 
@@ -669,8 +662,6 @@ export const changesRouter = router({
             }
           }
         });
-
-        return { success: true };
       } catch (error) {
         if (error instanceof TRPCError) throw error;
         console.error("Error rejecting change requests:", error);

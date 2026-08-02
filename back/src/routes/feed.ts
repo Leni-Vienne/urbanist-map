@@ -275,13 +275,6 @@ function buildStandaloneProjectsQuery(
       geometryBboxMaxLng: sql<
         number | null
       >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_XMax(ST_Envelope(${projects.geometry})) ELSE NULL END`,
-      // A point guaranteed to lie on the geometry itself (midpoint of a line, surface point of a polygon)
-      geometryPointLat: sql<
-        number | null
-      >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_Y(ST_PointOnSurface(${projects.geometry})) ELSE NULL END`,
-      geometryPointLng: sql<
-        number | null
-      >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_X(ST_PointOnSurface(${projects.geometry})) ELSE NULL END`,
     })
     .from(candidates)
     .innerJoin(projects, eq(projects.id, candidates.id))
@@ -319,11 +312,6 @@ function mapStandaloneProject(p: StandaloneProjectRow, isImport: boolean) {
             minLng: p.geometryBboxMinLng,
             maxLng: p.geometryBboxMaxLng,
           }
-        : null,
-    // A point on the geometry itself for marker placement (not a computed center)
-    geometryPoint:
-      p.geometryPointLat !== null && p.geometryPointLng !== null
-        ? { lat: p.geometryPointLat, lng: p.geometryPointLng }
         : null,
   };
 }

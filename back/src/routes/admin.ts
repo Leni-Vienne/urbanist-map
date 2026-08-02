@@ -169,12 +169,6 @@ export const adminRouter = router({
             // Continue - don't fail if image cleanup fails
           }
         }
-
-        return {
-          success: true,
-          deletedProjectId: input.projectId,
-          deletedOverlayCount: projectOverlays.length,
-        };
       } catch (error) {
         console.error("Error deleting project:", error);
         if (error instanceof TRPCError) throw error;

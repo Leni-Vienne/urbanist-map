@@ -119,17 +119,14 @@ function createOAuthCallbackHandler<TResponse>(options: {
 // Sign up with email and password
 async function signUp(email: string, password: string, username: string, captchaToken?: string) {
   try {
-    const result = await trpc.account.register.mutate({
+    await trpc.account.register.mutate({
       email,
       password,
       username,
       captchaToken,
     });
 
-    return {
-      success: result.success,
-      error: result.success ? null : result.message,
-    };
+    return { success: true, error: null };
   } catch (error: unknown) {
     console.error("Sign up error:", error);
     return {
@@ -142,11 +139,7 @@ async function signUp(email: string, password: string, username: string, captcha
 async function verifyEmail(token: string) {
   try {
     const result = await trpc.account.verifyEmail.mutate({ token });
-    return {
-      success: result.success,
-      user: result.user,
-      error: result.success ? null : result.message,
-    };
+    return { success: true, user: result.user, error: null };
   } catch (error: unknown) {
     console.error("Email verification error:", error);
     return {
@@ -159,11 +152,8 @@ async function verifyEmail(token: string) {
 
 async function requestPasswordReset(email: string) {
   try {
-    const result = await trpc.account.requestPasswordReset.mutate({ email });
-    return {
-      success: result.success,
-      error: result.success ? null : result.message,
-    };
+    await trpc.account.requestPasswordReset.mutate({ email });
+    return { success: true, error: null };
   } catch (error: unknown) {
     console.error("Password reset request error:", error);
     return {
@@ -176,11 +166,7 @@ async function requestPasswordReset(email: string) {
 async function resetPassword(token: string, password: string) {
   try {
     const result = await trpc.account.resetPassword.mutate({ token, password });
-    return {
-      success: result.success,
-      email: result.success ? result.email : null,
-      error: result.success ? null : result.message,
-    };
+    return { success: true, email: result.email, error: null };
   } catch (error: unknown) {
     console.error("Password reset error:", error);
     return {

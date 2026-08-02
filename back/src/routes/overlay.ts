@@ -363,7 +363,6 @@ export const overlayRouter = router({
         id: upsertedOverlay.id,
         status: upsertedOverlay.status,
         authorId: upsertedOverlay.authorId,
-        exists: wasUpdate,
       };
     } catch (error) {
       // Re-throw TRPCErrors as-is to preserve error codes and messages
@@ -421,8 +420,6 @@ export const overlayRouter = router({
         .update(overlays)
         .set({ ...updateData, version: sql`${overlays.version} + 1`, updatedAt: new Date() }) // Increment version on update for optimistic locking
         .where(eq(overlays.id, input.id));
-
-      return { success: true };
     } catch (error) {
       if (error instanceof TRPCError) throw error;
       console.error("Error updating overlay:", error);
@@ -482,8 +479,6 @@ export const overlayRouter = router({
         }
 
         await db.delete(overlays).where(eq(overlays.id, input.id));
-
-        return { success: true };
       } catch (error) {
         console.error("Error deleting overlay:", error);
         if (error instanceof TRPCError) throw error;
@@ -678,11 +673,7 @@ export const overlayRouter = router({
           }
         }
 
-        return {
-          success: true,
-          deletedCount: overlaysToDelete.length + projectsToDelete.length,
-          acknowledgedApproved: hasApprovedItems,
-        };
+        return { success: true };
       } catch (error) {
         console.error("Error acknowledging moderated contributions:", error);
         if (error instanceof TRPCError) throw error;
