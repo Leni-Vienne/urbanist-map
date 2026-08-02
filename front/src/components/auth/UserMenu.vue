@@ -33,7 +33,7 @@
           <i class="pi pi-user"></i>
           <!-- Red dot on avatar if there are unread notifications -->
           <span
-            v-if="uiStore.hasUnacknowledgedModeratedContributions"
+            v-if="hasUnacknowledgedModeratedContributions"
             class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-content-background"
           ></span>
         </span>
@@ -55,7 +55,7 @@
         />
         <!-- Red dot if there are unread notifications -->
         <span
-          v-if="uiStore.hasUnacknowledgedModeratedContributions"
+          v-if="hasUnacknowledgedModeratedContributions"
           class="absolute top-0.5 right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-content-background pointer-events-none"
         ></span>
       </span>
@@ -84,7 +84,7 @@
             <span>{{ $t("moderation.moderatedContributions.viewResults") }}</span>
           </div>
           <Badge
-            v-if="uiStore.hasUnacknowledgedModeratedContributions"
+            v-if="hasUnacknowledgedModeratedContributions"
             severity="danger"
             class="ml-auto"
             value="!"
@@ -126,6 +126,7 @@ import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from "vue
 import { isSyntheticEmail } from "@shared/types";
 import { hasUnsavedChanges } from "@/services/overlay/unsavedState";
 import { useAuthStore } from "@/stores/authStore";
+import { useModeratedContributionsStore } from "@/stores/moderatedContributionsStore";
 import { useUiStore } from "@/stores/uiStore";
 
 import { signOut } from "@/services/auth/signOut";
@@ -139,6 +140,13 @@ const ModeratedContributionsDialog = defineAsyncComponent(
 
 const authStore = useAuthStore();
 const uiStore = useUiStore();
+const moderatedContributionsStore = useModeratedContributionsStore();
+
+// The endpoint only returns items the user has not acknowledged yet, and acknowledging
+// removes them from the collection.
+const hasUnacknowledgedModeratedContributions = computed(
+  () => moderatedContributionsStore.moderatedContributions.length > 0,
+);
 
 const { t } = useI18n();
 const userPopover = ref<{

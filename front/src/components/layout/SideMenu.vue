@@ -37,61 +37,19 @@
     <!-- Scrollable content area -->
     <PanelContent content-container-class="flex-1 overflow-y-auto flex flex-col min-h-0" />
 
-    <!-- Footer with legal links. pb adds env(safe-area-inset-bottom) so the OS-reserved
-         area (gesture pill, classic nav bar, home indicator) doesn't overlap the links. -->
-    <div
-      class="shrink-0 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] px-2 bg-content-hover-background border-t border-surface flex justify-center items-center gap-2"
-    >
-      <a
-        href="/legal"
-        class="text-(--p-text-color-secondary) underline underline-offset-2 decoration-(--p-text-muted-color) text-xs transition-all duration-150 hover:text-primary-color hover:decoration-primary-color"
-        >{{ $t("footer.legal") }}</a
-      >
-      <span class="text-muted-color text-xs">•</span>
-      <a
-        href="/contact"
-        class="text-(--p-text-color-secondary) underline underline-offset-2 decoration-(--p-text-muted-color) text-xs transition-all duration-150 hover:text-primary-color hover:decoration-primary-color"
-        >{{ $t("common.contact") }}</a
-      >
-      <span class="text-muted-color text-xs">•</span>
-      <a
-        href="https://github.com/Leni-Vienne/urbanist-map"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="group inline-flex items-center gap-1 text-(--p-text-color-secondary) text-xs transition-all duration-150 hover:text-primary-color"
-      >
-        <i class="pi pi-github text-xs"></i>
-        <span
-          class="underline underline-offset-2 decoration-(--p-text-muted-color) group-hover:decoration-primary-color"
-          >{{ $t("footer.github") }}</span
-        >
-      </a>
-      <template v-if="authStore.version">
-        <span class="text-muted-color text-xs">•</span>
-        <a
-          href="https://github.com/Leni-Vienne/urbanist-map/releases"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="text-(--p-text-color-secondary) underline underline-offset-2 decoration-(--p-text-muted-color) text-xs transition-all duration-150 hover:text-primary-color hover:decoration-primary-color"
-        >
-          {{ authStore.version }}
-        </a>
-      </template>
-    </div>
+    <PanelFooter />
   </div>
 </template>
 
 <script setup lang="ts">
 import { defineAsyncComponent } from "vue";
 import PanelContent from "./PanelContent.vue";
+import PanelFooter from "./PanelFooter.vue";
 import PanelTabs from "./PanelTabs.vue";
-import { useAuthStore } from "@/stores/authStore";
 import { useDetailPanel } from "@/composables/layout/useDetailPanel";
 
 // Lazy loaded so the detail panel shares the same async chunk scope as PanelContent's copy.
 const ProjectDetailPanel = defineAsyncComponent(() => import("./ProjectDetailPanel.vue"));
-
-const authStore = useAuthStore();
 
 const { detailVisible, activeTab } = useDetailPanel();
 </script>

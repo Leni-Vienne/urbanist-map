@@ -88,11 +88,6 @@ function shouldSkipMove(
   return distance < distanceThreshold;
 }
 
-// The drawer only covers the map on mobile.
-function shouldApplyMobileOffset(): boolean {
-  return isMobile.value;
-}
-
 /**
  * Height in px of the map container hidden behind the mobile drawer, 0 where nothing covers it.
  *
@@ -172,7 +167,7 @@ function resolvePadding(
   mobileTopInset: number = MOBILE_OVERLAY_TOP_INSET,
 ): PaddingOptions | number {
   let result: PaddingOptions | number = 50;
-  if (shouldApplyMobileOffset()) {
+  if (isMobile.value) {
     result = {
       top: mobileTopInset,
       bottom: getMobileDrawerBottomPaddingPx(),

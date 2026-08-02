@@ -77,7 +77,7 @@
             class="h-full px-4 pt-3 pb-4 overflow-y-auto overscroll-contain scrollbar-none [&::-webkit-scrollbar]:hidden"
           >
             <div ref="contentRef">
-              <ProjectMetadataCard :project="project" />
+              <ProjectMetadataCard :project="project" :wikidata-entity="wikidataEntity" />
 
               <!-- Project imagery below the metadata: the Wikidata main image (P18) and the
                    user-contributed render. Click to view full size. -->

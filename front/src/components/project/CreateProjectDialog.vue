@@ -1,6 +1,6 @@
 <template>
   <Dialog
-    :visible="visible"
+    :visible="true"
     :header="$t('dialog.createNewProject')"
     :modal="true"
     :closable="true"
@@ -41,20 +41,18 @@ import CreateProjectForm from "@/components/forms/CreateProjectForm.vue";
 import type { Project } from "@/types/index";
 
 defineProps<{
-  visible: boolean;
   project: Partial<Project>;
 }>();
 
 const emit = defineEmits<{
-  "update:visible": [visible: boolean];
   submit: [project: Partial<Project>];
-  cancel: [];
+  close: [];
 }>();
 
 const projectFormRef = ref<InstanceType<typeof CreateProjectForm> | null>(null);
 
 function handleVisibilityChange(newVisible: boolean) {
-  emit("update:visible", newVisible);
+  if (!newVisible) emit("close");
 }
 
 function handleSubmit(project: Partial<Project>) {
@@ -62,8 +60,7 @@ function handleSubmit(project: Partial<Project>) {
 }
 
 function handleCancel() {
-  emit("cancel");
-  emit("update:visible", false);
+  emit("close");
 }
 
 function handleFormSubmit() {

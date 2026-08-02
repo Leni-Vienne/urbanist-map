@@ -1,108 +1,84 @@
 <template>
-  <div>
-    <Dialog
-      v-model:visible="dialogVisible"
-      :header="$t('overlay.overlayName')"
-      :modal="true"
-      :closable="true"
-      :closeOnEscape="true"
-      :dismissableMask="true"
-      :draggable="false"
-      :appendTo="bodyElement"
-      @hide="onDialogHide"
-    >
-      <div class="p-fluid" @keydown.stop @keyup.stop @keypress.stop>
-        <div class="field mb-4">
-          <FloatLabel class="w-full" variant="in">
-            <!-- @vue-expect-error PrimeVue v-model type mismatch -->
-            <InputText
-              id="overlay-name-input"
-              v-model="editingInfo.caption"
-              class="w-full p-3"
-              autocomplete="off"
-              dir="auto"
-            />
-            <label for="overlay-name-input" class="text-(--p-text-color-secondary)">{{
-              $t("common.name")
-            }}</label>
-          </FloatLabel>
-        </div>
+  <Dialog
+    :visible="true"
+    :header="$t('overlay.overlayName')"
+    :modal="true"
+    :closable="true"
+    :closeOnEscape="true"
+    :dismissableMask="true"
+    :draggable="false"
+    :appendTo="bodyElement"
+    @update:visible="handleVisibilityChange"
+  >
+    <div class="p-fluid" @keydown.stop @keyup.stop @keypress.stop>
+      <div class="field mb-4">
+        <FloatLabel class="w-full" variant="in">
+          <!-- @vue-expect-error PrimeVue v-model type mismatch -->
+          <InputText
+            id="overlay-name-input"
+            v-model="editingInfo.caption"
+            class="w-full p-3"
+            autocomplete="off"
+            dir="auto"
+          />
+          <label for="overlay-name-input" class="text-(--p-text-color-secondary)">{{
+            $t("common.name")
+          }}</label>
+        </FloatLabel>
       </div>
-      <template #footer>
-        <Button
-          :label="$t('common.cancel')"
-          icon="pi pi-times"
-          @click="closeDialog"
-          class="p-button-text"
-        />
-        <Button
-          :label="$t('forms.saveChanges')"
-          icon="pi pi-check"
-          @click="saveChanges"
-          class="p-button-primary"
-        />
-      </template>
-    </Dialog>
-  </div>
+    </div>
+    <template #footer>
+      <Button
+        :label="$t('common.cancel')"
+        icon="pi pi-times"
+        @click="closeDialog"
+        class="p-button-text"
+      />
+      <Button
+        :label="$t('forms.saveChanges')"
+        icon="pi pi-check"
+        @click="saveChanges"
+        class="p-button-primary"
+      />
+    </template>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
 import { toastInfo, toastError } from "@/services/core/toast";
 
-import { ref, computed, watch } from "vue";
+import { ref, computed } from "vue";
 
 import { useI18n } from "vue-i18n";
 import { updateOverlayInfo } from "@/services/overlay/data";
-import { useUiStore, type OverlayEditTarget } from "@/stores/uiStore";
+import { useUiStore } from "@/stores/uiStore";
 
 const bodyElement = document.body;
 
 const { t } = useI18n();
 const uiStore = useUiStore();
-
-const dialogVisible = computed({
-  get: () => uiStore.overlayEditDialog.visible,
-  set: (value: boolean) => {
-    if (!value) {
-      uiStore.closeOverlayEditDialog();
-    }
-  },
-});
-
-const currentOverlay = computed(() => uiStore.overlayEditDialog.overlay);
+const currentOverlay = uiStore.overlayEditTarget;
 
 const editingInfo = ref({
-  caption: "",
+  caption: currentOverlay?.caption ?? "",
 });
 
-watch(
-  () => uiStore.overlayEditDialog.overlay,
-  (overlay: OverlayEditTarget | null) => {
-    if (overlay) {
-      editingInfo.value = {
-        caption: overlay.caption ?? "",
-      };
-    }
-  },
-  { immediate: true },
-);
-
 function closeDialog() {
-  dialogVisible.value = false;
-}
-
-function onDialogHide() {
   uiStore.closeOverlayEditDialog();
 }
 
+function handleVisibilityChange(visible: boolean) {
+  if (!visible) closeDialog();
+}
+
 const hasChanges = computed(() => {
-  const overlay = currentOverlay.value;
+  const overlay = currentOverlay;
   if (!overlay) return false;
   return editingInfo.value.caption !== (overlay.caption ?? "");
 });
 
 function saveChanges() {
-  const overlay = currentOverlay.value;
+  const overlay = currentOverlay;
   if (!overlay) {
     console.error("No overlay to save");
     return;

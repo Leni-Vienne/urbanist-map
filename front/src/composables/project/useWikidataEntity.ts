@@ -1,7 +1,7 @@
 import { computed, ref, watch, type Ref } from "vue";
 import { useI18n } from "vue-i18n";
 
-interface WikidataEntity {
+export interface WikidataEntity {
   description: string | null;
   /** P154: logo image URL (Wikimedia Commons) */
   logoUrl: string | null;

@@ -10,10 +10,7 @@
         @mousedown="handleMouseDown"
       >
         <!-- Slot for content above drawer (e.g., mode controls) -->
-        <div
-          class="absolute left-0 right-0 mb-2 pointer-events-none"
-          :style="{ bottom: aboveContentBottom }"
-        >
+        <div class="absolute left-0 right-0 bottom-full mb-2 pointer-events-none">
           <slot name="above" :drawer-height-px="currentDrawerHeightPx"></slot>
         </div>
 
@@ -81,12 +78,6 @@ const minHeightPercent = computed(() => {
 // Calculate current drawer height in pixels for slot consumers
 const currentDrawerHeightPx = computed(() => {
   return (currentHeight.value / 100) * viewportHeight.value;
-});
-
-// Position above-content exactly at the top of the drawer (100%)
-// Clamping logic is now delegated to the slot consumer via drawerHeightPx
-const aboveContentBottom = computed(() => {
-  return "100%";
 });
 
 const drawerStyle = computed(() => {
@@ -233,10 +224,3 @@ onMounted(() => {
   });
 });
 </script>
-
-<style scoped>
-/* Deep children of the above-content slot need pointer events */
-:deep(.control-wrapper > *) {
-  pointer-events: auto;
-}
-</style>

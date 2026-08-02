@@ -1,12 +1,9 @@
 ﻿<template>
   <Teleport to="#mapDiv">
-    <div
-      v-if="markerPlacementMode && visible"
-      class="absolute inset-0 bg-black/30 z-1998 pointer-events-none"
-    ></div>
+    <div v-if="visible" class="absolute inset-0 bg-black/30 z-1998 pointer-events-none"></div>
 
     <div
-      v-if="markerPlacementMode && visible"
+      v-if="visible"
       class="absolute top-2.5 left-2.5 right-2.5 md:top-5 md:left-1/2 md:right-auto md:-translate-x-1/2 bg-content-background border-2 border-primary-color rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.3)] flex items-center gap-4 px-4.5 py-3.5 md:px-6 md:py-4 md:max-w-[calc(100vw-40px)] md:min-w-[320px] z-2000"
       @click.stop
     >
@@ -33,7 +30,7 @@
     </div>
     <!-- Cursor-following marker, hidden on mobile -->
     <div
-      v-if="markerPlacementMode && visible && !markerCoordinates"
+      v-if="visible && !markerCoordinates"
       class="hidden md:block absolute pointer-events-none z-1999 -translate-x-1/2 -translate-y-full"
       :style="{ left: cursorPosition.x + 'px', top: cursorPosition.y + 'px' }"
       v-html="cursorMarkerSvg"
@@ -56,7 +53,6 @@ const visible = defineModel<boolean>("visible", { default: false });
 const emit = defineEmits<Emits>();
 
 const markerCoordinates = ref<{ lat: number; lng: number } | null>(null);
-const markerPlacementMode = ref(false);
 const cursorPosition = ref({ x: 0, y: 0 });
 const cursorMarkerSvg = getMarkerSvg("orange");
 
@@ -75,7 +71,6 @@ watch(
   (newVisible) => {
     if (newVisible) {
       document.addEventListener("mousemove", onMouseMove);
-      markerPlacementMode.value = true;
       emit("marker-mode-enabled");
     } else {
       document.removeEventListener("mousemove", onMouseMove);
@@ -107,14 +102,13 @@ function onContinue() {
 
 function resetState() {
   markerCoordinates.value = null;
-  markerPlacementMode.value = false;
 }
 
 const mapStore = useMapStore();
 watch(
   () => mapStore.mode,
   () => {
-    if (markerPlacementMode.value) {
+    if (visible.value) {
       onCancel();
     }
   },

@@ -1,5 +1,5 @@
 <template>
-  <DraggableDrawer v-model:height-percent="drawerHeight">
+  <DraggableDrawer v-model:height-percent="uiStore.mobileDrawerHeightPercent">
     <!-- Mode controls above drawer on mobile, with individual floor clamping -->
     <template #above="{ drawerHeightPx }">
       <div class="relative w-full h-0 pointer-events-none">
@@ -64,61 +64,21 @@
       </Transition>
     </div>
 
-    <!-- Footer with legal links (rendered outside the scroll area via slot).
-         pb adds env(safe-area-inset-bottom) so the OS-reserved area (gesture pill,
-         classic nav bar, home indicator) doesn't overlap the links. -->
     <template #footer>
-      <div
-        class="pt-[0.2rem] pb-[calc(0.2rem+env(safe-area-inset-bottom))] px-4 bg-content-hover-background border-t border-surface flex justify-center items-center gap-2"
-      >
-        <a
-          href="/legal"
-          class="text-(--p-text-color-secondary) underline underline-offset-2 decoration-(--p-text-muted-color) text-[0.65rem] transition-all duration-150 hover:text-primary-color hover:decoration-primary-color"
-          >{{ $t("footer.legal") }}</a
-        >
-        <span class="text-muted-color text-[0.65rem]">•</span>
-        <a
-          href="/contact"
-          class="text-(--p-text-color-secondary) underline underline-offset-2 decoration-(--p-text-muted-color) text-[0.65rem] transition-all duration-150 hover:text-primary-color hover:decoration-primary-color"
-          >{{ $t("common.contact") }}</a
-        >
-        <span class="text-muted-color text-[0.65rem]">•</span>
-        <a
-          href="https://github.com/Leni-Vienne/urbanist-map"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="group inline-flex items-center gap-1 text-(--p-text-color-secondary) text-[0.65rem] transition-all duration-150 hover:text-primary-color"
-        >
-          <i class="pi pi-github text-[0.65rem]"></i>
-          <span
-            class="underline underline-offset-2 decoration-(--p-text-muted-color) group-hover:decoration-primary-color"
-            >{{ $t("footer.github") }}</span
-          >
-        </a>
-        <template v-if="authStore.version">
-          <span class="text-muted-color text-[0.65rem]">•</span>
-          <a
-            href="https://github.com/Leni-Vienne/urbanist-map/releases"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="text-(--p-text-color-secondary) underline underline-offset-2 decoration-(--p-text-muted-color) text-[0.65rem] transition-all duration-150 hover:text-primary-color hover:decoration-primary-color"
-          >
-            {{ authStore.version }}
-          </a>
-        </template>
-      </div>
+      <PanelFooter compact />
     </template>
   </DraggableDrawer>
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent } from "vue";
+import { defineAsyncComponent } from "vue";
 import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useDetailPanel } from "@/composables/layout/useDetailPanel";
 
 import DraggableDrawer from "./DraggableDrawer.vue";
 import PanelContent from "./PanelContent.vue";
+import PanelFooter from "./PanelFooter.vue";
 import PanelTabs from "./PanelTabs.vue";
 import ModeControls from "@/components/map/ModeControls.vue";
 import SatellitePreview from "@/components/map/SatellitePreview.vue";
@@ -132,13 +92,6 @@ const authStore = useAuthStore();
 // activeTab proxies uiStore (shared with the desktop SideMenu); detailVisible drives the detail
 // slide-over (suppressed in edit mode, where ContributePanel renders the selection inline).
 const { detailVisible, activeTab } = useDetailPanel();
-
-const drawerHeight = computed({
-  get: () => uiStore.mobileDrawerHeightPercent,
-  set: (value) => {
-    uiStore.mobileDrawerHeightPercent = Math.min(75, value);
-  },
-});
 </script>
 
 <style scoped>

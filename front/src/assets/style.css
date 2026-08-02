@@ -81,21 +81,6 @@ body {
   padding: 0.5rem;
 }
 
-/* Shared link styling for consistent, accessible links across the app */
-.app-link {
-  color: var(--p-primary-color);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  text-decoration-color: color-mix(in srgb, var(--p-primary-color) 50%, transparent);
-  transition: all 0.15s ease;
-  cursor: pointer;
-}
-
-.app-link:hover {
-  color: var(--p-primary-hover-color);
-  text-decoration-color: var(--p-primary-hover-color);
-}
-
 /* Fix toast width on mobile, otherwise it's too wide */
 .p-toast {
   max-width: calc(100vw - 40px);

@@ -686,8 +686,8 @@ function computeHiddenProjectIds(): string[] {
   const uiStore = useUiStore();
   const mapStore = useMapStore();
   const hidden = new Set<string>();
-  if (uiStore.shapeEditor.project?.id && mapStore.mode === "edit") {
-    hidden.add(uiStore.shapeEditor.project.id);
+  if (uiStore.shapeEditorProject?.id && mapStore.mode === "edit") {
+    hidden.add(uiStore.shapeEditorProject.id);
   }
   if (mapStore.mode === "edit") {
     for (const project of Object.values(store.projects)) {

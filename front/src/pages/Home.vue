@@ -37,14 +37,14 @@
       </div>
 
       <!-- Overlay caption editor, opened from the docked project detail (store-driven). -->
-      <OverlayEditor v-if="mapStore.mode === 'edit' && uiStore.overlayEditDialog.visible" />
+      <OverlayEditor v-if="mapStore.mode === 'edit' && uiStore.overlayEditTarget" />
 
       <!-- Hover preview card, always mounted so it can show before any detail panel is opened -->
       <HoverPreviewCard />
 
       <!-- Shape Editor Panel - lives in the map column so it stays centered on the map. -->
       <ShapeEditorPanel
-        v-if="uiStore.shapeEditor.project"
+        v-if="uiStore.shapeEditorProject"
         @done="handleShapesDone"
         @cancel="handleShapesCancel"
         @suggest-tags="handleSuggestTags"
@@ -54,14 +54,14 @@
     <!-- Project Management Dialogs -->
     <ProjectManager
       v-if="
-        uiStore.projectDialog.visible ||
+        uiStore.projectCreationSeed ||
         uiStore.markerPlacementBarVisible ||
-        uiStore.projectEditForm.visible
+        uiStore.projectEditTarget
       "
     />
 
     <!-- Image Upload Dialog - always rendered so it's available from any part of the app -->
-    <ImageUploadDialog v-if="uiStore.imageUploadDialog.visible" />
+    <ImageUploadDialog v-if="uiStore.imageUploadProjectId" />
 
     <!-- Submission Confirmation Dialog - loads lazily when first submission is triggered -->
     <SubmissionDialogWrapper v-if="showSubmissionDialog" />
@@ -85,7 +85,6 @@ import { clearProjectShapes } from "@/services/map/shapes/registry";
 import { stopShapeEditing } from "@/services/shape/shapeEditorLazy";
 import { showSubmissionDialog } from "@/services/submission/submissionDialogState";
 
-import { useTabNavigation } from "@/composables/layout/useTabNavigation";
 import { handleProjectDeepLink } from "@/services/project/projectDeepLink";
 import { useModeratedContributionsStore } from "@/stores/moderatedContributionsStore";
 import { isMobile } from "@/services/core/viewport";
@@ -123,8 +122,6 @@ const projectStore = useProjectStore();
 const route = useRoute();
 const { t } = useI18n();
 
-useTabNavigation();
-
 // Window: 30 min before 4:00 UTC through the end of the 15 min maintenance
 const MAINTENANCE_START_MIN = 4 * 60;
 const MAINTENANCE_END_MIN = MAINTENANCE_START_MIN + 15;
@@ -161,7 +158,7 @@ watch(maintenanceBannerText, (value) => {
 watch(
   () => mapStore.mode,
   async (newMode, oldMode) => {
-    if (oldMode === "edit" && newMode !== "edit" && uiStore.shapeEditor.project) {
+    if (oldMode === "edit" && newMode !== "edit" && uiStore.shapeEditorProject) {
       await stopShapeEditing();
       uiStore.closeShapeEditor();
     }
@@ -176,12 +173,9 @@ watch(
     if (user) {
       try {
         await moderatedContributionsStore.preloadModeratedContributions();
-        // A logout (or account switch) during the fetch would otherwise surface the previous
-        // user's contributions: the store is not cleared on logout.
+        // A logout or account switch can finish this request after user-scoped state was cleared.
         if (authStore.user?.id !== user.id) return;
-        const hasContributions = moderatedContributionsStore.moderatedContributions.length > 0;
-        uiStore.hasUnacknowledgedModeratedContributions = hasContributions;
-        if (hasContributions) {
+        if (moderatedContributionsStore.moderatedContributions.length > 0) {
           uiStore.moderatedContributionsDialogVisible = true;
         }
       } catch (error) {
@@ -193,7 +187,7 @@ watch(
 );
 
 async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
-  const project = uiStore.shapeEditor.project;
+  const project = uiStore.shapeEditorProject;
   if (!project) return;
   // Ensure the project is in the store so updateProject doesn't fall back to a default with null status.
   projectStore.addProject(project);
@@ -211,7 +205,7 @@ async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
 }
 
 function handleSuggestTags(suggestedTags: string[]) {
-  const project = uiStore.shapeEditor.project;
+  const project = uiStore.shapeEditorProject;
   if (!project) return;
   const existing = project.tags ?? [];
   const merged = [...new Set([...existing, ...suggestedTags])];
@@ -278,9 +272,5 @@ onUnmounted(() => {
   if (maintenanceTickInterval !== undefined) {
     globalThis.clearInterval(maintenanceTickInterval);
   }
-
-  document.documentElement.style.overflow = "";
-  document.body.style.overflow = "";
-  document.body.style.height = "";
 });
 </script>

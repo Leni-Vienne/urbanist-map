@@ -1,6 +1,6 @@
 <template>
   <Dialog
-    v-model:visible="isVisible"
+    :visible="true"
     :header="dialogHeader"
     :modal="true"
     :closable="true"
@@ -8,7 +8,7 @@
     :dismissableMask="true"
     :draggable="false"
     :style="{ width: '600px' }"
-    @hide="handleClose"
+    @update:visible="handleVisibilityChange"
   >
     <!-- Step 1: choose which kind of image to add -->
     <div v-if="step === 'choose'" class="flex flex-col gap-3 py-2">
@@ -196,7 +196,7 @@
 <script setup lang="ts">
 import { toastError, toastSuccess } from "@/services/core/toast";
 
-import { ref, computed, watch } from "vue";
+import { ref, computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/overlayStore";
@@ -212,6 +212,7 @@ const { t } = useI18n();
 const uiStore = useUiStore();
 const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
+const projectId = uiStore.imageUploadProjectId;
 
 const fileInputRef = ref<HTMLInputElement>();
 const selectedFile = ref<File | null>(null);
@@ -219,8 +220,8 @@ const selectedFileName = ref("");
 const imagePreviewUrl = ref("");
 const fileSizeError = ref("");
 
-// Which step of the dialog is showing. Replacement is overlay-specific, so it skips the chooser.
-const step = ref<UploadMode>("choose");
+// Replacement is overlay-specific, so it skips the chooser.
+const step = ref<UploadMode>(overlayStore.replacementOverlayId ? "overlay" : "choose");
 
 const isReplacementMode = computed(() => Boolean(overlayStore.replacementOverlayId));
 
@@ -231,32 +232,8 @@ const dialogHeader = computed(() => {
 });
 
 const hasExistingRender = computed(() => {
-  const projectId = uiStore.imageUploadDialog.projectId;
   return Boolean(projectId && projectStore.projects[projectId]?.render);
 });
-
-const isVisible = computed({
-  get: () => uiStore.imageUploadDialog.visible,
-  set: (value: boolean) => {
-    if (!value) {
-      uiStore.closeImageUploadDialog();
-    }
-  },
-});
-
-// Initialize the step when the dialog opens, and clear state when it closes. Runs immediately
-// because the dialog is mounted via v-if only once visible is already true, so a non-immediate
-// watch would miss that first open and leave the chooser showing even in replacement mode.
-watch(
-  () => uiStore.imageUploadDialog.visible,
-  (visible) => {
-    clearSelection();
-    if (visible) {
-      step.value = isReplacementMode.value ? "overlay" : "choose";
-    }
-  },
-  { immediate: true },
-);
 
 function clearSelection() {
   selectedFile.value = null;
@@ -341,7 +318,6 @@ function processFile(file: File) {
 function handleConfirm() {
   if (!selectedFile.value || !imagePreviewUrl.value) return;
 
-  const projectId = uiStore.imageUploadDialog.projectId;
   if (!projectId) {
     toastError(t("errors.projectRequired"));
     return;
@@ -354,11 +330,11 @@ function handleConfirm() {
   }
 }
 
-function confirmOverlay(projectId: string) {
+function confirmOverlay(targetProjectId: string) {
   try {
     const replacementId = overlayStore.replacementOverlayId;
 
-    addOverlay(imagePreviewUrl.value, projectId, replacementId ?? undefined);
+    addOverlay(imagePreviewUrl.value, targetProjectId, replacementId ?? undefined);
 
     if (replacementId) {
       toastSuccess(t("toasts.replacementOverlayDetail"), t("toasts.replacementOverlayCreated"));
@@ -375,13 +351,13 @@ function confirmOverlay(projectId: string) {
   }
 }
 
-function confirmRender(projectId: string, file: File) {
+function confirmRender(targetProjectId: string, file: File) {
   try {
     // Stage the render exactly like the project form does, then mark the project modified so the
     // popup's "Submit change request" picks it up. It rides the same submission pipeline as every
     // other change; nothing uploads until the user confirms the submission.
-    setStagedRender(projectId, { file, previewUrl: imagePreviewUrl.value });
-    projectStore.updateProject(projectId, { isModified: true });
+    setStagedRender(targetProjectId, { file, previewUrl: imagePreviewUrl.value });
+    projectStore.updateProject(targetProjectId, { isModified: true });
     toastSuccess(t("imageUpload.renderStagedDetail"), t("imageUpload.renderStaged"));
     uiStore.closeImageUploadDialog();
   } catch (error) {
@@ -395,5 +371,9 @@ function confirmRender(projectId: string, file: File) {
 
 function handleClose() {
   uiStore.closeImageUploadDialog();
+}
+
+function handleVisibilityChange(visible: boolean) {
+  if (!visible) handleClose();
 }
 </script>

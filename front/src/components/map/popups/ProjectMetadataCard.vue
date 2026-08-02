@@ -162,7 +162,7 @@ import { formatProjectDateRangeParts } from "@/utils/projectDateFormat";
 import { formatSourceUrl } from "@/utils/urlFormat";
 import { useI18n } from "vue-i18n";
 import { PROJECT_TAG_MAP } from "@/constants/projectTags";
-import { useWikidataEntity } from "@/composables/project/useWikidataEntity";
+import { useWikidataEntity, type WikidataEntity } from "@/composables/project/useWikidataEntity";
 import ImageLightbox from "@/components/common/ImageLightbox.vue";
 import { mapLabelLanguageRef, pickBoundaryName } from "@/services/map/mapLabelLanguage";
 
@@ -175,16 +175,30 @@ interface Props {
   // Render the Wikidata logo + main image inside the card. Off by default because the detail
   // panel renders its own (logo next to the name, image with a zoom lightbox).
   showWikidataMedia?: boolean;
+  wikidataEntity?: WikidataEntity | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   showWikidataMedia: false,
+  wikidataEntity: undefined,
 });
 
-const { entity: wikidataEntityData } = useWikidataEntity(
-  computed(() => props.project?.externalProperties),
-);
+const localWikidataEntity =
+  props.wikidataEntity === undefined
+    ? useWikidataEntity(computed(readProjectExternalProperties)).entity
+    : null;
+const wikidataEntityData = computed(readWikidataEntity);
 const wikidataDescription = computed(() => wikidataEntityData.value?.description ?? null);
+
+function readProjectExternalProperties(): unknown {
+  return props.project?.externalProperties;
+}
+
+function readWikidataEntity(): WikidataEntity | null {
+  return props.wikidataEntity === undefined
+    ? (localWikidataEntity?.value ?? null)
+    : props.wikidataEntity;
+}
 
 const cls = {
   row: "flex flex-col gap-0.5",

@@ -1,18 +1,16 @@
 <template>
   <!-- Project Dialog for create/edit -->
   <CreateProjectDialog
-    v-if="uiStore.projectDialog.visible"
-    :visible="uiStore.projectDialog.visible"
-    :project="uiStore.projectDialog.project ?? {}"
+    v-if="uiStore.projectCreationSeed"
+    :project="uiStore.projectCreationSeed"
     @submit="handleProjectSubmitted"
-    @cancel="uiStore.closeProjectDialog"
-    @update:visible="uiStore.closeProjectDialog"
+    @close="uiStore.closeProjectDialog"
   />
 
   <!-- Project Edit Form Dialog -->
   <Dialog
-    v-if="projectEditForm.visible"
-    :visible="projectEditForm.visible"
+    v-if="uiStore.projectEditTarget"
+    :visible="true"
     :modal="true"
     :closable="true"
     :draggable="false"
@@ -24,8 +22,7 @@
     }"
   >
     <EditProjectForm
-      v-if="projectEditForm.data"
-      :project="projectEditForm.data as Project"
+      :project="uiStore.projectEditTarget"
       @close="uiStore.closeProjectEditForm"
       @submitted="uiStore.closeProjectEditForm"
     />
@@ -44,8 +41,7 @@
 <script setup lang="ts">
 import { toastSuccess, toastError } from "@/services/core/toast";
 
-import { ref, defineAsyncComponent } from "vue";
-import { storeToRefs } from "pinia";
+import { ref, defineAsyncComponent, onUnmounted } from "vue";
 import { useI18n } from "vue-i18n";
 import * as maplibregl from "maplibre-gl";
 import type { MapMouseEvent } from "maplibre-gl";
@@ -72,9 +68,6 @@ const uiStore = useUiStore();
 const { t: $t } = useI18n();
 const markerPlacementBar = ref<InstanceType<typeof MarkerPlacementBar> | null>(null);
 let tempMarker: maplibregl.Marker | null = null;
-let mapClickHandler: ((e: MapMouseEvent) => void) | null = null;
-
-const { projectEditForm } = storeToRefs(uiStore);
 
 function onMarkerCoordinatesSelected(coordinates: { lat: number; lng: number }) {
   if (tempMarker) {
@@ -107,23 +100,22 @@ function handleMapClick(e: MapMouseEvent) {
 }
 
 function onMarkerModeEnabled() {
-  mapClickHandler = handleMapClick;
   getMap().on("click", handleMapClick);
 }
 
 function onDialogVisibilityChange(visible: boolean) {
-  if (!visible) {
-    if (tempMarker) {
-      tempMarker.remove();
-      tempMarker = null;
-    }
-
-    if (mapClickHandler) {
-      getMapOrNull()?.off("click", mapClickHandler);
-      mapClickHandler = null;
-    }
-  }
+  if (!visible) clearMarkerPlacement();
 }
+
+function clearMarkerPlacement() {
+  if (tempMarker) {
+    tempMarker.remove();
+    tempMarker = null;
+  }
+  getMapOrNull()?.off("click", handleMapClick);
+}
+
+onUnmounted(clearMarkerPlacement);
 
 function handleProjectSubmitted(project: Partial<Project>) {
   try {
@@ -147,26 +139,3 @@ function handleProjectSubmitted(project: Partial<Project>) {
   }
 }
 </script>
-
-<style scoped>
-:global(.temp-marker-icon) {
-  background: transparent !important;
-  border: none !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-
-:global(.marker-project-icon) {
-  background: transparent !important;
-  border: none !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  cursor: pointer !important;
-}
-
-:global(.marker-project-icon:hover) {
-  transform: scale(1.1) !important;
-}
-</style>

@@ -5,64 +5,22 @@ import type { Project, OverlayObject, PanelTab } from "@/types/index";
 // Minimal overlay data needed to open the edit dialog (caption editor only)
 export type OverlayEditTarget = Pick<OverlayObject, "id" | "caption">;
 
-// The project creation dialog is always opened on a freshly placed marker, so the seed it carries
-// is that marker's position.
-interface ProjectDialogState {
-  visible: boolean;
-  project?: Pick<Project, "lat" | "lng">;
-}
-
-interface EditFormState {
-  visible: boolean;
-  data?: Project | OverlayObject;
-}
-
-interface ImageUploadDialogState {
-  visible: boolean;
-  projectId: string | null;
-}
-
-interface ShapeEditorState {
-  project: Project | null;
-}
-
 export const useUiStore = defineStore("ui", () => {
   const authModalVisible = ref(false);
   const authModalInitialMode = ref<"login" | "signup">("login");
   const markerPlacementBarVisible = ref(false);
   const moderatedContributionsDialogVisible = ref(false);
 
-  // Badge indicator, set by ModeratedContributionsWatcher so UserMenu never imports the composable
-  const hasUnacknowledgedModeratedContributions = ref(false);
-
-  const projectDialog = ref<ProjectDialogState>({
-    visible: false,
-  });
-
-  const projectEditForm = ref<EditFormState>({
-    visible: false,
-  });
-
-  // Shared overlay edit dialog state - can be opened from anywhere
-  // Uses OverlayEditTarget (not full OverlayObject) - dialog only needs id + caption
-  const overlayEditDialog = ref<{
-    visible: boolean;
-    overlay: OverlayEditTarget | null;
-  }>({
-    visible: false,
-    overlay: null,
-  });
+  const projectCreationSeed = ref<Pick<Project, "lat" | "lng"> | null>(null);
+  const projectEditTarget = ref<Project | null>(null);
+  const overlayEditTarget = ref<OverlayEditTarget | null>(null);
 
   // Shared tab state between desktop SideMenu and mobile MobileDrawer
   const activeTab = ref<PanelTab>("latest");
-  const mobileDrawerHeightPercent = ref(40); // Drawer height as percentage of viewport (10-90%)
+  const mobileDrawerHeightPercent = ref(40);
 
-  const imageUploadDialog = ref<ImageUploadDialogState>({
-    visible: false,
-    projectId: null,
-  });
-
-  const shapeEditor = ref<ShapeEditorState>({ project: null });
+  const imageUploadProjectId = ref<string | null>(null);
+  const shapeEditorProject = ref<Project | null>(null);
 
   // Shared accordion state that persists across panels
   const activeAccordionPanels = ref<string[]>([]);
@@ -73,66 +31,43 @@ export const useUiStore = defineStore("ui", () => {
   }
 
   function openProjectDialog(project: Pick<Project, "lat" | "lng">) {
-    projectDialog.value = {
-      visible: true,
-      project,
-    };
+    projectCreationSeed.value = project;
   }
 
   function closeProjectDialog() {
-    projectDialog.value = {
-      visible: false,
-    };
+    projectCreationSeed.value = null;
   }
 
   function openProjectEditForm(project: Project) {
-    projectEditForm.value = {
-      visible: true,
-      data: project,
-    };
+    projectEditTarget.value = project;
   }
 
   function closeProjectEditForm() {
-    projectEditForm.value = {
-      visible: false,
-    };
+    projectEditTarget.value = null;
   }
 
-  // Shared overlay edit dialog actions, used by both sidemenu and detail panel
   function openOverlayEditDialog(overlay: OverlayEditTarget) {
-    overlayEditDialog.value = {
-      visible: true,
-      overlay,
-    };
+    overlayEditTarget.value = overlay;
   }
 
   function closeOverlayEditDialog() {
-    overlayEditDialog.value = {
-      visible: false,
-      overlay: null,
-    };
+    overlayEditTarget.value = null;
   }
 
   function openImageUploadDialog(projectId: string) {
-    imageUploadDialog.value = {
-      visible: true,
-      projectId,
-    };
+    imageUploadProjectId.value = projectId;
   }
 
   function closeImageUploadDialog() {
-    imageUploadDialog.value = {
-      visible: false,
-      projectId: null,
-    };
+    imageUploadProjectId.value = null;
   }
 
   function openShapeEditor(project: Project) {
-    shapeEditor.value = { project };
+    shapeEditorProject.value = project;
   }
 
   function closeShapeEditor() {
-    shapeEditor.value = { project: null };
+    shapeEditorProject.value = null;
   }
 
   // Reset the state scoped to the signed-in user: the active tab (which the map mode derives from),
@@ -141,7 +76,6 @@ export const useUiStore = defineStore("ui", () => {
     activeTab.value = "latest";
     markerPlacementBarVisible.value = false;
     moderatedContributionsDialogVisible.value = false;
-    hasUnacknowledgedModeratedContributions.value = false;
     activeAccordionPanels.value = [];
     closeProjectDialog();
     closeProjectEditForm();
@@ -155,14 +89,13 @@ export const useUiStore = defineStore("ui", () => {
     authModalInitialMode,
     markerPlacementBarVisible,
     moderatedContributionsDialogVisible,
-    hasUnacknowledgedModeratedContributions,
-    projectDialog,
-    projectEditForm,
-    overlayEditDialog,
+    projectCreationSeed,
+    projectEditTarget,
+    overlayEditTarget,
     activeTab,
     mobileDrawerHeightPercent,
-    imageUploadDialog,
-    shapeEditor,
+    imageUploadProjectId,
+    shapeEditorProject,
     activeAccordionPanels,
 
     openAuthModal,
