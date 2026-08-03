@@ -133,6 +133,7 @@ import { useI18n } from "vue-i18n";
 import { Crop } from "@lucide/vue";
 
 import { useOverlayStore } from "@/stores/overlayStore";
+import { useProjectStore } from "@/stores/projectStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useMapStore } from "@/stores/mapStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -156,11 +157,12 @@ import { showEditHandles, hideEditHandles } from "@/services/overlay/editing";
 import { undo, redo } from "@/services/overlay/history";
 import { showCropHandles, hideCropHandles, applyCrop } from "@/services/overlay/cropHandles";
 import { prepareOverlaySubmission } from "@/services/submission/submissionDialog";
-import { isOverlayUnsaved } from "@/services/overlay/unsavedState";
+import { isOverlayUnsaved, isProjectUnsaved } from "@/services/overlay/unsavedState";
 import { confirmAndDeleteOverlay } from "@/services/entity/entityRemoval";
 
 const { t } = useI18n();
 const overlayStore = useOverlayStore();
+const projectStore = useProjectStore();
 const focusStore = useFocusStore();
 const uiStore = useUiStore();
 const mapStore = useMapStore();
@@ -348,9 +350,14 @@ const canCrop = computed(() => selectedOverlay.value?.status === null);
 
 const canUndo = computed(() => (selectedOverlay.value?.history?.length ?? 0) > 1);
 const canRedo = computed(() => (selectedOverlay.value?.redoStack?.length ?? 0) > 0);
+// Project-scoped: the save button submits the whole project batch (metadata edits included), so it
+// stays enabled for a project field change that leaves this overlay itself untouched. The overlay
+// fallback covers an overlay selected from the map whose project was never loaded as a full entity.
 const hasUnsavedModifications = computed(() => {
   const overlay = selectedOverlay.value;
-  return overlay ? isOverlayUnsaved(overlay) : false;
+  if (!overlay) return false;
+  const project = overlay.projectId ? projectStore.projects[overlay.projectId] : null;
+  return project ? isProjectUnsaved(project) : isOverlayUnsaved(overlay);
 });
 
 function onOpacityInput(e: Event) {
