@@ -185,7 +185,6 @@
     "tryWideningFilters": "Widen a filter, or add the first one from Contribute.",
     "filterBySource": "Filter by source",
     "sourceCommunity": "Website",
-    "sourceOsm": "OpenStreetMap",
     "sourceOsmShort": "OSM",
     "moreFilters": "More filters",
     "mapArea": "Map area",

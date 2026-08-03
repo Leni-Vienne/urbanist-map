@@ -163,14 +163,8 @@
             <div v-if="row.subtitle" class="text-xs text-muted-color truncate mb-0.5">
               {{ row.subtitle }}
             </div>
-            <div class="flex items-center gap-1.5 text-xs text-muted-color">
-              <span>{{ formatRelativeTime(row.contribution.updatedAt, t) }}</span>
-              <span class="text-surface">·</span>
-              <span>{{
-                row.contribution.isImport
-                  ? t("contribution.sourceOsm")
-                  : t("contribution.sourceCommunity")
-              }}</span>
+            <div class="text-xs text-muted-color">
+              {{ formatRelativeTime(row.contribution.updatedAt, t) }}
             </div>
           </div>
         </div>

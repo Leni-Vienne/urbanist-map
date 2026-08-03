@@ -2,7 +2,7 @@
   <div class="w-full">
     <button
       type="button"
-      class="appearance-none font-[inherit] bg-transparent border-0 text-left flex items-center py-[0.35rem] px-2 w-full cursor-pointer rounded text-color transition-colors duration-200 text-[0.9rem] hover:bg-black/5 dark:hover:bg-white/10"
+      class="appearance-none bg-transparent border-0 text-left flex items-center py-[0.35rem] px-2 w-full cursor-pointer rounded text-color transition-colors duration-200 text-[0.9rem] hover:bg-black/5 dark:hover:bg-white/10"
       @click="toggleMenu"
       :aria-label="$t('controls.mapLanguage')"
       @dblclick.stop
@@ -18,7 +18,7 @@
           v-for="option in options"
           :key="option.code"
           type="button"
-          class="appearance-none font-[inherit] border-0 text-left flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded w-full transition-colors duration-150"
+          class="appearance-none border-0 text-left flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded w-full transition-colors duration-150"
           :class="
             mapLabelLanguageRef === option.code
               ? 'bg-primary-50 text-primary-700'

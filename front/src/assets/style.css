@@ -27,6 +27,14 @@ body {
   height: 100svh;
 }
 
+/* maplibre-gl.css sets a `font` shorthand on the map container, so every overlay rendered
+   inside it inherits Helvetica. The `html` prefix outranks it at equal specificity, since its
+   stylesheet loads later. Font size and line height stay as MapLibre sets them: its own
+   attribution, popups and controls have no explicit size and depend on them. */
+html .maplibregl-map {
+  font-family: "DM Sans", system-ui, sans-serif;
+}
+
 .app-container {
   width: 100vw;
   height: 100svh;

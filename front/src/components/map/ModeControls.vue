@@ -6,7 +6,7 @@
   >
     <button
       type="button"
-      class="group appearance-none font-[inherit] flex items-center gap-2 px-4 py-2 backdrop-blur-sm rounded-3xl font-semibold text-[0.9rem] border-2 transition-all duration-200 pointer-events-auto cursor-pointer select-none hover:scale-105 active:scale-[0.98]"
+      class="group appearance-none flex items-center gap-2 px-4 py-2 backdrop-blur-sm rounded-3xl font-semibold text-[0.9rem] border-2 transition-all duration-200 pointer-events-auto cursor-pointer select-none hover:scale-105 active:scale-[0.98]"
       :class="[
         mapStore.mode === 'edit'
           ? 'bg-amber-500/95 border-amber-600 text-white shadow-[0_4px_12px_rgba(245,158,11,0.4)] hover:shadow-[0_6px_16px_rgba(245,158,11,0.5)]'

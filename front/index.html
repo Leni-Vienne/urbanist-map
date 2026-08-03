@@ -33,12 +33,24 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300..700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Archivo:opsz,wght@9..40,300..700&display=swap"
       rel="stylesheet"
     />
 
     <link rel="dns-prefetch" href="https://unpkg.com" />
     <link rel="preconnect" href="https://unpkg.com" crossorigin />
+
+    <style>
+      html,
+      body {
+        font-family: "Archivo", system-ui, sans-serif;
+      }
+
+      /* For right-to-left text */
+      * {
+        unicode-bidi: plaintext;
+      }
+    </style>
   </head>
 
   <body>
@@ -46,15 +58,3 @@
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
-
-<style>
-  html,
-  body {
-    font-family: "DM Sans", system-ui, sans-serif;
-  }
-
-  /* For right-to-left text */
-  * {
-    unicode-bidi: plaintext;
-  }
-</style>

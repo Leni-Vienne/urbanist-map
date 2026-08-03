@@ -283,7 +283,7 @@ function buildStandaloneProjectsQuery(
 
 type StandaloneProjectRow = Awaited<ReturnType<typeof buildStandaloneProjectsQuery>>[number];
 
-function mapStandaloneProject(p: StandaloneProjectRow, isImport: boolean) {
+function mapStandaloneProject(p: StandaloneProjectRow) {
   return {
     type: "standalone" as const,
     id: p.id,
@@ -299,7 +299,6 @@ function mapStandaloneProject(p: StandaloneProjectRow, isImport: boolean) {
     shape: p.shape,
     lat: p.lat,
     lng: p.lng,
-    isImport,
     // Geometry bbox for flying to the right bounds when the project has vector shapes
     geometryBbox:
       p.geometryBboxMinLat !== null &&
@@ -409,7 +408,6 @@ function mapOverlayContribution(o: LatestOverlayRow) {
         ? { lat: o.centroidLat, lng: o.centroidLng }
         : null,
     corners: o.corners,
-    isImport: false,
   };
 }
 
@@ -620,11 +618,11 @@ export const feedRouter = router({
           })),
           ...directRows.map((p) => ({
             stream: "direct" as const,
-            item: mapStandaloneProject(p, false),
+            item: mapStandaloneProject(p),
           })),
           ...importedRows.map((p) => ({
             stream: "imported" as const,
-            item: mapStandaloneProject(p, true),
+            item: mapStandaloneProject(p),
           })),
         ];
 
