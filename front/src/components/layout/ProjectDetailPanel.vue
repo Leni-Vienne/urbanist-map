@@ -44,9 +44,8 @@
             <div class="flex gap-1 shrink-0" @click.stop>
               <!-- Edit: switch to edit mode and pin this project in the contribute panel, so the
                    user can act on it (add images, draw, edit fields) without closing the detail and
-                   switching tabs by hand. Only in view mode (moderation keeps its own context). -->
+                   switching tabs by hand. -->
               <button
-                v-if="canEdit"
                 type="button"
                 :aria-label="$t('common.edit')"
                 class="w-8 h-8 rounded-md flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-color hover:text-primary-hover-color hover:bg-[color-mix(in_srgb,var(--p-primary-color)_10%,transparent)] bg-transparent border-none"
@@ -137,7 +136,6 @@ import { useScrollFade } from "@/composables/ui/useScrollFade";
 import { isMobile } from "@/services/core/viewport";
 
 import { useUiStore } from "@/stores/uiStore";
-import { useMapStore } from "@/stores/mapStore";
 import { useAuthStore } from "@/stores/authStore";
 
 import { navigateToOverlay } from "@/services/overlay/navigation";
@@ -170,7 +168,6 @@ const contentRef = ref<HTMLElement | null>(null);
 const { showScrollFade } = useScrollFade(scrollAreaRef, contentRef);
 
 const uiStore = useUiStore();
-const mapStore = useMapStore();
 const authStore = useAuthStore();
 
 const { project, overlay } = useDetailProject();
@@ -263,10 +260,6 @@ function handleRecenter() {
   }
   flyToGeometry([target.lat, target.lng], target.geometrySizeM ?? 0);
 }
-
-// The edit affordance only makes sense in view mode: moderation keeps its own selection context,
-// and edit mode shows the contribute panel where these actions already live.
-const canEdit = computed(() => mapStore.mode === "view" && project.value !== undefined);
 
 // Carry the current project into edit mode so the contribute panel surfaces its actions right away.
 function handleEdit() {

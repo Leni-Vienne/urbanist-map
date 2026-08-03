@@ -7,7 +7,7 @@ import { dbToFlexibleDate, formatFlexibleDate } from "./flexibleDateHelpers";
 
 type DatePrecision = "year" | "month" | "day" | null | undefined;
 
-export interface ProjectDateFields {
+interface ProjectDateFields {
   timelineStatus: string | null | undefined;
   startDate: Date | null | undefined;
   endDate: Date | null | undefined;

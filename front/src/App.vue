@@ -7,8 +7,7 @@
 </template>
 
 <script setup lang="ts">
-import { useTheme } from "./composables/core/useTheme";
-useTheme(); // Initialize theme on app startup (applies saved preference)
+import "./composables/core/useTheme"; // Applies the saved theme preference on module evaluation
 import "./assets/style.css"; // Load app styles so they override vendor default CSS
 import "primeicons/primeicons.css";
 import MapSvgDefs from "@/components/map/MapSvgDefs.vue";

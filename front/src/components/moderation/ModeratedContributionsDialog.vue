@@ -149,8 +149,6 @@ const hasApprovedItem = computed(() =>
   moderatedContributions.value.some((item) => item.status === "approved"),
 );
 
-// Mounted with visible=true due to v-if in parent. Reuses authStore's preloaded data
-// on first open and fetches fresh on later reopens.
 onMounted(() => {
   ensureModeratedContributions();
 });

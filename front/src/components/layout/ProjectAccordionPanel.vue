@@ -211,7 +211,6 @@ import { navigateToProject } from "@/services/navigation/projectNavigation";
 import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/selection";
 
 import { useScrollFade } from "@/composables/ui/useScrollFade";
-import { useMapStore } from "@/stores/mapStore";
 
 interface Props {
   projects: Project[];
@@ -225,7 +224,6 @@ interface Props {
   // Enables "my contributions" behavior in change request sections (e.g. own-change wording).
   isContributePanel?: boolean;
   showUserStatsLink?: boolean;
-  disableAutoModeSwitch?: boolean;
   // Id of the map-selected project. When it matches a project in `projects`, that project is lifted
   // out of the list and shown in the "Selected project" card at the top.
   selectedProjectId?: string | null;
@@ -245,7 +243,6 @@ const props = withDefaults(defineProps<Props>(), {
   changeRequests: () => [],
   isContributePanel: false,
   showUserStatsLink: false,
-  disableAutoModeSwitch: false,
   selectedProjectId: null,
   pinnedExternalProject: null,
   keepContentVisible: false,
@@ -395,10 +392,6 @@ function handleProjectClick(project: Project) {
     if (typeof project.lat !== "number" || typeof project.lng !== "number") {
       toastWarn(t("project.noLocation"), t("project.noLocation"));
       return;
-    }
-    const mapStore = useMapStore();
-    if (!props.disableAutoModeSwitch && mapStore.mode !== "edit") {
-      mapStore.setMode("edit");
     }
     navigateToProject(project.lat, project.lng, project.id);
   } catch (error) {

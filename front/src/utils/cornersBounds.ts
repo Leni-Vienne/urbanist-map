@@ -1,7 +1,7 @@
 import { LngLat, LngLatBounds } from "maplibre-gl";
 import type { LatLng } from "@/types/index";
 
-export interface SimpleBounds {
+interface SimpleBounds {
   north: number;
   south: number;
   east: number;

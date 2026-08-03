@@ -226,7 +226,7 @@ export function buildOverlayQuery(database: Database) {
     .leftJoin(projects, eq(overlays.projectId, projects.id));
 }
 
-// Shared project column selection, add new project fields here only
+// Project fields returned to frontend project consumers.
 export const PROJECT_COLUMNS = {
   id: projects.id,
   name: projects.name,
@@ -239,7 +239,6 @@ export const PROJECT_COLUMNS = {
   externalId: projects.externalId,
   externalProperties: projects.externalProperties,
   externalLastModified: projects.externalLastModified,
-  lastImportedAt: projects.lastImportedAt,
   lat: projects.lat,
   lng: projects.lng,
   proposalDate: projects.proposalDate,
@@ -254,12 +253,7 @@ export const PROJECT_COLUMNS = {
   updatedAt: projects.updatedAt,
   geometry: sql<GeoJSON.GeometryCollection | null>`CASE WHEN ${projects.geometry} IS NULL THEN NULL ELSE ST_AsGeoJSON(${projects.geometry})::json END`,
   geometrySizeM: projects.geometrySizeM,
-  rejectionReason: projects.rejectionReason,
-  centerCoordinate: projects.centerCoordinate,
   countryCode: projects.countryCode,
-  adminBoundaryId: projects.adminBoundaryId,
-  detachedAt: projects.detachedAt,
-  importLockedAt: projects.importLockedAt,
 } as const;
 
 export function buildProjectWithLocationQuery(database: Database) {

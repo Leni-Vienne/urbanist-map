@@ -8,7 +8,7 @@ import type { LatestContribution } from "@/types/index";
 type FeedCursor = RouterOutput["feed"]["getLatestContributions"]["nextCursor"];
 type OsmSyncStatus = RouterOutput["feed"]["getOsmSyncStatus"];
 
-export type ContributionSource = "all" | "community" | "osm";
+type ContributionSource = "all" | "community" | "osm";
 export type MapArea = {
   west: number;
   south: number;

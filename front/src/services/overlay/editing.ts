@@ -226,7 +226,6 @@ function polygonFeature(corners: LatLng[]): Feature<Polygon> {
 
 function cornerHandleElement(): HTMLElement {
   const el = document.createElement("div");
-  el.className = "overlay-corner-handle";
   el.style.cssText =
     "width:16px;height:16px;background:#ff8800;border:2px solid #fff;border-radius:2px;" +
     "box-shadow:0 1px 3px rgba(0,0,0,.4);cursor:grab;";

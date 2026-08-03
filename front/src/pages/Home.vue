@@ -167,24 +167,20 @@ watch(
 
 const moderatedContributionsStore = useModeratedContributionsStore();
 
-watch(
-  () => authStore.user,
-  async (user) => {
-    if (user) {
-      try {
-        await moderatedContributionsStore.preloadModeratedContributions();
-        // A logout or account switch can finish this request after user-scoped state was cleared.
-        if (authStore.user?.id !== user.id) return;
-        if (moderatedContributionsStore.moderatedContributions.length > 0) {
-          uiStore.moderatedContributionsDialogVisible = true;
-        }
-      } catch (error) {
-        console.error("Failed to check moderated contributions:", error);
-      }
-    }
-  },
-  { immediate: true },
-);
+watch(readAuthenticatedUser, preloadModeratedContributions, { immediate: true });
+
+function readAuthenticatedUser() {
+  return authStore.user;
+}
+
+async function preloadModeratedContributions(user: typeof authStore.user) {
+  if (!user) return;
+  const loaded = await moderatedContributionsStore.preloadModeratedContributions();
+  if (!loaded || authStore.user?.id !== user.id) return;
+  if (moderatedContributionsStore.moderatedContributions.length > 0) {
+    uiStore.moderatedContributionsDialogVisible = true;
+  }
+}
 
 async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
   const project = uiStore.shapeEditorProject;

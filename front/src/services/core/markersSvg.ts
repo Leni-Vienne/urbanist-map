@@ -71,7 +71,7 @@ function createProjectPinSVG(color: MarkerColor): string {
 // The SVG is rendered at 32x40 to match createOverlayMarkerSVG.
 export function createOverlayMarkerElement(color: MarkerColor): HTMLElement {
   const el = document.createElement("div");
-  el.className = "custom-svg-marker overlay-marker";
+  el.className = "custom-svg-marker";
   el.style.width = "32px";
   el.style.height = "40px";
   el.style.cursor = "pointer";
@@ -91,12 +91,11 @@ export function updateOverlayMarkerColor(marker: MaplibreMarker, color: MarkerCo
 // Project pin marker as a DOM element for maplibregl.Marker (anchor 'bottom' = pin tip).
 export function createProjectPinElement(color: MarkerColor): HTMLElement {
   const el = document.createElement("div");
-  el.className = "custom-svg-marker project-pin-marker";
+  el.className = "custom-svg-marker";
   el.style.width = `${markerSize}px`;
   el.style.height = `${markerHeight}px`;
   el.style.cursor = "pointer";
   el.innerHTML = createProjectPinSVG(color);
-  el.dataset.cmorgColor = color;
   return el;
 }
 

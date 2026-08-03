@@ -3,38 +3,35 @@ import { ref } from "vue";
 import { trpc, type RouterOutput } from "@/client";
 import { loadOrNull } from "@/services/core/errorHandling";
 
-// Moderated contributions (rejected/replaced overlays). authStore preloads it on
-// login to decide whether to open the dialog, and the dialog reads it without refetching.
 export const useModeratedContributionsStore = defineStore("moderatedContributions", () => {
   const moderatedContributions = ref<RouterOutput["overlay"]["getModeratedContributions"]>([]);
   const isLoading = ref(false);
-  // Set when authStore preloads on login/session-restore so the dialog can render
-  // its first open without a redundant fetch. Consumed (reset) on first dialog mount.
   const hasPreloaded = ref(false);
+  let requestVersion = 0;
 
-  async function fetchModeratedContributions() {
+  async function fetchModeratedContributions(): Promise<boolean> {
+    const version = ++requestVersion;
     isLoading.value = true;
     try {
-      const result = await loadOrNull(async () => trpc.overlay.getModeratedContributions.query(), {
+      const result = await loadOrNull(trpc.overlay.getModeratedContributions.query, {
         errorMessage: "Failed to load moderated contributions",
       });
 
-      if (result) {
-        moderatedContributions.value = result;
-      }
+      if (version !== requestVersion || result === null) return false;
+      moderatedContributions.value = result;
+      return true;
     } finally {
-      isLoading.value = false;
+      if (version === requestVersion) isLoading.value = false;
     }
   }
 
-  // Called once by authStore right after login/session-restore.
-  async function preloadModeratedContributions() {
-    await fetchModeratedContributions();
-    hasPreloaded.value = true;
+  async function preloadModeratedContributions(): Promise<boolean> {
+    hasPreloaded.value = false;
+    const loaded = await fetchModeratedContributions();
+    if (loaded) hasPreloaded.value = true;
+    return loaded;
   }
 
-  // Called by the dialog on mount: reuse the preloaded data if present, otherwise
-  // fetch fresh (e.g. when the user reopens the dialog later from the menu).
   async function ensureModeratedContributions() {
     if (hasPreloaded.value) {
       hasPreloaded.value = false;
@@ -71,6 +68,7 @@ export const useModeratedContributionsStore = defineStore("moderatedContribution
 
   // Clear user-specific state on logout or account switch.
   function clearAllState() {
+    requestVersion++;
     moderatedContributions.value = [];
     isLoading.value = false;
     hasPreloaded.value = false;

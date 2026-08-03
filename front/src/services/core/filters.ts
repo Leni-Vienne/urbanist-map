@@ -306,7 +306,7 @@ export function clearActiveFilter(filter: ActiveFilter): void {
 
 // The filter state in the shape the feed query takes. Infinity bounds are dropped rather than
 // serialized, so an absent bound means "unbounded" on the wire.
-export type FeedFilterInput = {
+type FeedFilterInput = {
   tags?: string[];
   includeUntagged?: boolean;
   statuses?: TimelineStatus[];

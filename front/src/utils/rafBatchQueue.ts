@@ -37,9 +37,6 @@ export function createRafBatchQueue<T>(
     delete(key: string) {
       queue.delete(key);
     },
-    has(key: string): boolean {
-      return queue.has(key);
-    },
     /** Discard everything still queued and cancel the pending drain frame. */
     clear() {
       queue.clear();

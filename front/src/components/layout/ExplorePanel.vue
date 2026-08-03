@@ -225,8 +225,6 @@
 </template>
 
 <script setup lang="ts">
-import { toastWarn } from "@/services/core/toast";
-
 import {
   computed,
   nextTick,
@@ -238,7 +236,6 @@ import {
   watch,
 } from "vue";
 import { useI18n } from "vue-i18n";
-import { canModerateCountry } from "@/services/moderation/moderationCountrySync";
 import {
   contributions,
   isLoading,
@@ -272,7 +269,6 @@ import { formatRelativeTime } from "@/utils/dateFormat";
 import { boundaryLocationParts, formatBoundaryLocation } from "@/utils/locationDisplay";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
 import { useFocusStore } from "@/stores/focusStore";
-import { useMapStore } from "@/stores/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import { isMobile } from "@/services/core/viewport";
 
@@ -288,7 +284,6 @@ import { mobileAwareFlyTo } from "@/services/core/mapNavigation";
 import { LngLatBounds } from "maplibre-gl";
 
 const { t, te, locale } = useI18n();
-const mapStore = useMapStore();
 const uiStore = useUiStore();
 const focusStore = useFocusStore();
 
@@ -328,10 +323,6 @@ function formatProjectCount(): string {
 function browseOsmUpdates(): void {
   isOsmSyncExpanded.value = false;
   showOsmUpdates();
-}
-
-function getContributionImageUrl(filename: string): string {
-  return buildThumbnailUrl(filename);
 }
 
 // Overlays use their own image; standalone projects fall back to their render thumbnail (if any).
@@ -377,7 +368,7 @@ function getHeadings(contribution: LatestContribution): {
 const rows = computed(() =>
   contributions.value.map((contribution) => {
     const filename = getThumbnailFilename(contribution);
-    const thumbnailUrl = filename ? getContributionImageUrl(filename) : null;
+    const thumbnailUrl = filename ? buildThumbnailUrl(filename) : null;
     const { title, isPlaceholder, subtitle } = getHeadings(contribution);
     return {
       contribution,
@@ -450,16 +441,6 @@ function handleContributionLeave(contribution: LatestContribution) {
 }
 
 async function handleContributionClick(contribution: LatestContribution) {
-  // In moderation mode, auto-select the country for the moderation panel
-  // Block navigation if the moderator can't moderate this country
-  if (mapStore.mode === "moderation" && contribution.countryCode) {
-    if (!canModerateCountry(contribution.countryCode)) {
-      toastWarn(t("moderation.noAccessToThisCountry"), t("moderation.title"));
-      return;
-    }
-    mapStore.setSelectedCountryCode(contribution.countryCode);
-  }
-
   if (contribution.type === "overlay") {
     if (contribution.corners) {
       zoomToOverlayAndSelect(contribution.id, contribution.corners);

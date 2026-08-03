@@ -98,7 +98,6 @@
         :empty-sub-message="$t('moderation.noPendingItems')"
         :show-user-stats-link="true"
         :selected-project-id="selectedProjectId"
-        :disable-auto-mode-switch="true"
         @show-user-stats="handleShowUserStats"
         :on-overlay-click="handleViewOverlayPosition"
       >

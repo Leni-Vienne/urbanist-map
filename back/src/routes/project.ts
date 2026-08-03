@@ -317,6 +317,7 @@ export const projectRouter = router({
       const rows = await db
         .select({
           ...PROJECT_COLUMNS,
+          adminBoundaryId: projects.adminBoundaryId,
           slug: projects.slug,
           importSource: importSources,
           ownerUsername: users.username,
@@ -354,11 +355,10 @@ export const projectRouter = router({
         .limit(1);
 
       // Full administrative breadcrumb (deepest boundary up to the country) for the detail panel.
-      const boundaryPath = project.adminBoundaryId
-        ? await resolveBoundaryPath(project.adminBoundaryId)
-        : [];
+      const { adminBoundaryId, ...projectData } = project;
+      const boundaryPath = adminBoundaryId ? await resolveBoundaryPath(adminBoundaryId) : [];
 
-      return { ...project, render: renderRows[0] ?? null, boundaryPath };
+      return { ...projectData, render: renderRows[0] ?? null, boundaryPath };
     } catch (error) {
       console.error("Error fetching project by id:", error);
       throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to fetch project" });
@@ -378,6 +378,7 @@ export const projectRouter = router({
       const rows = await db
         .select({
           ...PROJECT_COLUMNS,
+          adminBoundaryId: projects.adminBoundaryId,
           slug: projects.slug,
           importSource: importSources,
           ownerUsername: users.username,
@@ -410,13 +411,12 @@ export const projectRouter = router({
           )
           .limit(1);
 
-        const boundaryPath = project.adminBoundaryId
-          ? await resolveBoundaryPath(project.adminBoundaryId)
-          : [];
+        const { adminBoundaryId, ...projectData } = project;
+        const boundaryPath = adminBoundaryId ? await resolveBoundaryPath(adminBoundaryId) : [];
 
         return {
           found: true as const,
-          project: { ...project, render: renderRows[0] ?? null, boundaryPath },
+          project: { ...projectData, render: renderRows[0] ?? null, boundaryPath },
         };
       }
 

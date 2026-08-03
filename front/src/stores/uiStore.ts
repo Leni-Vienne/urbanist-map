@@ -3,7 +3,7 @@ import { ref } from "vue";
 import type { Project, OverlayObject, PanelTab } from "@/types/index";
 
 // Minimal overlay data needed to open the edit dialog (caption editor only)
-export type OverlayEditTarget = Pick<OverlayObject, "id" | "caption">;
+type OverlayEditTarget = Pick<OverlayObject, "id" | "caption">;
 
 export const useUiStore = defineStore("ui", () => {
   const authModalVisible = ref(false);

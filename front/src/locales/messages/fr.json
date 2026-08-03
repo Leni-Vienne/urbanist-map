@@ -299,8 +299,6 @@
     "continueWithGoogle": "Continuer avec Google",
     "continueWithOpenStreetMap": "Continuer avec OpenStreetMap",
     "orContinueWithEmail": "ou continuer avec l'email",
-    "moderationAccessRequired": "Accès modérateur requis",
-    "moderationMessage": "Vous avez besoin de privilèges de modérateur pour accéder à cette section.",
     "signedOut": "Déconnecté",
     "signedOutMessage": "Vous vous êtes déconnecté avec succès.",
     "openStreetMapAccount": "Compte OpenStreetMap",

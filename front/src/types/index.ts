@@ -44,10 +44,7 @@ export type PendingChangeRequest =
 
 export type LatestContribution = RouterOutput["feed"]["getLatestContributions"]["items"][number];
 
-// Base runtime project type - extends DB schema with computed fields. Server-side storage and
-// import-bookkeeping columns (indexable, centerCoordinate, adminBoundaryId, lastImportedAt,
-// importLockedAt, detachedAt, rejectionReason) are omitted: no frontend surface reads them, and
-// keeping them out makes over-fetching visible at the type boundary.
+// Base runtime project type with frontend state and server-only storage fields omitted.
 export interface Project extends Omit<
   DBProject,
   | "status"

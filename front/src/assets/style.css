@@ -33,11 +33,6 @@ body {
   overflow: hidden;
 }
 
-.ldi {
-  user-select: none;
-  -webkit-user-select: none;
-}
-
 /* Accordion card background: slight blue-white in light, normal content bg in dark */
 :root {
   --accordion-card-bg: #f8f9fc;
