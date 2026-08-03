@@ -72,27 +72,47 @@ function getFilesRecursively(dir: string): string[] {
   return files;
 }
 
-// Detect dynamic key prefixes used in the codebase (e.g. t(`prefix.${val}`))
-function findDynamicPrefixes(fileContents: Map<string, string>): Set<string> {
-  const dynamicPrefixes = new Set<string>();
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
-  // Regex to find patterns like t(`prefix.${...}`) or t('prefix.' + ...)
-  const templateLiteralRegex = /\$?t\(`([a-zA-Z_][a-zA-Z0-9_.]*)\.\$\{/g;
-  const concatRegex = /\$?t\(['"]([a-zA-Z_][a-zA-Z0-9_.]*)\.['"]\s*\+/g;
+// Turn a template literal body into a key matcher, where each `${...}` stands for
+// one key segment: `moderation.${itemType}NotFound` -> /^moderation\.[^.]*NotFound$/.
+// Templates with no static prefix match every key and are rejected.
+function templateToKeyPattern(template: string): RegExp | null {
+  const parts = template.split(/\$\{[^}]*\}/);
+
+  if (parts.length < 2 || !parts[0]) {
+    return null;
+  }
+
+  return new RegExp(`^${parts.map(escapeRegex).join("[^.]*")}$`);
+}
+
+// Detect dynamically built keys in the codebase (e.g. t(`prefix.${val}Suffix`))
+function findDynamicKeyPatterns(fileContents: Map<string, string>): RegExp[] {
+  const patterns = new Map<string, RegExp>();
+
+  const templateLiteralRegex = /(?<![\w$])\$?te?\(\s*`([^`]*\$\{[^`]*)`/g;
+  const concatRegex = /(?<![\w$])\$?te?\(\s*['"]([a-zA-Z_][a-zA-Z0-9_.]*\.)['"]\s*\+/g;
 
   for (const content of fileContents.values()) {
     let match;
 
     while ((match = templateLiteralRegex.exec(content)) !== null) {
-      dynamicPrefixes.add(`${match[1]}.`);
+      const pattern = templateToKeyPattern(match[1] ?? "");
+      if (pattern) {
+        patterns.set(pattern.source, pattern);
+      }
     }
 
     while ((match = concatRegex.exec(content)) !== null) {
-      dynamicPrefixes.add(`${match[1]}.`);
+      const pattern = new RegExp(`^${escapeRegex(match[1] ?? "")}.*$`);
+      patterns.set(pattern.source, pattern);
     }
   }
 
-  return dynamicPrefixes;
+  return [...patterns.values()];
 }
 
 // Extract keys referenced from real i18n call sites only: t('key'), $t('key')
@@ -121,15 +141,15 @@ function extractReferencedKeys(fileContents: Map<string, string>): Set<string> {
 }
 
 // Report referenced keys that are absent from the reference locale and not
-// covered by a dynamic or ignored prefix (i.e. broken/typo t() call sites).
+// dynamically built (i.e. broken/typo t() call sites).
 function reportMissingKeys(
   referencedKeys: Set<string>,
   referenceKeys: Set<string>,
-  ignoredPrefixes: Set<string>,
+  isIgnored: (key: string) => boolean,
 ): void {
   const missing = [...referencedKeys]
     .filter((key) => !referenceKeys.has(key))
-    .filter((key) => ![...ignoredPrefixes].some((prefix) => key.startsWith(prefix)))
+    .filter((key) => !isIgnored(key))
     .sort();
 
   console.log(
@@ -280,18 +300,22 @@ async function main() {
     }
   }
 
-  // Find dynamic prefixes used in the codebase
-  const dynamicPrefixes = findDynamicPrefixes(fileContents);
-  if (dynamicPrefixes.size > 0) {
-    console.log("🔄 Detected dynamic key prefixes (will be ignored):");
-    for (const prefix of dynamicPrefixes) {
-      console.log(`   - ${prefix}*`);
+  // Find dynamically built keys in the codebase
+  const dynamicPatterns = findDynamicKeyPatterns(fileContents);
+  if (dynamicPatterns.length > 0) {
+    console.log("🔄 Detected dynamic key patterns (will be ignored):");
+    for (const pattern of dynamicPatterns) {
+      console.log(`   - ${pattern.source}`);
     }
     console.log();
   }
 
-  // Combine detected dynamic prefixes with static ignored prefixes
-  const allIgnoredPrefixes = new Set([...IGNORED_PREFIXES, ...dynamicPrefixes]);
+  function isIgnoredKey(key: string): boolean {
+    return (
+      IGNORED_PREFIXES.some((prefix) => key.startsWith(prefix)) ||
+      dynamicPatterns.some((pattern) => pattern.test(key))
+    );
+  }
 
   // Keys referenced from real i18n call sites, for missing-key detection
   const referencedKeys = extractReferencedKeys(fileContents);
@@ -317,10 +341,7 @@ async function main() {
       let ignoredCount = 0;
 
       for (const key of allKeys) {
-        // Check if key matches any ignored prefix
-        const isIgnored = [...allIgnoredPrefixes].some((prefix) => key.startsWith(prefix));
-
-        if (isIgnored) {
+        if (isIgnoredKey(key)) {
           ignoredCount += 1;
           continue;
         }
@@ -364,7 +385,7 @@ async function main() {
 
   if (referenceLocale && referenceKeys) {
     console.log(`\n📌 Reference locale: ${referenceLocale}`);
-    reportMissingKeys(referencedKeys, referenceKeys, allIgnoredPrefixes);
+    reportMissingKeys(referencedKeys, referenceKeys, isIgnoredKey);
 
     console.log("\n🌐 Locale parity:");
     for (const [localeFile, keys] of localeKeySets) {
