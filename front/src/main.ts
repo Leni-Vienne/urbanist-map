@@ -128,7 +128,6 @@ window.addEventListener("pageshow", (event) => {
 app.use(router);
 app.use(i18n);
 
-// @ts-expect-error PrimeVue configuration type issue
 app.use(PrimeVue, {
   ripple: true,
   inputVariant: "filled",

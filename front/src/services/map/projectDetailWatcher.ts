@@ -36,11 +36,11 @@ function writeProjectPath(slug: string | null): void {
 // /project/<slug> deep link, and reverts to "/" when nothing is selected. No `immediate`: on a
 // deep-link load the URL already carries the slug and the project is selected asynchronously, so
 // reacting only to changes avoids wiping the slug back to "/" before it loads.
-function watchProjectUrlSync(): () => void {
+function watchProjectUrlSync(): void {
   const projectStore = useProjectStore();
   const focus = useFocusStore();
 
-  return watch(
+  watch(
     () => focus.selectedProjectId,
     async (projectId) => {
       if (!projectId) {
@@ -69,11 +69,11 @@ function watchProjectUrlSync(): () => void {
 // project" card and filtered out of the accordion list. Drop it from the expanded accordion set so
 // it returns collapsed (not expanded) when it later falls back into the list on deselection, while
 // leaving manually-expanded panels untouched.
-function watchSelectedPanelCleanup(): () => void {
+function watchSelectedPanelCleanup(): void {
   const uiStore = useUiStore();
   const focus = useFocusStore();
 
-  return watch(
+  watch(
     () => focus.selectedProjectId,
     (projectId) => {
       if (!projectId) return;
@@ -104,23 +104,18 @@ export function watchShapeHighlighting(): () => void {
 // Moderation reviews pending submissions, a set the other modes never show. Crossing that boundary
 // in either direction drops the selection so neither side inherits the other's context; view and
 // edit share a world, so a selection carries between them.
-function watchModerationSelectionIsolation(): () => void {
+function watchModerationSelectionIsolation(): void {
   const mapStore = useMapStore();
 
-  return watch(() => mapStore.mode === "moderation", closeDetail);
+  watch(() => mapStore.mode === "moderation", closeDetail);
 }
 
 /**
- * Install the app-lifetime focus projections that do not require a MapLibre instance.
+ * Install the app-lifetime focus projections that do not require a MapLibre instance. They live
+ * until the page is torn down and are never stopped.
  */
-export function startDetailWatcher(): () => void {
-  const stops = [
-    watchProjectUrlSync(),
-    watchSelectedPanelCleanup(),
-    watchModerationSelectionIsolation(),
-  ];
-
-  return function stopDetailWatcher(): void {
-    for (const stop of stops.toReversed()) stop();
-  };
+export function startDetailWatcher(): void {
+  watchProjectUrlSync();
+  watchSelectedPanelCleanup();
+  watchModerationSelectionIsolation();
 }

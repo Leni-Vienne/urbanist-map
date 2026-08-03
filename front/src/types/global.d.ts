@@ -32,10 +32,5 @@ declare global {
     | undefined;
 }
 
-declare module "*.webp" {
-  const src: string;
-  export default src;
-}
-
 // eslint-disable-next-line require-module-specifiers
 export {};

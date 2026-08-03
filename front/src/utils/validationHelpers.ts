@@ -29,14 +29,10 @@ export function getProjectValidationErrors(
 // Validates a project form against the selected timeline status: a proposed project carries only a
 // proposal date, any other status carries only start/end dates. Returns the errors map, or null
 // when valid.
-export function getScopedProjectValidationErrors(
-  formData: ProjectFormData,
-  timelineStatus: ProjectFormData["timelineStatus"],
-) {
-  const isProposed = timelineStatus === "proposed";
+export function getScopedProjectValidationErrors(formData: ProjectFormData) {
+  const isProposed = formData.timelineStatus === "proposed";
   return getProjectValidationErrors({
     ...formData,
-    timelineStatus,
     proposalDate: isProposed ? formData.proposalDate : null,
     proposalDatePrecision: isProposed ? formData.proposalDatePrecision : null,
     startDate: isProposed ? null : formData.startDate,

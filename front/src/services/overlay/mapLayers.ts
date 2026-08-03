@@ -27,7 +27,6 @@ interface OverlayImageHandle {
   sourceId: string;
   rasterLayerId: string;
   transform: OverlayTransform;
-  opacity: number;
   // The imageUrl the source was created from. The reconciler swaps the source (crop / undo across a
   // crop) when the canonical store imageUrl no longer matches this.
   imageUrl: string;
@@ -389,6 +388,10 @@ export function isOverlayInFront(id: string): boolean {
   return frontOverlayIds.has(id);
 }
 
+export function getOverlayOpacity(id: string): number {
+  return overlayOpacities.get(id) ?? 1;
+}
+
 // Front rasters move to the top of the stack; back rasters move just under the project geometry.
 function raiseToBandTop(mlMap: MaplibreMap, rasterLayerId: string, front: boolean): void {
   if (front) {
@@ -479,7 +482,7 @@ export function createOverlayImage(
 
   if (mlMap.getSource(sourceId)) return null;
 
-  const opacity = overlayOpacities.get(overlayObject.id) ?? 1;
+  const opacity = getOverlayOpacity(overlayObject.id);
 
   try {
     mlMap.addSource(sourceId, {
@@ -508,7 +511,6 @@ export function createOverlayImage(
     sourceId,
     rasterLayerId,
     transform: cornersToTransform(corners),
-    opacity,
     imageUrl: overlayObject.imageUrl,
   };
 }
@@ -610,13 +612,12 @@ export function getOverlayImageCorners(id: string): LatLng[] | null {
   return getRenderedOverlayCorners(id) ?? lastHistoryCorners(id);
 }
 
-// Set raster opacity (0..1) for one overlay, persisting it on the handle.
+// Set raster opacity (0..1) for one overlay.
 export function setOverlayImageOpacity(id: string, opacity: number): void {
   overlayOpacities.set(id, opacity);
   const mlMap = getMap();
   const handle = getImageHandle(id);
   if (!handle) return;
-  handle.opacity = opacity;
   if (mlMap.getLayer(handle.rasterLayerId)) {
     mlMap.setPaintProperty(handle.rasterLayerId, "raster-opacity", opacity);
   }

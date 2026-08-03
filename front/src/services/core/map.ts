@@ -114,12 +114,9 @@ export type StyleSwitchPhase = "before" | "after";
 
 const styleSwitchCallbacks = new Set<(phase: StyleSwitchPhase) => void>();
 
-/** Run `run` on both phases of every basemap style swap. Returns an unsubscribe function. */
-export function onStyleSwitch(run: (phase: StyleSwitchPhase) => void): () => void {
+/** Run `run` on both phases of every basemap style swap, for the lifetime of the page. */
+export function onStyleSwitch(run: (phase: StyleSwitchPhase) => void): void {
   styleSwitchCallbacks.add(run);
-  return function unsubscribeStyleSwitch(): void {
-    styleSwitchCallbacks.delete(run);
-  };
 }
 
 /** Run every style-switch listener for `phase`. A listener that throws does not stop the others. */

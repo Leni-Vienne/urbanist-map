@@ -56,6 +56,7 @@
     "startDatePrecision": "Précision de la date de début",
     "endDate": "Date de fin",
     "endDatePrecision": "Précision de la date de fin",
+    "timelineStatus": "Statut chronologique",
     "sourceUrl": "URL source",
     "caption": "Nom",
     "lat": "Latitude",

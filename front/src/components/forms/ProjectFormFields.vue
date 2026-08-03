@@ -62,7 +62,7 @@
   </div>
 
   <!-- Timeline status selector -->
-  <TimelineStatusSelector v-model="localTimelineStatus" :id-prefix="idPrefix" />
+  <TimelineStatusSelector v-model="timelineStatus" :id-prefix="idPrefix" />
   <ChangeIndicator
     :show="showChangeIndicators && anyFieldChanged('timelineStatus')"
     :original-value="formatTimelineStatus(originalData?.timelineStatus)"
@@ -234,19 +234,16 @@ interface Props {
   originalData?: ProjectFormData;
   showChangeIndicators?: boolean;
   idPrefix?: string;
-  timelineStatus?: TimelineStatus;
 }
 
 type Emits = {
   (e: "update:formData", value: ProjectFormData): void;
-  (e: "update:timelineStatus", value: TimelineStatus): void;
 };
 
 const props = withDefaults(defineProps<Props>(), {
   originalData: undefined,
   showChangeIndicators: false,
   idPrefix: "project",
-  timelineStatus: "proposed",
 });
 
 const emit = defineEmits<Emits>();
@@ -254,11 +251,6 @@ const emit = defineEmits<Emits>();
 const { t, te } = useI18n();
 
 const { getFieldError, hasFieldError, validateField } = useFieldValidation(projectSchema);
-
-const localTimelineStatus = computed({
-  get: () => props.timelineStatus,
-  set: (value: TimelineStatus) => emit("update:timelineStatus", value),
-});
 
 // formData is owned by the parent: reads come from the prop, writes emit a merged snapshot.
 function patchFormData(patch: Partial<ProjectFormData>) {
@@ -275,6 +267,7 @@ function formDataField<K extends keyof ProjectFormData>(key: K) {
 const projectName = formDataField("name");
 const projectDescription = formDataField("description");
 const sourceUrl = formDataField("sourceUrl");
+const timelineStatus = formDataField("timelineStatus");
 
 const allTags = PROJECT_TAGS.filter((tag) => !tag.hidden);
 

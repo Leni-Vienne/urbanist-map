@@ -5,12 +5,7 @@
         :form-data="form.formData"
         :original-data="form.originalData"
         :show-change-indicators="true"
-        :timeline-status="timelineStatus"
         id-prefix="edit"
-        @update:timeline-status="
-          timelineStatus = $event;
-          form.formData.timelineStatus = $event;
-        "
         @update:form-data="Object.assign(form.formData, $event)"
       />
 
@@ -46,11 +41,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
 import { useEditableProjectForm } from "@/composables/forms/useEditableProjectForm";
 import { useProjectStore } from "@/stores/projectStore";
 import type { Project } from "@/types/index";
-import type { TimelineStatus } from "../../../../back/src/db/schema";
 import { projectToFormData } from "@/utils/projectFormHelpers";
 
 import ProjectFormFields from "@/components/forms/ProjectFormFields.vue";
@@ -60,29 +53,16 @@ const emit = defineEmits<{ close: []; submitted: [] }>();
 
 const projectStore = useProjectStore();
 
-const timelineStatus = ref<TimelineStatus>(props.project.timelineStatus ?? "proposed");
-
-// Comparison baseline for the diff sent to the backend.
-const originalProject = computed(() => {
-  return projectStore.getOriginalProject(props.project.id) ?? props.project;
-});
-
-const projectData = computed(() => projectToFormData(originalProject.value));
-const currentProjectData = computed(() => {
-  // Prefer the map store version if locally modified
-  const storeProject = projectStore.projects[props.project.id];
-  if (storeProject?.isModified) {
-    return projectToFormData(storeProject);
-  }
-  // Fall back to the authoritative backend snapshot rather than the project object captured when
-  // the form opened.
-  return projectToFormData(originalProject.value);
-});
+// Comparison baseline for the diff sent to the backend: the authoritative backend snapshot rather
+// than the project object captured when the form opened.
+const originalProject = projectStore.getOriginalProject(props.project.id) ?? props.project;
+const storeProject = projectStore.projects[props.project.id];
 
 const form = useEditableProjectForm({
   entityId: props.project.id,
-  initialData: projectData.value, // Original backend values for comparison
-  currentData: currentProjectData.value, // Current values to display in form
+  initialData: projectToFormData(originalProject),
+  // Displayed values: the map store version when locally modified.
+  currentData: projectToFormData(storeProject?.isModified ? storeProject : originalProject),
   getSourceProject: () => props.project,
   onSubmitted: () => emit("submitted"),
   onClose: () => emit("close"),

@@ -144,7 +144,7 @@ import {
   setOverlayInFront,
   isOverlayInFront,
   overlayOverlapsProjectShape,
-  getImageHandle,
+  getOverlayOpacity,
   whenImageReady,
 } from "@/services/overlay/mapLayers";
 import {
@@ -310,8 +310,7 @@ onUnmounted(() => {
 
 function readOpacity(): number {
   const id = selectedId.value;
-  const handle = id ? getImageHandle(id) : null;
-  return handle ? Math.round(handle.opacity * 100) : 100;
+  return id ? Math.round(getOverlayOpacity(id) * 100) : 100;
 }
 
 const overlayIndex = computed(() => {
