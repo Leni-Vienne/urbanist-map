@@ -183,29 +183,6 @@ def meters_to_degrees(meters):
     return meters / 111320
 
 
-def calculate_way_length_km(coords):
-    """Calculate approximate length of a way in kilometers using Haversine formula."""
-    if len(coords) < 2:
-        return 0.0
-    
-    total_km = 0.0
-    for i in range(len(coords) - 1):
-        lon1, lat1 = coords[i]
-        lon2, lat2 = coords[i + 1]
-        
-        # Haversine formula for great circle distance
-        lat1_rad = math.radians(lat1)
-        lat2_rad = math.radians(lat2)
-        dlat = math.radians(lat2 - lat1)
-        dlon = math.radians(lon2 - lon1)
-        
-        a = math.sin(dlat/2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon/2)**2
-        c = 2 * math.asin(math.sqrt(a))
-        total_km += 6371 * c  # Earth radius in km
-    
-    return total_km
-
-
 # ---------------------------------------------------------------------------
 # Transport type detection
 # ---------------------------------------------------------------------------
@@ -313,6 +290,34 @@ def aggregate_project_status(statuses):
 _LIFECYCLE_STATUSES = ('proposed', 'construction', 'planned')
 _PRIMARY_TRANSPORT_KEYS = ('railway', 'highway', 'waterway', 'aerialway', 'aeroway')
 _CYCLEWAY_KEYS = ('cycleway', 'cycleway:left', 'cycleway:right', 'cycleway:both')
+_LIFECYCLE_PREFIX_KEYS = tuple(
+    f'{status}:{key}'
+    for status in _LIFECYCLE_STATUSES
+    for key in _PRIMARY_TRANSPORT_KEYS
+)
+_URBAN_RAIL_VALUES = ('subway', 'tram', 'light_rail', 'monorail', 'miniature')
+_URBAN_RAIL_CONSTRUCTION_KEYS = (
+    'construction:electrified', 'construction:voltage',
+    'construction:frequency', 'construction:tracks',
+)
+
+
+def has_relation_lifecycle(tags):
+    """Return whether relation tags explicitly describe future infrastructure."""
+    if any(tags.get(key, '') not in ('', 'no')
+           for key in ('construction', 'proposed', 'planned')):
+        return True
+    if any(tags.get(key) in _LIFECYCLE_STATUSES
+           for key in (*_PRIMARY_TRANSPORT_KEYS, *_CYCLEWAY_KEYS, 'state')):
+        return True
+    if any(tags.get(key, '') not in ('', 'no') for key in _LIFECYCLE_PREFIX_KEYS):
+        return True
+    return (
+        tags.get('railway') in _URBAN_RAIL_VALUES
+        and any(tags.get(key, '') not in ('', 'no')
+                for key in _URBAN_RAIL_CONSTRUCTION_KEYS)
+    )
+
 
 def is_transport_way(tags):
     """Return True if way represents proposed/construction/planned transport infrastructure."""
@@ -326,15 +331,7 @@ def is_transport_way(tags):
         return True
 
     # Lifecycle prefix keys: proposed:railway=subway, planned:highway=primary, etc.
-    if any(tags.get(k) for k in ('construction:railway', 'construction:highway',
-                                  'construction:waterway', 'construction:aerialway',
-                                  'construction:aeroway',
-                                  'proposed:railway', 'proposed:highway',
-                                  'proposed:waterway', 'proposed:aerialway',
-                                  'proposed:aeroway',
-                                  'planned:railway', 'planned:highway',
-                                  'planned:waterway', 'planned:aerialway',
-                                  'planned:aeroway')):
+    if any(tags.get(k) for k in _LIFECYCLE_PREFIX_KEYS):
         return True
 
     # Lifecycle modifier (planned=yes / proposed=yes) on a typed transport way.
@@ -360,10 +357,8 @@ def is_transport_way(tags):
     # under construction (e.g. railway=subway + construction:electrified=contact_line).
     # Restricted to urban/transit rail types -- mainline rail electrification retrofits
     # are ongoing operations on existing lines, not new projects.
-    _URBAN_RAIL_VALUES = ('subway', 'tram', 'light_rail', 'monorail', 'miniature')
-    _CONSTRUCTION_ATTR_KEYS = ('construction:electrified', 'construction:voltage',
-                               'construction:frequency', 'construction:tracks')
-    if tags.get('railway') in _URBAN_RAIL_VALUES and any(tags.get(k) for k in _CONSTRUCTION_ATTR_KEYS):
+    if tags.get('railway') in _URBAN_RAIL_VALUES and any(
+            tags.get(k) for k in _URBAN_RAIL_CONSTRUCTION_KEYS):
         return True
 
     return (tags.get('construction', '') in TRANSPORT_VALUES or
@@ -484,6 +479,7 @@ class WayGeometryHandler(osmium.SimpleHandler):
     def __init__(self):
         super().__init__()
         self.ways = {}
+        self.unrenderable_way_ids = set()
 
     def way(self, w):
         tags = {t.k: t.v for t in w.tags}
@@ -497,24 +493,18 @@ class WayGeometryHandler(osmium.SimpleHandler):
                     'tags': tags,
                     'timestamp': w.timestamp.isoformat() if w.timestamp else None
                 }
+            else:
+                self.unrenderable_way_ids.add(w.id)
         except Exception:
-            pass
+            self.unrenderable_way_ids.add(w.id)
 
 
 class RelationHandler(osmium.SimpleHandler):
-    def __init__(self, proposed_way_ids, way_geometries=None):
+    def __init__(self, candidate_ways, unrenderable_way_ids=()):
         super().__init__()
-        self.proposed_way_ids = proposed_way_ids
-        self.way_geometries = way_geometries or {}  # wid -> {'coords': [...], ...}
+        self.candidate_ways = candidate_ways
+        self.unrenderable_way_ids = unrenderable_way_ids
         self.relations = {}
-        self._way_length_cache = {}  # wid -> km (ways shared by several routes)
-
-    def _way_length_km(self, wid):
-        if wid not in self._way_length_cache:
-            way_data = self.way_geometries.get(wid)
-            coords = way_data.get('coords') if way_data else None
-            self._way_length_cache[wid] = calculate_way_length_km(coords) if coords else 0.0
-        return self._way_length_cache[wid]
 
     def relation(self, r):
         tags = {t.k: t.v for t in r.tags}
@@ -525,52 +515,36 @@ class RelationHandler(osmium.SimpleHandler):
             return
         if tags.get('historic') or tags.get('abandoned'):
             return
+        member_way_ids = [m.ref for m in r.members if m.type == 'w']
         # Skip route relations that aren't themselves proposed/construction projects
         if tags.get('type') == 'route':
-            _LIFECYCLE_KEYS = ('construction', 'proposed', 'planned')
-            # Also check state= tag (commonly used for route=tracks relations)
-            state_val = tags.get('state', '')
-            has_lifecycle = any(tags.get(k, '') not in ('', 'no') for k in _LIFECYCLE_KEYS)
-            has_construction_state = state_val in ('construction', 'proposed', 'planned')
+            has_lifecycle = has_relation_lifecycle(tags)
 
             # Road-service route types run on existing roads and are never themselves
             # infrastructure being built. A bus detour through a construction zone doesn't
             # make the route a project, require an explicit lifecycle tag on the relation.
             _ROAD_SERVICE_ROUTE_TYPES = ('bus', 'coach', 'trolleybus', 'share_taxi')
             if tags.get('route', '') in _ROAD_SERVICE_ROUTE_TYPES:
-                if not (has_lifecycle or has_construction_state):
+                if not has_lifecycle:
                     return
 
-            # For all other route types, fall back to a length-based member way ratio
-            # when there are no explicit lifecycle tags on the relation itself.
-            elif not (has_lifecycle or has_construction_state):
-                member_way_ids = [m.ref for m in r.members if m.type == 'w']
+            # The relations PBF contains the complete member ID list but no ordinary-way
+            # geometry. Use candidate member count over total member count so both sides
+            # of the ratio come from populations this pass actually knows.
+            elif not has_lifecycle:
                 if member_way_ids:
-                    # Calculate length-based ratio (more accurate than count-based)
-                    construction_length_km = 0.0
-                    total_length_km = 0.0
+                    construction_member_count = sum(
+                        wid in self.candidate_ways or wid in self.unrenderable_way_ids
+                        for wid in member_way_ids
+                    )
+                    construction_member_ratio = (
+                        construction_member_count / len(member_way_ids)
+                    )
 
-                    for wid in member_way_ids:
-                        length_km = self._way_length_km(wid)
-                        total_length_km += length_km
-                        if wid in self.proposed_way_ids:
-                            construction_length_km += length_km
-
-                    if total_length_km > 0:
-                        construction_ratio = construction_length_km / total_length_km
-
-                        # Use route type to determine threshold:
-                        # - route=tracks (infrastructure): stricter 75% (construction-focused projects)
-                        # - route=train/tram/etc (service): lenient 50% (may have existing connections)
-                        route_type = tags.get('route', '')
-                        if route_type == 'tracks':
-                            threshold = 0.75
-                        else:
-                            threshold = 0.50
-
-                        if construction_ratio < threshold:
-                            return
-                    else:
+                    # Infrastructure routes must be at least 75% candidate members;
+                    # service routes may include existing connections and require 50%.
+                    threshold = 0.75 if tags.get('route', '') == 'tracks' else 0.50
+                    if construction_member_ratio < threshold:
                         return
                 else:
                     return
@@ -579,9 +553,14 @@ class RelationHandler(osmium.SimpleHandler):
         # Routes tagged state=proposed over fully existing roads (e.g. cycle-node
         # networks awaiting signposting) have none and are dropped: no new
         # infrastructure is being built.
-        member_way_ids = [m.ref for m in r.members if m.type == 'w']
-        if any(wid in self.proposed_way_ids for wid in member_way_ids):
-            self.relations[r.id] = {'tags': tags, 'member_way_ids': member_way_ids}
+        candidate_member_way_ids = [
+            wid for wid in member_way_ids if wid in self.candidate_ways
+        ]
+        if candidate_member_way_ids:
+            self.relations[r.id] = {
+                'tags': tags,
+                'member_way_ids': candidate_member_way_ids,
+            }
 
 
 # ---------------------------------------------------------------------------
@@ -1453,7 +1432,9 @@ def main():
     t = time.time()
     way_handler = WayGeometryHandler()
     way_handler.apply_file(WAYS_FILE, locations=True)
-    print(f"[linear] [{_ts()}] Pass 1 done in {_fmt(time.time() - t)}, {len(way_handler.ways):,} proposed/construction ways")
+    print(f"[linear] [{_ts()}] Pass 1 done in {_fmt(time.time() - t)}, {len(way_handler.ways):,} renderable proposed/construction ways")
+    if way_handler.unrenderable_way_ids:
+        print(f"[linear] [{_ts()}] Pass 1 skipped {len(way_handler.unrenderable_way_ids):,} candidate ways without usable geometry")
 
     if not way_handler.ways:
         print("[linear] ERROR: No ways found.")
@@ -1461,13 +1442,17 @@ def main():
 
     print(f"\n[linear] [{_ts()}] Pass 2: Scanning relations in {SOURCE_FILE}...")
     t = time.time()
-    rel_handler = RelationHandler(set(way_handler.ways.keys()), way_handler.ways)
+    rel_handler = RelationHandler(way_handler.ways, way_handler.unrenderable_way_ids)
     rel_handler.apply_file(SOURCE_FILE)
-    print(f"[linear] [{_ts()}] Pass 2 done in {_fmt(time.time() - t)}, {len(rel_handler.relations):,} route relations found")
+    relations = rel_handler.relations
+    relation_count = len(relations)
+    del rel_handler
+    way_handler.unrenderable_way_ids.clear()
+    print(f"[linear] [{_ts()}] Pass 2 done in {_fmt(time.time() - t)}, {relation_count:,} route relations found")
 
     print(f"\n[linear] [{_ts()}] Building GeoJSON features...")
     t = time.time()
-    features = build_features(way_handler.ways, rel_handler.relations)
+    features = build_features(way_handler.ways, relations)
     print(f"[linear] [{_ts()}] Build done in {_fmt(time.time() - t)}")
 
     in_rel = sum(1 for f in features if f['id'].startswith('relation/'))

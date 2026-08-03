@@ -10,7 +10,7 @@
 
 import { drizzle } from "drizzle-orm/bun-sql";
 import { SQL } from "bun";
-import { projects, importSources, adminBoundaries, type TimelineStatus } from "../db/schema";
+import { projects, importSources, adminBoundaries } from "../db/schema";
 import {
   BOUNDARY_DOMINANCE_THRESHOLD,
   coverageFractionSql,
@@ -38,7 +38,13 @@ const sqlClient = new SQL(importDatabaseUrl.toString(), {
 const db = drizzle({ client: sqlClient });
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { EXTENDED_OSM_RULES, PRESENT_STATE_OSM_KEYS, isRedevelopmentSite } from "@shared/osmRules";
+import {
+  centroid,
+  deriveSourceUrl,
+  extractTags,
+  mapTimelineStatus,
+  parseOsmDate,
+} from "./osmDerive";
 import { buildProjectSlug } from "@shared/projectSlug";
 import { refreshAllIndexable } from "../db/indexable";
 
@@ -80,104 +86,6 @@ function logProgress(message: string): void {
     lastProgressAt = t;
     log(message);
   }
-}
-
-function mapTimelineStatus(projectStatus: string | undefined): TimelineStatus {
-  // OSM project_status values: "proposed" or "under_construction"
-  // Map to our timeline statuses
-  switch (projectStatus) {
-    case "under_construction":
-      return "under_construction";
-    case "planned":
-      return "planned";
-    case "proposed":
-    default:
-      return "proposed";
-  }
-}
-
-function extractTags(props: Record<string, unknown>): string[] {
-  const found = new Set<string>();
-
-  // On redevelopment sites, plain keys describe the feature being replaced
-  // (e.g. aeroway=aerodrome with planned:landuse=residential), so skip them.
-  const redevelopment = isRedevelopmentSite(props);
-  for (const rule of EXTENDED_OSM_RULES) {
-    if (redevelopment && PRESENT_STATE_OSM_KEYS.has(rule.key)) continue;
-    const val = props[rule.key];
-    if (typeof val === "string" || typeof val === "number") {
-      const strVal = String(val);
-      if (!rule.values || rule.values.includes(strVal)) {
-        found.add(rule.tag);
-      }
-    }
-  }
-
-  // Many bike paths are mapped on OSM as highway=path, which triggers the pedestrian rule.
-  // Ensure "bike" always precedes "pedestrian" in the output array when both are present.
-  const tags = [...found];
-  const bikeIdx = tags.indexOf("bike");
-  const pedIdx = tags.indexOf("pedestrian");
-  if (bikeIdx !== -1 && pedIdx !== -1 && bikeIdx > pedIdx) {
-    tags.splice(bikeIdx, 1);
-    tags.splice(pedIdx, 0, "bike");
-  }
-  return tags;
-}
-
-// OSM dates can be "YYYY", "YYYY-MM", or "YYYY-MM-DD".
-function parseOsmDate(value: unknown): { date: Date; precision: "year" | "month" | "day" } | null {
-  if (!value || typeof value !== "string") return null;
-  const s = value.trim();
-  let date: Date;
-  let precision: "year" | "month" | "day";
-
-  if (/^\d{4}$/.test(s)) {
-    date = new Date(`${s}-01-01T00:00:00Z`);
-    precision = "year";
-  } else if (/^\d{4}-\d{2}$/.test(s)) {
-    date = new Date(`${s}-01T00:00:00Z`);
-    precision = "month";
-  } else if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
-    date = new Date(`${s}T00:00:00Z`);
-    precision = "day";
-  } else {
-    return null;
-  }
-
-  // Validate the date is actually valid (e.g., not 2024-13-45)
-  if (isNaN(date.getTime())) {
-    return null;
-  }
-
-  return { date, precision };
-}
-
-function flatCoords(geom: GeoJSON.Geometry): number[][] {
-  switch (geom.type) {
-    case "Point":
-      return [geom.coordinates as number[]];
-    case "LineString":
-    case "MultiPoint":
-      return geom.coordinates as number[][];
-    case "Polygon":
-    case "MultiLineString":
-      return (geom.coordinates as number[][][]).flat();
-    case "MultiPolygon":
-      return (geom.coordinates as number[][][][]).flat(2);
-    case "GeometryCollection":
-      return geom.geometries.flatMap(flatCoords);
-    default:
-      return [];
-  }
-}
-
-function centroid(geom: GeoJSON.Geometry): { lat: number; lng: number } | null {
-  const coords = flatCoords(geom);
-  if (coords.length === 0) return null;
-  const sumLng = coords.reduce((s, c) => s + (c[0] ?? 0), 0);
-  const sumLat = coords.reduce((s, c) => s + (c[1] ?? 0), 0);
-  return { lat: sumLat / coords.length, lng: sumLng / coords.length };
 }
 
 const KNN_CHUNK_SIZE = 1_000;
@@ -399,8 +307,10 @@ async function main() {
 
   log(`Using import source: ${importSource.name} (id=${importSource.id})`);
 
-  // Load valid country codes once to guard against KNN returning codes absent from our boundaries.
-  // Sourced from the distinct country_code values carried by the admin boundaries.
+  // Country codes come from the admin boundaries, which are also what the nearest-boundary lookup
+  // searches. With none loaded, every feature would fail to resolve a country, and failing to
+  // resolve drops the feature from this sync entirely: the run would delete the whole OSM corpus.
+  // Refuse to proceed instead.
   const validCountryCodes = new Set(
     (
       await db
@@ -411,6 +321,12 @@ async function main() {
       .map((r) => r.code)
       .filter((code): code is string => code !== null),
   );
+  if (validCountryCodes.size === 0) {
+    console.error(
+      "No admin boundaries carry a country code. Run import-boundaries before importing OSM features.",
+    );
+    process.exit(1);
+  }
   log(`Loaded ${validCountryCodes.size} valid country codes`);
 
   // Preload externalId -> countryCode for rows already resolved in a prior run. A nearest-boundary
@@ -500,6 +416,10 @@ async function main() {
     let inserted = 0;
     let skipped = 0;
     let unchanged = 0;
+    // Features left un-upserted because no country could be resolved, sampled so a run that starts
+    // discarding real data names the features instead of only counting them.
+    let skippedUnresolvedCountry = 0;
+    const skippedCountrySamples: string[] = [];
 
     // Resolve countryCode for each feature before the upsert loop. Reuse the preloaded value when the
     // feature already exists, and only feed the misses (new features) into the KNN lookup.
@@ -567,7 +487,15 @@ async function main() {
         const name = (props["display_name"] as string | undefined)?.trim() || null;
         const description = (props["description"] as string | undefined)?.trim() || null;
         const countryCode = countryCodes[i] ?? null;
-        if (!countryCode || !validCountryCodes.has(countryCode)) {
+        if (!countryCode) {
+          // Counted as seen so the prune leaves any existing row alone: the feature is present in
+          // this extract, only its country is underivable, and dropping the row would lose data the
+          // previous run resolved.
+          if (externalId) seenExternalIds.push(externalId);
+          skippedUnresolvedCountry++;
+          if (skippedCountrySamples.length < 10 && externalId) {
+            skippedCountrySamples.push(externalId);
+          }
           skipped++;
           continue;
         }
@@ -582,18 +510,8 @@ async function main() {
         const externalProperties =
           rawImage && /^https?:\/\//.test(rawImage) ? props : { ...props, image: undefined };
 
-        // Source URL: prefer source:url, then first URL in source tag, then website as fallback.
         // website is always preserved in externalProperties, so both are accessible downstream.
-        const firstUrlInSource =
-          (props["source"] as string | undefined)
-            ?.split(";")
-            .map((s) => s.trim())
-            .find((s) => s.startsWith("http")) ?? null;
-        const sourceUrl =
-          (props["source:url"] as string | undefined) ||
-          firstUrlInSource ||
-          (props["website"] as string | undefined) ||
-          null;
+        const sourceUrl = deriveSourceUrl(props);
 
         // Dates: opening_date → endDate, start_date / construction_start_expected → startDate
         const endParsed = parseOsmDate(props["opening_date"]) ?? parseOsmDate(props["end_date"]);
@@ -676,6 +594,14 @@ async function main() {
     log(
       `Finished ${path.basename(geojsonPath)}. Inserted: ${inserted}, unchanged: ${unchanged}, skipped: ${skipped}`,
     );
+
+    if (skippedUnresolvedCountry > 0) {
+      console.warn(
+        `  WARNING: ${skippedUnresolvedCountry} feature(s) resolved no country and were left un-upserted.`,
+      );
+      console.warn(`    Usually a feature carrying no usable geometry to place.`);
+      console.warn(`    sample ids: ${skippedCountrySamples.join(", ")}`);
+    }
   }
 
   console.log("");

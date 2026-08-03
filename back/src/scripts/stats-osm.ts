@@ -14,9 +14,9 @@ import * as path from "node:path";
 
 const SNAPSHOT_PATH = path.join(process.cwd(), "back/src/scripts/projects-stats-snapshot.json");
 
-type Distribution = Record<string, number>;
+export type Distribution = Record<string, number>;
 
-interface Snapshot {
+export interface Snapshot {
   timestamp: string;
   total: number;
   osm: number;
@@ -46,7 +46,11 @@ async function queryDistribution(
   return out;
 }
 
-async function collectSnapshot(): Promise<Snapshot> {
+export async function collectSnapshot(
+  filter: ReturnType<typeof sql> = sql`TRUE`,
+): Promise<Snapshot> {
+  const source = sql`(SELECT * FROM projects WHERE ${filter})`;
+
   const totalsRaw = await db.execute<{
     total: string;
     osm: string;
@@ -58,7 +62,7 @@ async function collectSnapshot(): Promise<Snapshot> {
       COUNT(*) FILTER (WHERE import_source_id IS NOT NULL)                 AS osm,
       COUNT(*) FILTER (WHERE import_source_id IS NULL AND detached_at IS NULL) AS user_submitted,
       COUNT(*) FILTER (WHERE detached_at IS NOT NULL)                      AS detached
-    FROM projects
+    FROM ${source} projects
   `);
   const t = totalsRaw[0]!;
   const total = Number(t.total);
@@ -78,7 +82,7 @@ async function collectSnapshot(): Promise<Snapshot> {
           WHEN bool_or(GeometryType(d.geom) LIKE '%POLYGON')     THEN 'areal'
           ELSE 'other'
         END AS shape
-      FROM projects p
+      FROM ${source} p
       LEFT JOIN LATERAL ST_Dump(p.geometry) AS d ON TRUE
       GROUP BY p.id, p.geometry
     ) sub
@@ -89,18 +93,18 @@ async function collectSnapshot(): Promise<Snapshot> {
   for (const r of shapeRaw) projectShape[r.shape] = Number(r.count);
 
   const approvalStatus = await queryDistribution(
-    sql`SELECT status, COUNT(*) AS count FROM projects GROUP BY status ORDER BY count DESC`,
+    sql`SELECT status, COUNT(*) AS count FROM ${source} projects GROUP BY status ORDER BY count DESC`,
     "status",
   );
 
   const timelineStatus = await queryDistribution(
-    sql`SELECT timeline_status, COUNT(*) AS count FROM projects GROUP BY timeline_status ORDER BY count DESC`,
+    sql`SELECT timeline_status, COUNT(*) AS count FROM ${source} projects GROUP BY timeline_status ORDER BY count DESC`,
     "timeline_status",
   );
 
   const tagRows = await db.execute<{ tag: string; count: string }>(sql`
     SELECT tag, COUNT(*) AS count
-    FROM projects, unnest(tags) AS tag
+    FROM ${source} projects, unnest(tags) AS tag
     GROUP BY tag
     ORDER BY count DESC
   `);
@@ -109,7 +113,7 @@ async function collectSnapshot(): Promise<Snapshot> {
   const taggedCount = Number(
     (
       await db.execute<{ n: string }>(
-        sql`SELECT COUNT(*) AS n FROM projects WHERE tags IS NOT NULL AND array_length(tags, 1) > 0`,
+        sql`SELECT COUNT(*) AS n FROM ${source} projects WHERE tags IS NOT NULL AND array_length(tags, 1) > 0`,
       )
     )[0]!.n,
   );
@@ -122,7 +126,7 @@ async function collectSnapshot(): Promise<Snapshot> {
         ELSE array_length(tags, 1)::text
       END AS n_tags,
       COUNT(*) AS count
-    FROM projects
+    FROM ${source} projects
     GROUP BY CASE
         WHEN tags IS NULL OR array_length(tags, 1) = 0 THEN '0'
         ELSE array_length(tags, 1)::text
@@ -135,7 +139,7 @@ async function collectSnapshot(): Promise<Snapshot> {
   const countries = await queryDistribution(
     sql`
       SELECT COALESCE(country_code, '(null)') AS country_code, COUNT(*) AS count
-      FROM projects
+      FROM ${source} projects
       GROUP BY country_code
       ORDER BY count DESC
       LIMIT 20
@@ -146,7 +150,7 @@ async function collectSnapshot(): Promise<Snapshot> {
   const importSources = await queryDistribution(
     sql`
       SELECT COALESCE(s.slug, '(user-submitted)') AS source, COUNT(*) AS count
-      FROM projects p
+      FROM ${source} p
       LEFT JOIN import_sources s ON s.id = p.import_source_id
       GROUP BY s.slug
       ORDER BY count DESC
@@ -160,7 +164,7 @@ async function collectSnapshot(): Promise<Snapshot> {
       COUNT(*) FILTER (WHERE geometry IS NOT NULL)            AS has_geometry,
       COUNT(*) FILTER (WHERE lat IS NOT NULL)                 AS has_lat,
       COUNT(*) FILTER (WHERE source_url IS NOT NULL)          AS has_source_url
-    FROM projects
+    FROM ${source} projects
   `);
   const comp = compRaw[0]!;
   const completeness: Record<string, number> = {
@@ -180,7 +184,7 @@ async function collectSnapshot(): Promise<Snapshot> {
           ELSE 'other'
         END AS id_type,
         COUNT(*) AS count
-      FROM projects
+      FROM ${source} projects
       GROUP BY id_type
       ORDER BY count DESC
     `,
@@ -199,7 +203,7 @@ async function collectSnapshot(): Promise<Snapshot> {
         ELSE                                   '> 200km'
       END AS bucket,
       COUNT(*) AS count
-    FROM projects
+    FROM ${source} projects
     GROUP BY bucket
     ORDER BY MIN(COALESCE(geometry_size_m, -1))
   `);
@@ -242,9 +246,9 @@ function printDistribution(title: string, dist: Distribution, total: number) {
   }
 }
 
-function printSnapshot(s: Snapshot) {
+export function printSnapshot(s: Snapshot, title = "projects table snapshot") {
   console.log("=".repeat(60));
-  console.log("  projects table snapshot, " + s.timestamp);
+  console.log(`  ${title}, ${s.timestamp}`);
   console.log("=".repeat(60));
 
   console.log(`\nTOTAL ROWS: ${s.total}`);
@@ -301,9 +305,9 @@ function diffDistribution(title: string, before: Distribution, after: Distributi
   for (const l of lines) console.log(l);
 }
 
-function printDiff(before: Snapshot, after: Snapshot) {
+export function printDiff(before: Snapshot, after: Snapshot, title = "projects table diff") {
   console.log("=".repeat(60));
-  console.log("  projects table diff");
+  console.log(`  ${title}`);
   console.log(`  before: ${before.timestamp}`);
   console.log(`  after:  ${after.timestamp}`);
   console.log("=".repeat(60));
@@ -376,7 +380,9 @@ async function main() {
   printSnapshot(snapshot);
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+if (import.meta.main) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
