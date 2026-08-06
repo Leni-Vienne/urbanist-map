@@ -118,7 +118,11 @@ async function refreshContributionCount(key: string): Promise<void> {
   countLoading.value = true;
   try {
     const result = await loadOrNull(async () =>
-      trpc.feed.getContributionCount.query(buildFilterQueryInput()),
+      // Out of the batch: counting is far slower than fetching a page, and the list must not wait
+      // on it.
+      trpc.feed.getContributionCount.query(buildFilterQueryInput(), {
+        context: { skipBatch: true },
+      }),
     );
     if (token !== countRequestToken || !result) return;
     latestProjectCount.value = result.count;
