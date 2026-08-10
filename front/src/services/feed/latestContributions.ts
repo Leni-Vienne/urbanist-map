@@ -3,6 +3,7 @@ import { trpc, type RouterOutput } from "@/client";
 import { loadOrNull } from "@/services/core/errorHandling";
 import { useUiStore } from "@/stores/uiStore";
 import { feedFilterInput } from "@/services/core/filters";
+import { debounce } from "@/utils/debounce";
 import type { LatestContribution } from "@/types/index";
 
 type FeedCursor = RouterOutput["feed"]["getLatestContributions"]["nextCursor"];
@@ -259,11 +260,18 @@ watch(sourceSelection, (selection) => {
   osmEverSelected.value ||= selection.includes("osm");
 });
 
-// Only the on-screen edge is watched here: `isFeedActive` reads a Pinia store, which is not yet
-// installed when this module is imported. The tab coming back on screen is picked up by
-// activateLatestContributions instead.
-watch(queryKey, () => {
+// A range slider rewrites the query on every step of a drag, and each intermediate query would
+// otherwise cost a page fetch plus an unbatched count query whose answers are thrown away on
+// arrival. Waiting for the query to settle sends one pair.
+const FILTER_SETTLE_MS = 300;
+
+const scheduleFilteredRefresh = debounce(() => {
   if (isFeedActive.value) {
     ensureLatestContributions();
   }
-});
+}, FILTER_SETTLE_MS);
+
+// Only the on-screen edge is watched here: `isFeedActive` reads a Pinia store, which is not yet
+// installed when this module is imported. The tab coming back on screen is picked up by
+// activateLatestContributions instead.
+watch(queryKey, scheduleFilteredRefresh);
