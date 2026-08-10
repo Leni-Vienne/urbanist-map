@@ -5,9 +5,10 @@ import { getMapOrNull } from "@/services/core/map";
 const STORAGE_KEY = "urbanist-map-label-lang";
 
 // "auto" follows the browser language, "default" keeps OpenFreeMap's own labels
-// (Latin transliteration + local script), "local" shows each place's native name,
-// any other value is a concrete OSM name:<code> language (e.g. "ja", "de").
-export type MapLabelLanguage = "auto" | "default" | "local" | (string & {});
+// (Latin transliteration + local script), "local" shows each place's native name.
+export type MapLabelLanguage = "auto" | "default" | "local";
+
+const MAP_LABEL_LANGUAGES: readonly MapLabelLanguage[] = ["auto", "default", "local"];
 
 /** The browser's primary language as a bare OSM name:<code> language (e.g. "ja", "de"). */
 export function getBrowserLanguageCode(): string {
@@ -24,7 +25,8 @@ export function getBrowserLanguageName(): string {
   }
 }
 function readStoredPreference(): MapLabelLanguage {
-  return localStorage.getItem(STORAGE_KEY) ?? "auto";
+  const stored = localStorage.getItem(STORAGE_KEY);
+  return MAP_LABEL_LANGUAGES.find((lang) => lang === stored) ?? "auto";
 }
 
 // The chosen map label language, persisted to localStorage and mirrored reactively so views
@@ -40,21 +42,15 @@ type BoundaryNameVariants = {
 
 // Pick a boundary's display name honouring the map label language, falling back to the UI locale,
 // then English, then the native name. "local" forces the native name; "default" defers to the UI
-// locale (the breadcrumb's prior behaviour); "auto"/explicit codes use that OSM name:<code> first,
-// so a zh user finally gets Chinese names that the en/fr-only UI locale could never provide.
+// locale; "auto" uses the browser language's OSM name:<code> first, so a zh user gets Chinese names
+// that the en/fr-only UI locale could never provide.
 export function pickBoundaryName(
   entry: BoundaryNameVariants,
   preference: MapLabelLanguage,
   uiLocale: string,
 ): string {
   if (preference === "local") return entry.name;
-  let code: string | null = null;
-  if (preference === "auto") {
-    code = getBrowserLanguageCode();
-  } else if (preference !== "default") {
-    code = preference;
-  }
-  const byMapLanguage = code ? entry.names?.[code] : undefined;
+  const byMapLanguage = preference === "auto" ? entry.names?.[getBrowserLanguageCode()] : undefined;
   return byMapLanguage ?? entry.names?.[uiLocale] ?? entry.nameEn ?? entry.name;
 }
 
@@ -63,24 +59,16 @@ export function pickBoundaryName(
 // across style reloads, so a cached original stays valid after satellite/plan switches.
 const originalTextFields = new Map<string, unknown>();
 
-// Resolve the preference to the OSM name:<code> language to render, or null for native names.
-function resolveLanguageCode(preference: MapLabelLanguage): string | null {
-  if (preference === "local") return null;
-  if (preference === "auto") return getBrowserLanguageCode();
-  return preference;
-}
-
 // Liberty's label layers default to local/native names. We rewrite their text-field to prefer the
 // chosen language, falling back to the local Latin name then the raw OSM name so untranslated
 // places still render.
-function buildNameExpression(preference: MapLabelLanguage): ExpressionSpecification {
-  const code = resolveLanguageCode(preference);
-  if (code === null) {
+function buildNameExpression(preference: "auto" | "local"): ExpressionSpecification {
+  if (preference === "local") {
     return ["coalesce", ["get", "name"], ["get", "name:latin"]];
   }
   const translated: ExpressionSpecification = [
     "coalesce",
-    ["get", `name:${code}`],
+    ["get", `name:${getBrowserLanguageCode()}`],
     ["get", "name:latin"],
     ["get", "name"],
   ];
@@ -111,8 +99,7 @@ export function applyMapLabelLanguage(
   mlMap: MaplibreMap,
   preference: MapLabelLanguage = mapLabelLanguageRef.value,
 ): void {
-  const useStyleDefault = preference === "default";
-  const nameExpression = useStyleDefault ? null : buildNameExpression(preference);
+  const nameExpression = preference === "default" ? null : buildNameExpression(preference);
 
   for (const layer of mlMap.getStyle().layers) {
     if (layer.type !== "symbol") continue;
@@ -124,7 +111,7 @@ export function applyMapLabelLanguage(
       originalTextFields.set(layer.id, textField);
     }
 
-    const value = useStyleDefault ? originalTextFields.get(layer.id) : nameExpression;
+    const value = nameExpression ?? originalTextFields.get(layer.id);
     mlMap.setLayoutProperty(layer.id, "text-field", value as AllLayoutProperties["text-field"]);
   }
 }

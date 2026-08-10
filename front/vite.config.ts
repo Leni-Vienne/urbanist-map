@@ -141,9 +141,7 @@ export default defineConfig(({ mode }) => {
       ],
     },
     build: {
-      sourcemap: false,
       license: true,
-      cssCodeSplit: true, // Extract CSS per chunk for parallel loading
       rolldownOptions: {
         output: {
           codeSplitting: {

@@ -106,3 +106,15 @@ loki.write "default" {
     }
   }
 }
+
+// The daily OSM refresh logs to the host journal rather than to a container, and every stack on the
+// box runs this same config off the same journal. JOURNAL_UNIT is set on one stack only; anywhere
+// else it is empty and the match names a unit that exists nowhere, so the stream is shipped once.
+// The unit runs once a day and logs per step, so no relabelling is needed to keep it bounded: both
+// labels below are constant, and journal metadata is dropped without a relabel rule to promote it.
+loki.source.journal "osm" {
+  path       = "/var/log/journal"
+  matches    = "_SYSTEMD_UNIT=" + coalesce(env("JOURNAL_UNIT"), "unset.service")
+  labels     = { job = "systemd-journal", service = "osm-update" }
+  forward_to = [loki.write.default.receiver]
+}

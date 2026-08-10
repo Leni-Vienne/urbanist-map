@@ -40,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 import {
   availableLocales,
@@ -52,26 +52,11 @@ import {
 
 const { locale } = useI18n();
 const languagePopover = ref<{
-  visible: boolean;
   toggle(event: Event): void;
   hide(): void;
 } | null>(null);
 const isLoading = ref(false);
 const loadingLocale = ref<Locale | null>(null);
-
-onMounted(() => {
-  window.addEventListener("resize", handleResize);
-});
-
-onUnmounted(() => {
-  window.removeEventListener("resize", handleResize);
-});
-
-function handleResize() {
-  if (languagePopover.value?.visible) {
-    languagePopover.value?.hide();
-  }
-}
 
 function toggleMenu(event: Event) {
   languagePopover.value?.toggle(event);

@@ -167,6 +167,8 @@ jobs:
             BACKEND_PORT="3000"
             ALLOY_PORT="12345"
             DATABASE_URL="postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/construction_map"
+            # The OSM refresh timer runs once for the whole box, so only this stack ships its journal.
+            JOURNAL_UNIT="osm-update.service"
           else
             DEPLOY_DIR="/opt/construction-map-preview"
             COMPOSE_PROJECT_NAME="construction-map-preview"
@@ -175,6 +177,7 @@ jobs:
             BACKEND_PORT="3001"
             ALLOY_PORT="12346"
             DATABASE_URL="postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/construction_map_preview"
+            JOURNAL_UNIT=""
           fi
 
           # Check if files exist
@@ -225,6 +228,7 @@ jobs:
           DB_PORT=${DB_PORT}
           BACKEND_PORT=${BACKEND_PORT}
           ALLOY_PORT=${ALLOY_PORT}
+          JOURNAL_UNIT=${JOURNAL_UNIT}
           GCLOUD_HOSTED_LOGS_URL=${GCLOUD_HOSTED_LOGS_URL}
           GCLOUD_HOSTED_LOGS_ID=${GCLOUD_HOSTED_LOGS_ID}
           GCLOUD_RW_API_KEY=${GCLOUD_RW_API_KEY}

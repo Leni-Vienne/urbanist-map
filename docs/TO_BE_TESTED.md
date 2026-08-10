@@ -542,14 +542,16 @@ Sections are grouped by feature area:
   4.  Switch back to **"Latest Contributions"** panel.
   5.  **Check**: Scroll position is preserved (still at halfway point).
 
-### 6.2. Panel State Preserved Across Mode Switches
+### 6.2. Panel State Across Mode Switches
 
-- **Scenario**: Panel accordion states and computed data are preserved when changing modes.
+- **Scenario**: Accordion state is store-backed and survives mode switches; the contribute and
+  moderation panels remount and reload their data on every visit.
 - **Steps**:
   1.  Open a project accordion in **View Mode**.
   2.  Switch to **Edit Mode**.
   3.  **Check**: Previously opened accordion remains open.
-  4.  **Check**: Computed data (change requests, etc.) doesn't re-initialize unnecessarily.
+  4.  Sign out, sign in as another account, and open the **Contribute** panel.
+  5.  **Check**: Contributions belong to the new account, with no leftovers from the previous one.
 
 ### 6.3. Overlay Click Expands and Scrolls Panel
 
@@ -607,6 +609,18 @@ Sections are grouped by feature area:
   3.  **Check**: Camera flies across countries to USA.
   4.  **Check**: No freezing or stuttering during flight.
   5.  **Check**: Correct overlay is selected upon arrival.
+
+### 6.8. Contribution Feed Pagination and Filters
+
+- **Scenario**: Mixed contribution streams remain complete and stable across page boundaries.
+- **Steps**:
+  1.  Open **Explore** with both community and OSM sources selected.
+  2.  Scroll through enough pages to pass the oldest community contribution.
+  3.  **Check**: Contributions remain newest-first without duplicates or missing rows.
+  4.  **Check**: Unnamed imported projects appear when the name filter is not active.
+  5.  Enable **Only with images** and repeat the scroll.
+  6.  **Check**: Every standalone project has a render and every overlay has its map image.
+  7.  **Check**: The project count updates when source or filters change and stays unchanged while loading more pages.
 
 ## 7. Filtering
 

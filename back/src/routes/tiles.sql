@@ -47,16 +47,7 @@ shapes AS (
       -- Whether this project has at least one approved georeferenced overlay image, so the client
       -- can filter the map down to projects that carry imagery. Renders are excluded: they are not
       -- placed on the map, so they must not flag a project as having map imagery.
-      EXISTS (SELECT 1 FROM overlays o WHERE o.project_id = p.id AND o.status = 'approved' AND o.kind = 'map') AS has_image,
-      -- Stable popup anchor: a point on the geometry itself, unaffected by tile clipping
-      ST_Y(p.center_coordinate) AS popup_lat,
-      ST_X(p.center_coordinate) AS popup_lng,
-      -- Unclipped geometry bbox so the client can fitBounds the whole shape on click instead of
-      -- approximating a square from the scalar geometry_size_m around the on-surface anchor.
-      ST_XMin(p.geometry) AS bbox_w,
-      ST_YMin(p.geometry) AS bbox_s,
-      ST_XMax(p.geometry) AS bbox_e,
-      ST_YMax(p.geometry) AS bbox_n
+      EXISTS (SELECT 1 FROM overlays o WHERE o.project_id = p.id AND o.status = 'approved' AND o.kind = 'map') AS has_image
     FROM projects p, tile_env te
     WHERE $1 >= 4
       AND p.status = 'approved'
@@ -93,9 +84,6 @@ footprints AS (
       array_to_json(COALESCE(p.tags, ARRAY[]::text[]))::text AS tags,
       COALESCE(p.tags[1], '') AS first_tag,
       p.timeline_status,
-      -- Drives a permanent border on the client for overlays whose project has no drawn
-      -- shape, so the image doesn't blend into the basemap.
-      CASE WHEN p.geometry IS NOT NULL THEN true ELSE false END AS has_geometry,
       -- Used to filter footprints (and their rendered images) by last modified date.
       EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s,
       -- Extract the four individual corner latitude and longitude coordinates for rendering the overlay map image on the client
@@ -129,7 +117,6 @@ points AS (
         raw_q.tags,
         raw_q.first_tag,
         raw_q.timeline_status,
-        raw_q.has_geometry,
         raw_q.has_image,
         raw_q.is_named,
         raw_q.last_modified_s,
@@ -153,7 +140,6 @@ points AS (
           COALESCE(p.tags, ARRAY[]::text[]) AS tags,
           COALESCE(p.tags[1], '') AS first_tag,
           p.timeline_status,
-          CASE WHEN p.geometry IS NOT NULL THEN true ELSE false END AS has_geometry,
           EXISTS (SELECT 1 FROM overlays o WHERE o.project_id = p.id AND o.status = 'approved' AND o.kind = 'map') AS has_image,
           ROUND(p.geometry_size_m)::int AS geometry_size_m,
           CASE WHEN p.name IS NOT NULL AND p.name != '' THEN 1 ELSE 0 END AS is_named,
@@ -251,10 +237,8 @@ points AS (
       array_to_json(f.tags)::text AS tags,
       f.first_tag,
       f.timeline_status,
-      f.has_geometry,
       f.cluster_has_image AS has_image,
       f.is_named,
-      f.last_modified_s,
       f.min_last_modified_s,
       f.max_last_modified_s,
       ca.cluster_tags,
@@ -278,11 +262,9 @@ points AS (
       ca.count_cable_car,
       ca.count_airport,
       ca.count_waterway,
-      f.geometry_size_m,
       f.min_size_m,
       f.max_size_m,
       f.cell_count,
-      f.quality_score,
       (f.quality_score >= 150) AS is_high_quality
     FROM ranked_q f
     LEFT JOIN cluster_agg ca

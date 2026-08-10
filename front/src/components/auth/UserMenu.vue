@@ -122,7 +122,7 @@
 <script setup lang="ts">
 import { toastSuccess, toastError } from "@/services/core/toast";
 
-import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from "vue";
+import { ref, computed, defineAsyncComponent } from "vue";
 import { isSyntheticEmail } from "@shared/types";
 import { hasUnsavedChanges } from "@/services/overlay/unsavedState";
 import { useAuthStore } from "@/stores/authStore";
@@ -193,19 +193,4 @@ function openModerationResults() {
   uiStore.moderatedContributionsDialogVisible = true;
   userPopover.value?.hide();
 }
-
-// Close the menu on resize, including on touch devices where the Popover keeps itself open
-function handleResize() {
-  if (isMenuOpen.value) {
-    userPopover.value?.hide();
-  }
-}
-
-onMounted(() => {
-  window.addEventListener("resize", handleResize);
-});
-
-onUnmounted(() => {
-  window.removeEventListener("resize", handleResize);
-});
 </script>

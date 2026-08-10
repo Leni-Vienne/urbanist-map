@@ -110,6 +110,9 @@ services:
       - ./alloy-config.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - alloy_data:/var/lib/alloy/data
+      # Host journal, read by the osm-update log source (machine-id resolves the journal directory).
+      - /var/log/journal:/var/log/journal:ro
+      - /etc/machine-id:/etc/machine-id:ro
     environment:
       # Grafana Cloud Loki push endpoint, instance ID, and token (names match the Grafana onboarding script)
       GCLOUD_HOSTED_LOGS_URL: ${GCLOUD_HOSTED_LOGS_URL}
@@ -117,6 +120,8 @@ services:
       GCLOUD_RW_API_KEY: ${GCLOUD_RW_API_KEY}
       # Project name for container filtering in alloy-config.alloy
       COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME}
+      # Systemd unit whose journal is shipped. Empty on every stack that must not ship it.
+      JOURNAL_UNIT: ${JOURNAL_UNIT:-}
     networks:
       - app-network
     ports:

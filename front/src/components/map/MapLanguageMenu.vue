@@ -51,17 +51,15 @@ const mapLanguagePopover = ref<{
   hide(): void;
 } | null>(null);
 
-const options = computed(() => [
-  { code: "default" as MapLabelLanguage, name: t("controls.mapLanguageDefault") },
-  { code: "local" as MapLabelLanguage, name: t("controls.mapLanguageLocal") },
-  { code: "auto" as MapLabelLanguage, name: getBrowserLanguageName() },
+const options = computed<{ code: MapLabelLanguage; name: string }[]>(() => [
+  { code: "default", name: t("controls.mapLanguageDefault") },
+  { code: "local", name: t("controls.mapLanguageLocal") },
+  { code: "auto", name: getBrowserLanguageName() },
 ]);
 
 const currentLabel = computed(() => {
   if (mapLabelLanguageRef.value === "auto") return getBrowserLanguageCode().toUpperCase();
-  if (mapLabelLanguageRef.value === "default") return "DEF";
-  if (mapLabelLanguageRef.value === "local") return "LOCAL";
-  return mapLabelLanguageRef.value.toUpperCase();
+  return mapLabelLanguageRef.value === "default" ? "DEF" : "LOCAL";
 });
 
 function toggleMenu(event: Event): void {

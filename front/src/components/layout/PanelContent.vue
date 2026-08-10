@@ -1,18 +1,18 @@
 <template>
   <div :class="contentContainerClass">
+    <!-- Only ExplorePanel is cached: it restores its feed scroll position and reattaches its
+         load-more observer on activation. The other panels load their data on mount, so caching
+         them would strand stale contributions and moderation queues across account switches. -->
     <KeepAlive>
       <ExplorePanel v-if="activeTab === 'latest'" />
-      <!-- overflow-x hidden removes the spurious horizontal scrollbar from the sliders -->
-      <div
-        v-else-if="activeTab === 'filter'"
-        class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4"
-      >
-        <FilterPanelContent :show-heading="false" />
-      </div>
-      <ContributePanel v-else-if="activeTab === 'contribute' && authStore.isAuthenticated" />
-      <ContributeGuestPanel v-else-if="activeTab === 'contribute' && !authStore.isAuthenticated" />
-      <ModerationPanel v-else-if="activeTab === 'moderation' && authStore.isModerator" />
     </KeepAlive>
+    <!-- overflow-x hidden removes the spurious horizontal scrollbar from the sliders -->
+    <div v-if="activeTab === 'filter'" class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4">
+      <FilterPanelContent :show-heading="false" />
+    </div>
+    <ContributePanel v-else-if="activeTab === 'contribute' && authStore.isAuthenticated" />
+    <ContributeGuestPanel v-else-if="activeTab === 'contribute' && !authStore.isAuthenticated" />
+    <ModerationPanel v-else-if="activeTab === 'moderation' && authStore.isModerator" />
   </div>
 </template>
 
