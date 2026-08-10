@@ -194,9 +194,12 @@ import {
   type ProjectTag,
 } from "@/constants/projectTags";
 import { useTheme } from "@/composables/core/useTheme";
+import { markFiltersSeen } from "@/services/core/settings";
 import LinePreview from "@/components/common/LinePreview.vue";
 
 withDefaults(defineProps<{ showHeading?: boolean }>(), { showHeading: true });
+
+markFiltersSeen();
 
 const { t } = useI18n();
 

@@ -185,7 +185,7 @@
     "tryWideningFilters": "Élargissez un filtre, ou ajoutez le premier depuis Contribuer.",
     "filterBySource": "Filtrer par source",
     "sourceCommunity": "Site",
-    "sourceOsmShort": "OSM",
+    "sourceOsm": "OpenStreetMap",
     "moreFilters": "Plus de filtres",
     "mapArea": "Zone de la carte",
     "endOfCommunityFeed": "Fin des contributions du site.",

@@ -30,7 +30,7 @@
 
         <div class="relative ml-auto inline-flex shrink-0">
           <span
-            v-if="hasPopoverFilters"
+            v-if="showFilterDot"
             class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-content-background pointer-events-none z-10"
           />
           <Button
@@ -265,6 +265,7 @@ import { useImageErrors } from "@/composables/ui/useImageErrors";
 import { useFocusStore } from "@/stores/focusStore";
 import { useUiStore } from "@/stores/uiStore";
 import { isMobile } from "@/services/core/viewport";
+import { filtersSeen } from "@/services/core/settings";
 
 import { useScrollFade } from "@/composables/ui/useScrollFade";
 import {
@@ -286,7 +287,7 @@ const isOsmSyncExpanded = ref(false);
 
 const SOURCE_OPTIONS = computed(() => [
   { value: "community" as const, label: t("contribution.sourceCommunity") },
-  { value: "osm" as const, label: t("contribution.sourceOsmShort") },
+  { value: "osm" as const, label: t("contribution.sourceOsm") },
 ]);
 
 // Drives the empty-state copy: an empty list means something different when the query was narrowed.
@@ -298,6 +299,8 @@ const showOsmInvite = computed(() => source.value === "community" && !hasMore.va
 
 // Everything reachable only through the popover, so the button can show that something is applied.
 const hasPopoverFilters = computed(() => activeFilterCount.value > 0 || mapArea.value !== null);
+// Before the filter surface has ever been opened the dot is a discovery hint instead.
+const showFilterDot = computed(() => hasPopoverFilters.value || !filtersSeen.value);
 const hasChippedFilters = computed(() => activeFilters.value.length > 0 || mapArea.value !== null);
 const osmSyncLabel = computed(() =>
   t("contribution.osmDataUpdated", {
