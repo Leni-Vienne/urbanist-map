@@ -18,10 +18,6 @@ import type { OverlayObject, LatLng } from "@/types/index";
 
 // Centralized registry for all overlay layer references (image sources + markers).
 // Single source of truth for "is this overlay rendered on the map?".
-// Design principles:
-//   - Pure map-layer lifecycle management, no Vue reactivity (not in Pinia)
-//   - All creation goes through beginCreation(), atomically prevents duplicate layers
-//   - clearAll() is the single cleanup path
 // MapLibre image-source state for one overlay.
 interface OverlayImageHandle {
   sourceId: string;
@@ -42,9 +38,6 @@ interface RegistryEntry {
 }
 
 const entries = new Map<string, RegistryEntry>();
-// Tracks IDs currently being created.
-// Internal to this module; callers use beginCreation/endCreation API.
-const creating = new Set<string>();
 
 // Overlays under an active pointer gesture (surface/corner drag, crop) own their GL position: the
 // image is deliberately ahead of the store mid-gesture, so the reconciler must neither move nor
@@ -100,32 +93,6 @@ export function scheduleOverlayReconcile(): void {
   overlayReconcileScheduler?.();
 }
 
-// ─── Creation mutex ───────────────────────────────────────────────────────────
-
-/**
- * Atomically begin creation for an overlay.
- * Returns true if creation can proceed, false if:
- *   - Already being created (prevents duplicate async callbacks)
- *   - Already has a ready layer (prevents re-creation)
- * Callers MUST call endCreation() once creation settles, on every success and failure path.
- */
-export function beginCreation(id: string): boolean {
-  if (creating.has(id)) return false;
-  const entry = entries.get(id);
-  if (entry !== undefined && entry.imageHandle !== null) return false;
-  creating.add(id);
-  return true;
-}
-
-// Release the creation mutex taken by beginCreation. Call on completion (success or failure).
-export function endCreation(id: string): void {
-  creating.delete(id);
-}
-
-export function isCreating(id: string): boolean {
-  return creating.has(id);
-}
-
 export function hasReadyLayer(id: string): boolean {
   return (entries.get(id)?.imageHandle ?? null) !== null;
 }
@@ -147,12 +114,13 @@ export function getMarker(id: string): MaplibreMarker | null {
 
 // ─── Image handle (MapLibre image source) ────────────────────────────────────
 
-export function setImageHandle(id: string, handle: OverlayImageHandle): void {
+function registerImageHandle(id: string, handle: OverlayImageHandle, corners: LatLng[]): void {
   const entry = entries.get(id);
   if (entry) {
     entry.imageHandle = handle;
+    entry.lastAppliedCorners = corners;
   } else {
-    entries.set(id, { marker: null, imageHandle: handle, lastAppliedCorners: null });
+    entries.set(id, { marker: null, imageHandle: handle, lastAppliedCorners: corners });
   }
 
   const waiters = imageReadyWaiters.get(id);
@@ -166,7 +134,7 @@ export function setImageHandle(id: string, handle: OverlayImageHandle): void {
 // ─── Image-ready notifications ─────────────────────────────────────────────────
 // The viewport loop creates an overlay's image layer asynchronously after a camera move, so
 // callers that act on a freshly-rendered overlay (auto-select, selection visuals, toolbar anchor)
-// wait for it here. setImageHandle is the single point where a layer comes online.
+// wait for it here. registerImageHandle is the single point where a layer comes online.
 interface ImageReadyWaiter {
   fire: () => void;
   cancel: () => void;
@@ -176,9 +144,8 @@ const imageReadyWaiters = new Map<string, Set<ImageReadyWaiter>>();
 
 /**
  * Run `onReady` once the overlay's image layer is ready: immediately if it already is, otherwise
- * when setImageHandle next registers it. The callback always runs on a microtask, never inline
- * inside setImageHandle, because the render loop registers the handle before it commits the
- * overlay to the store. A `timeoutMs` may be given for overlays that might never render (e.g. one
+ * when createOverlayImage next registers it. The callback always runs on a microtask, never inline
+ * during image creation. A `timeoutMs` may be given for overlays that might never render (e.g. one
  * that stays outside the viewport); `onTimeout` fires instead in that case. Returns a cancel
  * function; calling it before the callback fires detaches the waiter.
  */
@@ -309,7 +276,6 @@ export function clearEntry(id: string): void {
   entry.marker?.remove();
 
   entries.delete(id);
-  creating.delete(id);
 }
 
 /**
@@ -319,8 +285,6 @@ export function clearEntry(id: string): void {
  *                          re-created. If false, remove both.
  */
 export function clearAll(preserveMarkers: boolean): void {
-  creating.clear();
-
   for (const [id, entry] of entries) {
     if (entry.imageHandle) {
       removeImageFromMap(entry.imageHandle);
@@ -470,17 +434,14 @@ function getImageSource(sourceId: string): ImageSource | undefined {
 
 // Add an image source + raster layer for one overlay. The raster layer's minzoom hides the image
 // below the zoom threshold natively.
-export function createOverlayImage(
-  overlayObject: OverlayObject,
-  corners: LatLng[],
-): OverlayImageHandle | null {
+export function createOverlayImage(overlayObject: OverlayObject, corners: LatLng[] | null): void {
   const mlMap = getMap();
-  if (!isValidQuad(corners)) return null;
+  if (!isValidQuad(corners)) return;
 
   const sourceId = overlaySourceId(overlayObject.id);
   const rasterLayerId = overlayRasterLayerId(overlayObject.id);
 
-  if (mlMap.getSource(sourceId)) return null;
+  if (mlMap.getSource(sourceId)) return;
 
   const opacity = getOverlayOpacity(overlayObject.id);
 
@@ -500,27 +461,21 @@ export function createOverlayImage(
       },
       frontOverlayIds.has(overlayObject.id) ? undefined : getVectorLayersBottomId(mlMap),
     );
+    registerImageHandle(
+      overlayObject.id,
+      {
+        sourceId,
+        rasterLayerId,
+        transform: cornersToTransform(corners),
+        imageUrl: overlayObject.imageUrl,
+      },
+      corners,
+    );
   } catch (error) {
     console.error("Failed to create overlay image:", overlayObject.id, error);
     if (mlMap.getLayer(rasterLayerId)) mlMap.removeLayer(rasterLayerId);
     if (mlMap.getSource(sourceId)) mlMap.removeSource(sourceId);
-    return null;
   }
-
-  return {
-    sourceId,
-    rasterLayerId,
-    transform: cornersToTransform(corners),
-    imageUrl: overlayObject.imageUrl,
-  };
-}
-
-// Record the store-derived corners just pushed to the image source (creation, position restore,
-// image swap). The raw gesture path (setOverlayImageTransform) deliberately does NOT record: the
-// reconciler compares desired corners against the last store-applied ones, never against a gesture.
-export function recordAppliedCorners(id: string, corners: LatLng[]): void {
-  const entry = entries.get(id);
-  if (entry) entry.lastAppliedCorners = corners;
 }
 
 export function getLastAppliedCorners(id: string): LatLng[] | null {
@@ -534,7 +489,8 @@ export function setOverlayImageCorners(id: string, corners: LatLng[]): void {
   if (!handle || !isValidQuad(corners)) return;
   getImageSource(handle.sourceId)?.setCoordinates(cornersToImageCoordinates(corners));
   handle.transform = cornersToTransform(corners);
-  recordAppliedCorners(id, corners);
+  const entry = entries.get(id);
+  if (entry) entry.lastAppliedCorners = corners;
 }
 
 // Re-render the image from the rigid transform (during editing; image corners line up with
@@ -576,11 +532,7 @@ export function replaceOverlayImageSource(id: string, imageUrl: string, corners:
 
   store.updateOverlay(id, { imageUrl, filename });
 
-  const newHandle = createOverlayImage(overlay, corners);
-  if (newHandle) {
-    setImageHandle(id, newHandle);
-    recordAppliedCorners(id, corners);
-  }
+  createOverlayImage(overlay, corners);
 }
 
 // Last edited corner set from history, or null. Fallback for when the image handle is

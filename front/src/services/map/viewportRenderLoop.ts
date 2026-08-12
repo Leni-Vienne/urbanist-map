@@ -3,13 +3,14 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useMapStore } from "@/stores/mapStore";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
+import { useFocusStore } from "@/stores/focusStore";
 import { getMap, getMapOrNull } from "@/services/core/map";
 import {
   isOverlayVisible,
   matchesMapFilters,
   shouldDisplayOverlay,
 } from "@/services/overlay/visibility";
-import type { OverlayObject, OverlayData } from "@/types/index";
+import type { OverlayObject, OverlayData, OverlayRenderData } from "@/types/index";
 import { visibleStates, selectedProjectTags } from "@/services/core/filters";
 import { createOverlayMarker, updateMarkerPosition } from "@/services/overlay/markers";
 import { resolveOverlayCorners } from "@/services/overlay/data";
@@ -20,10 +21,10 @@ import {
 import { isValidQuad, sameCorners } from "@/services/overlay/transform";
 import { upsertOverlayFromWire } from "@/services/overlay/sync";
 import * as registry from "@/services/overlay/mapLayers";
-import { createOverlayImageForObject, renderBackendOverlays } from "@/services/overlay/rendering";
 import { createRafBatchQueue } from "@/utils/rafBatchQueue";
 import { cornersIntersectBounds } from "@/utils/cornersBounds";
 import { renderAllProjectShapes } from "@/services/map/shapes/renderLoop";
+import { getMapSessionSnapshot } from "@/services/map/mapSessionState";
 
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 interface ViewportBounds {
@@ -148,7 +149,7 @@ function convergeOverlayDisplay(overlayObject: OverlayObject): boolean {
  *
  * Candidate ids come from every set that can want an overlay on the map:
  *   - approvedOverlayDataCache: approved overlays vetted by tile sync (filters + viewport applied).
- *   - renderLoopOverlays: pending + session change-request overlays (edit/moderation only).
+ *   - active map session: pending + session change-request overlays (edit/moderation only).
  *   - liveOverlays(status === null): local/unsaved overlays.
  *   - current registry ids: so entries that left every live set get destroyed.
  *
@@ -180,23 +181,18 @@ function reconcileOverlayExistence(bounds: ViewportBounds): void {
 
   const tileManaged = getApprovedOverlayDataFromTiles();
   const filterRejected = getFilterRejectedOverlayIds();
-  // renderLoopOverlays holds only pending + session change-request overlays, delivered in edit and
-  // moderation; view mode leaves the last edit session's list stale, so it is ignored there.
-  const sessionById = new Map<string, OverlayData>();
-  if (isSessionMode) {
-    for (const data of overlayStore.renderLoopOverlays) sessionById.set(data.id, data);
-  }
+  const mapSession = getMapSessionSnapshot();
+  const sessionOverlayIds = isSessionMode && mapSession?.mode === mode ? mapSession.overlayIds : [];
 
   const candidateIds = new Set<string>();
   for (const id of tileManaged.keys()) candidateIds.add(id);
-  for (const id of sessionById.keys()) candidateIds.add(id);
+  for (const id of sessionOverlayIds) candidateIds.add(id);
+  const selectedOverlayId = useFocusStore().selectedOverlayId;
+  if (selectedOverlayId) candidateIds.add(selectedOverlayId);
   for (const [id, overlay] of Object.entries(overlayStore.liveOverlays)) {
     if (overlay.status === null) candidateIds.add(id);
   }
   for (const id of registry.getEntryIds()) candidateIds.add(id);
-
-  const backendToRender: OverlayData[] = [];
-  const localToRender: OverlayObject[] = [];
 
   for (const id of candidateIds) {
     // Mid-gesture the GL image is deliberately ahead of the store; leave those overlays alone.
@@ -211,8 +207,9 @@ function reconcileOverlayExistence(bounds: ViewportBounds): void {
       if (!isValidQuad(liveObject.baselineCorners)) continue;
       if (shouldDisplayOverlay(liveObject, mode, userId)) {
         destructionQueue.delete(id);
-        if (!hasImage) localToRender.push(liveObject);
-        else if (isSessionMode && convergeOverlayDisplay(liveObject)) handlesNeedSync = true;
+        if (!hasImage) {
+          registry.createOverlayImage(liveObject, resolveOverlayCorners(liveObject, "image"));
+        } else if (isSessionMode && convergeOverlayDisplay(liveObject)) handlesNeedSync = true;
         if (!hasMarker) createOverlayMarker(liveObject);
       } else if (hasImage || hasMarker) {
         queueForDestruction(id);
@@ -223,7 +220,7 @@ function reconcileOverlayExistence(bounds: ViewportBounds): void {
     // Approved + tile-delivered: cache membership already applied filters and viewport.
     const isTileManaged = tileManaged.has(id);
     let desired = isTileManaged;
-    let renderData = tileManaged.get(id) ?? null;
+    let renderData: OverlayRenderData | null = tileManaged.get(id) ?? null;
     if (!isTileManaged) {
       // Fall back to the canonical store object as the data source (edit-mode CR overlays not in
       // this bbox, a moderation preview whose approved footprint left the viewport, a staged overlay
@@ -231,7 +228,7 @@ function reconcileOverlayExistence(bounds: ViewportBounds): void {
       // an overlay whose image sits away from its tile footprint stays alive while that position is
       // in view. Absence from the cache does not separate "a filter rejected it" from "its position
       // left the viewport", so the rejected set is consulted before the position test.
-      const data = sessionById.get(id) ?? liveObject ?? null;
+      const data = liveObject ?? null;
       desired =
         data !== null &&
         !filterRejected.has(id) &&
@@ -241,22 +238,15 @@ function reconcileOverlayExistence(bounds: ViewportBounds): void {
       renderData = data;
     }
 
-    // Creation in flight: don't fight it, just rescue from destruction.
-    if (registry.isCreating(id)) {
-      if (desired) destructionQueue.delete(id);
-      continue;
-    }
-
     if (desired && renderData) {
       destructionQueue.delete(id);
-      // Markers only need the canonical store object, not the image; a tile-delivered overlay
-      // absent from the store is ingested here so its pin doesn't wait for image creation.
+      const overlayObject = upsertOverlayFromWire(renderData);
       if (isSessionMode && !hasMarker) {
-        createOverlayMarker(liveObject ?? upsertOverlayFromWire(renderData));
+        createOverlayMarker(overlayObject);
       }
       if (!hasImage) {
-        backendToRender.push(renderData);
-      } else if (isSessionMode && liveObject && convergeOverlayDisplay(liveObject)) {
+        registry.createOverlayImage(overlayObject, resolveOverlayCorners(overlayObject, "image"));
+      } else if (isSessionMode && convergeOverlayDisplay(overlayObject)) {
         handlesNeedSync = true;
       }
     } else if (hasImage || hasMarker) {
@@ -265,13 +255,6 @@ function reconcileOverlayExistence(bounds: ViewportBounds): void {
   }
 
   if (handlesNeedSync) registry.runEditHandleSync();
-
-  if (backendToRender.length > 0) {
-    renderBackendOverlays(backendToRender);
-  }
-  if (localToRender.length > 0) {
-    for (const overlay of localToRender) createOverlayImageForObject(overlay);
-  }
 }
 
 /** Install the map-instance scheduler used by overlay store writers. */

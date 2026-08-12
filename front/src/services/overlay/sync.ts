@@ -16,7 +16,7 @@ import {
 } from "@/services/overlay/positionState";
 import { getEditModeDefaultCaption } from "@/services/overlay/unsavedState";
 import { createOverlayObject } from "@/utils/typeFactories";
-import type { ModifiableField, OverlayData, OverlayObject } from "@/types/index";
+import type { ModifiableField, OverlayObject, OverlayRenderData } from "@/types/index";
 
 // Backend-owned fields that define an overlay's default (unedited) position and caption.
 type OverlayBackendFields = Partial<
@@ -99,7 +99,7 @@ export function clearOverlayChangeRequestState(overlayObject: OverlayObject): vo
 // through applyOverlayBackendFields so the display consequences (caption advance, resting-position
 // snap) ride with the write. An unsaved local crop (imageUrl is a data: URL) survives untouched
 // because the existing object is never replaced.
-export function upsertOverlayFromWire(data: OverlayData): OverlayObject {
+export function upsertOverlayFromWire(data: OverlayRenderData): OverlayObject {
   const overlayStore = useOverlayStore();
   const existing = overlayStore.liveOverlays[data.id];
 
@@ -122,10 +122,6 @@ export function upsertOverlayFromWire(data: OverlayData): OverlayObject {
     fields.suggestedCaption = data.suggestedCaption;
   }
   applyOverlayBackendFields(existing, fields);
-
-  // Approved overlays first loaded from vector tiles lack project data; attach it when a later
-  // (bbox) delivery carries it, so the detail panel can resolve the active project.
-  if (data.project) existing.project = data.project;
 
   return existing;
 }

@@ -115,7 +115,6 @@ export function createOverlayObject(data: Partial<OverlayObject>): OverlayObject
     imageUrl,
     history: data.history ?? [],
     redoStack: data.redoStack ?? [],
-    project: data.project ?? null,
     suggestedCorners: data.suggestedCorners ?? undefined,
     suggestedCaption: data.suggestedCaption ?? undefined,
     hasPendingChanges: data.hasPendingChanges ?? undefined,

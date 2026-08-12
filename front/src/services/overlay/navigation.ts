@@ -8,10 +8,9 @@ import { trpc } from "@/client";
 import { openOverlayDetail, raiseSelectedOverlayWhenReady } from "@/services/overlay/selection";
 import { getMarker } from "@/services/overlay/mapLayers";
 import { getOverlayBounds } from "@/services/overlay/markers";
-import { isValidQuad } from "@/services/overlay/transform";
-import { buildLngLatBounds } from "@/utils/cornersBounds";
 import { overlayWireToData } from "@/utils/typeFactories";
 import { toastInfo } from "@/services/core/toast";
+import { upsertOverlayFromWire } from "@/services/overlay/sync";
 
 // Helper to zoom to overlay bounds
 function zoomToOverlayBounds(overlay: OverlayObject): void {
@@ -80,66 +79,23 @@ export function navigateOverlaySequence(direction: "next" | "previous") {
   selectAndCenterOverlay(newOverlayId);
 }
 
-/**
- * Loads an overlay by ID, fetching from backend if needed. Throws on fetch failure.
- */
-type LoadOverlayResult = {
-  alreadyInStore: boolean;
-  corners?: { lat: number; lng: number }[];
-};
-
-async function loadOverlay(overlayId: string): Promise<LoadOverlayResult> {
+async function loadOverlay(overlayId: string): Promise<void> {
   const overlayStore = useOverlayStore();
 
   if (overlayStore.liveOverlays[overlayId]) {
-    return { alreadyInStore: true };
+    return;
   }
 
-  const result = await trpc.overlay.getOverlay.query({
-    id: overlayId,
-    includeIntersecting: true,
-  });
-
-  if (!result.overlay) {
-    throw new Error("Overlay not found");
-  }
-
-  // The overlay rendering module is lazy-loaded as its own shared chunk. A static import would
-  // merge it into this chunk and defeat that split (INEFFECTIVE_DYNAMIC_IMPORT).
-  const { renderBackendOverlays } = await import("@/services/overlay/rendering");
-
-  renderBackendOverlays([overlayWireToData(result.overlay)]);
-
-  if (result.intersectingOverlays.length > 0) {
-    renderBackendOverlays(result.intersectingOverlays.map(overlayWireToData));
-  }
-
-  // Don't check overlayStore.liveOverlays[overlayId] here: overlay registration is async
-  // (happens after image loads) and may not complete if zoom level is too low.
-  // Return corners so the caller can fly to the overlay immediately.
-  return { alreadyInStore: false, corners: result.overlay.corners };
+  const result = await trpc.overlay.getOverlay.query({ id: overlayId });
+  upsertOverlayFromWire(overlayWireToData(result));
 }
 
 /**
  * Navigates to a specific overlay by ID (loads + selects + centers).
  */
 export async function navigateToOverlay(overlayId: string): Promise<boolean> {
-  const loadResult = await loadOverlay(overlayId);
-
-  if (loadResult.alreadyInStore) {
-    return selectAndCenterOverlay(overlayId);
-  }
-
-  // Overlay was just fetched -- registration is async (happens after image loads).
-  // Select now if it registered in time, otherwise fly directly to the backend corners.
-  if (selectAndCenterOverlay(overlayId)) {
-    return true;
-  }
-  if (isValidQuad(loadResult.corners)) {
-    mobileAwareFlyToBounds(buildLngLatBounds(loadResult.corners));
-    return true;
-  }
-  return false;
+  await loadOverlay(overlayId);
+  return selectAndCenterOverlay(overlayId);
 }
 
 function selectAndCenterOverlay(overlayId: string) {

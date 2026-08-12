@@ -2,12 +2,13 @@
 // View mode: the vector tile sync and cluster source handle rendering (no data loading)
 // Edit: session-scoped fetch (own pending + own open-CR + own projects), once per entry
 // Moderation: country-scoped fetch, once per country selection
-// moveend re-runs the render loop off the in-memory list; it performs NO network fetch, and no
+// moveend re-runs the render loop off the in-memory session snapshot; it performs NO network fetch, and no
 // zoom decisions: the reconciler owns what exists on the map at the current zoom.
 // All state is module-scoped: every consumer drives the same single map viewport.
 import { watch } from "vue";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { useOverlayStore } from "@/stores/overlayStore";
+import { useProjectStore } from "@/stores/projectStore";
 import { useMapStore } from "@/stores/mapStore";
 import { useAuthStore } from "@/stores/authStore";
 import { debounce } from "@/utils/debounce";
@@ -20,30 +21,44 @@ import {
 } from "@/services/overlay/teardown";
 import * as registry from "@/services/overlay/mapLayers";
 import { clearOverlayChangeRequestState, upsertOverlayFromWire } from "@/services/overlay/sync";
-import { overlayWireToData } from "@/utils/typeFactories";
+import { createProjectObject, overlayWireToData } from "@/utils/typeFactories";
 import { loadOrNull } from "@/services/core/errorHandling";
-import { trpc, type RouterOutput } from "@/client";
+import { trpc } from "@/client";
 import {
-  mergeProjectPointsForMode,
+  renderMapSessionPendingSources,
   watchPendingProjectSources,
 } from "@/services/map/tiles/pendingSources";
+import { clearMapSessionSnapshot, replaceMapSessionSnapshot } from "@/services/map/mapSessionState";
 import { onModeTransition } from "@/services/map/modeTransition";
 import type { OverlayData } from "@/types/index";
 import type { AppMode } from "@shared/types";
 
-type EditSessionProjects = RouterOutput["viewport"]["getEditSessionData"]["projects"];
-type ModerationProjects = RouterOutput["viewport"]["getModerationMapData"]["projects"];
+function cacheMapSessionOverlays(overlaysData: OverlayData[]): string[] {
+  return overlaysData.map((overlayData) => upsertOverlayFromWire(overlayData).id);
+}
 
-function hydrateOverlayStoreObjects(overlaysData: OverlayData[]): void {
-  for (const overlayData of overlaysData) {
-    upsertOverlayFromWire(overlayData);
+type SessionProjectInput = Parameters<typeof createProjectObject>[0] & { id: string };
+
+function cacheMapSessionProjects(projects: SessionProjectInput[]): string[] {
+  const projectStore = useProjectStore();
+  const projectIds: string[] = [];
+  for (const project of projects) {
+    const current = projectStore.getProjectById(project.id);
+    const stored = projectStore.adoptBackendProjectSummary(
+      createProjectObject({
+        ...project,
+        overlayIds: current?.overlayIds ?? [],
+      }),
+    );
+    projectIds.push(stored.id);
   }
+  return projectIds;
 }
 
 // The edit-session set contains every overlay the user has an open change request on, so an
 // overlay carrying change-request state but absent from it has none anymore (it was resolved).
-function clearResolvedChangeRequestState(sessionOverlays: OverlayData[]): void {
-  const sessionIds = new Set(sessionOverlays.map((overlay) => overlay.id));
+function clearResolvedChangeRequestState(sessionOverlayIds: string[]): void {
+  const sessionIds = new Set(sessionOverlayIds);
   const overlayStore = useOverlayStore();
 
   for (const overlay of Object.values(overlayStore.liveOverlays)) {
@@ -53,18 +68,9 @@ function clearResolvedChangeRequestState(sessionOverlays: OverlayData[]): void {
   }
 }
 
-// Full static pending set for the current edit session / moderation country selection. Fetched
-// once on entry (and re-fetched on explicit mutation events), then rendered off these lists on
-// every moveend with no network call. The existence reconciler owns which overlays get an
-// image/marker for the current viewport.
-let editSessionOverlays: OverlayData[] = [];
-let editSessionProjects: EditSessionProjects = [];
-let moderationOverlays: OverlayData[] = [];
-let moderationProjects: ModerationProjects = [];
-
 // Mode transitions are not serialized and the country selection can change mid-flight, so a fetch
 // may resolve after the state it was issued for is gone. Every fetch takes a token and applies its
-// rows only while that token is still current; starting a fetch or clearing the lists invalidates
+// rows only while that token is still current; starting a fetch or clearing the snapshot invalidates
 // whatever is in flight.
 let sessionFetchToken = 0;
 
@@ -77,12 +83,9 @@ function beginSessionFetch(): number {
  * Drop the mode-session sets and invalidate any fetch in flight for them. The mode being entered,
  * or the next map mount, fetches its own.
  */
-export function clearMapSessionLists(): void {
+export function clearMapSessionData(): void {
   sessionFetchToken += 1;
-  editSessionOverlays = [];
-  editSessionProjects = [];
-  moderationOverlays = [];
-  moderationProjects = [];
+  clearMapSessionSnapshot();
 }
 
 /**
@@ -95,8 +98,7 @@ async function refreshEditSessionData(): Promise<void> {
   const mapStore = useMapStore();
 
   if (!authStore.user || mapStore.mode !== "edit") {
-    editSessionOverlays = [];
-    editSessionProjects = [];
+    clearMapSessionSnapshot("edit");
     return;
   }
 
@@ -105,16 +107,17 @@ async function refreshEditSessionData(): Promise<void> {
     errorMessage: "Failed to fetch edit session data",
   });
 
-  // Keep the previous lists on transient failure rather than dropping the session set.
+  // Keep the previous snapshot on transient failure rather than dropping the session set.
   if (!rows) return;
   if (token !== sessionFetchToken) return;
 
-  editSessionOverlays = rows.overlays.map(overlayWireToData);
-  editSessionProjects = rows.projects;
-  hydrateOverlayStoreObjects(editSessionOverlays);
-  clearResolvedChangeRequestState(editSessionOverlays);
-  mergeProjectPointsForMode(editSessionOverlays, editSessionProjects, "edit");
-  refreshViewport();
+  const projectIds = cacheMapSessionProjects(rows.projects);
+  const overlays = rows.overlays.map(overlayWireToData);
+  const overlayIds = cacheMapSessionOverlays(overlays);
+  clearResolvedChangeRequestState(overlayIds);
+  replaceMapSessionSnapshot({ mode: "edit", overlayIds, projectIds });
+  renderMapSessionPendingSources();
+  runViewportRenderLoop();
 }
 
 /**
@@ -126,8 +129,7 @@ async function refreshModerationMapData(): Promise<void> {
   const mapStore = useMapStore();
 
   if (mapStore.mode !== "moderation" || !mapStore.selectedCountryCode) {
-    moderationOverlays = [];
-    moderationProjects = [];
+    clearMapSessionSnapshot("moderation");
     return;
   }
 
@@ -142,11 +144,12 @@ async function refreshModerationMapData(): Promise<void> {
   if (!rows) return;
   if (token !== sessionFetchToken) return;
 
-  moderationOverlays = rows.overlays.map(overlayWireToData);
-  moderationProjects = rows.projects;
-  hydrateOverlayStoreObjects(moderationOverlays);
-  mergeProjectPointsForMode(moderationOverlays, moderationProjects, "moderation");
-  refreshViewport();
+  const projectIds = cacheMapSessionProjects(rows.projects);
+  const overlays = rows.overlays.map(overlayWireToData);
+  const overlayIds = cacheMapSessionOverlays(overlays);
+  replaceMapSessionSnapshot({ mode: "moderation", overlayIds, projectIds });
+  renderMapSessionPendingSources();
+  runViewportRenderLoop();
 }
 
 /**
@@ -159,28 +162,9 @@ export async function refreshMapSessionData(): Promise<void> {
   else if (mode === "moderation") await refreshModerationMapData();
 }
 
-/**
- * Re-render the current viewport off the in-memory session/country list. Runs on moveend and after
- * a fetch. Performs no network request, and no point re-merge; the render loop and its reconciler
- * own which overlays hold an image/marker at the current viewport and zoom.
- *
- * View mode has no session list: approved overlays reach the reconciler through the vector tile
- * sync, so it only hands the loop the pending set of edit/moderation.
- */
-export function refreshViewport(): void {
-  const mapStore = useMapStore();
-
-  if (mapStore.mode !== "view") {
-    const list = mapStore.mode === "edit" ? editSessionOverlays : moderationOverlays;
-    useOverlayStore().setRenderLoopOverlays(list);
-  }
-
-  runViewportRenderLoop();
-}
-
 // ── Event listeners ─────────────────────────────────────────────────────
 
-const debouncedRefreshViewport = debounce(refreshViewport, 100);
+const debouncedRefreshViewport = debounce(runViewportRenderLoop, 100);
 
 /**
  * Re-render the viewport whenever `target`'s camera settles. Zooming is a camera move in MapLibre,
@@ -203,9 +187,9 @@ export function setupEventListeners(target: MaplibreMap): () => void {
  * to edit mode. Safe to call with no map mounted.
  */
 export function resetMapSessionState(): void {
-  clearMapSessionLists();
+  clearMapSessionData();
   clearOverlayRenderState();
-  mergeProjectPointsForMode([], [], "view");
+  renderMapSessionPendingSources();
   runViewportRenderLoop();
 }
 
@@ -216,8 +200,8 @@ async function syncSessionDataForMode(newMode: AppMode, oldMode: AppMode): Promi
     return;
   }
 
-  // The lists are mode-scoped; the mode being entered refetches its own.
-  clearMapSessionLists();
+  // The snapshot is mode-scoped; the mode being entered refetches its own.
+  clearMapSessionData();
 
   // Switching TO edit or moderation: hide overlays not visible in the new mode
   const overlayStore = useOverlayStore();

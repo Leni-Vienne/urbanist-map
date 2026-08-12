@@ -1,16 +1,16 @@
 import { watch } from "vue";
 import type { AppMode } from "@shared/types";
-import type { OverlayData, Project } from "@/types/index";
+import type { Project } from "@/types/index";
 import { renderProjectShapes, clearAllProjectShapes } from "@/services/map/shapes/rendering";
 import { hasProjectShapes } from "@/services/map/shapes/registry";
-import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
+import { useOverlayStore } from "@/stores/overlayStore";
 import { useMapStore } from "@/stores/mapStore";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useModerationStore } from "@/stores/moderationStore";
 import { getApprovedOverlayDataFromTiles } from "@/services/map/tiles/approvedOverlayCache";
-import { createProjectObject } from "@/utils/typeFactories";
 import { onModeTransition } from "@/services/map/modeTransition";
+import { getMapSessionSnapshot } from "@/services/map/mapSessionState";
 
 /** Shapes are rendered from store data only outside view mode, where vector tiles own them. */
 type ShapeRenderMode = Exclude<AppMode, "view">;
@@ -45,39 +45,33 @@ function resolveProjectGeometry(
   return getPendingGeometry(projectId, mode);
 }
 
-function normalizeOverlayProject(project: NonNullable<OverlayData["project"]>): Project {
-  return createProjectObject({
-    ...project,
-    overlayIds: [],
-    geometry: project.geometry ?? null,
-  });
-}
-
 /**
  * Collect all visible projects whose shapes need to be rendered.
  * Precondition: not in view mode.
  */
-function getVisibleProjectsToRender() {
-  const overlayStore = useOverlayStore();
+function getVisibleProjectsToRender(mode: ShapeRenderMode) {
   const projectStore = useProjectStore();
 
   const projectsToRender = new Map<string, Project>();
 
-  // Backend overlay data is the project record, so projectData.geometry is the approved geometry.
-  for (const overlay of overlayStore.renderLoopOverlays) {
-    if (overlay.projectId && overlay.project && !projectsToRender.has(overlay.projectId)) {
-      projectsToRender.set(overlay.projectId, normalizeOverlayProject(overlay.project));
-    }
+  const mapSession = getMapSessionSnapshot();
+  const sessionOverlayIds = mapSession?.mode === mode ? mapSession.overlayIds : [];
+  const overlayStore = useOverlayStore();
+  for (const overlayId of sessionOverlayIds) {
+    const overlay = overlayStore.liveOverlays[overlayId];
+    if (!overlay?.projectId || projectsToRender.has(overlay.projectId)) continue;
+    const project = projectStore.getMapProjectById(overlay.projectId, mode);
+    if (project) projectsToRender.set(overlay.projectId, project);
   }
 
-  // renderLoopOverlays holds only pending overlays here, so approved-overlay projects
+  // The map session holds only pending overlays here, so approved-overlay projects
   // are collected from the tile cache to get their shapes rendered too.
   for (const [, overlayData] of getApprovedOverlayDataFromTiles()) {
     const projectId = overlayData.projectId;
     if (!projectId || projectsToRender.has(projectId)) continue;
-    // The tile-based OverlayData has no project field; look up the project from the store.
+    // The tile payload has no project field; look up the project from the store.
     // Skip if not yet in the store (shape will render on the next cycle once the store is hydrated).
-    const p = projectStore.projects[projectId];
+    const p = projectStore.getMapProjectById(projectId, mode);
     if (p) projectsToRender.set(projectId, p);
   }
 
@@ -130,7 +124,7 @@ export function renderAllProjectShapes() {
     return;
   }
 
-  const projectsToRender = getVisibleProjectsToRender();
+  const projectsToRender = getVisibleProjectsToRender(mode);
 
   for (const [projectId, projectData] of projectsToRender.entries()) {
     processAndRenderProjectShape(projectId, projectData, mode);

@@ -8,7 +8,7 @@ import type {
   Overlay,
   ContributionProject,
 } from "@/types/index";
-import type { ApprovalStatus } from "@shared/types";
+import type { AppMode, ApprovalStatus } from "@shared/types";
 import {
   createProjectObject,
   createLocalOverlayContribution,
@@ -77,6 +77,15 @@ export const useProjectStore = defineStore("project", () => {
     return projects.value[projectId] ?? null;
   }
 
+  // Map consumers use local project state only in edit mode. Other modes read the backend baseline
+  // while an edit is staged.
+  function getMapProjectById(projectId: string, mode: AppMode): Project | null {
+    const current = projects.value[projectId];
+    if (!current) return null;
+    if (mode === "edit" || !current.isModified) return current;
+    return originalProjects.value[projectId] ?? current;
+  }
+
   function getHydratedProject(projectId: string): HydratedProject | null {
     if (!hydratedProjectIds.value[projectId]) return null;
     const project = projects.value[projectId];
@@ -97,6 +106,23 @@ export const useProjectStore = defineStore("project", () => {
     }
     projects.value[project.id] = stored;
     if (stored.status !== null) snapshotOriginal(stored);
+    return stored;
+  }
+
+  // Adopt a backend map payload without replacing a locally edited object. The backend value
+  // becomes the non-edit-mode baseline until the local changes are submitted or reset.
+  function adoptBackendProjectSummary(project: Project): Project {
+    const current = projects.value[project.id];
+    const baseline =
+      current && hydratedProjectIds.value[project.id]
+        ? { ...project, ...getProjectDetailFields(current) }
+        : project;
+    if (current?.isModified) {
+      originalProjects.value[project.id] = baseline;
+      return current;
+    }
+    const stored = upsertProjectSummary(project);
+    if (stored.status !== null) originalProjects.value[project.id] = { ...stored };
     return stored;
   }
 
@@ -358,6 +384,7 @@ export const useProjectStore = defineStore("project", () => {
     // Local project actions
     addProject,
     upsertProjectSummary,
+    adoptBackendProjectSummary,
     applyProjectDetail,
     removeProject,
     updateProject,
@@ -365,6 +392,7 @@ export const useProjectStore = defineStore("project", () => {
     resetProjectField,
     getOriginalProject,
     getProjectById,
+    getMapProjectById,
     getHydratedProject,
 
     // User contributions actions

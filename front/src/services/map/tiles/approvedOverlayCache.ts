@@ -3,15 +3,15 @@
 // desired-existence signal for approved overlays. Held here as a leaf so the writer can depend on
 // the viewport reconciler without a cycle through the reader.
 
-import type { OverlayData } from "@/types/index";
+import type { TileOverlayData } from "@/types/index";
 
-const approvedOverlayDataCache = new Map<string, OverlayData>();
+const approvedOverlayDataCache = new Map<string, TileOverlayData>();
 const filterRejectedOverlayIds = new Set<string>();
 
 // Current snapshot of approved overlay data built from tile features. Only includes overlays whose
 // resolved image position currently intersects the viewport (baseline footprint or an open change
 // request's suggested position).
-export function getApprovedOverlayDataFromTiles(): ReadonlyMap<string, OverlayData> {
+export function getApprovedOverlayDataFromTiles(): ReadonlyMap<string, TileOverlayData> {
   return approvedOverlayDataCache;
 }
 
@@ -26,7 +26,7 @@ export function getFilterRejectedOverlayIds(): ReadonlySet<string> {
 // Replace both snapshots with the freshly-synced sets (mutates in place so existing readers holding
 // the ReadonlyMap/ReadonlySet reference see the update).
 export function replaceApprovedOverlayDataCache(
-  next: Map<string, OverlayData>,
+  next: Map<string, TileOverlayData>,
   filterRejected: Set<string>,
 ): void {
   approvedOverlayDataCache.clear();

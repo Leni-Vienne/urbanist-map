@@ -11,13 +11,22 @@ import { getEditModeRestingCorners } from "@/services/overlay/positionState";
 import { openOverlayDetail } from "@/services/overlay/selection";
 import { clearAllMapContent } from "@/services/overlay/teardown";
 import { mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
-import type { LatLng, Overlay, PendingChangeRequest } from "@/types/index";
+import { renderPreviewShapes, computeShapeBounds } from "@/services/map/shapes/rendering";
+import { openProjectDetail } from "@/services/core/projectSelection";
+import type { LatLng, Overlay, PendingChangeRequest, Project } from "@/types/index";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { toastError, toastWarn } from "@/services/core/toast";
 
 interface PreviewGeometryOptions {
   change: PendingChangeRequest;
   overlayForModeration: Overlay;
+  geometryValue: unknown;
+  type: "old" | "new";
+}
+
+interface PreviewShapesOptions {
+  change: PendingChangeRequest;
+  project: Project;
   geometryValue: unknown;
   type: "old" | "new";
 }
@@ -29,10 +38,18 @@ function parseGeometry(geometryValue: unknown): LatLng[] {
   return parseQuadValue(geometryValue) ?? [];
 }
 
-export function isPreviewingChange(changeId: string): boolean {
-  const state = useChangeRequestStore().previewState;
-  if (state.type === "none") return false;
-  return state.changeId === changeId;
+function parseGeometryCollection(value: unknown): GeoJSON.GeometryCollection | null {
+  if (!value || typeof value !== "object") return null;
+  const geometry = value as { type?: string; geometries?: unknown[] };
+  if (
+    geometry.type !== "GeometryCollection" ||
+    !Array.isArray(geometry.geometries) ||
+    geometry.geometries.length === 0
+  ) {
+    return null;
+  }
+  // oxlint-disable-next-line no-unsafe-type-assertion
+  return geometry as GeoJSON.GeometryCollection;
 }
 
 // Navigate to position, combining new and previous bounds for a smooth unzoom effect
@@ -197,4 +214,38 @@ export async function previewOverlayGeometry(options: PreviewGeometryOptions): P
     console.error("[changeRequestPreview] Failed to preview geometry:", error);
     toastError(t("overlay.couldNotPreviewCoordinates"), t("overlay.previewFailed"));
   }
+}
+
+export async function previewShapes(options: PreviewShapesOptions): Promise<void> {
+  const { change, project, geometryValue, type } = options;
+  const mapStore = useMapStore();
+
+  const geometry = parseGeometryCollection(geometryValue);
+  if (!geometry) {
+    toastWarn(t("shapes.noShapesToPreview"));
+    return;
+  }
+
+  const bounds = computeShapeBounds(geometry.geometries);
+  if (!bounds) return;
+
+  if (project.countryCode && mapStore.selectedCountryCode !== project.countryCode) {
+    clearAllMapContent();
+    mapStore.setSelectedCountryCode(project.countryCode);
+    await nextTick();
+  }
+
+  const newGeometry = type === "new" ? geometry : (project.geometry ?? null);
+  const oldGeometry = type === "new" ? (project.geometry ?? null) : null;
+
+  renderPreviewShapes(project, newGeometry, oldGeometry, () => {
+    openProjectDetail(project);
+  });
+
+  mobileAwareFlyToBounds(bounds);
+  openProjectDetail(project);
+  useChangeRequestStore().previewIntent = {
+    changeId: change.id,
+    side: type === "new" ? "suggested" : "current",
+  };
 }

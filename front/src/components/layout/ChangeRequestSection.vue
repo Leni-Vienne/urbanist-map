@@ -103,11 +103,10 @@ import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 
 import {
-  isPreviewingChange,
   getPreviewType,
   previewOverlayGeometry,
+  previewShapes,
 } from "@/services/overlay/changeRequestPreview";
-import { previewShapes } from "@/services/overlay/shapeChangeRequestPreview";
 import type { Project, Overlay, PendingChangeRequest } from "@/types/index";
 import ChangeValueDisplay from "@/components/layout/ChangeValueDisplay.vue";
 
@@ -147,7 +146,6 @@ const emit = defineEmits<{
 const { t } = useI18n();
 
 function isPreviewActive(changeId: string, type: "old" | "new"): boolean {
-  if (!isPreviewingChange(changeId)) return false;
   const previewType = getPreviewType(changeId);
   return (
     (type === "old" && previewType === "current") || (type === "new" && previewType === "suggested")

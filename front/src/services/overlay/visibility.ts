@@ -1,13 +1,20 @@
-import type { OverlayObject, OverlayData } from "@/types/index";
+import type { OverlayData } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import { matchesSelectedTags, matchesTimelineStatusFilter } from "@/services/core/filters";
+import { useProjectStore } from "@/stores/projectStore";
+
+type OverlayVisibilityInput = {
+  status: OverlayData["status"];
+  authorId?: OverlayData["authorId"];
+  projectId?: OverlayData["projectId"];
+};
 
 /**
  * Determine if an overlay should be visible in the current mode
  * Centralized logic used by viewport pruning, mode switching, and rendering
  */
 export function isOverlayVisible(
-  overlay: OverlayObject | OverlayData,
+  overlay: OverlayVisibilityInput,
   mode: AppMode,
   currentUserId?: string,
 ): boolean {
@@ -45,17 +52,20 @@ export function isOverlayVisible(
 /**
  * User-driven map filters: project tags in all modes, the project's timeline status in view mode.
  */
-export function matchesMapFilters(overlay: OverlayObject | OverlayData, mode: AppMode): boolean {
-  if (!matchesSelectedTags(overlay.project?.tags)) return false;
+export function matchesMapFilters(overlay: OverlayVisibilityInput, mode: AppMode): boolean {
+  const project = overlay.projectId
+    ? useProjectStore().getMapProjectById(overlay.projectId, mode)
+    : null;
+  if (!matchesSelectedTags(project?.tags)) return false;
   if (mode !== "view") return true;
-  return matchesTimelineStatusFilter(overlay.project?.timelineStatus);
+  return matchesTimelineStatusFilter(project?.timelineStatus);
 }
 
 /**
  * Combined display predicate: mode/status/author visibility plus the user's map filters.
  */
 export function shouldDisplayOverlay(
-  overlay: OverlayObject | OverlayData,
+  overlay: OverlayVisibilityInput,
   mode: AppMode,
   currentUserId?: string,
 ): boolean {

@@ -15,7 +15,7 @@ import type * as maplibregl from "maplibre-gl";
 import { getMapOrNull, onMapReady } from "@/services/core/map";
 import { throttle } from "@/utils/throttle";
 import { useOverlayStore } from "@/stores/overlayStore";
-import type { OverlayData } from "@/types/index";
+import type { TileOverlayData } from "@/types/index";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { cornersIntersectBounds } from "@/utils/cornersBounds";
 import { resolveOverlayCorners } from "@/services/overlay/data";
@@ -40,12 +40,12 @@ function matchesDateFilter(lastModifiedS: number): boolean {
   return true;
 }
 
-// A decoded overlay-footprint MVT feature: the OverlayData it maps to (null when the
+// A decoded overlay-footprint MVT feature: the tile overlay it maps to (null when the
 // feature is not a renderable overlay), plus the transport-only fields the client-side
 // filters need. lastModifiedS/timelineStatus are not overlay data, so they ride alongside
-// rather than being forced onto OverlayData.
+// the render payload.
 interface DecodedFootprint {
-  overlay: OverlayData | null;
+  overlay: TileOverlayData | null;
   lastModifiedS: number;
   timelineStatus: string | null;
   tags: string[];
@@ -95,21 +95,16 @@ function decodeFootprint(feat: maplibregl.GeoJSONFeature): DecodedFootprint {
   /* oxlint-disable-next-line no-non-null-assertion */
   const centroid = calculateCentroidFromCorners(corners)!;
 
-  const overlay: OverlayData = {
+  const caption = readString(props.caption);
+  const overlay: TileOverlayData = {
     id,
-    version: 1,
     filename,
-    caption: readString(props.caption),
+    caption,
     status: "approved",
     projectId: readString(props.project_id),
-    authorId: null,
-    replacesOverlayId: null,
-    replacedByOverlayId: null,
-    createdAt: new Date(0),
-    updatedAt: new Date(0),
     centroid,
     baselineCorners: corners,
-    baselineCaption: readString(props.caption),
+    baselineCaption: caption,
     source: "tile",
   };
   return { overlay, lastModifiedS, timelineStatus, tags, name };
@@ -138,7 +133,7 @@ export function syncOverlaysFromTiles(): void {
     const liveOverlays = useOverlayStore().liveOverlays;
 
     // Approved overlays that should be on the map for this viewport. Deduplicated by id.
-    const featureMap = new Map<string, OverlayData>();
+    const featureMap = new Map<string, TileOverlayData>();
     // Ids seen this pass and dropped by a client-side filter. Deduplicates the filter test across
     // duplicate features for one overlay, and is published so the reconciler cannot revive a
     // rejected overlay from store data.

@@ -1,5 +1,7 @@
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useFocusStore } from "@/stores/focusStore";
+import { useProjectStore } from "@/stores/projectStore";
+import { useMapStore } from "@/stores/mapStore";
 import { ensureProjectSummary } from "@/services/core/projectSelection";
 import {
   getMarker,
@@ -7,6 +9,7 @@ import {
   hasReadyLayer,
   whenImageReady,
   raiseOverlayImage,
+  scheduleOverlayReconcile,
 } from "@/services/overlay/mapLayers";
 import type { LatLng } from "@/types/index";
 import { syncModerationCountryFromMapClick } from "@/services/moderation/moderationCountrySync";
@@ -35,16 +38,19 @@ export function openOverlayDetail(overlayId: string): void {
     projectId: newlySelected.projectId ?? null,
   });
   focus.setHoverTarget(null);
+  scheduleOverlayReconcile();
 
   // Raise the clicked image above its siblings so the one the user picked is never hidden.
   raiseOverlayImage(overlayId);
 
   // In moderation mode, switch the panel to this overlay's country so its pending submissions load.
-  syncModerationCountryFromMapClick(newlySelected.project?.countryCode);
+  const project = newlySelected.projectId
+    ? useProjectStore().getMapProjectById(newlySelected.projectId, useMapStore().mode)
+    : null;
+  syncModerationCountryFromMapClick(project?.countryCode);
 
-  // The docked overlay detail needs the overlay's full Project. Map (vector tile) selections only
-  // carry minimal data, so load it when the overlay doesn't already hold it.
-  if (newlySelected.projectId && !newlySelected.project) {
+  // Map tile selections only carry a project id, so load the project when it is not cached.
+  if (newlySelected.projectId && !project) {
     void ensureProjectSummary(newlySelected.projectId);
   }
 }

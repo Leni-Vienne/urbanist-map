@@ -1,39 +1,20 @@
 import { useOverlayStore } from "@/stores/overlayStore";
-import { useProjectStore } from "@/stores/projectStore";
 import { useModerationStore } from "@/stores/moderationStore";
 import { useMapStore } from "@/stores/mapStore";
-import type {
-  OverlayData,
-  OverlayObject,
-  OverlayHistoryState,
-  OverlayPositionState,
-  Project,
-  LatLng,
-} from "@/types/index";
+import type { OverlayData, OverlayHistoryState, OverlayPositionState, LatLng } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import { isValidQuad, parseQuadValue } from "@/services/overlay/transform";
 import { getOverlayImageCorners, getRenderedOverlayCorners } from "@/services/overlay/mapLayers";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 
-/**
- * Resolve and attach the overlay's project in place, falling back to the moderation store in
- * moderation mode. Mutates the canonical object (no rebuild) and returns it, so later readers of
- * overlay.project (e.g. the detail panel) see the resolved value.
- */
-export function enrichOverlayWithProject(savedOverlay: OverlayObject): OverlayObject {
-  if (savedOverlay.project || !savedOverlay.projectId) return savedOverlay;
-
-  const projectStore = useProjectStore();
-  let project: Project | null = projectStore.projects[savedOverlay.projectId] ?? null;
-
-  if (!project && useMapStore().mode === "moderation") {
-    const moderationStore = useModerationStore();
-    project = moderationStore.projects.find((p) => p.id === savedOverlay.projectId) ?? null;
-  }
-
-  if (project) savedOverlay.project = project;
-  return savedOverlay;
-}
+type OverlayPositionInput = {
+  id: string;
+  status: OverlayData["status"];
+  baselineCorners: LatLng[] | null;
+  suggestedCorners?: LatLng[];
+  history?: OverlayHistoryState[];
+  positionState?: OverlayPositionState;
+};
 
 export function updateOverlayInfo(id: string, info: { caption?: string }): void {
   const overlayStore = useOverlayStore();
@@ -61,10 +42,7 @@ function getModerationPreviewCorners(overlayId: string): LatLng[] | null {
 // rests there; staged edits and the "view approved position" toggle move it to other position
 // states. Moderation uses the previewed change request's own corners while an explicit
 // suggested-position preview targets the overlay. Null in view mode.
-function getSuggestedDisplayCorners(
-  overlay: OverlayData & { positionState?: OverlayPositionState },
-  mode: AppMode,
-): LatLng[] | null {
+function getSuggestedDisplayCorners(overlay: OverlayPositionInput, mode: AppMode): LatLng[] | null {
   if (mode === "edit") {
     const rests = overlay.positionState === "suggested";
     return rests && isValidQuad(overlay.suggestedCorners) ? overlay.suggestedCorners : null;
@@ -89,7 +67,7 @@ function getSuggestedDisplayCorners(
 // otherwise looked up by id. Returns null when no source yields a valid 4-corner quad, e.g. a
 // render (kind='render'), whose corners are null.
 export function resolveOverlayCorners(
-  overlay: OverlayData & { history?: OverlayHistoryState[]; positionState?: OverlayPositionState },
+  overlay: OverlayPositionInput,
   purpose: "image" | "marker" | "publish",
 ): LatLng[] | null {
   const history = overlay.history ?? useOverlayStore().liveOverlays[overlay.id]?.history ?? [];

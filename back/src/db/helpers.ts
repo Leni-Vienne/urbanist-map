@@ -1,4 +1,4 @@
-import { sql, eq, and, inArray, getTableColumns, type SQL } from "drizzle-orm";
+import { sql, eq, and, inArray, type SQL } from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
 import { db, type Database } from "../database";
 import {
@@ -9,7 +9,6 @@ import {
   users,
   userReports,
   importSources,
-  type ApprovalStatus,
 } from "./schema";
 import type { AppMode } from "@shared/types";
 import { buildProjectSlug } from "@shared/projectSlug";
@@ -421,19 +420,11 @@ export function buildProjectVisibilityCondition(
   return eq(projects.status, "approved");
 }
 
-// Build WHERE condition for overlay visibility based on user context and map mode
-// Can also handle admin includeStatus filter (takes precedence over mode logic)
 export function buildOverlayVisibilityCondition(
   user: UserContext,
   mode: AppMode,
   overlayChangeRequestIds?: string[],
-  adminIncludeStatus?: ApprovalStatus[],
 ): SQL {
-  // Admin status filter takes precedence
-  if (adminIncludeStatus && user?.role === "admin" && adminIncludeStatus.length > 0) {
-    return inArray(overlays.status, adminIncludeStatus);
-  }
-
   if (mode === "view") {
     // View mode: only show approved overlays
     return eq(overlays.status, "approved");
@@ -463,17 +454,17 @@ export function buildOverlayVisibilityCondition(
   return eq(overlays.status, "approved");
 }
 
+type OverlayChangeValue = { fieldName: string; newValue: unknown };
+type OverlayLocationRow = Awaited<ReturnType<typeof fetchOverlaysWithLocation>>[number];
+type MapProjectRow = OverlayLocationRow["project"] & {
+  importSource: OverlayLocationRow["importSource"];
+};
+
 // The caller's own open overlay change requests, grouped by overlay id.
-async function fetchOwnOverlayChangeRequests(user: UserContext): Promise<
-  Map<
-    string,
-    {
-      fieldName: string;
-      newValue: unknown;
-    }[]
-  >
-> {
-  const changeRequestsByOverlay = new Map<string, { fieldName: string; newValue: unknown }[]>();
+async function fetchOwnOverlayChangeRequests(
+  user: UserContext,
+): Promise<Map<string, OverlayChangeValue[]>> {
+  const changeRequestsByOverlay = new Map<string, OverlayChangeValue[]>();
   if (!user) return changeRequestsByOverlay;
 
   const changeRequestsData = await db
@@ -500,60 +491,60 @@ async function fetchOwnOverlayChangeRequests(user: UserContext): Promise<
   return changeRequestsByOverlay;
 }
 
+function transformOverlayRow(row: OverlayLocationRow, overlayChangeRequests: OverlayChangeValue[]) {
+  const cornersChangeRequest = overlayChangeRequests.find((cr) => cr.fieldName === "corners");
+  /* oxlint-disable no-unsafe-type-assertion */
+  const suggestedCorners = cornersChangeRequest?.newValue
+    ? (cornersChangeRequest.newValue as { lat: number; lng: number }[])
+    : null;
+  /* oxlint-enable */
+
+  const captionChangeRequest = overlayChangeRequests.find((cr) => cr.fieldName === "caption");
+  const suggestedCaption =
+    captionChangeRequest &&
+    captionChangeRequest.newValue !== null &&
+    captionChangeRequest.newValue !== undefined
+      ? String(captionChangeRequest.newValue)
+      : null;
+
+  return {
+    id: row.overlayId,
+    version: row.overlayVersion,
+    filename: row.overlayFilename,
+    caption: row.overlayCaption,
+    status: row.overlayStatus,
+    projectId: row.overlayProjectId,
+    authorId: row.overlayAuthorId,
+    replacesOverlayId: row.overlayReplacesOverlayId,
+    replacedByOverlayId: row.overlayReplacedByOverlayId ?? null,
+    createdAt: row.overlayCreatedAt,
+    updatedAt: row.overlayUpdatedAt,
+    centroid: { lat: row.centroidLat, lng: row.centroidLng },
+    corners: row.corners,
+    suggestedCorners: suggestedCorners ?? undefined,
+    suggestedCaption: suggestedCaption ?? undefined,
+    hasPendingChanges: overlayChangeRequests.length > 0,
+  };
+}
+
 function transformOverlayDataWithChangeRequests(
   overlaysData: Awaited<ReturnType<typeof fetchOverlaysWithLocation>>,
-  changeRequestsByOverlay: Map<
-    string,
-    {
-      fieldName: string;
-      newValue: unknown;
-    }[]
-  >,
+  changeRequestsByOverlay: Map<string, OverlayChangeValue[]>,
 ) {
-  return overlaysData.map((row) => {
-    const approvedCorners = row.corners;
-    const centroid = { lat: row.centroidLat, lng: row.centroidLng };
+  const transformedOverlays: ReturnType<typeof transformOverlayRow>[] = [];
+  const projectsById = new Map<string, MapProjectRow>();
 
-    const overlayChangeRequests = changeRequestsByOverlay.get(row.overlayId) ?? [];
+  for (const row of overlaysData) {
+    transformedOverlays.push(
+      transformOverlayRow(row, changeRequestsByOverlay.get(row.overlayId) ?? []),
+    );
+    projectsById.set(row.project.id, {
+      ...row.project,
+      importSource: row.importSource,
+    });
+  }
 
-    const cornersChangeRequest = overlayChangeRequests.find((cr) => cr.fieldName === "corners");
-    /* oxlint-disable no-unsafe-type-assertion */
-    const suggestedCorners = cornersChangeRequest?.newValue
-      ? (cornersChangeRequest.newValue as { lat: number; lng: number }[])
-      : null;
-    /* oxlint-enable */
-
-    const captionChangeRequest = overlayChangeRequests.find((cr) => cr.fieldName === "caption");
-    const suggestedCaption =
-      captionChangeRequest &&
-      captionChangeRequest.newValue !== null &&
-      captionChangeRequest.newValue !== undefined
-        ? String(captionChangeRequest.newValue)
-        : null;
-
-    return {
-      id: row.overlayId,
-      version: row.overlayVersion,
-      filename: row.overlayFilename,
-      caption: row.overlayCaption,
-      status: row.overlayStatus,
-      projectId: row.overlayProjectId,
-      authorId: row.overlayAuthorId,
-      replacesOverlayId: row.overlayReplacesOverlayId,
-      replacedByOverlayId: row.overlayReplacedByOverlayId ?? null,
-      createdAt: row.overlayCreatedAt,
-      updatedAt: row.overlayUpdatedAt,
-      centroid,
-      corners: approvedCorners,
-      suggestedCorners: suggestedCorners ?? undefined,
-      suggestedCaption: suggestedCaption ?? undefined,
-      project: {
-        ...row.project,
-        importSource: row.importSource,
-      },
-      hasPendingChanges: overlayChangeRequests.length > 0,
-    };
-  });
+  return { overlays: transformedOverlays, projects: [...projectsById.values()] };
 }
 
 export async function fetchOverlaysWithLocation(whereConditions: SQL[]) {
@@ -578,8 +569,7 @@ export async function fetchOverlaysWithLocation(whereConditions: SQL[]) {
         WHERE path[2] <= 4
       )`,
       project: {
-        ...getTableColumns(projects),
-        geometry: sql<GeoJSON.GeometryCollection | null>`CASE WHEN ${projects.geometry} IS NULL THEN NULL ELSE ST_AsGeoJSON(${projects.geometry})::json END`,
+        ...PROJECT_COLUMNS,
       },
       importSource: importSources,
     })
@@ -591,8 +581,8 @@ export async function fetchOverlaysWithLocation(whereConditions: SQL[]) {
     .orderBy(overlays.createdAt);
 }
 
-// Fetch overlays matching the given WHERE conditions and shape them for map rendering, merging in
-// the caller's own open change requests (never another requester's, whatever mode is asking).
+// Fetch overlays matching the given WHERE conditions, their parent projects, and the caller's own
+// open change requests (never another requester's, whatever mode is asking).
 export async function fetchOverlaysForMap(whereConditions: SQL[], user: UserContext) {
   const overlaysData = await fetchOverlaysWithLocation(whereConditions);
   const changeRequestsByOverlay = await fetchOwnOverlayChangeRequests(user);

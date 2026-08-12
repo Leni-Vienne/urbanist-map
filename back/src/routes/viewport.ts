@@ -23,6 +23,14 @@ function buildEditModeViewportProjectJoinCondition(userId: string): ReturnType<t
   return sql`(${projects.status} = 'approved' OR ${projects.ownerId} = ${userId})`;
 }
 
+function mergeProjectsById<T extends { id: string }>(...projectGroups: T[][]): T[] {
+  const projectsById = new Map<string, T>();
+  for (const group of projectGroups) {
+    for (const project of group) projectsById.set(project.id, project);
+  }
+  return [...projectsById.values()];
+}
+
 export const viewportRouter = router({
   // Session-scoped map fetch for edit mode. Returns the caller's full pending set (own pending
   // overlays + own open change-request overlays + own non-approved projects) in ONE round trip,
@@ -46,7 +54,7 @@ export const viewportRouter = router({
           ? sql`((${overlays.authorId} = ${userId} AND ${overlays.status} = 'pending') OR ${overlays.id} = ANY(${`{${openCrIds.join(",")}}`}::uuid[]))`
           : sql`(${overlays.authorId} = ${userId} AND ${overlays.status} = 'pending')`;
 
-      const overlaysData = await fetchOverlaysForMap(
+      const overlayResult = await fetchOverlaysForMap(
         [overlayCondition, buildEditModeViewportProjectJoinCondition(userId)],
         ctx.user,
       );
@@ -60,7 +68,10 @@ export const viewportRouter = router({
         .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
         .where(and(sql`${projects.ownerId} = ${userId}`, sql`${projects.status} != 'approved'`));
 
-      return { overlays: overlaysData, projects: projectsData };
+      return {
+        overlays: overlayResult.overlays,
+        projects: mergeProjectsById(overlayResult.projects, projectsData),
+      };
     } catch (error) {
       if (error instanceof TRPCError) {
         throw error;
@@ -118,7 +129,7 @@ export const viewportRouter = router({
             ? sql`(${overlays.status} = 'pending' OR ${overlays.id} = ANY(${`{${openCrIds.join(",")}}`}::uuid[]))`
             : sql`(${overlays.status} = 'pending')`;
 
-        const overlaysData = await fetchOverlaysForMap(
+        const overlayResult = await fetchOverlaysForMap(
           [overlayPendingCondition, countryCondition],
           user,
         );
@@ -132,7 +143,10 @@ export const viewportRouter = router({
           .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
           .where(and(buildProjectVisibilityCondition(user, "moderation", true), countryCondition));
 
-        return { overlays: overlaysData, projects: projectsData };
+        return {
+          overlays: overlayResult.overlays,
+          projects: mergeProjectsById(overlayResult.projects, projectsData),
+        };
       } catch (error) {
         if (error instanceof TRPCError) {
           throw error;

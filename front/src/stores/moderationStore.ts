@@ -1,15 +1,33 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
-import { ref } from "vue";
-import type { Project, PendingChangeRequest } from "@/types/index";
+import { computed, ref } from "vue";
+import type { Project, Overlay, ContributionProject, PendingChangeRequest } from "@/types/index";
 import type { RouterOutput } from "@/client";
+import { useProjectStore } from "@/stores/projectStore";
 
 type PendingOverlay = RouterOutput["moderation"]["getPendingSubmissions"]["overlays"][0];
 type CountryItem = RouterOutput["country"]["getAllCountries"][0];
 
 export const useModerationStore = defineStore("moderation", () => {
   const overlays = ref<PendingOverlay[]>([]);
-  const projects = ref<Project[]>([]);
+  const projectIds = ref<string[]>([]);
+  const projectOverlays = ref<Record<string, Overlay[]>>({});
   const changeRequests = ref<PendingChangeRequest[]>([]);
+
+  const projects = computed<ContributionProject[]>(() => {
+    const projectStore = useProjectStore();
+    const result: ContributionProject[] = [];
+    for (const id of projectIds.value) {
+      const project = projectStore.getMapProjectById(id, "moderation");
+      if (!project) continue;
+      const inlineOverlays = projectOverlays.value[id] ?? [];
+      result.push({
+        ...project,
+        overlays: inlineOverlays,
+        overlayIds: inlineOverlays.map((overlay) => overlay.id),
+      });
+    }
+    return result;
+  });
 
   const moderationLoaded = ref(false);
 
@@ -25,8 +43,24 @@ export const useModerationStore = defineStore("moderation", () => {
     changeRequests: PendingChangeRequest[];
   }) {
     overlays.value = data.overlays;
-
-    projects.value = data.projects;
+    const nextProjectIds: string[] = [];
+    const nextProjectOverlays: Record<string, Overlay[]> = {};
+    const projectStore = useProjectStore();
+    for (const project of data.projects) {
+      const inlineOverlays = project.overlays ?? [];
+      const { overlays: _overlays, ...summary } = project;
+      const current = projectStore.getProjectById(project.id);
+      const backendProject = projectStore.getMapProjectById(project.id, "moderation");
+      projectStore.adoptBackendProjectSummary({
+        ...summary,
+        geometry: backendProject?.geometry ?? summary.geometry,
+        overlayIds: current?.overlayIds ?? inlineOverlays.map((overlay) => overlay.id),
+      });
+      nextProjectIds.push(project.id);
+      nextProjectOverlays[project.id] = inlineOverlays;
+    }
+    projectIds.value = nextProjectIds;
+    projectOverlays.value = nextProjectOverlays;
     changeRequests.value = data.changeRequests;
     moderationLoaded.value = true;
   }
@@ -34,7 +68,8 @@ export const useModerationStore = defineStore("moderation", () => {
   function resetModerationLoaded() {
     moderationLoaded.value = false;
     overlays.value = [];
-    projects.value = [];
+    projectIds.value = [];
+    projectOverlays.value = {};
     changeRequests.value = [];
   }
 
@@ -42,10 +77,10 @@ export const useModerationStore = defineStore("moderation", () => {
   // the project itself, one of its overlays, or a change request on either.
   function hasPendingModerationContent(project: Project): boolean {
     if (project.status === "pending") return true;
-    const projectOverlays = project.overlays ?? [];
-    if (projectOverlays.some((overlay) => overlay.status === "pending")) return true;
+    const inlineOverlays = project.overlays ?? [];
+    if (inlineOverlays.some((overlay) => overlay.status === "pending")) return true;
 
-    const overlayIds = new Set(projectOverlays.map((overlay) => overlay.id));
+    const overlayIds = new Set(inlineOverlays.map((overlay) => overlay.id));
     return changeRequests.value.some(
       (cr) =>
         (cr.entityType === "project" && cr.entityId === project.id) ||
@@ -57,7 +92,15 @@ export const useModerationStore = defineStore("moderation", () => {
     changeRequests.value = changeRequests.value.filter((cr) => !changeRequestIds.includes(cr.id));
     // Approving/rejecting a change can leave an otherwise-approved project with nothing pending;
     // drop it here so the panel matches a fresh fetch without paying for getPendingSubmissions.
-    projects.value = projects.value.filter(hasPendingModerationContent);
+    const retainedIds = new Set(
+      projects.value.filter(hasPendingModerationContent).map((project) => project.id),
+    );
+    projectIds.value = projectIds.value.filter((id) => retainedIds.has(id));
+    for (const id of Object.keys(projectOverlays.value)) {
+      if (retainedIds.has(id)) continue;
+      // oxlint-disable-next-line no-dynamic-delete
+      delete projectOverlays.value[id];
+    }
   }
 
   function setAllCountries(countries: CountryItem[]) {
@@ -91,7 +134,8 @@ export const useModerationStore = defineStore("moderation", () => {
   // Clear all state on logout or account switch.
   function clearAllState() {
     overlays.value = [];
-    projects.value = [];
+    projectIds.value = [];
+    projectOverlays.value = {};
     changeRequests.value = [];
     moderationLoaded.value = false;
     allCountries.value = [];

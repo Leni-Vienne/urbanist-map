@@ -2,14 +2,13 @@ import { publicProcedure, loggedInProcedure, router, TRPCError } from "../trpc";
 import * as z from "zod";
 import { overlays, projects, users } from "../db/schema";
 import { sql, eq, ne, and, or, inArray } from "drizzle-orm";
-import { db, type Database } from "../database";
+import { db } from "../database";
 import {
   boundaryName,
   buildOverlayQuery,
   buildOverlayVisibilityCondition,
   isUserBlocked,
 } from "../db/helpers";
-import type { AppMode } from "@shared/types";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { deleteLocalImages } from "../lib/imageCleanup";
 import {
@@ -24,8 +23,6 @@ const publishOverlaySchema = overlaySchema;
 
 const getOverlaySchema = z.object({
   id: z.uuid(),
-  includeIntersecting: z.boolean().optional().default(false),
-  includeStatus: z.array(z.enum(["pending", "approved", "rejected"])).optional(), // Optional status filter for admins
 });
 
 // Renders are non-georeferenced project images (no corners), so they have their own
@@ -52,39 +49,6 @@ const updateOverlaySchema = z.object({
     .optional(), // Allow updating caption
 });
 
-// Find overlays that intersect with a given overlay using PostGIS spatial queries
-async function findIntersectingOverlays(
-  database: Database,
-  excludeId: string,
-  targetOverlay: { corners: { lat: number; lng: number }[] },
-) {
-  try {
-    // Construct the target polygon once as WKT string - avoids expensive polygon construction for every row
-    const [topLeft, topRight, bottomRight, bottomLeft] = targetOverlay.corners;
-    // oxlint-disable-next-line no-non-null-assertion
-    const targetPolygonWKT = `POLYGON((${topLeft!.lng} ${topLeft!.lat}, ${topRight!.lng} ${topRight!.lat}, ${bottomRight!.lng} ${bottomRight!.lat}, ${bottomLeft!.lng} ${bottomLeft!.lat}, ${topLeft!.lng} ${topLeft!.lat}))`;
-
-    // Use PostGIS ST_Intersects with precomputed target polygon for optimal performance
-    // Only return approved overlays
-    const intersectingOverlays = await buildOverlayQuery(database).where(sql`
-        ${overlays.id} != ${excludeId} AND
-        ${overlays.status} = 'approved' AND
-        ST_Intersects(
-          ST_GeomFromText(${targetPolygonWKT}, 4326),
-          ${overlays.corners}
-        )
-      `);
-
-    return intersectingOverlays;
-  } catch (error) {
-    console.error("Error finding intersecting overlays:", error);
-    throw new TRPCError({
-      code: "INTERNAL_SERVER_ERROR",
-      message: "Failed to find intersecting overlays",
-    });
-  }
-}
-
 // Filenames are minted per-upload and are the key for the stored image plus its retained
 // original and thumbnail. A filename already carried by another overlay would let a delete or
 // re-publish reach that overlay's files, so a publish may only claim one no other row holds.
@@ -107,39 +71,16 @@ async function assertFilenameUnclaimed(filename: string, exceptOverlayId?: strin
 export const overlayRouter = router({
   getOverlay: publicProcedure.input(getOverlaySchema).query(async ({ input, ctx }) => {
     try {
-      // Determine mode based on context - edit mode if logged in, view mode otherwise
-      const mode: AppMode = ctx.user ? "edit" : "view";
-      const whereConditions = [
-        eq(overlays.id, input.id),
-        buildOverlayVisibilityCondition(ctx.user, mode, undefined, input.includeStatus),
-      ];
-
-      // Fetch the requested overlay
-      const overlay = await buildOverlayQuery(db)
-        .where(and(...whereConditions))
+      const mode = ctx.user ? "edit" : "view";
+      const [overlay] = await buildOverlayQuery(db)
+        .where(and(eq(overlays.id, input.id), buildOverlayVisibilityCondition(ctx.user, mode)))
         .limit(1);
 
-      if (overlay.length === 0) {
+      if (!overlay) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Overlay not found" });
       }
 
-      let intersectingOverlays: Awaited<ReturnType<typeof findIntersectingOverlays>> = [];
-
-      // If includeIntersecting is true, find overlays that intersect with the queried overlay.
-      // Renders have no corners, so there is nothing to intersect (and the polygon build would fail).
-      if (input.includeIntersecting) {
-        const queriedOverlay = overlay[0];
-        if (!queriedOverlay)
-          throw new TRPCError({ code: "NOT_FOUND", message: "Overlay not found" });
-        if (queriedOverlay.corners.length === 4) {
-          intersectingOverlays = await findIntersectingOverlays(db, input.id, queriedOverlay);
-        }
-      }
-
-      return {
-        overlay: overlay[0],
-        intersectingOverlays,
-      };
+      return overlay;
     } catch (error) {
       if (error instanceof TRPCError) throw error;
       console.error("Error fetching overlay:", error);

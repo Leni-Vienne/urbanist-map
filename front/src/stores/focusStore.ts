@@ -1,8 +1,7 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { computed, ref } from "vue";
-import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
-import { createProjectObject } from "@/utils/typeFactories";
+import { useMapStore } from "@/stores/mapStore";
 import type { Project } from "@/types/index";
 
 // What is currently emphasized on the map and in the docked detail panel. A project target is a
@@ -35,20 +34,14 @@ export const useFocusStore = defineStore("focus", () => {
   );
   const selectedOverlayId = computed<string | null>(() => overlayIdOf(selection.value));
   const selectedProjectId = computed<string | null>(() => selection.value?.projectId ?? null);
-  // The full Project behind the pinned selection, for the docked detail card. An overlay selection
-  // prefers the project joined onto the overlay, falling back to a store lookup by the captured
-  // projectId; a project selection reads straight from the store.
+  // The full Project behind the pinned selection, for the docked detail card.
   const selectedProject = computed<Project | null>(() => {
     const target = selection.value;
     if (!target) return null;
     const projectStore = useProjectStore();
-    if (target.kind === "overlay") {
-      const overlay = useOverlayStore().liveOverlays[target.overlayId];
-      const joined = overlay?.project;
-      if (joined) return createProjectObject(joined);
-      return target.projectId ? projectStore.getProjectById(target.projectId) : null;
-    }
-    return projectStore.getProjectById(target.projectId);
+    return target.projectId
+      ? projectStore.getMapProjectById(target.projectId, useMapStore().mode)
+      : null;
   });
   // A docked detail panel is open whenever something is pinned.
   const detailVisible = computed<boolean>(() => selection.value !== null);

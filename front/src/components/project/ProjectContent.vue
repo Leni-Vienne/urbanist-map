@@ -288,8 +288,7 @@ function handleOverlayContributorClick(
 }
 
 async function handleOverlayCardClick(overlay: Overlay, shouldFitBounds: boolean) {
-  // Renders aren't on the map, so navigating to them is meaningless (and crashes the corner-based
-  // intersection lookup). Show the full image instead.
+  // Renders aren't georeferenced, so they open in the lightbox instead of navigating on the map.
   if (overlay.kind === "render") {
     openLightbox(overlay);
     return;

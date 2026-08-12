@@ -1,11 +1,6 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
-import type {
-  OverlayObject,
-  OverlayData,
-  OverlayHistoryState,
-  OverlayPositionState,
-} from "@/types/index";
+import type { OverlayObject, OverlayHistoryState, OverlayPositionState } from "@/types/index";
 
 // The non-staged resting state: an open change request rests on its suggested state, else baseline.
 function restingPositionState(overlay: OverlayObject): OverlayPositionState {
@@ -15,18 +10,7 @@ function restingPositionState(overlay: OverlayObject): OverlayPositionState {
 export const useOverlayStore = defineStore("overlay", () => {
   const liveOverlays = ref<Record<string, OverlayObject>>({});
 
-  // The mode-scoped list the viewport render loop reconciles against the map.
-  const renderLoopOverlays = ref<OverlayData[]>([]);
-
   const replacementOverlayId = ref<string | null>(null);
-
-  function setRenderLoopOverlays(overlayData: OverlayData[]) {
-    renderLoopOverlays.value = overlayData;
-  }
-
-  function clearRenderLoopOverlays() {
-    renderLoopOverlays.value = [];
-  }
 
   function addOverlay(overlayId: string, overlay: OverlayObject) {
     liveOverlays.value[overlayId] = overlay;
@@ -106,8 +90,7 @@ export const useOverlayStore = defineStore("overlay", () => {
     liveOverlays.value = {};
   }
 
-  // Clear user-specific state on logout or account switch: the live overlay objects and the pending
-  // replacement target. renderLoopOverlays is left as-is.
+  // Clear user-specific state on logout or account switch.
   function clearAllState() {
     clearLiveOverlays();
     resetReplacement();
@@ -116,12 +99,9 @@ export const useOverlayStore = defineStore("overlay", () => {
   return {
     // State
     liveOverlays,
-    renderLoopOverlays,
     replacementOverlayId,
 
     // Actions
-    setRenderLoopOverlays,
-    clearRenderLoopOverlays,
     clearLiveOverlays,
     addOverlay,
     updateOverlay,

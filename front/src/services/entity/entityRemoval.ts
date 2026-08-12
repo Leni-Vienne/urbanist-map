@@ -7,6 +7,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { clearEntry as clearRegistryEntry } from "@/services/overlay/mapLayers";
 import { closeDetail } from "@/services/overlay/selection";
 import { trpc } from "@/client";
+import { removeMapSessionOverlay } from "@/services/map/mapSessionState";
 
 import { t } from "@/locales";
 import { toastSuccess, toastError } from "@/services/core/toast";
@@ -31,9 +32,7 @@ export function removeOverlayFromMapAndStore(overlayId: string) {
   // eslint-disable-next-line no-dynamic-delete
   delete overlayStore.liveOverlays[overlayId];
 
-  overlayStore.renderLoopOverlays = overlayStore.renderLoopOverlays.filter(
-    (o) => o.id !== overlayId,
-  );
+  removeMapSessionOverlay(overlayId);
 }
 
 function removeOverlay(

@@ -5,7 +5,7 @@
 import { watch } from "vue";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { mapRotationEnabled } from "@/services/core/settings";
-import { setupEventListeners, clearMapSessionLists } from "@/services/map/viewportTriggers";
+import { setupEventListeners, clearMapSessionData } from "@/services/map/viewportTriggers";
 import { clearPendingProjectSourceCache } from "@/services/map/tiles/basemap";
 import { clearHybridInteractionHandlers } from "@/services/map/tiles/layers";
 import { clearAllProjectShapes } from "@/services/map/shapes/rendering";
@@ -53,7 +53,7 @@ export function startMapRuntime(target: MaplibreMap): () => void {
 
     // Session sets and the pending-source payloads replayed onto a style are re-fetched by the next
     // mount, which must not inherit this one's content.
-    clearMapSessionLists();
+    clearMapSessionData();
     clearPendingProjectSourceCache();
     clearHybridInteractionHandlers(target);
   };

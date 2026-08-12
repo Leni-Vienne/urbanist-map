@@ -67,9 +67,9 @@ import {
   startMapStateCoordinator,
   activateMapStateCoordinator,
 } from "@/services/map/globalWatchers";
+import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 
 import { useI18n } from "vue-i18n";
-import { refreshViewport } from "@/services/map/viewportTriggers";
 import { useMapStore } from "@/stores/mapStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -128,7 +128,7 @@ async function initializeMapAndOverlays() {
     // clean frame, which satisfies both. Afterwards moveend drives the refreshes.
     void target.once("idle", () => {
       if (mountedMap !== target) return;
-      refreshViewport();
+      runViewportRenderLoop();
     });
 
     stopMapStateCoordinator = startMapStateCoordinator();

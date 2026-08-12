@@ -137,14 +137,12 @@ type ApiOverlayData = RouterOutput["viewport"]["getEditSessionData"]["overlays"]
 
 // Frontend overlay data type - extends API type with:
 // - null status for local overlays not yet submitted to the backend
-// - nullable project for local overlays constructed without a project join
 // - optional fields that are absent on locally-constructed overlays
 export type OverlayData = Omit<
   ApiOverlayData,
-  "status" | "project" | "corners" | "suggestedCorners" | "suggestedCaption" | "hasPendingChanges"
+  "status" | "corners" | "suggestedCorners" | "suggestedCaption" | "hasPendingChanges"
 > & {
   status: ApprovalStatus | null;
-  project?: ApiOverlayData["project"] | Project | null;
   // The immutable backend/approved corners, or null when the overlay has no placed footprint
   // (an un-placed local upload before its corners are computed, or a render with null corners).
   // The live edited position lives on the GL image (getOverlayImageCorners) and undo steps in
@@ -161,6 +159,22 @@ export type OverlayData = Omit<
   // Which pipeline built this data object (tile-sourced data carries no change-request state).
   source: OverlayDataSource;
 };
+
+// Lightweight overlay data decoded from the approved-overlay vector tile. It contains only tile
+// fields and values derived directly from them; session-only metadata stays on OverlayData.
+export interface TileOverlayData {
+  id: string;
+  filename: string;
+  caption: string | null;
+  status: "approved";
+  projectId: string | null;
+  centroid: LatLng;
+  baselineCorners: LatLng[];
+  baselineCaption: string | null;
+  source: "tile";
+}
+
+export type OverlayRenderData = OverlayData | TileOverlayData;
 
 // A normalized sub-rectangle of an image, u left->right, v top->bottom, each in [0, 1].
 export interface NormalizedRect {
