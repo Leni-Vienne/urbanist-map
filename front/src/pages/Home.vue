@@ -213,11 +213,15 @@ async function handleShapesCancel() {
   uiStore.closeShapeEditor();
 }
 
-onMounted(async () => {
+onMounted(() => {
   maintenanceTickInterval = globalThis.setInterval(() => {
     now.value = new Date();
   }, 30_000);
 
+  void restoreSessionAndConsumeAuthParams();
+});
+
+async function restoreSessionAndConsumeAuthParams() {
   await authStore.initialize();
 
   // Handle auth query parameters from URL
@@ -246,7 +250,7 @@ onMounted(async () => {
     const path = url.pathname.replace(/\/{2,}/g, "/");
     globalThis.history.replaceState(globalThis.history.state, "", path + url.search + url.hash);
   }
-});
+}
 
 // Get error message for auth query param codes
 function getErrorMessage(error: string): string {

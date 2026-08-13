@@ -125,10 +125,14 @@ export function useModerationCountrySelector({ onCountryDataNeeded }: Options) {
     flyToCountry(country.code);
   }
 
-  onMounted(async () => {
+  async function loadCountriesAndCounts() {
     countriesLoading.value = true;
     await Promise.all([initCountries(), initPendingCounts()]);
     countriesLoading.value = false;
+  }
+
+  onMounted(() => {
+    void loadCountriesAndCounts();
   });
 
   return {

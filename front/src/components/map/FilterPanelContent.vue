@@ -270,7 +270,7 @@ const linePreviewColor = computed(() => {
 
 const { theme } = useTheme();
 
-function tagStyle(tag: ProjectTag): Record<string, string> {
+function tagStyle(tag: ProjectTag) {
   if (selectedProjectTags.value.includes(tag.slug)) {
     return { backgroundColor: tag.color, color: tag.textColor, borderColor: tag.color };
   }

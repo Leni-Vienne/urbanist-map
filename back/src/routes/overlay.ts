@@ -351,15 +351,14 @@ export const overlayRouter = router({
         });
       }
 
-      // Update only the provided fields
-      const updateData: Partial<{ caption: string }> = {};
-      if (input.caption !== undefined) {
-        updateData.caption = input.caption;
-      }
-
+      // An undefined caption is dropped by drizzle, leaving the field untouched.
       await db
         .update(overlays)
-        .set({ ...updateData, version: sql`${overlays.version} + 1`, updatedAt: new Date() }) // Increment version on update for optimistic locking
+        .set({
+          caption: input.caption,
+          version: sql`${overlays.version} + 1`, // Increment version on update for optimistic locking
+          updatedAt: new Date(),
+        })
         .where(eq(overlays.id, input.id));
     } catch (error) {
       if (error instanceof TRPCError) throw error;

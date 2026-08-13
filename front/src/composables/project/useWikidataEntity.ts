@@ -1,5 +1,6 @@
 import { computed, ref, watch, type Ref } from "vue";
 import { useI18n } from "vue-i18n";
+import type { JsonObject } from "@shared/json";
 
 export interface WikidataEntity {
   description: string | null;
@@ -21,7 +22,7 @@ function commonsUrl(filename: string): string {
   );
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+function isRecord(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
@@ -33,7 +34,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 // P154 = logo image (Wikimedia Commons filename)
 // P18  = main image (Wikimedia Commons filename)
-function getStringClaim(claims: Record<string, unknown>, property: string): string | null {
+function getStringClaim(claims: JsonObject, property: string): string | null {
   const arr = claims[property];
   const statement = Array.isArray(arr) ? arr[0] : undefined;
   if (!isRecord(statement)) return null;
@@ -78,9 +79,8 @@ async function fetchEntity(id: string, lang: string): Promise<WikidataEntity | n
   }
 }
 
-function extractWikidataId(externalProperties: unknown): string | null {
-  if (!externalProperties || typeof externalProperties !== "object") return null;
-  const id = (externalProperties as Record<string, unknown>).wikidata;
+function extractWikidataId(externalProperties: JsonObject | null): string | null {
+  const id = externalProperties?.wikidata;
   return typeof id === "string" ? id : null;
 }
 
@@ -89,7 +89,7 @@ function extractWikidataId(externalProperties: unknown): string | null {
  * Takes a project's `externalProperties` and derives the Wikidata Q-id from it.
  * Results are cached for the session so each Q-id is fetched at most once per locale.
  */
-export function useWikidataEntity(externalProperties: Ref<unknown>) {
+export function useWikidataEntity(externalProperties: Ref<JsonObject | null>) {
   const { locale } = useI18n();
   const entity = ref<WikidataEntity | null>(null);
   const wikidataId = computed(() => extractWikidataId(externalProperties.value));

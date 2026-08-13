@@ -10,7 +10,8 @@ export const useModeratedContributionsStore = defineStore("moderatedContribution
   let requestVersion = 0;
 
   async function fetchModeratedContributions(): Promise<boolean> {
-    const version = ++requestVersion;
+    requestVersion += 1;
+    const version = requestVersion;
     isLoading.value = true;
     try {
       const result = await loadOrNull(trpc.overlay.getModeratedContributions.query, {
@@ -68,7 +69,7 @@ export const useModeratedContributionsStore = defineStore("moderatedContribution
 
   // Clear user-specific state on logout or account switch.
   function clearAllState() {
-    requestVersion++;
+    requestVersion += 1;
     moderatedContributions.value = [];
     isLoading.value = false;
     hasPreloaded.value = false;

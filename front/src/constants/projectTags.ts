@@ -66,6 +66,19 @@ export function getProjectTagColor(tags: string[]): string {
   return PROJECT_TAG_MAP.get(firstTag)?.color ?? DEFAULT_TAG_COLOR;
 }
 
+/** Inline chip colors for a tag slug. Object type, not an interface, so it stays assignable to Vue's `:style`. */
+type TagChipStyle = {
+  backgroundColor: string;
+  color: string;
+};
+
+/** Chip colors for a tag slug, falling back to the default color for an unknown slug. */
+export function getTagChipStyle(slug: string): TagChipStyle {
+  const tag = PROJECT_TAG_MAP.get(slug);
+  if (!tag) return { backgroundColor: DEFAULT_TAG_COLOR, color: "#ffffff" };
+  return { backgroundColor: tag.color, color: tag.textColor };
+}
+
 /** Resolve a project's first tag to its icon; null when untagged or the tag is unknown. */
 export function getProjectTagIcon(tags: string[]): Component | null {
   const firstTag = tags[0];

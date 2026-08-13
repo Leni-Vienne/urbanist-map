@@ -33,7 +33,7 @@ const emit = defineEmits<{
 function handleSubmit() {
   const errors = getScopedProjectValidationErrors(formData);
   if (errors) {
-    const firstError = Object.values(errors)[0];
+    const firstError = errors[0];
     if (firstError) {
       toastError(t(firstError.key, firstError.params ?? {}), t("toast.validationError"));
     }

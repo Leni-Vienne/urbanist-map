@@ -399,7 +399,7 @@ async function main() {
       noStartDate = 0,
       noTags = 0;
     for (const f of geojson.features) {
-      const p = (f.properties ?? {}) as Record<string, unknown>;
+      const p = f.properties ?? {};
       const status = String(p["project_status"] ?? "missing");
       allStatuses.set(status, (allStatuses.get(status) ?? 0) + 1);
       if (!(p["display_name"] as string | undefined)?.trim()) noName++;
@@ -460,7 +460,7 @@ async function main() {
 
     for (let i = 0; i < geojson.features.length; i++) {
       const feature = geojson.features[i]!;
-      const featureProps = (feature.properties ?? {}) as Record<string, unknown>;
+      const featureProps = feature.properties ?? {};
       const externalId = feature.id ? String(feature.id) : null;
 
       // OSM edit timestamp, used both for the unchanged-row skip below and for storage.

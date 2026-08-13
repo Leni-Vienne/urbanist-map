@@ -23,5 +23,5 @@
     "strictTemplates": true,
     "target": 3.6
   },
-  "exclude": ["node_modules", "dist", "junk", "scripts"]
+  "exclude": ["node_modules", "dist", "junk", "scripts", "tools", ".agents"]
 }

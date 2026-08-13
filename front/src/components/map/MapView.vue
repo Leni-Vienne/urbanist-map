@@ -101,9 +101,8 @@ let stopMapRuntime: (() => void) | null = null;
 let stopMapStateCoordinator: (() => void) | null = null;
 let stopWaitingForMap: (() => void) | null = null;
 
-onMounted(async () => {
-  await initializeMapAndOverlays();
-  isLoading.value = false;
+onMounted(() => {
+  void initializeMapAndOverlays();
 });
 
 onUnmounted(handleMapViewUnmount);
@@ -140,6 +139,8 @@ async function initializeMapAndOverlays() {
   } catch (error) {
     console.error("Error initializing map and overlays:", error);
     toastError(t("pages.home.errors.initializationError"));
+  } finally {
+    isLoading.value = false;
   }
 }
 

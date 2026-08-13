@@ -12,6 +12,7 @@ import {
   normToLngLat,
   lngLatToNorm,
   type OverlayTransform,
+  type NormPoint,
 } from "@/services/overlay/transform";
 import { commitOverlayEdit } from "@/services/overlay/history";
 import { updateMarkerPosition } from "@/services/overlay/markers";
@@ -77,7 +78,7 @@ function handleElement(edge: Edge): HTMLElement {
 }
 
 // Each edge handle sits at the midpoint of its edge of the crop window.
-function handleNorm(edge: Edge, b: CropBounds): { u: number; v: number } {
+function handleNorm(edge: Edge, b: CropBounds): NormPoint {
   const midU = (b.u0 + b.u1) / 2;
   const midV = (b.v0 + b.v1) / 2;
   if (edge === "top") return { u: midU, v: b.v0 };
@@ -208,12 +209,12 @@ export function showCropHandles(overlayObject: OverlayObject): void {
       .addTo(mlMap);
   }
 
-  const handles: Record<Edge, maplibregl.Marker> = {
+  const handles = {
     top: makeHandle("top", baseTransform),
     bottom: makeHandle("bottom", baseTransform),
     left: makeHandle("left", baseTransform),
     right: makeHandle("right", baseTransform),
-  };
+  } satisfies Record<Edge, maplibregl.Marker>;
 
   function onRender(): void {
     syncCrop();

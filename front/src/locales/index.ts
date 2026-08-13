@@ -23,7 +23,7 @@ export function setI18nInstance(instance: I18nInstance): void {
 }
 
 // Global translation function for use outside of Vue components
-export function t(key: string, values?: Record<string, unknown>): string {
+export function t(key: string, values?: Record<string, string | number>): string {
   if (!i18nInstance) {
     return key;
   }
@@ -31,7 +31,7 @@ export function t(key: string, values?: Record<string, unknown>): string {
 }
 
 // Lazy-load locale messages via dynamic import for chunk splitting.
-export async function loadLocaleMessages(locale: Locale): Promise<Record<string, unknown>> {
+export async function loadLocaleMessages(locale: Locale) {
   if (locale === "fr") {
     const module = await import("./messages/fr.json");
     return module.default;

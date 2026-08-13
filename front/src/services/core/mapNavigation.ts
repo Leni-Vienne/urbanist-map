@@ -1,4 +1,10 @@
-import type { LngLatLike, PaddingOptions } from "maplibre-gl";
+import type {
+  EaseToOptions,
+  FlyToOptions,
+  JumpToOptions,
+  LngLatLike,
+  PaddingOptions,
+} from "maplibre-gl";
 import { getMap } from "@/services/core/map";
 import { useUiStore } from "@/stores/uiStore";
 import { isMobile } from "@/services/core/viewport";
@@ -45,7 +51,7 @@ function toLatLng(p: LatLngInput): { lat: number; lng: number } {
   return Array.isArray(p) ? { lat: p[0], lng: p[1] } : { lat: p.lat, lng: p.lng };
 }
 
-function readLngLat(c: LngLatLike): { lng: number; lat: number } {
+function readLngLat(c: LngLatLike) {
   if (Array.isArray(c)) return { lng: c[0], lat: c[1] };
   if ("lng" in c && "lat" in c) return { lng: c.lng, lat: c.lat };
   if ("lon" in c && "lat" in c) return { lng: c.lon, lat: c.lat };
@@ -219,14 +225,17 @@ export function mobileAwareFlyTo(
   const centerDistance = haversineMeters(center.lat, center.lng, target.lat, target.lng);
   const duration = scaledDuration(centerDistance, zoomDiff, options.duration ?? 1.5);
 
-  mlMap.flyTo({
+  // MapLibre merges the options over its defaults, so an explicit `offset: undefined` overwrites
+  // the [0, 0] default and breaks Point.convert. The key must be absent, not undefined.
+  const flyOptions: FlyToOptions = {
     center: [target.lng, target.lat],
     zoom: targetZoom,
     duration: duration * 1000,
     padding: resolvePadding(undefined, options.mobileTopInset),
-    ...(options.offset ? { offset: options.offset } : {}),
     essential: true,
-  });
+  };
+  if (options.offset) flyOptions.offset = options.offset;
+  mlMap.flyTo(flyOptions);
   return true;
 }
 
@@ -246,13 +255,14 @@ function mobileAwarePanTo(latlng: LatLngInput, options: FlyOptions = {}): void {
   const centerDistance = haversineMeters(center.lat, center.lng, target.lat, target.lng);
   const duration = scaledDuration(centerDistance, 0, options.duration ?? 0.3);
 
-  mlMap.easeTo({
+  const easeOptions: EaseToOptions = {
     center: [target.lng, target.lat],
     duration: duration * 1000,
     padding: resolvePadding(undefined, options.mobileTopInset),
-    ...(options.offset ? { offset: options.offset } : {}),
     essential: true,
-  });
+  };
+  if (options.offset) easeOptions.offset = options.offset;
+  mlMap.easeTo(easeOptions);
 }
 
 /**
@@ -269,11 +279,11 @@ function mobileAwareJumpTo(latlng: LatLngInput, zoom?: number, options: FlyOptio
     typeof resolved === "number"
       ? { top: resolved, bottom: resolved, left: resolved, right: resolved }
       : resolved;
-  mlMap.jumpTo({
-    center: [target.lng, target.lat],
-    ...(zoom === undefined ? {} : { zoom }),
-    padding,
-  });
+  // `zoom: undefined` is not the same as no zoom here: jumpTo tests for the key's presence and
+  // would coerce undefined to NaN.
+  const jumpOptions: JumpToOptions = { center: [target.lng, target.lat], padding };
+  if (zoom !== undefined) jumpOptions.zoom = zoom;
+  mlMap.jumpTo(jumpOptions);
 }
 
 /** Web Mercator latitude -> world-Y fraction in [0, 1]. */

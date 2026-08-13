@@ -157,8 +157,7 @@ function transformMapRequest(url: string): RequestParameters | undefined {
 function enableCursorTrackingScrollZoom(targetMap: MaplibreMap): void {
   /* eslint-disable no-underscore-dangle -- mirrors MapLibre's private fields */
   // eslint-disable-next-line no-unsafe-type-assertion
-  const handler = targetMap.scrollZoom as unknown as {
-    wheel: (e: WheelEvent) => void;
+  const handler = targetMap.scrollZoom as MaplibreMap["scrollZoom"] & {
     _aroundPoint?: { x: number; y: number };
     _aroundCenter?: boolean;
     cursorTrackingPatched?: boolean;
@@ -203,12 +202,6 @@ function createMapOptions(): maplibre.MapOptions {
     hash: "map",
     center: initialCenter,
     zoom: initialZoom,
-    ...(deeplinkBounds
-      ? {
-          bounds: deeplinkBounds,
-          fitBoundsOptions: { padding: 50, maxZoom: DEEPLINK_FIT_MAX_ZOOM },
-        }
-      : {}),
     minZoom,
     maxZoom: 21,
     attributionControl: false, // custom attribution control added below
@@ -220,9 +213,10 @@ function createMapOptions(): maplibre.MapOptions {
     touchPitch: mapRotationEnabled.value, // two-finger pitch fights pinch-zoom, so it is gated behind the rotation opt-in
     maxPitch: 85,
   };
-  // Lower sensitivity (default is 0.8).
-  (mapOptions as Record<string, unknown>).rotateDegreesPerPixelMoved = 0.4;
-
+  if (deeplinkBounds) {
+    mapOptions.bounds = deeplinkBounds;
+    mapOptions.fitBoundsOptions = { padding: 50, maxZoom: DEEPLINK_FIT_MAX_ZOOM };
+  }
   return mapOptions;
 }
 

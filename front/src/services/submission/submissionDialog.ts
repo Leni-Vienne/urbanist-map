@@ -139,7 +139,7 @@ function buildSubmissionState(args: {
   projectChanges: SubmissionChange[];
   overlays: Record<string, OverlayObject>;
   stagedRender: StagedRender | undefined;
-}): { summary: SubmissionSummary; context: SubmissionContext } {
+}) {
   const { projectId, project, overlay, projectHasChanges, pendingMods, newOverlayIds } = args;
 
   const changes = [
@@ -185,7 +185,7 @@ function buildSubmissionState(args: {
       newOverlayIds,
       pendingRender: args.stagedRender ? { file: args.stagedRender.file } : undefined,
     },
-  };
+  } satisfies { summary: SubmissionSummary; context: SubmissionContext };
 }
 
 interface SubmissionClassification {

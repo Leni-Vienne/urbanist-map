@@ -47,13 +47,14 @@ import { computed } from "vue";
 import { AccordionHeader } from "primevue";
 import { getStatusSeverity } from "@/utils/statusHelpers";
 import { useWikidataEntity } from "@/composables/project/useWikidataEntity";
+import type { JsonObject } from "@shared/json";
 
 interface Props {
   name: string | null;
   status: string | null;
   pendingChangeCount?: number;
   importSourceType?: string | null;
-  externalProperties?: unknown;
+  externalProperties?: JsonObject | null;
   // Render as a plain card header (a <div>) instead of an AccordionHeader, for use outside an Accordion.
   plain?: boolean;
 }
@@ -62,7 +63,9 @@ const props = defineProps<Props>();
 
 const isOsmImport = computed(() => props.importSourceType === "osm");
 
-const { entity: wikidataEntity } = useWikidataEntity(computed(() => props.externalProperties));
+const { entity: wikidataEntity } = useWikidataEntity(
+  computed(() => props.externalProperties ?? null),
+);
 </script>
 
 <style scoped>

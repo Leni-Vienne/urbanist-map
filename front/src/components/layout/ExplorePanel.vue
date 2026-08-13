@@ -228,6 +228,7 @@ import {
   onMounted,
   ref,
   watch,
+  type ComponentPublicInstance,
 } from "vue";
 import { useI18n } from "vue-i18n";
 import {
@@ -333,11 +334,7 @@ function getThumbnailFilename(contribution: LatestContribution): string | null {
 // A nameless contribution is identified by where it is: the deepest known place becomes its title
 // and the rest of the breadcrumb its subtitle, its category being carried by the icon tile. Only
 // one that is nameless and placeless falls back to a placeholder.
-function getHeadings(contribution: LatestContribution): {
-  title: string;
-  isPlaceholder: boolean;
-  subtitle: string;
-} {
+function getHeadings(contribution: LatestContribution) {
   if (contribution.name) {
     const location = formatBoundaryLocation(contribution, locale.value);
     return {
@@ -475,7 +472,7 @@ const selectedRowId = computed(() => focusStore.selectedOverlayId ?? focusStore.
 
 const rowElements = new Map<string, HTMLElement>();
 
-function registerRow(id: string, element: unknown): void {
+function registerRow(id: string, element: Element | ComponentPublicInstance | null): void {
   if (element instanceof HTMLElement) {
     rowElements.set(id, element);
   } else {

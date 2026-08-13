@@ -10,13 +10,13 @@ lerna-debug.log*
 .claude
 AGENTS.md
 CLAUDE.md
+.agents
 *instructions.md
 .github/agents
 .github/instructions
 
 .env.test
-test-results
-test-results.json
+tools/oxlint
 playwright-report
 playwright/.cache/
 

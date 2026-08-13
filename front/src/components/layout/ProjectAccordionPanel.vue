@@ -241,6 +241,7 @@ const props = withDefaults(defineProps<Props>(), {
   emptyMessage: "",
   emptySubMessage: "",
   changeRequests: () => [],
+  onOverlayClick: undefined,
   isContributePanel: false,
   showUserStatsLink: false,
   selectedProjectId: null,

@@ -224,7 +224,7 @@ export function useModeration() {
     return setProjectStatus(id, "rejected", rejectionReason, rejectAllOverlays);
   }
 
-  onMounted(async () => {
+  onMounted(() => {
     const authStore = useAuthStore();
     const user = authStore.user;
     if (!user) return;
@@ -237,7 +237,7 @@ export function useModeration() {
 
     // Admins fetch unfiltered; moderators only when the active country is one they can access.
     if (isAdmin || (mapCountryCode && canAccessMapCountry)) {
-      await fetchPendingSubmissions();
+      void fetchPendingSubmissions();
     }
   });
 

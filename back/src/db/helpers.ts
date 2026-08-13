@@ -170,13 +170,7 @@ export async function buildPaginationConditions(
   return conditions;
 }
 
-export function buildPaginationResponse<T extends { id: string }>(
-  results: T[],
-  limit: number,
-): {
-  items: T[];
-  pagination: { nextCursor: string | null; hasMore: boolean };
-} {
+export function buildPaginationResponse<T extends { id: string }>(results: T[], limit: number) {
   const hasMore = results.length > limit;
   const items = hasMore ? results.slice(0, limit) : results;
   const lastItem = items[items.length - 1];

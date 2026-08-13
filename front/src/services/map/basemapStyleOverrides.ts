@@ -2,7 +2,7 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 
 // Gray shades for road types, replacing Liberty's yellow/orange major roads.
 // Minor roads and paths are already white/gray in Liberty and are left unchanged.
-const ROAD_COLOR_OVERRIDES: Record<string, string> = {
+const ROAD_COLOR_OVERRIDES = {
   motorway: "#c0bfbf",
   trunk: "#d0cfcf",
   primary: "#e0dfdf",
@@ -11,13 +11,13 @@ const ROAD_COLOR_OVERRIDES: Record<string, string> = {
 };
 
 // Casing (outline) colors, slightly darker than the fill
-const ROAD_CASING_OVERRIDES: Record<string, string> = {
+const ROAD_CASING_OVERRIDES = {
   motorway: "#a8a8a8",
   trunk: "#b8b8b8",
   primary: "#cccccc",
   secondary: "#d8d8d8",
   tertiary: "#dedede",
-};
+} satisfies Record<keyof typeof ROAD_COLOR_OVERRIDES, string>;
 
 /**
  * Overrides Liberty basemap road colors to a neutral gray palette.

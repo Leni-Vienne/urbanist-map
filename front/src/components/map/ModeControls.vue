@@ -86,6 +86,12 @@ function getModeTooltip(): string {
   }
 }
 
+const MODE_SUMMARY_KEYS = {
+  view: "moderation.switchedToViewMode",
+  edit: "moderation.switchedToEditMode",
+  moderation: "moderation.switchedToModerationMode",
+} satisfies Record<AppMode, string>;
+
 // Cycle through modes: view → edit → moderation for moderators, view ↔ edit for regular users.
 function handleModeSwitch() {
   const currentMode = mapStore.mode;
@@ -115,13 +121,7 @@ function handleModeSwitch() {
   if (now - lastToastTime >= TOAST_THROTTLE_MS) {
     lastToastTime = now;
 
-    const modeSummaryKeys: Record<AppMode, string> = {
-      view: "moderation.switchedToViewMode",
-      edit: "moderation.switchedToEditMode",
-      moderation: "moderation.switchedToModerationMode",
-    };
-
-    toastInfo(getModeTooltip(), t(modeSummaryKeys[newMode]));
+    toastInfo(getModeTooltip(), t(MODE_SUMMARY_KEYS[newMode]));
   }
 }
 </script>

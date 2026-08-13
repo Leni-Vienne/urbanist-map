@@ -5,8 +5,11 @@ import type {
   MapMouseEvent,
   PointLike,
   FilterSpecification,
+  FillLayerSpecification,
+  LineLayerSpecification,
   ExpressionSpecification,
 } from "maplibre-gl";
+import type { TileProperties } from "@/types/index";
 import { getMap, getMapOrNull } from "@/services/core/map";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import { handleProjectClickFromTile } from "@/services/core/projectSelection";
@@ -49,6 +52,7 @@ import {
   sizeFilterRange,
   lastModifiedDateRange,
   showOnlyWithImages,
+  parseTimelineStatus,
 } from "@/services/core/filters";
 
 /* oxlint-disable no-unsafe-type-assertion */ // disabled because maplibre-gl is clunky to type
@@ -91,7 +95,7 @@ const CLICK_QUERY_LAYERS = [
 ] as const;
 
 type RenderedMapFeature = {
-  properties?: Record<string, unknown>;
+  properties?: TileProperties;
   sourceLayer?: string;
   geometry?: {
     coordinates?: unknown;
@@ -355,7 +359,7 @@ function getTagFilterExpression(): FilterSpecification | null {
 }
 
 // Layers with existing filters that need tag filter merged with "all"
-const LAYERS_WITH_EXISTING_FILTERS: Record<string, () => FilterSpecification> = {
+const LAYERS_WITH_EXISTING_FILTERS = {
   // project-shapes sub-layers: each combines a status filter with the zoom+size visibility gate
   // so that large projects appear at lower zoom levels (z6/z7) while small ones wait until z8+.
   "project-shapes": () =>
@@ -389,7 +393,7 @@ const LAYERS_WITH_EXISTING_FILTERS: Record<string, () => FilterSpecification> = 
       ["!=", ["get", "timeline_status"], "completed"],
       getShapeZoomVisibilityFilter(),
     ] as FilterSpecification,
-};
+} satisfies Record<string, () => FilterSpecification>;
 
 /**
  * Build a MapLibre filter expression based on current timeline status selection.
@@ -916,7 +920,7 @@ async function handlePointFeatureClick(pointFeature: RenderedMapFeature): Promis
   const projectId = String(pointFeature.properties?.id ?? pointFeature.id ?? "");
   if (projectId.length === 0) return;
 
-  const props: Record<string, unknown> = pointFeature.properties ?? {};
+  const props: TileProperties = pointFeature.properties ?? {};
   const coordinates = pointFeature.geometry?.coordinates;
   const hasCoords = Array.isArray(coordinates) && coordinates.length >= 2;
   const [lng, lat] = hasCoords ? coordinates : [0, 0];
@@ -1108,7 +1112,7 @@ export function initializeHybridInteractionHandlers(): void {
 // Per-selected-tag project counts for a hovered cluster, read from the count_<tag>/count_untagged
 // properties the tile bakes in. Returns undefined when no tag filter is active, so the card falls
 // back to the plain cluster count. Tags with a zero count in this cell are omitted.
-function buildClusterTagCounts(props: Record<string, unknown>): ClusterTagCount[] | undefined {
+function buildClusterTagCounts(props: TileProperties): ClusterTagCount[] | undefined {
   const { includeUntagged, knownTags } = splitTagSelection();
   if (knownTags.length === 0 && !includeUntagged) return undefined;
 
@@ -1133,7 +1137,7 @@ function showClusterHover(
   clientX: number,
   clientY: number,
 ): void {
-  const props: Record<string, unknown> = pointFeature.properties ?? {};
+  const props: TileProperties = pointFeature.properties ?? {};
   const isHighQuality = props.is_high_quality === true;
   let name = isHighQuality ? String(props.name ?? "") : null;
   if (name && selectedProjectTags.value.length > 0) {
@@ -1190,7 +1194,9 @@ function getFeaturePropertyAsString(feature: RenderedMapFeature, key: string): s
 /** Extract hover card data from a vector tile feature's properties. */
 function getHoverDataFromFeature(feature: RenderedMapFeature): HoverProjectData {
   const name = getFeaturePropertyAsString(feature, "name") || null;
-  const timelineStatus = getFeaturePropertyAsString(feature, "timeline_status") || null;
+  const timelineStatus = parseTimelineStatus(
+    getFeaturePropertyAsString(feature, "timeline_status"),
+  );
   // Tags are encoded as a JSON array string in the tile (e.g. '["building","road"]')
   let tags: string[] = [];
   try {
@@ -1345,21 +1351,19 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
 
   // Transparent fill so queryRenderedFeatures hits the interior of each footprint polygon,
   // not just its outline pixels. Without this, hover only fires on the dashed border.
-  mlMap.addLayer(
-    {
-      id: "overlay-footprints-fill",
-      type: "fill",
-      source: "project-sources",
-      "source-layer": "overlay-footprints",
-      minzoom: getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS),
-      ...(hiddenFilter ? { filter: hiddenFilter } : {}),
-      paint: {
-        "fill-color": getProjectLineColorExpression(),
-        "fill-opacity": 0.001,
-      },
+  const footprintsFillLayer: FillLayerSpecification = {
+    id: "overlay-footprints-fill",
+    type: "fill",
+    source: "project-sources",
+    "source-layer": "overlay-footprints",
+    minzoom: getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS),
+    paint: {
+      "fill-color": getProjectLineColorExpression(),
+      "fill-opacity": 0.001,
     },
-    FOOTPRINT_BAND_BEFORE_ID,
-  );
+  };
+  if (hiddenFilter) footprintsFillLayer.filter = hiddenFilter;
+  mlMap.addLayer(footprintsFillLayer, FOOTPRINT_BAND_BEFORE_ID);
 
   // Invisible sentinel layer, no status filter needed since all footprints trigger overlay loading.
   // sync.ts checks for this layer by name to confirm the map is ready.
@@ -1380,23 +1384,21 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
   // covers any border that intrudes into it (the outer half of the double-width stroke still shows
   // against the basemap). On hover/selection the opacity rises to full via feature-state, which is
   // what previously took a separate stacked hover layer.
-  mlMap.addLayer(
-    {
-      id: "overlay-footprints-outline",
-      type: "line",
-      source: "project-sources",
-      "source-layer": "overlay-footprints",
-      minzoom: getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS),
-      layout: { "line-cap": "round" },
-      ...(hiddenFilter ? { filter: hiddenFilter } : {}),
-      paint: {
-        "line-color": getProjectLineColorExpression(),
-        "line-width": FOOTPRINT_LINE_WIDTH,
-        "line-opacity": withHoverState(0.6, 1),
-      },
+  const footprintsOutlineLayer: LineLayerSpecification = {
+    id: "overlay-footprints-outline",
+    type: "line",
+    source: "project-sources",
+    "source-layer": "overlay-footprints",
+    minzoom: getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS),
+    layout: { "line-cap": "round" },
+    paint: {
+      "line-color": getProjectLineColorExpression(),
+      "line-width": FOOTPRINT_LINE_WIDTH,
+      "line-opacity": withHoverState(0.6, 1),
     },
-    FOOTPRINT_BAND_BEFORE_ID,
-  );
+  };
+  if (hiddenFilter) footprintsOutlineLayer.filter = hiddenFilter;
+  mlMap.addLayer(footprintsOutlineLayer, FOOTPRINT_BAND_BEFORE_ID);
 
   // Individual MVT points
   mlMap.addLayer({

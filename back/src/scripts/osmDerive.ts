@@ -5,6 +5,7 @@
 
 import { EXTENDED_OSM_RULES, PRESENT_STATE_OSM_KEYS, isRedevelopmentSite } from "@shared/osmRules";
 import type { TimelineStatus } from "../db/schema";
+import type { JsonObject } from "@shared/json";
 
 export function mapTimelineStatus(projectStatus: string | undefined): TimelineStatus {
   switch (projectStatus) {
@@ -18,7 +19,7 @@ export function mapTimelineStatus(projectStatus: string | undefined): TimelineSt
   }
 }
 
-export function extractTags(props: Record<string, unknown>): string[] {
+export function extractTags(props: JsonObject): string[] {
   const found = new Set<string>();
 
   // On redevelopment sites, plain keys describe the feature being replaced

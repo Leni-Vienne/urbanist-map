@@ -101,8 +101,8 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (e: "update:modelValue", value: FlexibleDateInput | null): void;
-  (e: "blur"): void;
+  "update:modelValue": [value: FlexibleDateInput | null];
+  blur: [];
 }>();
 
 const { t } = useI18n();

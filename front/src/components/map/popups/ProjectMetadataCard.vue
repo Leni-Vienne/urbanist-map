@@ -61,7 +61,7 @@
           v-for="tag in project.tags"
           :key="tag"
           class="px-2.5 py-0.5 rounded-full text-xs font-semibold"
-          :style="getTagStyle(tag)"
+          :style="getTagChipStyle(tag)"
         >
           {{ $te(`tags.${tag}`) ? $t(`tags.${tag}`) : tag }}
         </span>
@@ -161,10 +161,11 @@ import type { Project } from "@/types/index";
 import { formatProjectDateRangeParts } from "@/utils/projectDateFormat";
 import { formatSourceUrl } from "@/utils/urlFormat";
 import { useI18n } from "vue-i18n";
-import { PROJECT_TAG_MAP } from "@/constants/projectTags";
+import { getTagChipStyle } from "@/constants/projectTags";
 import { useWikidataEntity, type WikidataEntity } from "@/composables/project/useWikidataEntity";
 import ImageLightbox from "@/components/common/ImageLightbox.vue";
 import { mapLabelLanguageRef, pickBoundaryName } from "@/services/map/mapLabelLanguage";
+import type { JsonObject } from "@shared/json";
 
 const { t: $t, locale } = useI18n();
 
@@ -190,8 +191,8 @@ const localWikidataEntity =
 const wikidataEntityData = computed(readWikidataEntity);
 const wikidataDescription = computed(() => wikidataEntityData.value?.description ?? null);
 
-function readProjectExternalProperties(): unknown {
-  return props.project?.externalProperties;
+function readProjectExternalProperties(): JsonObject | null {
+  return props.project?.externalProperties ?? null;
 }
 
 function readWikidataEntity(): WikidataEntity | null {
@@ -205,12 +206,6 @@ const cls = {
   label: "text-[10px] font-medium uppercase tracking-[0.07em] text-muted-color",
   value: "text-[13px] text-color wrap-break-word",
 };
-
-function getTagStyle(slug: string): Record<string, string> {
-  const tag = PROJECT_TAG_MAP.get(slug);
-  if (!tag) return { backgroundColor: "#64748b", color: "#ffffff" };
-  return { backgroundColor: tag.color, color: tag.textColor };
-}
 
 function formatDate(date: Date | string | null | undefined): string {
   if (!date) return "—";
@@ -251,11 +246,7 @@ function buildWikidataUrl(value: string): string {
   return `https://www.wikidata.org/wiki/${encodeURIComponent(value)}`;
 }
 
-const externalProperties = computed(() => {
-  const p = props.project?.externalProperties;
-  if (!p || typeof p !== "object") return null;
-  return p as Record<string, unknown>;
-});
+const externalProperties = computed(() => props.project?.externalProperties ?? null);
 
 const externalImageUrl = computed<string | null>(() => {
   const p = externalProperties.value;

@@ -1,4 +1,9 @@
-import { type ExpressionSpecification, type MapMouseEvent, LngLatBounds } from "maplibre-gl";
+import {
+  type ExpressionSpecification,
+  type LineLayerSpecification,
+  type MapMouseEvent,
+  LngLatBounds,
+} from "maplibre-gl";
 import type { Feature } from "geojson";
 import type { Project } from "@/types/index";
 import { getMap, getMapOrNull } from "@/services/core/map";
@@ -139,21 +144,23 @@ function buildShapeLayers(
     layerIds.push(fillLayerId);
   }
 
+  const linePaint: LineLayerSpecification["paint"] = {
+    "line-color": ["coalesce", ["get", "color"], style.color] as ExpressionSpecification,
+    "line-width": style.lineWidth,
+    "line-opacity": [
+      "coalesce",
+      ["get", "opacity"],
+      style.lineOpacity ?? 1,
+    ] as ExpressionSpecification,
+  };
+  if (style.lineDash) linePaint["line-dasharray"] = style.lineDash;
+
   mlMap.addLayer({
     id: lineLayerId,
     type: "line",
     source: sourceId,
     layout: { "line-cap": style.lineCap },
-    paint: {
-      "line-color": ["coalesce", ["get", "color"], style.color] as ExpressionSpecification,
-      "line-width": style.lineWidth,
-      "line-opacity": [
-        "coalesce",
-        ["get", "opacity"],
-        style.lineOpacity ?? 1,
-      ] as ExpressionSpecification,
-      ...(style.lineDash ? { "line-dasharray": style.lineDash } : {}),
-    },
+    paint: linePaint,
   });
   layerIds.push(lineLayerId);
 

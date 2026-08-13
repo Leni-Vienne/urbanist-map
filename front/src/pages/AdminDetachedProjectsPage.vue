@@ -74,7 +74,7 @@
                   v-for="tag in data.tags || []"
                   :key="tag"
                   class="px-2 py-0.5 rounded-full text-xs font-semibold"
-                  :style="getTagStyle(tag)"
+                  :style="getTagChipStyle(tag)"
                 >
                   {{ tagLabel(tag) }}
                 </span>
@@ -178,7 +178,7 @@
                         v-for="tag in cand.tags"
                         :key="tag"
                         class="px-2 py-0.5 rounded-full text-xs font-semibold"
-                        :style="getTagStyle(tag)"
+                        :style="getTagChipStyle(tag)"
                       >
                         {{ tagLabel(tag) }}
                       </span>
@@ -272,7 +272,7 @@ import { toastSuccess, toastError, toastInfo } from "@/services/core/toast";
 import { trpc, type RouterOutput } from "@/client";
 import type { DataTableExpandedRows } from "primevue/datatable";
 import ShapeThumbnail from "@/components/common/ShapeThumbnail.vue";
-import { PROJECT_TAG_MAP } from "@/constants/projectTags";
+import { getTagChipStyle } from "@/constants/projectTags";
 
 type DetachedProject = RouterOutput["moderation"]["getDetachedProjects"][number];
 type Candidate = DetachedProject["candidates"][number];
@@ -304,13 +304,6 @@ async function loadDetachedProjects() {
 // falling back to the raw key for any field without a label.
 function formatFields(fields: string[]): string {
   return fields.map((f) => (te(`fields.${f}`) ? t(`fields.${f}`) : f)).join(", ");
-}
-
-// Chip background/text colors per tag, matching the map's tag styling.
-function getTagStyle(slug: string): Record<string, string> {
-  const tag = PROJECT_TAG_MAP.get(slug);
-  if (!tag) return { backgroundColor: "#64748b", color: "#ffffff" };
-  return { backgroundColor: tag.color, color: tag.textColor };
 }
 
 function tagLabel(slug: string): string {

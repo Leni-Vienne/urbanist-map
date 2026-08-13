@@ -3,6 +3,7 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { trpc } from "@/client";
 import { getApiUrl } from "@/utils/apiUrl";
+import { parseShapeCollection } from "@/utils/geojson";
 import { uploadImageFile } from "@/services/submission/uploadImageFile";
 import { clearStagedRender } from "@/services/submission/stagedRenderState";
 import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
@@ -10,7 +11,7 @@ import type { Project, OverlayObject, PendingOverlayModification } from "@/types
 import {
   projectSchema,
   overlayClientSchema,
-  getValidationErrorsMap,
+  getValidationErrors,
   type FieldChange,
   type OverlayCorners,
 } from "@shared/validation/schemas";
@@ -21,7 +22,7 @@ import {
   prepareOverlayValidationData,
 } from "@/utils/validationHelpers";
 import { resolveOverlayCorners } from "@/services/overlay/data";
-import { applyOverlayBackendFields } from "@/services/overlay/sync";
+import { applyOverlayBackendFields, type OverlayBackendFields } from "@/services/overlay/sync";
 import { refreshMapSessionData } from "@/services/map/viewportTriggers";
 import {
   PROJECT_CHANGE_FIELDS,
@@ -45,14 +46,16 @@ type EntityUpdate =
       entityType: "overlay";
       entityId: string;
       changeType: SubmissionChangeType;
-      // The caption/corners this update will submit (staged delta or corners to publish).
       // When absent, validate falls back to the live store entry.
-      proposed?: {
-        caption?: string | null;
-        corners?: OverlayCorners;
-      };
+      proposed?: ProposedOverlayValues;
       changedFields?: FieldChange[];
     };
+
+// The caption/corners an overlay update will submit (staged delta or corners to publish).
+interface ProposedOverlayValues {
+  caption?: string | null;
+  corners?: OverlayCorners;
+}
 
 function normalizeFieldValue(
   field: keyof Project,
@@ -63,7 +66,8 @@ function normalizeFieldValue(
     return normalizeDate(value);
   }
   if (field === "geometry") {
-    return hasShapes(value) ? JSON.stringify(value) : null;
+    const shapes = parseShapeCollection(value);
+    return shapes ? JSON.stringify(shapes) : null;
   }
   const precisionDateField = getPrecisionDateField(field);
   if (precisionDateField) {
@@ -76,16 +80,6 @@ function normalizeFieldValue(
     );
   }
   return value === "" ? null : (value ?? null);
-}
-
-function hasShapes(v: unknown): boolean {
-  return (
-    v !== null &&
-    v !== undefined &&
-    typeof v === "object" &&
-    // oxlint-disable-next-line no-unsafe-type-assertion
-    (v as GeoJSON.GeometryCollection).geometries.length > 0
-  );
 }
 
 function normalizeDate(val: unknown): string | null {
@@ -123,15 +117,14 @@ function normalizeDatePrecision(
   return precisionValue === null || precisionValue === undefined ? "day" : precisionValue;
 }
 
-function zodErrorsToMessages(zodError: Parameters<typeof getValidationErrorsMap>[0]): string[] {
-  const zodErrors = getValidationErrorsMap(zodError);
-  return Object.values(zodErrors).map((e) => t(e.key, e.params ?? {}));
+function zodErrorsToMessages(zodError: Parameters<typeof getValidationErrors>[0]): string[] {
+  return getValidationErrors(zodError).map((e) => t(e.key, e.params ?? {}));
 }
 
 function validateProject(project: Project): string[] {
   const errors = getProjectValidationErrors(project, { lat: project.lat, lng: project.lng });
   if (!errors) return [];
-  return Object.values(errors).map((e) => t(e.key, e.params ?? {}));
+  return errors.map((e) => t(e.key, e.params ?? {}));
 }
 
 function getChangeType(entity: Project | OverlayObject): SubmissionChangeType {
@@ -166,10 +159,9 @@ function formatValueForDisplay(value: unknown, fieldName?: string): string {
     return "";
   }
 
-  if (fieldName === "geometry" && typeof value === "object") {
-    // oxlint-disable-next-line no-unsafe-type-assertion
-    const count = (value as GeoJSON.GeometryCollection).geometries.length;
-    return t("shapes.geometrySummary", { count });
+  const shapes = fieldName === "geometry" ? parseShapeCollection(value) : null;
+  if (shapes) {
+    return t("shapes.geometrySummary", { count: shapes.geometries.length });
   }
 
   if (Array.isArray(value)) {
@@ -199,8 +191,7 @@ function detectProjectChanges(project: Project, customReason?: string): ProjectF
   if (!originalProject) return changes;
 
   for (const field of PROJECT_CHANGE_FIELDS) {
-    // oxlint-disable-next-line no-unsafe-type-assertion
-    const oldValue = (originalProject as unknown as Record<string, unknown>)[field];
+    const oldValue = originalProject[field];
     const newValue = project[field];
 
     const isGeometryField = field === "geometry";
@@ -457,14 +448,15 @@ async function submitOverlay(
     const captionChange = changes.find((c) => c.fieldName === "caption");
     const overlayObject = overlayStore.liveOverlays[overlayId];
     if (overlayObject) {
-      applyOverlayBackendFields(overlayObject, {
-        hasPendingChanges: true,
-        ...(cornersChange?.newValue
-          ? // oxlint-disable-next-line no-unsafe-type-assertion
-            { suggestedCorners: cornersChange.newValue as OverlayCorners }
-          : {}),
-        ...(captionChange ? { suggestedCaption: String(captionChange.newValue ?? "") } : {}),
-      });
+      // Fields absent from the request stay untouched: applyOverlayBackendFields writes every key
+      // it is handed, so an undefined one would clear the overlay's current value.
+      const fields: OverlayBackendFields = { hasPendingChanges: true };
+      if (cornersChange?.newValue) {
+        // oxlint-disable-next-line no-unsafe-type-assertion
+        fields.suggestedCorners = cornersChange.newValue as OverlayCorners;
+      }
+      if (captionChange) fields.suggestedCaption = String(captionChange.newValue ?? "");
+      applyOverlayBackendFields(overlayObject, fields);
     }
 
     await refreshPendingChangeRequests({ force: true });
@@ -489,17 +481,12 @@ async function submitOverlay(
   }
 
   // Caption-only update on a pending overlay.
-  const overlayData: { id: string; caption?: string } = { id: overlayId };
   const captionChange = changes.find((c) => c.fieldName === "caption");
-  if (captionChange) {
-    overlayData.caption = String(captionChange.newValue ?? "");
-  }
-  await trpc.overlay.updateOverlay.mutate(overlayData);
+  const caption = captionChange ? String(captionChange.newValue ?? "") : undefined;
+  await trpc.overlay.updateOverlay.mutate({ id: overlayId, caption });
 
-  if (overlayData.caption !== undefined) {
-    useProjectStore().updateOverlayInUserContributions(overlayId, {
-      caption: overlayData.caption,
-    });
+  if (caption !== undefined) {
+    useProjectStore().updateOverlayInUserContributions(overlayId, { caption });
   }
 }
 
@@ -524,7 +511,7 @@ function buildOverlayModificationContext(
   reason?: string,
 ): Extract<EntityUpdate, { entityType: "overlay" }> {
   const changedFields: FieldChange[] = [];
-  const proposed: { caption?: string | null; corners?: OverlayCorners } = {};
+  const proposed: ProposedOverlayValues = {};
   if (mod.caption) {
     changedFields.push({
       fieldName: "caption",

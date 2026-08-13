@@ -174,7 +174,7 @@ const { project, overlay } = useDetailProject();
 
 // Wikidata entity for the current project (logo, image)
 const { entity: wikidataEntity } = useWikidataEntity(
-  computed(() => project.value?.externalProperties),
+  computed(() => project.value?.externalProperties ?? null),
 );
 
 const displayName = computed(() => {

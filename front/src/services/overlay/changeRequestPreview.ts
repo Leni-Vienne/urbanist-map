@@ -16,6 +16,7 @@ import { openProjectDetail } from "@/services/core/projectSelection";
 import type { LatLng, Overlay, PendingChangeRequest, Project } from "@/types/index";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { toastError, toastWarn } from "@/services/core/toast";
+import { parseShapeCollection } from "@/utils/geojson";
 
 interface PreviewGeometryOptions {
   change: PendingChangeRequest;
@@ -36,20 +37,6 @@ function parseGeometry(geometryValue: unknown): LatLng[] {
   const point = parsePointValue(geometryValue);
   if (point) return [point];
   return parseQuadValue(geometryValue) ?? [];
-}
-
-function parseGeometryCollection(value: unknown): GeoJSON.GeometryCollection | null {
-  if (!value || typeof value !== "object") return null;
-  const geometry = value as { type?: string; geometries?: unknown[] };
-  if (
-    geometry.type !== "GeometryCollection" ||
-    !Array.isArray(geometry.geometries) ||
-    geometry.geometries.length === 0
-  ) {
-    return null;
-  }
-  // oxlint-disable-next-line no-unsafe-type-assertion
-  return geometry as GeoJSON.GeometryCollection;
 }
 
 // Navigate to position, combining new and previous bounds for a smooth unzoom effect
@@ -220,7 +207,7 @@ export async function previewShapes(options: PreviewShapesOptions): Promise<void
   const { change, project, geometryValue, type } = options;
   const mapStore = useMapStore();
 
-  const geometry = parseGeometryCollection(geometryValue);
+  const geometry = parseShapeCollection(geometryValue);
   if (!geometry) {
     toastWarn(t("shapes.noShapesToPreview"));
     return;

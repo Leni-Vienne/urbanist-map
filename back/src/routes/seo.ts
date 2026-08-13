@@ -4,6 +4,7 @@ import { db } from "../database";
 import { projects, overlays, deletedProjects } from "../db/schema";
 import { resolveBoundaryPath } from "../db/boundaryAssignment";
 import { config } from "../config";
+import type { JsonObject } from "@shared/json";
 
 // Public, cookie-free endpoints consumed by the Cloudflare Pages Function (and any link-preview
 // scraper). They return JSON the Function splices into the static index.html shell, plus the
@@ -50,7 +51,7 @@ async function resolveLocationLabel(
 // remains a known small gap for v1.
 async function resolvePrimaryImageUrl(
   projectId: string,
-  externalProperties: unknown,
+  externalProperties: JsonObject | null,
 ): Promise<string | null> {
   try {
     const rows = await db
@@ -76,11 +77,8 @@ async function resolvePrimaryImageUrl(
   }
 
   // External OSM image tag, already sanitized to http/https at import time.
-  if (externalProperties && typeof externalProperties === "object") {
-    // oxlint-disable-next-line no-unsafe-type-assertion
-    const image = (externalProperties as Record<string, unknown>).image;
-    if (typeof image === "string" && /^https?:\/\//.test(image)) return image;
-  }
+  const image = externalProperties?.image;
+  if (typeof image === "string" && /^https?:\/\//.test(image)) return image;
   return null;
 }
 

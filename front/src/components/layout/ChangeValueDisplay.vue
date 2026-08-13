@@ -23,7 +23,7 @@
   <div v-else-if="change.fieldName === 'geometry'" class="my-2">
     <div class="flex gap-2 flex-wrap">
       <Button
-        v-if="hasGeometry(change.oldValue)"
+        v-if="parseShapeCollection(change.oldValue)"
         icon="pi pi-map-marker"
         :label="$t('shapes.viewCurrentShapes')"
         @click.stop="$emit('preview-geometry', change, 'old')"
@@ -32,7 +32,7 @@
         size="small"
       />
       <Button
-        v-if="hasGeometry(change.newValue)"
+        v-if="parseShapeCollection(change.newValue)"
         icon="pi pi-map-marker"
         :label="$t('shapes.viewSuggestedShapes')"
         @click.stop="$emit('preview-geometry', change, 'new')"
@@ -77,6 +77,7 @@
 import { useI18n } from "vue-i18n";
 import type { PendingChangeRequest } from "@/types/index";
 import ContributorInfo from "@/components/common/ContributorInfo.vue";
+import { parseShapeCollection } from "@/utils/geojson";
 
 interface Props {
   change: PendingChangeRequest;
@@ -103,12 +104,6 @@ const { t } = useI18n();
 
 function isGeometryField(fieldName: string): boolean {
   return fieldName === "corners" || fieldName === "centroid";
-}
-
-function hasGeometry(value: unknown): boolean {
-  if (!value || typeof value !== "object") return false;
-  const geo = value as { geometries?: unknown[] };
-  return (geo.geometries?.length ?? 0) > 0;
 }
 
 function formatValue(value: unknown, fieldName: string): string {

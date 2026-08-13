@@ -70,7 +70,7 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
 
     if (!errors) return true;
 
-    const firstError = Object.values(errors)[0];
+    const firstError = errors[0];
     if (!firstError) return false;
     toastError(t(firstError.key, firstError.params ?? {}), t("toast.validationError"));
     return false;

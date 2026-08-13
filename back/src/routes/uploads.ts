@@ -67,8 +67,8 @@ function buildFileHeaders(
   etagFilename: string,
   isApproved: boolean,
   origin: string | undefined,
-): Record<string, string> {
-  const headers: Record<string, string> = {
+): Headers {
+  const headers = new Headers({
     "Content-Type": contentType ?? "application/octet-stream",
     // Approved images are public and immutable; pending/rejected are per-user authorized,
     // so they must never be stored by shared caches and replayed to unauthorized clients.
@@ -79,18 +79,19 @@ function buildFileHeaders(
     "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
     "Cross-Origin-Resource-Policy": "cross-origin",
-  };
+  });
 
   if (process.env.NODE_ENV === "development") {
-    headers["Access-Control-Allow-Origin"] = origin ?? "*";
-    headers["Access-Control-Allow-Credentials"] = "true";
+    headers.set("Access-Control-Allow-Origin", origin ?? "*");
+    headers.set("Access-Control-Allow-Credentials", "true");
   } else if (isAllowedCorsOrigin(origin)) {
-    headers["Access-Control-Allow-Origin"] = origin ?? "";
-    headers["Access-Control-Allow-Credentials"] = "true";
+    headers.set("Access-Control-Allow-Origin", origin ?? "");
+    headers.set("Access-Control-Allow-Credentials", "true");
   } else {
-    headers["Access-Control-Allow-Origin"] = allowedDomains[0]
-      ? `https://${allowedDomains[0]}`
-      : "";
+    headers.set(
+      "Access-Control-Allow-Origin",
+      allowedDomains[0] ? `https://${allowedDomains[0]}` : "",
+    );
   }
 
   return headers;

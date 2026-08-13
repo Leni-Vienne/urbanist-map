@@ -57,13 +57,14 @@ export function getStagedOverlayModifications(projectId: string): PendingOverlay
     const corners = getStagedCornersDelta(overlay);
     const caption = getStagedCaptionDelta(overlay);
     if (!corners && !caption) continue;
-    byId.set(overlay.id, {
+    const modification: PendingOverlayModification = {
       overlayId: overlay.id,
       projectId,
       overlayStatus: overlay.status,
-      ...(corners ? { corners } : {}),
-      ...(caption ? { caption } : {}),
-    });
+    };
+    if (corners) modification.corners = corners;
+    if (caption) modification.caption = caption;
+    byId.set(overlay.id, modification);
   }
   return [...byId.values()];
 }

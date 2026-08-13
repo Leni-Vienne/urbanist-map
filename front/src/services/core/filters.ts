@@ -4,41 +4,43 @@
 import { ref, computed, watch } from "vue";
 import type { TimelineStatus } from "../../../../back/src/db/schema";
 
-const ALL_TIMELINE_STATUSES: TimelineStatus[] = [
+const TIMELINE_STATUSES = [
   "proposed",
   "planned",
   "under_construction",
   "completed",
   "canceled",
-];
+] as const satisfies readonly TimelineStatus[];
+
+// Narrow a raw status string (vector tile property, wire payload) to a known status, or null.
+export function parseTimelineStatus(value: string | null | undefined): TimelineStatus | null {
+  if (!value) return null;
+  return TIMELINE_STATUSES.find((status) => status === value) ?? null;
+}
 
 // Empty array = show all statuses.
 export const selectedStatusFilters = ref<TimelineStatus[]>([]);
 
+function isStatusVisible(status: TimelineStatus): boolean {
+  const selected = selectedStatusFilters.value;
+  return selected.length === 0 || selected.includes(status);
+}
+
 // Visibility per timeline status. When selection is empty, all are true.
-export const visibleStates = computed(() => {
-  // oxlint-disable-next-line no-unsafe-type-assertion
-  const states = {} as Record<TimelineStatus, boolean>;
-
-  if (selectedStatusFilters.value.length === 0) {
-    for (const status of ALL_TIMELINE_STATUSES) {
-      states[status] = true;
-    }
-  } else {
-    for (const status of ALL_TIMELINE_STATUSES) {
-      states[status] = selectedStatusFilters.value.includes(status);
-    }
-  }
-
-  return states;
-});
+export const visibleStates = computed(() => ({
+  proposed: isStatusVisible("proposed"),
+  planned: isStatusVisible("planned"),
+  under_construction: isStatusVisible("under_construction"),
+  completed: isStatusVisible("completed"),
+  canceled: isStatusVisible("canceled"),
+}));
 
 // Visibility of one timeline status under the current filter selection.
 // Missing or unknown status reads as proposed.
 export function matchesTimelineStatusFilter(timelineStatus: string | null | undefined): boolean {
   const states = visibleStates.value;
-  if (!timelineStatus) return states.proposed;
-  return (states as Record<string, boolean>)[timelineStatus] ?? states.proposed;
+  const status = parseTimelineStatus(timelineStatus);
+  return status ? states[status] : states.proposed;
 }
 
 // Empty array = show all tags.
@@ -81,7 +83,7 @@ export function toggleProjectTagFilter(tag: string): void {
   selectedProjectTags.value = [...selectedProjectTags.value, tag];
 }
 
-export function splitTagSelection(): { includeUntagged: boolean; knownTags: string[] } {
+export function splitTagSelection() {
   const selected = selectedProjectTags.value;
   return {
     includeUntagged: selected.includes(UNTAGGED_PROJECT_FILTER),

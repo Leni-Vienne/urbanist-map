@@ -1,3 +1,21 @@
+// A project's `geometry` reaches the UI untyped (JSONB from the wire, or a raw change-request
+// value). An empty collection means "no shapes" at every read site, so it parses as null too.
+export function parseShapeCollection(value: unknown): GeoJSON.GeometryCollection | null {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    !("type" in value) ||
+    value.type !== "GeometryCollection" ||
+    !("geometries" in value) ||
+    !Array.isArray(value.geometries) ||
+    value.geometries.length === 0
+  ) {
+    return null;
+  }
+  // oxlint-disable-next-line no-unsafe-type-assertion
+  return value as GeoJSON.GeometryCollection;
+}
+
 // Walks every coordinate position in a GeoJSON geometry, invoking cb(lng, lat) for each.
 // Handles every geometry type including nested Multi* variants and GeometryCollection.
 

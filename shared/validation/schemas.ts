@@ -135,7 +135,7 @@ export const resetPasswordSchema = z.object({
 });
 
 // Allowed field names per entity type and their value validators
-const PROJECT_FIELD_VALIDATORS: Record<string, z.ZodTypeAny> = {
+const PROJECT_FIELD_VALIDATORS = {
   name: z.string().min(1).max(35),
   description: z.string().max(2000).or(z.literal("")).nullable(),
   sourceUrl: safeUrl.or(z.literal("")).nullable(),
@@ -158,9 +158,20 @@ const overlayCornersSchema = z
 
 export type OverlayCorners = z.infer<typeof overlayCornersSchema>;
 
-const OVERLAY_FIELD_VALIDATORS: Record<string, z.ZodTypeAny> = {
+const OVERLAY_FIELD_VALIDATORS = {
   caption: z.string().max(500).or(z.literal("")).nullable(),
   corners: overlayCornersSchema,
+};
+
+/** The field names a change request may name, per entity type. */
+export type ProjectFieldName = keyof typeof PROJECT_FIELD_VALIDATORS;
+export type OverlayFieldName = keyof typeof OVERLAY_FIELD_VALIDATORS;
+
+// Lookup form of the tables above. A wire `fieldName` is an arbitrary string until it matches a
+// key here, so it is looked up rather than indexed.
+const FIELD_VALIDATORS_BY_ENTITY = {
+  project: new Map<string, z.ZodTypeAny>(Object.entries(PROJECT_FIELD_VALIDATORS)),
+  overlay: new Map<string, z.ZodTypeAny>(Object.entries(OVERLAY_FIELD_VALIDATORS)),
 };
 
 export const submitChangeRequestSchema = z
@@ -183,11 +194,10 @@ export const submitChangeRequestSchema = z
       .min(1, "validation.changesRequired"),
   })
   .superRefine((data, ctx) => {
-    const validators =
-      data.entityType === "project" ? PROJECT_FIELD_VALIDATORS : OVERLAY_FIELD_VALIDATORS;
+    const validators = FIELD_VALIDATORS_BY_ENTITY[data.entityType];
 
     data.changes.forEach((change, i) => {
-      const validator = validators[change.fieldName];
+      const validator = validators.get(change.fieldName);
 
       if (!validator) {
         ctx.addIssue({
@@ -213,20 +223,20 @@ export const submitChangeRequestSchema = z
 // Validation error with i18n key and parameters
 export interface ValidationError {
   key: string;
-  params?: Record<string, unknown>;
+  params?: Record<string, string | number>;
 }
 
 function issueToValidationError(issue: z.core.$ZodIssue): ValidationError {
   const key = issue.message.startsWith("validation.") ? issue.message : "validation.genericError";
 
-  const params: Record<string, unknown> = {};
+  const params: Record<string, string | number> = {};
 
   if (issue.code === "too_small") {
-    params.min = issue.minimum;
-    params.expected = issue.minimum;
+    params.min = Number(issue.minimum);
+    params.expected = Number(issue.minimum);
   } else if (issue.code === "too_big") {
-    params.max = issue.maximum;
-    params.expected = issue.maximum;
+    params.max = Number(issue.maximum);
+    params.expected = Number(issue.maximum);
   }
 
   return { key, params: Object.keys(params).length > 0 ? params : undefined };
@@ -245,18 +255,19 @@ export function getValidationError(error: z.ZodError, fieldPath?: string): Valid
   return issueToValidationError(issue);
 }
 
-// Map of field path -> ValidationError for all validation errors in a ZodError
-export function getValidationErrorsMap(error: z.ZodError): Record<string, ValidationError> {
-  const errorMap: Record<string, ValidationError> = {};
+// At most one error per field path, in issue order.
+export function getValidationErrors(error: z.ZodError): ValidationError[] {
+  const seenPaths = new Set<string>();
+  const errors: ValidationError[] = [];
 
   for (const issue of error.issues) {
     const fieldPath = issue.path.join(".");
-    if (!errorMap[fieldPath]) {
-      errorMap[fieldPath] = issueToValidationError(issue);
-    }
+    if (seenPaths.has(fieldPath)) continue;
+    seenPaths.add(fieldPath);
+    errors.push(issueToValidationError(issue));
   }
 
-  return errorMap;
+  return errors;
 }
 
 type SubmitChangeRequestInput = z.infer<typeof submitChangeRequestSchema>;

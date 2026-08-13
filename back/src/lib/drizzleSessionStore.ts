@@ -1,6 +1,7 @@
 import { db } from "../database";
 import { sessions } from "../db/schema";
 import { eq, lt, sql } from "drizzle-orm";
+import type { SessionData } from "hono-sessions";
 
 const CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 const DEFAULT_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
@@ -30,7 +31,7 @@ async function getSessionById(sessionId: string) {
   }
 }
 
-async function createSession(sessionId: string, initialData: any): Promise<void> {
+async function createSession(sessionId: string, initialData: SessionData): Promise<void> {
   try {
     const { shouldPersist, expiresAt } = prepareSessionForPersistence(initialData);
     if (!shouldPersist) return;
@@ -46,10 +47,7 @@ async function createSession(sessionId: string, initialData: any): Promise<void>
   }
 }
 
-async function persistSessionData(
-  sessionId: string,
-  sessionData: Record<string, any>,
-): Promise<void> {
+async function persistSessionData(sessionId: string, sessionData: SessionData): Promise<void> {
   try {
     const { shouldPersist, expiresAt } = prepareSessionForPersistence(sessionData);
     if (!shouldPersist) return;
@@ -94,7 +92,14 @@ export async function deleteUserSessions(userId: string): Promise<void> {
   }
 }
 
-function prepareSessionForPersistence(data: unknown): { shouldPersist: boolean; expiresAt: Date } {
+// Whether a session earns a DB row, and until when. `expiresAt` is meaningless when shouldPersist
+// is false.
+interface SessionPersistence {
+  shouldPersist: boolean;
+  expiresAt: Date;
+}
+
+function prepareSessionForPersistence(data: unknown): SessionPersistence {
   // hono-sessions wraps the user payload inside `_data`
   /* oxlint-disable no-underscore-dangle no-unsafe-type-assertion */
   const inner = (

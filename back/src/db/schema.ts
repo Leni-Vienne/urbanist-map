@@ -16,6 +16,7 @@ import {
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { sql, type InferSelectModel } from "drizzle-orm";
+import type { JsonObject } from "@shared/json";
 
 // Custom column type for PostGIS GeometryCollection.
 // Drizzle's built-in geometry() hardcodes getSQLType() to "geometry(point)" and
@@ -218,7 +219,8 @@ export const projects = pgTable(
       onUpdate: "cascade",
     }),
     externalId: text("external_id"), // Namespaced ID from source (e.g., "relation/123456", "way/789")
-    externalProperties: jsonb("external_properties"), // Raw properties from source (OSM tags, etc.)
+    // Raw properties from source (OSM tags, etc.): an open key set, values whatever the source emitted.
+    externalProperties: jsonb("external_properties").$type<JsonObject>(),
     externalLastModified: timestamp("external_last_modified", { withTimezone: true }), // When source data was last modified (e.g., osm_last_modified)
     lastImportedAt: timestamp("last_imported_at", { withTimezone: true }), // For pruning stale imports
     sourceUrl: text("source_url"),

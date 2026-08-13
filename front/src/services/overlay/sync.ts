@@ -19,7 +19,7 @@ import { createOverlayObject } from "@/utils/typeFactories";
 import type { ModifiableField, OverlayObject, OverlayRenderData } from "@/types/index";
 
 // Backend-owned fields that define an overlay's default (unedited) position and caption.
-type OverlayBackendFields = Partial<
+export type OverlayBackendFields = Partial<
   Pick<
     OverlayObject,
     | "baselineCorners"

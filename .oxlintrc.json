@@ -1,8 +1,20 @@
 {
-  "ignorePatterns": ["**/*tests*/**", "**shim.ts", "**/scripts/**"],
+  "ignorePatterns": [
+    "**/*tests*/**",
+    "**shim.ts",
+    "**/scripts/**",
+    "tools/oxlint/**",
+    ".agents/**"
+  ],
   // Enable all of these plugins (which are enabled by default):
   //"plugins": ["import"],
   "plugins": ["vue"],
+  "jsPlugins": [
+    { "name": "anti-slop", "specifier": "./tools/oxlint/anti-slop/index.ts" },
+    { "name": "scayle", "specifier": "@scayle/eslint-plugin-vue-composable" },
+    // re-export shim: the package has no default export, which oxlint requires
+    { "name": "harlanzw", "specifier": "./tools/lint/harlanzw.ts" }
+  ],
   "categories": {
     "suspicious": "warn", // mostly type assertion stuff that can't easily be fixed
     "correctness": "warn",
@@ -13,23 +25,51 @@
     "pedantic": "off"
   },
   "rules": {
+    // anti-slop
+    "anti-slop/no-chained-type-assertions": "warn",
+    "anti-slop/no-conditional-empty-object-spread": "warn",
+    "anti-slop/no-known-value-widening": "off", // temp
+    "anti-slop/no-object-parameters": "warn",
+    "anti-slop/no-runtime-typeof": "off", // off for now
+    "anti-slop/no-shape-in-symbol-names": "off", // bans the substring "shape", which is domain vocabulary here
+    // `error` joins the built-in `cause`: both name a rejection value, which TS types as unknown.
+    "anti-slop/no-unknown-parameters": ["off", { "allowedNames": ["cause", "error"] }], // off, 19 false positives
+    "anti-slop/no-unknown-type-aliases": "warn",
+    "anti-slop/no-unsafe-dictionary-type": "warn",
+    "anti-slop/no-widen-then-assert": "warn",
+
+    // scayle: reactivity APIs called after an `await` lose the active component/effect scope
+    "scayle/no-composable-after-await": "warn",
+    "scayle/no-lifecycle-after-await": "warn",
+    "scayle/no-watch-after-await": "warn",
+    "scayle/no-computed-after-await": "warn",
+    "scayle/require-explicit-fallthrough-attrs": "off", // needs the template AST, which oxlint does not expose
+
+    // harlanzw: only the `<script setup>` rules; the markdown/prompt/nuxt ones do not apply
+    "harlanzw/vue-no-async-lifecycle-hook": "warn",
+    "harlanzw/vue-no-faux-composables": "warn",
+    "harlanzw/vue-no-nested-reactivity": "warn",
+    "harlanzw/vue-no-reactive-destructuring": "warn",
+    "harlanzw/vue-no-reactivity-after-await": "warn",
+    "harlanzw/vue-no-torefs-on-props": "warn",
+    "harlanzw/vue-no-passing-refs-as-props": "warn",
+    "harlanzw/vue-no-unresolvable-define-emits": "warn",
+    "harlanzw/vue-prefer-define-emits-object-syntax": "warn",
+    "harlanzw/no-silent-catch": "warn",
+    "harlanzw/vue-require-composable-prefix": "off", // wants `use` on any handler that touches a ref
+    "harlanzw/vue-no-ref-access-in-templates": "off", // needs the template AST, which oxlint does not expose
+    "harlanzw/vue-no-resolve-component-in-composables": "off", // needs the template AST, which oxlint does not expose
+
     "eslint/no-undef": "off", // warns about console, document, etc. in front-end code
     "eslint/no-await-in-loop": "off", // false positives in several places
-    "typescript/prefer-readonly-parameter-types": "off",
     "eslint/func-style": ["warn", "declaration"],
     "arrow-body-style": ["off", "as-needed"],
-    /*"unicorn/filename-case": [
-      "error",
-      {
-        "case": "camelCase"
-      }
-    ],*/ // vue files are in pascal case, composables in camel case.....
     // vue rules
     "vue/max-props": "off",
     "vue/define-props-destructuring": "off",
-    // import rules
-    "import/group-exports": "off",
-    // the rest
+    "prefer-readonly-parameter-types": "warn",
+
+    "one-var": "off",
     "prefer-object-spread": "off", // conflicts with oxc "no spread in map"
     "typescript/no-namespace": "off", // conflicts with prefer-namespace-keyword
     "no-continue": "off", // warns about early continues which is odd
@@ -47,12 +87,11 @@
     "no-bitwise": "off",
     "number-literal-case": "off",
     "no-inferrable-types": "off",
-    "no-use-before-define": "off",
     "prefer-ternary": "off",
     "unicorn/no-array-for-each": "off",
+    "no-use-before-define": "off",
     "max-nested-calls": "off", // unsustinable for trpc backend routes
     "max-lines-per-function": "off", // seems irrelevant with vue composables since they are large
-    "no-explicit-any": "off", // many places where we can't type properly, especially with maplibre plugins
     "max-statements": "off",
     "no-undefined": "off",
     "no-alert": "off", // temp

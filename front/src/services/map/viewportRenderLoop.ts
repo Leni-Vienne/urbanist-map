@@ -158,6 +158,7 @@ function convergeOverlayDisplay(overlayObject: OverlayObject): boolean {
  * a mode switch or the zoom gate removes them). An overlay the tile sync rejected on a user filter
  * is never desired, whichever data source resolves it.
  */
+// oxlint-disable-next-line complexity
 function reconcileOverlayExistence(bounds: ViewportBounds): void {
   const overlayStore = useOverlayStore();
   const mapStore = useMapStore();

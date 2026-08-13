@@ -149,7 +149,7 @@ function collectGeojsonSnapshot(): Snapshot {
       }
       total++;
 
-      const props = (feature.properties ?? {}) as Record<string, unknown>;
+      const props = feature.properties ?? {};
 
       bump(
         osmIdTypes,

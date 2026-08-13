@@ -20,7 +20,7 @@ export function formatDate(date: Date | string | null | undefined): string {
 /** Format a date as relative time using i18n translations. */
 export function formatRelativeTime(
   date: Date | string | null | undefined,
-  t: (key: string, args?: Record<string, unknown>) => string,
+  t: (key: string, args?: Record<string, string | number>) => string,
 ): string {
   if (!date) {
     return t("common.unknown");

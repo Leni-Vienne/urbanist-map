@@ -598,10 +598,7 @@ function applyEsriMaxZoom(zoomLevel: number) {
 // Interface for the Esri Identify API response
 interface EsriIdentifyResponse {
   results?: {
-    attributes: {
-      MaxMapLevel?: string;
-      [key: string]: any;
-    };
+    attributes: { MaxMapLevel?: string };
   }[];
 }
 

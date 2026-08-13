@@ -1,4 +1,4 @@
-import { projectSchema, getValidationErrorsMap } from "@shared/validation/schemas";
+import { projectSchema, getValidationErrors } from "@shared/validation/schemas";
 import type { ProjectFormData } from "@/types/index";
 
 const DUMMY_UUID = "00000000-0000-0000-0000-000000000000";
@@ -17,17 +17,17 @@ export function prepareProjectValidationData(
   } as const;
 }
 
-// Returns the validation errors map for a project, or null when valid.
+// Returns the validation errors for a project, or null when valid.
 export function getProjectValidationErrors(
   formData: Parameters<typeof prepareProjectValidationData>[0],
   options?: Parameters<typeof prepareProjectValidationData>[1],
 ) {
   const result = projectSchema.safeParse(prepareProjectValidationData(formData, options));
-  return result.success ? null : getValidationErrorsMap(result.error);
+  return result.success ? null : getValidationErrors(result.error);
 }
 
 // Validates a project form against the selected timeline status: a proposed project carries only a
-// proposal date, any other status carries only start/end dates. Returns the errors map, or null
+// proposal date, any other status carries only start/end dates. Returns the errors, or null
 // when valid.
 export function getScopedProjectValidationErrors(formData: ProjectFormData) {
   const isProposed = formData.timelineStatus === "proposed";

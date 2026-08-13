@@ -53,10 +53,10 @@ function isCoord(obj: unknown): obj is Coord {
   return (
     obj !== null &&
     typeof obj === "object" &&
-    // oxlint-disable-next-line no-unsafe-type-assertion
-    Number.isFinite((obj as Record<string, unknown>).lat) &&
-    // oxlint-disable-next-line no-unsafe-type-assertion
-    Number.isFinite((obj as Record<string, unknown>).lng)
+    "lat" in obj &&
+    "lng" in obj &&
+    Number.isFinite(obj.lat) &&
+    Number.isFinite(obj.lng)
   );
 }
 

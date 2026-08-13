@@ -1,4 +1,5 @@
 import type { ExpressionSpecification } from "maplibre-gl";
+import type { TimelineStatus } from "../../../../../back/src/db/schema";
 
 // Shared project-shape stroke styling. Used by both the view-mode MVT layers and the
 // edit/moderation GeoJSON layers so a shape renders identically across modes.
@@ -28,12 +29,11 @@ export const SHAPE_LINE_WIDTH_HOVER: ExpressionSpecification = [
 export const SHAPE_LONG_DASH: [number, number] = [4, 2];
 export const SHAPE_SHORT_DASH: [number, number] = [0.2, 2];
 
-// SVG-preview equivalents of the map dasharrays, keyed by timeline status. "" renders a solid
-// line. Keys are TimelineStatus values.
-export const STATUS_PREVIEW_DASHARRAY: Record<string, string> = {
+// SVG-preview equivalents of the map dasharrays. "" renders a solid line.
+export const STATUS_PREVIEW_DASHARRAY = {
   proposed: "0,5",
   planned: "7,6",
   under_construction: "7,6",
   completed: "",
   canceled: "7,6",
-};
+} satisfies Record<TimelineStatus, string>;

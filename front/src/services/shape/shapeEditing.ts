@@ -12,6 +12,7 @@ import { getMap } from "@/services/core/map";
 import { LngLatBounds } from "maplibre-gl";
 import { forEachPosition } from "@/utils/geojson";
 import { ref } from "vue";
+import type { JsonObject } from "@shared/json";
 
 const drawableGeometryTypes = new Set(["LineString", "MultiLineString", "Polygon", "MultiPolygon"]);
 
@@ -23,12 +24,12 @@ const BATCH_SIZE = 20;
 type LoadedGeoJSON = {
   geometry: GeoJSON.GeometryCollection;
   skippedGeometryTypes: string[];
-  featureProperties: Record<string, unknown>[];
+  featureProperties: JsonObject[];
 };
 
 function filterDrawableGeometries(
   geometries: (GeoJSON.Geometry | null | undefined)[],
-  featureProperties: Record<string, unknown>[] = [],
+  featureProperties: JsonObject[] = [],
 ): LoadedGeoJSON {
   const drawable: GeoJSON.Geometry[] = [];
   const skipped = new Set<string>();
@@ -212,15 +213,17 @@ export function getDrawnGeometry(): GeoJSON.GeometryCollection {
  * Each feature is tagged with the `mode` property Terra Draw uses for routing.
  */
 function geometryToFeatures(geometry: GeoJSON.Geometry): GeoJSONStoreFeatures[] {
-  function makeFeature(geom: GeoJSON.Geometry, mode: ShapeDrawMode): GeoJSONStoreFeatures {
-    // oxlint-disable-next-line no-unsafe-type-assertion
+  function makeFeature(
+    geom: GeoJSON.LineString | GeoJSON.Polygon,
+    mode: ShapeDrawMode,
+  ): GeoJSONStoreFeatures {
     return {
       type: "Feature",
       // oxlint-disable-next-line no-non-null-assertion
       id: draw!.getFeatureId(),
       geometry: geom,
       properties: { mode },
-    } as unknown as GeoJSONStoreFeatures;
+    };
   }
 
   switch (geometry.type) {
@@ -292,9 +295,7 @@ export async function loadGeoJSONFile(file: File): Promise<LoadedGeoJSON> {
 
   if (parsed.type === "FeatureCollection") {
     const geometries = parsed.features.map((f) => f.geometry);
-    const featureProperties = parsed.features.map(
-      (f) => (f.properties ?? {}) as Record<string, unknown>,
-    );
+    const featureProperties = parsed.features.map((f) => f.properties ?? {});
     return filterDrawableGeometries(geometries, featureProperties);
   }
 
@@ -304,9 +305,7 @@ export async function loadGeoJSONFile(file: File): Promise<LoadedGeoJSON> {
 
   // Single geometry or Feature
   if (parsed.type === "Feature") {
-    const featureProperties = parsed.properties
-      ? [parsed.properties as Record<string, unknown>]
-      : [];
+    const featureProperties = parsed.properties ? [parsed.properties] : [];
     return filterDrawableGeometries([parsed.geometry], featureProperties);
   }
 

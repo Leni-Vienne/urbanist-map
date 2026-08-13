@@ -5,7 +5,7 @@ const markerSize = 25;
 const markerHeight = Math.round(markerSize * 1.6); // Must match SVG height calculation
 
 // Single base color per marker - everything else is generated
-export const markerColors: Record<MarkerColor, string> = {
+export const markerColors = {
   blue: "#1E90FF",
   green: "#32CD32",
   orange: "#FF8C00",
@@ -13,7 +13,7 @@ export const markerColors: Record<MarkerColor, string> = {
   yellow: "#FFEA00",
   purple: "#9932CC",
   grey: "#A0A0A0",
-};
+} satisfies Record<MarkerColor, string>;
 
 // Shared pin silhouette for both marker variants.
 const PIN_BODY_PATH =

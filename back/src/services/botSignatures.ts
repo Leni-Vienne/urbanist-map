@@ -13,7 +13,7 @@ export interface Cidr {
 
 // Operators that publish the IP ranges their crawlers egress from. Fetched at runtime because
 // they change without notice.
-const RANGE_SOURCES: Record<string, string> = {
+const RANGE_SOURCES = {
   "OpenAI SearchBot": "https://openai.com/searchbot.json",
   "OpenAI GPTBot": "https://openai.com/gptbot.json",
   "OpenAI ChatGPT-User": "https://openai.com/chatgpt-user.json",
@@ -22,7 +22,7 @@ const RANGE_SOURCES: Record<string, string> = {
     "https://developers.google.com/search/apis/ipranges/special-crawlers.json",
   Bingbot: "https://www.bing.com/toolbox/bingbot.json",
   Applebot: "https://search.developer.apple.com/applebot.json",
-};
+} satisfies Record<string, string>;
 
 export const BOT_UA_RE =
   /bot\b|bot\/|crawl|spider|slurp|\/scan|scanner|probe|curl|wget|python-requests|go-http-client|libwww|okhttp|java\/|headless|phantomjs|masscan|zgrab|nuclei|facebookexternalhit|semrush|ahrefs|mj12|dotbot|petal|bytespider|gptbot|ccbot|claudebot|perplexity|applebot|duckduck|chatgpt-user/i;

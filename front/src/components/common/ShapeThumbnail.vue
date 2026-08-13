@@ -58,15 +58,23 @@ const props = withDefaults(
 
 const PADDING = 4;
 
+// Covers every GeoJSON `coordinates` nesting depth, from Point to MultiPolygon.
+type NestedCoordinates = number[] | NestedCoordinates[];
+
 // Recursively collect every [lng, lat] position out of an arbitrarily nested coordinates array.
-function collectPositions(coords: unknown): Position[] {
-  if (Array.isArray(coords) && typeof coords[0] === "number") {
-    return [[coords[0], coords[1] as number]];
+// A position and a list of positions are both arrays at runtime, so only the element type
+// separates them. Positions carrying fewer than two numbers are dropped.
+function collectPositions(coords: NestedCoordinates): Position[] {
+  const first = coords[0];
+  if (typeof first === "number") {
+    const second = coords[1];
+    return typeof second === "number" ? [[first, second]] : [];
   }
-  if (Array.isArray(coords)) {
-    return coords.flatMap((c) => collectPositions(c));
+  const positions: Position[] = [];
+  for (const child of coords) {
+    if (typeof child !== "number") positions.push(...collectPositions(child));
   }
-  return [];
+  return positions;
 }
 
 function flattenGeometries(

@@ -1,6 +1,12 @@
 import * as maplibre from "maplibre-gl";
 import type { LatLng } from "@/types/index";
 
+/** A position in the rectangle's local frame: (0,0) is its top-left corner, (1,1) its bottom-right. */
+export interface NormPoint {
+  u: number;
+  v: number;
+}
+
 // Web Mercator is undefined beyond ~±85.06°. A corner that is finite but out of range (or
 // otherwise malformed) projects to Infinity inside cameraForBounds and crashes the camera, so
 // bad quads are rejected before they reach marker placement, navigation, or image rendering.
@@ -91,11 +97,7 @@ export function normToLngLat(t: OverlayTransform, u: number, v: number): LatLng 
 }
 
 // Inverse of normToLngLat: a geographic position back to the rectangle's normalized (u, v).
-export function lngLatToNorm(
-  t: OverlayTransform,
-  lng: number,
-  lat: number,
-): { u: number; v: number } {
+export function lngLatToNorm(t: OverlayTransform, lng: number, lat: number): NormPoint {
   const center = toMercator(t.center);
   const unit = center.meterInMercatorCoordinateUnits();
   const c = maplibre.MercatorCoordinate.fromLngLat({ lng, lat });

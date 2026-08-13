@@ -15,7 +15,7 @@ import type * as maplibregl from "maplibre-gl";
 import { getMapOrNull, onMapReady } from "@/services/core/map";
 import { throttle } from "@/utils/throttle";
 import { useOverlayStore } from "@/stores/overlayStore";
-import type { TileOverlayData } from "@/types/index";
+import type { TileOverlayData, TileProperties } from "@/types/index";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { cornersIntersectBounds } from "@/utils/cornersBounds";
 import { resolveOverlayCorners } from "@/services/overlay/data";
@@ -72,7 +72,7 @@ function readStringArray(value: unknown): string[] {
 // MapLibre types tile properties as an untyped `{ [name: string]: any }` bag, so values
 // are normalized through `unknown` here rather than accessed ad hoc.
 function decodeFootprint(feat: maplibregl.GeoJSONFeature): DecodedFootprint {
-  const props: Record<string, unknown> = feat.properties;
+  const props: TileProperties = feat.properties;
   const lastModifiedS = Number(props.last_modified_s);
   const timelineStatus = readString(props.timeline_status);
   const tags = readStringArray(props.tags);

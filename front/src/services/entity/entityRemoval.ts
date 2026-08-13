@@ -175,13 +175,11 @@ export async function confirmAndDeleteProject(
   projectName: string | null,
   overlayCount: number,
 ): Promise<boolean> {
+  const name = projectName ?? t("project.unnamed");
   const confirmMessage =
     overlayCount > 0
-      ? t("contribute.confirmDeleteProjectWithOverlays", {
-          name: projectName,
-          count: overlayCount,
-        })
-      : t("common.confirmDelete", { name: projectName });
+      ? t("contribute.confirmDeleteProjectWithOverlays", { name, count: overlayCount })
+      : t("common.confirmDelete", { name });
   if (!confirm(confirmMessage)) return false;
 
   const success = await deleteProjectDirect(projectId, { showToast: true });

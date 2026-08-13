@@ -336,9 +336,12 @@ export async function warmLowZoomTileCache(): Promise<void> {
   console.log(`Low-zoom tile cache warmed in ${Date.now() - started}ms`);
 }
 
-// Rows come back untyped from db.execute, so narrow the bbox fields here. Invalidates the tile caches,
-// since an approval/edit changes the underlying data.
-function invalidateAllFromBboxRow(row: Record<string, unknown> | undefined) {
+type BboxRow = { min_lng: number; min_lat: number; max_lng: number; max_lat: number };
+
+// Invalidates the tile caches, since an approval/edit changes the underlying data. Falls back to a
+// full clear when the bbox row is missing or any extent is not a number.
+
+function invalidateAllFromBboxRow(row: Partial<BboxRow> | undefined) {
   if (
     row !== undefined &&
     typeof row.min_lng === "number" &&
@@ -354,7 +357,7 @@ function invalidateAllFromBboxRow(row: Record<string, unknown> | undefined) {
 
 export async function invalidateProjectTiles(projectId: string) {
   try {
-    const rows = await db.execute(sql`
+    const rows = await db.execute<Partial<BboxRow>>(sql`
       SELECT ST_XMin(g) AS min_lng, ST_YMin(g) AS min_lat,
              ST_XMax(g) AS max_lng, ST_YMax(g) AS max_lat
       FROM (
@@ -372,7 +375,7 @@ export async function invalidateProjectTiles(projectId: string) {
 
 export async function invalidateOverlayTiles(overlayId: string) {
   try {
-    const rows = await db.execute(sql`
+    const rows = await db.execute<Partial<BboxRow>>(sql`
       SELECT ST_XMin(g) AS min_lng, ST_YMin(g) AS min_lat,
              ST_XMax(g) AS max_lng, ST_YMax(g) AS max_lat
       FROM (

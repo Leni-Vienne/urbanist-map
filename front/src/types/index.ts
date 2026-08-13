@@ -160,6 +160,10 @@ export type OverlayData = Omit<
   source: OverlayDataSource;
 };
 
+// Property bag of a vector-tile feature. The MVT wire format carries scalars only, so a list value
+// such as `tags` arrives as a JSON string and has to be parsed by the reader.
+export type TileProperties = Record<string, string | number | boolean | null>;
+
 // Lightweight overlay data decoded from the approved-overlay vector tile. It contains only tile
 // fields and values derived directly from them; session-only metadata stays on OverlayData.
 export interface TileOverlayData {

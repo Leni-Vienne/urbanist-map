@@ -1,6 +1,8 @@
 import type { Project, PendingOverlayModification } from "@/types/index";
+import type { ProjectFieldName, OverlayFieldName } from "@shared/validation/schemas";
 
 // The project fields compared for change detection, and the only ones a project row can name.
+// Each must also be a field a change request may carry, or submitting it would be rejected.
 export const PROJECT_CHANGE_FIELDS = [
   "name",
   "description",
@@ -14,9 +16,13 @@ export const PROJECT_CHANGE_FIELDS = [
   "startDatePrecision",
   "geometry",
   "tags",
-] as const satisfies readonly (keyof Project)[];
+] as const satisfies readonly (keyof Project & ProjectFieldName)[];
 
-const OVERLAY_CHANGE_FIELDS = ["caption", "corners", "new_overlay"] as const;
+// "new_overlay" is a dialog row kind only: a new overlay is published, never change-requested.
+const OVERLAY_CHANGE_FIELDS = ["caption", "corners", "new_overlay"] as const satisfies readonly (
+  | OverlayFieldName
+  | "new_overlay"
+)[];
 
 export type ProjectChangeField = (typeof PROJECT_CHANGE_FIELDS)[number];
 export type OverlayChangeField = (typeof OVERLAY_CHANGE_FIELDS)[number];

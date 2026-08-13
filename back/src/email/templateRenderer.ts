@@ -7,10 +7,10 @@ type Translations = typeof enTranslations;
 type TemplateName = keyof Translations;
 type Locale = "en" | "fr";
 
-const translations: Record<Locale, Translations> = {
+const translations = {
   en: enTranslations,
   fr: frTranslations,
-};
+} satisfies Record<Locale, Translations>;
 
 function escapeHtml(unsafe: string) {
   return unsafe

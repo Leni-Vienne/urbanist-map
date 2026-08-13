@@ -1,4 +1,4 @@
-import { ref } from "vue";
+import { readonly, ref } from "vue";
 
 type Theme = "light" | "dark";
 
@@ -29,5 +29,5 @@ export function useTheme() {
     applyTheme(theme.value);
   }
 
-  return { theme, toggle };
+  return { theme: readonly(theme), toggle };
 }

@@ -8,7 +8,7 @@
       y2="5"
       :stroke="color"
       stroke-width="2.5"
-      :stroke-dasharray="STATUS_PREVIEW_DASHARRAY[status] ?? ''"
+      :stroke-dasharray="status ? STATUS_PREVIEW_DASHARRAY[status] : ''"
       stroke-linecap="round"
     />
   </svg>
@@ -16,10 +16,11 @@
 
 <script setup lang="ts">
 import { STATUS_PREVIEW_DASHARRAY } from "@/services/map/shapes/styleConstants";
+import type { TimelineStatus } from "../../../../back/src/db/schema";
 
 defineProps<{
-  // A TimelineStatus value; unknown statuses render solid.
-  status: string;
+  // Null renders solid.
+  status: TimelineStatus | null;
   color: string;
 }>();
 </script>

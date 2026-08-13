@@ -2,6 +2,7 @@
  * OSM property mapping rules for project tags
  * Shared between frontend (projectTags.ts) and backend (import-osm.ts)
  */
+import type { JsonObject } from "./json";
 
 interface OsmRule {
   key: string;
@@ -41,7 +42,7 @@ const PLAIN_LIFECYCLE_KEYS = ["construction", "proposed", "planned"];
  * (building=construction, railway=proposed, proposed=yes), the plain tags describe
  * the future feature and remain eligible for tag rules.
  */
-export function isRedevelopmentSite(props: Record<string, unknown>): boolean {
+export function isRedevelopmentSite(props: JsonObject): boolean {
   if (!Object.keys(props).some(hasLifecyclePrefix)) return false;
   for (const key of PLAIN_LIFECYCLE_KEYS) {
     const val = props[key];
@@ -296,9 +297,7 @@ export const EXTENDED_OSM_RULES: OsmRule[] = [
   ...LIFECYCLE_VALUE_RULES,
 ];
 
-export function extractTagsFromOsmProperties(
-  featureProperties: Record<string, unknown>[],
-): string[] {
+export function extractTagsFromOsmProperties(featureProperties: JsonObject[]): string[] {
   const found = new Set<string>();
 
   for (const props of featureProperties) {

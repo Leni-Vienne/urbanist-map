@@ -81,38 +81,42 @@ function stripDefaultSeoTags(html: string): string {
 }
 
 // Human-readable timeline stage labels, mirroring the frontend timelineStatus messages.
-const TIMELINE_STATUS_LABELS: Record<string, string> = {
-  proposed: "Proposed",
-  planned: "Planned",
-  under_construction: "Under construction",
-  completed: "Completed",
-  canceled: "Canceled",
-};
+const TIMELINE_STATUS_LABELS = new Map(
+  Object.entries({
+    proposed: "Proposed",
+    planned: "Planned",
+    under_construction: "Under construction",
+    completed: "Completed",
+    canceled: "Canceled",
+  }),
+);
 
 // Display labels for project tag slugs, mirroring the en `tags.*` locale keys (the slug `subway`
 // reads "Metro", `light_rail` reads "Light Rail", etc.). Duplicated here because this Pages Function
 // is bundled separately from the app and cannot import the frontend i18n. Unknown slugs fall back to
 // the raw slug. Source of truth: front/src/locales/messages/en.json -> "tags".
-const TAG_LABELS: Record<string, string> = {
-  tram: "Tram",
-  light_rail: "Light Rail",
-  rail: "Railway",
-  subway: "Metro",
-  bus: "Bus",
-  cable_car: "Cable Car",
-  airport: "Airport",
-  bike: "Bike",
-  road: "Road",
-  waterway: "Waterway",
-  park: "Park / Green space",
-  building: "Building",
-  residential: "Residential",
-  commercial: "Commercial",
-  retail: "Retail",
-  office: "Office",
-  industrial: "Industrial",
-  pedestrian: "Pedestrian",
-};
+const TAG_LABELS = new Map(
+  Object.entries({
+    tram: "Tram",
+    light_rail: "Light Rail",
+    rail: "Railway",
+    subway: "Metro",
+    bus: "Bus",
+    cable_car: "Cable Car",
+    airport: "Airport",
+    bike: "Bike",
+    road: "Road",
+    waterway: "Waterway",
+    park: "Park / Green space",
+    building: "Building",
+    residential: "Residential",
+    commercial: "Commercial",
+    retail: "Retail",
+    office: "Office",
+    industrial: "Industrial",
+    pedestrian: "Pedestrian",
+  }),
+);
 
 // Format an ISO date string at the stored precision: year -> "2027", month -> "June 2027",
 // day (or null) -> "June 23, 2027". Returns "" for an unparseable date.
@@ -175,6 +179,10 @@ function buildJsonLd(
     dateLabel ? { "@type": "PropertyValue", name: "Timeline", value: dateLabel } : null,
   ].filter(Boolean);
 
+  const hasCoordinates =
+    data.lat !== null && data.lat !== undefined && data.lng !== null && data.lng !== undefined;
+
+  // JSON.stringify drops undefined properties, so an absent field leaves no trace in the output.
   return serializeJsonLd({
     "@context": "https://schema.org",
     "@type": "Place",
@@ -182,21 +190,19 @@ function buildJsonLd(
     description,
     url: canonical,
     image,
-    ...(data.lat !== null && data.lat !== undefined && data.lng !== null && data.lng !== undefined
-      ? { geo: { "@type": "GeoCoordinates", latitude: data.lat, longitude: data.lng } }
-      : {}),
-    ...(locationLabel
+    geo: hasCoordinates
+      ? { "@type": "GeoCoordinates", latitude: data.lat, longitude: data.lng }
+      : undefined,
+    address: locationLabel
       ? {
-          address: {
-            "@type": "PostalAddress",
-            addressLocality: data.location?.city ?? undefined,
-            addressRegion: data.location?.state ?? undefined,
-            addressCountry: data.location?.country ?? undefined,
-          },
+          "@type": "PostalAddress",
+          addressLocality: data.location?.city ?? undefined,
+          addressRegion: data.location?.state ?? undefined,
+          addressCountry: data.location?.country ?? undefined,
         }
-      : {}),
-    ...(tags.length > 0 ? { keywords: tags.join(", ") } : {}),
-    ...(additionalProperty.length > 0 ? { additionalProperty } : {}),
+      : undefined,
+    keywords: tags.length > 0 ? tags.join(", ") : undefined,
+    additionalProperty: additionalProperty.length > 0 ? additionalProperty : undefined,
   });
 }
 
@@ -227,7 +233,7 @@ function describeProject(subject: string, timelineStatus: string | null | undefi
   if (timelineStatus === "under_construction") {
     return `${indefiniteArticle(subject)} ${subject} under construction`;
   }
-  const label = timelineStatus ? TIMELINE_STATUS_LABELS[timelineStatus] : undefined;
+  const label = timelineStatus ? TIMELINE_STATUS_LABELS.get(timelineStatus) : undefined;
   if (label) {
     const adjective = label.toLowerCase();
     return `${indefiniteArticle(adjective)} ${adjective} ${subject}`;
@@ -249,7 +255,13 @@ function buildFallbackDescription(
   return `${name} is ${describeProject(subject, timelineStatus)}${where}.`;
 }
 
-function buildLiveTags(data: SeoProject): { head: string; body: string } {
+/** The two injection points a project page needs: <head> tags and the crawler-visible body block. */
+interface SeoTags {
+  head: string;
+  body: string;
+}
+
+function buildLiveTags(data: SeoProject): SeoTags {
   const name = (data.name ?? "").trim() || "Urban project";
   const locationLabel = data.location?.label ?? null;
   const titleText = `${name} | Urbanistmap.org`;
@@ -258,12 +270,12 @@ function buildLiveTags(data: SeoProject): { head: string; body: string } {
   const robots = data.indexable ? "index,follow" : "noindex";
 
   const statusLabel = data.timelineStatus
-    ? (TIMELINE_STATUS_LABELS[data.timelineStatus] ?? null)
+    ? (TIMELINE_STATUS_LABELS.get(data.timelineStatus) ?? null)
     : null;
   const dateLabel = resolveSeoDateLabel(data);
   const tags = (data.tags ?? [])
     .filter((tag): tag is string => typeof tag === "string" && tag.length > 0)
-    .map((tag) => TAG_LABELS[tag] ?? tag);
+    .map((tag) => TAG_LABELS.get(tag) ?? tag);
 
   const description = data.description
     ? truncate(data.description, 200)
@@ -348,7 +360,7 @@ function injectIntoHead(html: string, tags: string): string {
 // Inject the per-project head tags and the crawler-visible <noscript> body block. The body block goes
 // right after the opening <body> tag so its flow content is valid markup (a <noscript> in <head> may
 // only contain link/style/meta).
-function injectLiveContent(html: string, parts: { head: string; body: string }): string {
+function injectLiveContent(html: string, parts: SeoTags): string {
   const withHead = injectIntoHead(html, parts.head);
   return withHead.replace(/<body\b[^>]*>/i, (match) => `${match}\n    ${parts.body}`);
 }
