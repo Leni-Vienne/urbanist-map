@@ -8,14 +8,14 @@ import {
   users,
   deletedProjects,
 } from "../db/schema";
-import { eq, sql, and, or, inArray, isNull, ne, desc } from "drizzle-orm";
+import { eq, sql, and, or, inArray, exists, desc } from "drizzle-orm";
+import { union } from "drizzle-orm/pg-core";
 import { TRPCError } from "@trpc/server";
 import { db } from "../database";
 import {
   buildProjectWithLocationQuery,
   buildOverlayModerationQuery,
   buildOverlayVisibilityCondition,
-  buildPaginationConditions,
   isUserBlocked,
   generateUniqueProjectSlug,
   PROJECT_COLUMNS,
@@ -42,6 +42,11 @@ function normalizePrecisionForStorage(
   }
 
   return precision ?? "day";
+}
+
+function requestLanguageCode(acceptLanguage: string | undefined): string {
+  const language = acceptLanguage?.split(",")[0]?.split(";")[0]?.trim().split("-")[0];
+  return language && /^[a-z]{2,3}$/i.test(language) ? language.toLowerCase() : "en";
 }
 
 // Use shared project schema for validation
@@ -446,186 +451,102 @@ export const projectRouter = router({
     }
   }),
 
-  // Get user's contributions including owned projects, projects with user-authored overlays, and projects with user's change requests
-  getUsersContributions: loggedInProcedure
-    .input(
-      z.object({
-        limit: z.number().min(1).max(100).optional().default(50),
-        cursor: z.uuid().optional(),
-        sortBy: z.enum(["createdAt", "updatedAt"]).optional().default("updatedAt"),
-      }),
-    )
-    .query(async ({ input, ctx }) => {
-      try {
-        const sortColumn = input.sortBy === "createdAt" ? projects.createdAt : projects.updatedAt;
-
-        const paginationConditions = await buildPaginationConditions(
-          { cursor: input.cursor },
-          sortColumn,
-        );
-
-        const whereConditions = [eq(projects.ownerId, ctx.user.id), ...paginationConditions];
-
-        const ownedProjects = await buildProjectWithLocationQuery(db)
-          .where(and(...whereConditions))
-          .orderBy(sql`${sortColumn} DESC`, sql`${projects.id} DESC`)
-          .limit(input.limit + 1);
-
-        // Helper: project is not owned by the user (handles null ownerId for imported projects)
-        const notOwnedByUser = or(isNull(projects.ownerId), ne(projects.ownerId, ctx.user.id));
-
-        // Get project IDs where user has authored overlays (but doesn't own the project)
-        const contributedProjectIdsFromOverlays = await db
-          .selectDistinct({ projectId: overlays.projectId })
+  // Get every project the user owns or has contributed to through an overlay or change request.
+  getUsersContributions: loggedInProcedure.query(async ({ ctx }) => {
+    try {
+      const contributionProjectRows = await union(
+        db.select({ id: projects.id }).from(projects).where(eq(projects.ownerId, ctx.user.id)),
+        db
+          .select({ id: projects.id })
           .from(overlays)
-          .innerJoin(projects, eq(overlays.projectId, projects.id))
-          .where(and(eq(overlays.authorId, ctx.user.id), notOwnedByUser))
-          .limit(input.limit);
-
-        // Get project IDs where user has submitted change requests for overlays (but doesn't own the project)
-        const contributedProjectIdsFromOverlayChangeRequests = await db
-          .selectDistinct({
-            projectId: sql<string>`${overlays.projectId}`.as("projectId"),
-          })
+          .innerJoin(projects, eq(projects.id, overlays.projectId))
+          .where(eq(overlays.authorId, ctx.user.id)),
+        db
+          .select({ id: projects.id })
           .from(changeRequests)
-          .innerJoin(overlays, eq(changeRequests.entityId, overlays.id))
-          .innerJoin(projects, eq(overlays.projectId, projects.id))
-          .where(
-            and(
-              eq(changeRequests.requestedBy, ctx.user.id),
-              eq(changeRequests.entityType, "overlay"),
-              notOwnedByUser,
-            ),
-          )
-          .limit(input.limit);
-
-        // Get project IDs where user has submitted change requests directly to projects (but doesn't own the project)
-        const contributedProjectIdsFromProjectChangeRequests = await db
-          .selectDistinct({
-            projectId: changeRequests.entityId,
-          })
-          .from(changeRequests)
-          .innerJoin(projects, eq(changeRequests.entityId, projects.id))
+          .innerJoin(projects, eq(projects.id, changeRequests.entityId))
           .where(
             and(
               eq(changeRequests.requestedBy, ctx.user.id),
               eq(changeRequests.entityType, "project"),
-              notOwnedByUser,
             ),
-          )
-          .limit(input.limit);
+          ),
+        db
+          .select({ id: projects.id })
+          .from(changeRequests)
+          .innerJoin(overlays, eq(overlays.id, changeRequests.entityId))
+          .innerJoin(projects, eq(projects.id, overlays.projectId))
+          .where(
+            and(
+              eq(changeRequests.requestedBy, ctx.user.id),
+              eq(changeRequests.entityType, "overlay"),
+            ),
+          ),
+      );
+      const candidateProjectIds = contributionProjectRows.map((row) => row.id);
+      const requestLanguage = requestLanguageCode(ctx.hono.req.header("Accept-Language"));
+      const allProjects =
+        candidateProjectIds.length > 0
+          ? await buildProjectWithLocationQuery(db, requestLanguage)
+              .where(inArray(projects.id, candidateProjectIds))
+              .orderBy(sql`${projects.updatedAt} DESC`, sql`${projects.id} DESC`)
+          : [];
 
-        // Combine and deduplicate project IDs from all sources
-        const allContributedProjectIds = [
-          ...contributedProjectIdsFromOverlays.map((p) => p.projectId),
-          ...contributedProjectIdsFromOverlayChangeRequests.map((p) => p.projectId),
-          ...contributedProjectIdsFromProjectChangeRequests.map((p) => p.projectId),
-        ];
-        const contributedProjectIds = [...new Set(allContributedProjectIds)].filter(
-          (id) => id !== null,
-        ); // Filter out nulls and assert non-null type
+      const projectIds = allProjects.map((project) => project.id);
+      let projectOverlays: Awaited<ReturnType<typeof buildOverlayModerationQuery>> = [];
 
-        const contributedProjects =
-          contributedProjectIds.length > 0
-            ? await buildProjectWithLocationQuery(db)
-                .where(inArray(projects.id, contributedProjectIds))
-                .orderBy(sql`${projects.updatedAt} DESC`)
-            : [];
-
-        const hasMoreOwned = ownedProjects.length > input.limit;
-        const paginatedOwnedProjects = hasMoreOwned
-          ? ownedProjects.slice(0, input.limit)
-          : ownedProjects;
-
-        const allProjects = [...paginatedOwnedProjects, ...contributedProjects];
-
-        const projectIds = allProjects.map((project) => project.id);
-        let projectOverlays: Awaited<ReturnType<typeof buildOverlayModerationQuery>> = [];
-
-        if (projectIds.length > 0) {
-          // For projects owned by user, get all overlays
-          // For contributed projects, get user's overlays OR overlays with user's change requests
-          const ownedProjectIds = ownedProjects.map((project) => project.id);
-
-          // Get overlay IDs where user has submitted change requests
-          const overlayIdsWithChangeRequests =
-            contributedProjectIds.length > 0
-              ? await db
-                  .selectDistinct({ overlayId: changeRequests.entityId })
-                  .from(changeRequests)
-                  .where(
-                    and(
-                      eq(changeRequests.requestedBy, ctx.user.id),
-                      eq(changeRequests.entityType, "overlay"),
-                    ),
-                  )
-              : [];
-
-          const overlayIdsWithChanges = overlayIdsWithChangeRequests.map(
-            (overlay) => overlay.overlayId,
+      if (projectIds.length > 0) {
+        const ownedProjectIds = allProjects
+          .filter((project) => project.ownerId === ctx.user.id)
+          .map((project) => project.id);
+        const userOverlayChangeRequest = db
+          .select({ id: changeRequests.id })
+          .from(changeRequests)
+          .where(
+            and(
+              eq(changeRequests.requestedBy, ctx.user.id),
+              eq(changeRequests.entityType, "overlay"),
+              eq(changeRequests.entityId, overlays.id),
+            ),
           );
-
-          if (ownedProjectIds.length > 0 && contributedProjectIds.length > 0) {
-            // Both owned and contributed projects exist
-            projectOverlays = await buildOverlayModerationQuery(db)
-              .where(
-                or(
-                  // All overlays for user's own projects
-                  inArray(overlays.projectId, ownedProjectIds),
-                  // For contributed projects: user's overlays OR overlays with user's change requests
-                  and(
-                    inArray(overlays.projectId, contributedProjectIds),
-                    or(
-                      eq(overlays.authorId, ctx.user.id),
-                      overlayIdsWithChanges.length > 0
-                        ? inArray(overlays.id, overlayIdsWithChanges)
-                        : sql`false`,
-                    ),
-                  ),
-                ),
-              )
-              .orderBy(overlays.updatedAt);
-          } else if (ownedProjectIds.length > 0) {
-            // Only owned projects exist
-            projectOverlays = await buildOverlayModerationQuery(db)
-              .where(inArray(overlays.projectId, ownedProjectIds))
-              .orderBy(overlays.updatedAt);
-          } else if (contributedProjectIds.length > 0) {
-            // Only contributed projects exist
-            projectOverlays = await buildOverlayModerationQuery(db)
-              .where(
-                and(
-                  inArray(overlays.projectId, contributedProjectIds),
-                  or(
-                    eq(overlays.authorId, ctx.user.id),
-                    overlayIdsWithChanges.length > 0
-                      ? inArray(overlays.id, overlayIdsWithChanges)
-                      : sql`false`,
-                  ),
-                ),
-              )
-              .orderBy(overlays.updatedAt);
-          }
+        const visibleOverlayConditions = [
+          eq(overlays.authorId, ctx.user.id),
+          exists(userOverlayChangeRequest),
+        ];
+        if (ownedProjectIds.length > 0) {
+          visibleOverlayConditions.push(inArray(overlays.projectId, ownedProjectIds));
         }
 
-        const projectsWithOverlays = allProjects.map((project) => {
-          const projectOverlaysList = projectOverlays.filter(
-            (overlay) => overlay.projectId === project.id,
-          );
-          return Object.assign({}, project, {
-            tags: project.tags ?? [],
-            overlays: projectOverlaysList,
-            overlayIds: projectOverlaysList.map((overlay) => overlay.id),
-          });
-        });
-
-        return { projects: projectsWithOverlays };
-      } catch (error) {
-        console.error("Error fetching all projects:", error);
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to fetch all projects",
-        });
+        projectOverlays = await buildOverlayModerationQuery(db)
+          .where(and(inArray(overlays.projectId, projectIds), or(...visibleOverlayConditions)))
+          .orderBy(overlays.updatedAt);
       }
-    }),
+
+      const overlaysByProjectId = new Map<string, typeof projectOverlays>();
+      for (const overlay of projectOverlays) {
+        if (!overlay.projectId) continue;
+        const grouped = overlaysByProjectId.get(overlay.projectId) ?? [];
+        grouped.push(overlay);
+        overlaysByProjectId.set(overlay.projectId, grouped);
+      }
+
+      const projectsWithOverlays = allProjects.map((project) => {
+        const projectOverlaysList = overlaysByProjectId.get(project.id) ?? [];
+        return {
+          ...project,
+          tags: project.tags ?? [],
+          overlays: projectOverlaysList,
+          overlayIds: projectOverlaysList.map((overlay) => overlay.id),
+        };
+      });
+
+      return { projects: projectsWithOverlays };
+    } catch (error) {
+      console.error("Error fetching all projects:", error);
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Failed to fetch all projects",
+      });
+    }
+  }),
 });

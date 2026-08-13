@@ -37,7 +37,7 @@ export const mapLabelLanguageRef = ref<MapLabelLanguage>(readStoredPreference())
 type BoundaryNameVariants = {
   name: string; // OSM `name` (native/local language)
   nameEn: string | null; // OSM `name:en`
-  names: Record<string, string> | null; // all `name:*` variants, keyed by OSM language code
+  names: Record<string, string> | null; // available `name:*` variants, keyed by OSM language code
 };
 
 // Pick a boundary's display name honouring the map label language, falling back to the UI locale,

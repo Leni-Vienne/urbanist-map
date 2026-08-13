@@ -43,19 +43,27 @@ export const countryNameSql = sql<
   string | null
 >`(SELECT ab.name FROM admin_boundaries ab WHERE ab.admin_level = 2 AND ab.country_code = "projects"."country_code" LIMIT 1)`;
 
+// Locales whose OSM `name:<code>` variant always reaches the client. English travels separately as
+// nameEn, and each boundary's native/local label travels as name.
+const BOUNDARY_NAME_LOCALES = ["fr"];
+
 // Full administrative breadcrumb (deepest boundary up to the country), deepest-first, mirroring
 // project.getById's resolveBoundaryPath so list views render the same location as the detail panel.
-// Walks the parent chain from the project's assigned boundary; each entry ships every name variant
-// so the client picks by locale. NULL boundary or no chain yields []. The depth guard stops a
-// malformed parent cycle from looping forever.
-const boundaryPathSql = sql<
+// Walks the parent chain from the project's assigned boundary. NULL boundary or no chain yields [].
+// The depth guard stops a malformed parent cycle from looping forever.
+function boundaryPathSql(requestLanguage: string): SQL<
   {
     name: string;
     nameEn: string | null;
     names: Record<string, string> | null;
     adminLevel: number;
   }[]
->`COALESCE((
+> {
+  const nameLocales =
+    requestLanguage === "en"
+      ? BOUNDARY_NAME_LOCALES
+      : [...new Set([...BOUNDARY_NAME_LOCALES, requestLanguage])];
+  return sql`COALESCE((
   WITH RECURSIVE chain AS (
     SELECT osm_id, parent_id, name, name_en, names, admin_level, 1 AS depth
     FROM admin_boundaries
@@ -67,11 +75,16 @@ const boundaryPathSql = sql<
     WHERE c.depth < 12
   )
   SELECT json_agg(
-    json_build_object('name', name, 'nameEn', name_en, 'names', names, 'adminLevel', admin_level)
+    json_build_object('name', name, 'nameEn', name_en, 'names', (
+      SELECT json_object_agg(n.k, n.v)
+      FROM jsonb_each_text(COALESCE(names, '{}'::jsonb)) AS n(k, v)
+      WHERE n.k = ANY(${textArray(nameLocales)})
+    ), 'adminLevel', admin_level)
     ORDER BY admin_level DESC
   )
   FROM chain
 ), '[]'::json)`;
+}
 
 // Name variants of one boundary. Shipping every locale the UI can render, rather than a single
 // resolved name, keeps a response free of a locale param and its cached pages locale-agnostic.
@@ -80,12 +93,6 @@ export type LocalizedBoundaryName = {
   nameEn: string | null; // OSM `name:en`
   names: Record<string, string> | null; // `name:*` variants for BOUNDARY_NAME_LOCALES
 };
-
-// Locales whose OSM `name:<code>` variant reaches the client; must cover the app's selectable UI
-// locales, minus English, which travels as nameEn. A boundary carries up to ~260 `name:*` variants
-// (France alone), so this projection is worth kilobytes per row. An omitted locale falls back to
-// the English or native name.
-const BOUNDARY_NAME_LOCALES = ["fr"];
 
 // Binds one param per element, so the value reaches Postgres as an array rather than as a
 // comma-separated parameter list.
@@ -249,12 +256,12 @@ export const PROJECT_COLUMNS = {
   countryCode: projects.countryCode,
 } as const;
 
-export function buildProjectWithLocationQuery(database: Database) {
+export function buildProjectWithLocationQuery(database: Database, requestLanguage: string) {
   return database
     .select({
       ...PROJECT_COLUMNS,
       countryName: countryNameSql,
-      boundaryPath: boundaryPathSql,
+      boundaryPath: boundaryPathSql(requestLanguage),
       importSource: importSources,
     })
     .from(projects)

@@ -77,7 +77,7 @@ export interface Project extends Omit<
 
   // Administrative breadcrumb ordered deepest-first (neighborhood, city, state, country), attached by
   // project.getById from the admin boundary parent chain. undefined = not loaded; [] = no boundary.
-  // Each entry ships all name variants so the client picks by UI locale (names?.[locale] ?? nameEn ?? name).
+  // Each entry includes the browser, French, English, and native names used by the location picker.
   boundaryPath?:
     | {
         name: string;

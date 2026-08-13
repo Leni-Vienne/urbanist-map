@@ -215,10 +215,9 @@ export function useUserContributions() {
 
     projectStore.setUserContributionsLoading(true);
     try {
-      const result = await loadOrNull(
-        async () => trpc.project.getUsersContributions.query({ limit: 50 }),
-        { errorMessage: t("contribute.loadContributionsError") },
-      );
+      const result = await loadOrNull(async () => trpc.project.getUsersContributions.query(), {
+        errorMessage: t("contribute.loadContributionsError"),
+      });
 
       if (result) {
         projectStore.setUserContributions(result.projects);
