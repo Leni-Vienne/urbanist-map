@@ -12,12 +12,9 @@
 </template>
 
 <script setup lang="ts">
+import { showSubmissionDialog, isSubmitting } from "@/services/submission/submissionDialogState";
 import {
-  showSubmissionDialog,
   submissionSummary,
-  isSubmitting,
-} from "@/services/submission/submissionDialogState";
-import {
   confirmSubmission,
   cancelSubmission,
   handleRemoveChange,

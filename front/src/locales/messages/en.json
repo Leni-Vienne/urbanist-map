@@ -371,7 +371,9 @@
     "removeChange": "Remove this change",
     "changesLabel": "Changes",
     "noChangesToSubmit": "No changes to submit",
-    "newOverlay": "New image"
+    "newOverlay": "New image",
+    "overlayUnavailable": "An image in this submission is no longer available. Reopen and review your changes.",
+    "projectUnavailable": "The project in this submission is no longer available. Reopen and review your changes."
   },
   "pages": {
     "home": {

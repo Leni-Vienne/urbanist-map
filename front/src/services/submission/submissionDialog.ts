@@ -1,32 +1,27 @@
-import {
-  showSubmissionDialog,
-  submissionSummary,
-  pendingSubmissionContext,
-  isSubmitting,
-} from "@/services/submission/submissionDialogState";
-import {
-  getStagedRender,
-  clearStagedRender,
-  type StagedRender,
-} from "@/services/submission/stagedRenderState";
+import { computed, ref } from "vue";
+import { showSubmissionDialog, isSubmitting } from "@/services/submission/submissionDialogState";
+import { getStagedRender, clearStagedRender } from "@/services/submission/stagedRenderState";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 import { getStagedOverlayModifications } from "@/services/overlay/unsavedState";
-import { formatProjectChanges, submitContext } from "./submissionService";
+import { detectProjectChanges, submitDraft } from "./submissionService";
 import {
   isOverlayChangeField,
   isProjectChangeField,
   type OverlayChangeField,
+  type ProjectFieldChange,
   type ProjectChangeField,
+  type ProjectSubmissionDraft,
   type RemovableChange,
   type SubmissionChange,
   type SubmissionChangeType,
-  type SubmissionContext,
+  type SubmissionDraft,
   type SubmissionSummary,
 } from "./submissionTypes";
 import { toastError, toastSuccess, toastInfo } from "@/services/core/toast";
 import { t } from "@/locales";
+import { parseShapeCollection } from "@/utils/geojson";
 import { buildThumbnailUrl } from "@/utils/imageUrl";
 import { deleteOverlayDirect } from "@/services/entity/entityRemoval";
 import { closeDetail } from "@/services/overlay/selection";
@@ -37,6 +32,8 @@ import type {
   Project,
   ModifiableField,
 } from "@/types/index";
+
+const pendingSubmissionDraft = ref<SubmissionDraft | null>(null);
 
 function buildOverlayModificationChanges(
   mods: PendingOverlayModification[],
@@ -74,20 +71,17 @@ function buildOverlayModificationChanges(
   return changes;
 }
 
-function getSuccessMessage(changeType: SubmissionChangeType | undefined): string {
+function getSuccessMessage(changeType: SubmissionChangeType): string {
   if (changeType === "update_approved") return t("submission.changeRequestSubmitted");
   if (changeType === "update_pending") return t("submission.changesSaved");
   return t("submission.submissionSuccessful");
 }
 
-// The context holds the staged mods snapshotted when the dialog opened, so a field reverted in the
-// store must be dropped from that snapshot too, or the submit would rewrite the removed value. A
-// mod left with neither field is dropped entirely.
-function removeOverlayFieldFromContext(overlayId: string, field: ModifiableField): void {
-  const ctx = pendingSubmissionContext.value;
-  if (!ctx?.existingOverlayModifications) return;
+function removeOverlayFieldFromDraft(overlayId: string, field: ModifiableField): void {
+  const draft = pendingSubmissionDraft.value;
+  if (!draft) return;
 
-  ctx.existingOverlayModifications = ctx.existingOverlayModifications.flatMap((mod) => {
+  draft.overlayModifications = draft.overlayModifications.flatMap((mod) => {
     if (mod.overlayId !== overlayId) return [mod];
     const next: PendingOverlayModification = { ...mod };
     if (field === "corners") delete next.corners;
@@ -98,8 +92,7 @@ function removeOverlayFieldFromContext(overlayId: string, field: ModifiableField
 
 function resetSubmissionState(): void {
   showSubmissionDialog.value = false;
-  pendingSubmissionContext.value = null;
-  submissionSummary.value = null;
+  pendingSubmissionDraft.value = null;
 }
 
 // Build changes for NEW overlays (status is null, never submitted to backend)
@@ -125,119 +118,87 @@ function buildNewOverlayChanges(
   return changes;
 }
 
-// Assemble the dialog summary + submit context from already-gathered inputs. Pure: the prepare
-// step does the store/service lookups, this turns them into the two reactive payloads.
-// `pendingMods` only ever covers already-published overlays (a new overlay's caption/corners are
-// folded into its publish, so it stages no modification).
-function buildSubmissionState(args: {
-  projectId: string;
-  project: Project | null;
-  overlay: OverlayObject | undefined;
-  projectHasChanges: boolean;
-  pendingMods: PendingOverlayModification[];
-  newOverlayIds: string[];
-  projectChanges: SubmissionChange[];
-  overlays: Record<string, OverlayObject>;
-  stagedRender: StagedRender | undefined;
-}) {
-  const { projectId, project, overlay, projectHasChanges, pendingMods, newOverlayIds } = args;
+function buildProjectChanges(changes: ProjectFieldChange[]): SubmissionChange[] {
+  return changes.map((change) => ({
+    field: change.fieldName,
+    oldValue: formatValueForDisplay(change.oldValue, change.fieldName),
+    newValue: formatValueForDisplay(change.newValue, change.fieldName),
+    displayLabel: t(`fields.${change.fieldName}`),
+  }));
+}
 
+function formatValueForDisplay(value: unknown, fieldName?: string): string {
+  if (value === null || value === undefined || value === "") return "";
+
+  if (fieldName === "geometry") {
+    const shapes = parseShapeCollection(value);
+    if (shapes) return t("shapes.geometrySummary", { count: shapes.geometries.length });
+  }
+
+  if (Array.isArray(value)) return `[${value.length} items]`;
+  return String(value);
+}
+
+function buildProjectDraft(
+  project: Project | null,
+  changes: ProjectFieldChange[],
+): ProjectSubmissionDraft | undefined {
+  if (!project) return undefined;
+  if (project.status === null) return { changeType: "create", changes: [] };
+  if (changes.length === 0) return undefined;
+  return {
+    changeType: project.status === "approved" ? "update_approved" : "update_pending",
+    changes,
+  };
+}
+
+function classifySubmission(draft: SubmissionDraft) {
+  const requiresModeration =
+    draft.newOverlayIds.length > 0 ||
+    draft.project?.changeType === "update_approved" ||
+    draft.overlayModifications.some((mod) => mod.overlayStatus === "approved");
+  const createsEntity = draft.project?.changeType === "create" || draft.newOverlayIds.length > 0;
+  let changeType: SubmissionChangeType = "update_pending";
+  if (createsEntity) changeType = "create";
+  else if (requiresModeration) changeType = "update_approved";
+  return {
+    changeType,
+    requiresModeration: requiresModeration || Boolean(draft.pendingRender),
+  };
+}
+
+function buildSubmissionSummary(draft: SubmissionDraft): SubmissionSummary {
+  const overlays = useOverlayStore().liveOverlays;
   const changes = [
-    ...buildNewOverlayChanges(newOverlayIds, args.overlays),
-    ...buildOverlayModificationChanges(pendingMods, args.overlays),
-    ...args.projectChanges,
+    ...buildNewOverlayChanges(draft.newOverlayIds, overlays),
+    ...buildOverlayModificationChanges(draft.overlayModifications, overlays),
+    ...buildProjectChanges(draft.project?.changes ?? []),
   ];
 
-  // A render staged in the project form is published as its own moderated entity, so it never
-  // affects the project/overlay changeType; it only adds a row and forces the moderation pill.
-  if (args.stagedRender) {
+  if (draft.pendingRender) {
     changes.push({
       field: "render",
       oldValue: "",
       newValue: t("render.imageChange"),
       displayLabel: t("render.label"),
-      thumbnailUrl: args.stagedRender.previewUrl,
+      thumbnailUrl: draft.pendingRender.previewUrl,
     });
   }
 
-  const projectIsNew = project?.status === null;
-  const { changeType, requiresModeration } = classifySubmission({
-    projectIsNew,
-    projectStatus: project?.status ?? null,
-    projectHasChanges,
-    overlayMods: pendingMods,
-    newOverlayIds,
-  });
-
-  return {
-    summary: {
-      entityName: project?.name ?? overlay?.caption ?? t("submission.newOverlay"),
-      changes,
-      requiresModeration: requiresModeration || Boolean(args.stagedRender),
-      changeType,
-    },
-    context: {
-      projectId,
-      projectIsNew,
-      projectStatus: project?.status ?? null,
-      projectModified: projectHasChanges,
-      existingOverlayModifications: pendingMods,
-      newOverlayIds,
-      pendingRender: args.stagedRender ? { file: args.stagedRender.file } : undefined,
-    },
-  } satisfies { summary: SubmissionSummary; context: SubmissionContext };
+  return { entityName: draft.entityName, changes, ...classifySubmission(draft) };
 }
 
-interface SubmissionClassification {
-  changeType: SubmissionChangeType;
-  requiresModeration: boolean;
+function getSubmissionSummary(): SubmissionSummary | null {
+  const draft = pendingSubmissionDraft.value;
+  return draft ? buildSubmissionSummary(draft) : null;
 }
 
-interface SubmissionClassificationInput {
-  projectIsNew: boolean;
-  projectStatus: string | null;
-  projectHasChanges: boolean;
-  overlayMods: PendingOverlayModification[];
-  newOverlayIds: string[];
-}
-
-function submissionRequiresModeration(input: SubmissionClassificationInput): boolean {
-  if (input.newOverlayIds.length > 0) return true;
-  if (input.overlayMods.some((mod) => mod.overlayStatus === "approved")) return true;
-  // An approved project only needs moderation when the project itself was edited: mods touching
-  // only its pending overlays are direct updates.
-  return input.projectHasChanges && input.projectStatus === "approved";
-}
-
-function submissionChangeType(
-  input: SubmissionClassificationInput,
-  requiresModeration: boolean,
-): SubmissionChangeType {
-  if (input.projectIsNew || input.newOverlayIds.length > 0) return "create";
-  if (requiresModeration) return "update_approved";
-  return "update_pending";
-}
-
-// Single source of truth for the batch-level rollup shown in the dialog header. The service still
-// routes each entity by its own status (getChangeType); this classifies the submission as a whole.
-function classifySubmission(input: SubmissionClassificationInput): SubmissionClassification {
-  const requiresModeration = submissionRequiresModeration(input);
-  return {
-    changeType: submissionChangeType(input, requiresModeration),
-    requiresModeration,
-  };
-}
+export const submissionSummary = computed(getSubmissionSummary);
 
 function getNewOverlaysForProject(projectId: string): OverlayObject[] {
   return Object.values(useOverlayStore().liveOverlays).filter(
     (overlay) => overlay.projectId === projectId && overlay.status === null,
   );
-}
-
-// Project metadata changes only apply when the project is loaded and was itself edited.
-function collectProjectMetadataChanges(projectId: string): SubmissionChange[] {
-  const fullProject = useProjectStore().projects[projectId];
-  return fullProject ? formatProjectChanges(fullProject) : [];
 }
 
 // Single entry point for every submission. Gathers the project's staged overlay mods, new
@@ -251,21 +212,19 @@ export function prepareSubmission(project: Project | null, overlay?: OverlayObje
 
   const projectHasChanges =
     useProjectStore().projects[projectId]?.isModified ?? project?.isModified ?? false;
+  const submissionProject = useProjectStore().projects[projectId] ?? project;
+  const projectChanges =
+    projectHasChanges && submissionProject ? detectProjectChanges(submissionProject) : [];
 
-  const { summary, context } = buildSubmissionState({
+  pendingSubmissionDraft.value = {
     projectId,
-    project,
-    overlay,
-    projectHasChanges,
-    pendingMods: getStagedOverlayModifications(projectId),
+    entityName: submissionProject?.name ?? overlay?.caption ?? t("submission.newOverlay"),
+    project: buildProjectDraft(submissionProject, projectChanges),
+    overlayModifications: getStagedOverlayModifications(projectId),
     newOverlayIds: getNewOverlaysForProject(projectId).map((o) => o.id),
-    projectChanges: projectHasChanges ? collectProjectMetadataChanges(projectId) : [],
-    overlays: useOverlayStore().liveOverlays,
-    stagedRender: getStagedRender(projectId),
-  });
+    pendingRender: getStagedRender(projectId),
+  };
 
-  submissionSummary.value = summary;
-  pendingSubmissionContext.value = context;
   showSubmissionDialog.value = true;
 }
 
@@ -277,45 +236,20 @@ export function prepareOverlaySubmission(overlay: OverlayObject): void {
   prepareSubmission(resolved ?? null, overlay);
 }
 
-function handleSubmissionSuccess(): void {
-  const message = getSuccessMessage(submissionSummary.value?.changeType);
-
-  toastSuccess(message);
-
-  resetSubmissionState();
-}
-
-// submitContext drops each entity from the context as its write lands, so after a partial failure
-// the summary is re-derived from what is left: the dialog then lists only the unsubmitted work.
-function pruneSubmittedChanges(): void {
-  const ctx = pendingSubmissionContext.value;
-  const summary = submissionSummary.value;
-  if (!ctx || !summary) return;
-
-  const remainingOverlayIds = new Set([
-    ...(ctx.newOverlayIds ?? []),
-    ...(ctx.existingOverlayModifications ?? []).map((mod) => mod.overlayId),
-  ]);
-
-  summary.changes = summary.changes.filter((change) => {
-    if (change.field === "render") return Boolean(ctx.pendingRender);
-    if (change.overlayId) return remainingOverlayIds.has(change.overlayId);
-    return ctx.projectModified;
-  });
-}
-
 export async function confirmSubmission(reason: string): Promise<void> {
-  const context = pendingSubmissionContext.value;
-  if (!context) return;
+  const draft = pendingSubmissionDraft.value;
+  if (!draft || isSubmitting.value) return;
+
+  const successMessage = getSuccessMessage(classifySubmission(draft).changeType);
 
   try {
     isSubmitting.value = true;
-    await submitContext(context, reason);
+    await submitDraft(draft, reason);
     closeDetail();
-    handleSubmissionSuccess();
+    toastSuccess(successMessage);
+    resetSubmissionState();
   } catch (error: unknown) {
     console.error("Error submitting:", error);
-    pruneSubmittedChanges();
     toastError(
       error instanceof Error ? error.message : t("errors.submissionFailed"),
       t("toast.submissionFailed"),
@@ -341,9 +275,9 @@ async function handleRemoveOverlayChange(
       await deleteOverlayDirect(overlayId);
     }
 
-    const ctx = pendingSubmissionContext.value;
-    if (ctx?.newOverlayIds) {
-      ctx.newOverlayIds = ctx.newOverlayIds.filter((id) => id !== overlayId);
+    const draft = pendingSubmissionDraft.value;
+    if (draft) {
+      draft.newOverlayIds = draft.newOverlayIds.filter((id) => id !== overlayId);
     }
     return;
   }
@@ -351,67 +285,51 @@ async function handleRemoveOverlayChange(
   if (overlayObject) {
     revertOverlayFieldModification(overlayId, field, overlayObject);
   }
-  removeOverlayFieldFromContext(overlayId, field);
+  removeOverlayFieldFromDraft(overlayId, field);
 }
 
 function handleRemoveProjectChange(field: ProjectChangeField): void {
-  const projectId = pendingSubmissionContext.value?.projectId;
-  if (projectId) {
-    useProjectStore().resetProjectField(projectId, field);
+  const draft = pendingSubmissionDraft.value;
+  if (!draft?.project) return;
+
+  useProjectStore().resetProjectField(draft.projectId, field);
+  draft.project.changes = draft.project.changes.filter((change) => change.fieldName !== field);
+  if (draft.project.changeType !== "create" && draft.project.changes.length === 0) {
+    useProjectStore().updateProject(draft.projectId, { isModified: false });
+    draft.project = undefined;
   }
 
   // Close project edit form to force fresh data on reopen
   useUiStore().closeProjectEditForm();
 }
 
-// Re-derive the batch rollup (moderation pill + changeType) from what remains after a row removal,
-// so the header and success message match the reduced set (e.g. dropping the sole approved edit
-// turns a change request back into a direct update).
-function recomputeSummaryClassification(): void {
-  const ctx = pendingSubmissionContext.value;
-  const summary = submissionSummary.value;
-  if (!ctx || !summary) return;
-
-  ctx.projectModified = summary.changes.some((change) => isProjectChangeField(change.field));
-
-  const { changeType, requiresModeration } = classifySubmission({
-    projectIsNew: ctx.projectIsNew,
-    projectStatus: ctx.projectStatus,
-    projectHasChanges: ctx.projectModified ?? false,
-    overlayMods: ctx.existingOverlayModifications ?? [],
-    newOverlayIds: ctx.newOverlayIds ?? [],
-  });
-
-  summary.changeType = changeType;
-  summary.requiresModeration = requiresModeration || Boolean(ctx.pendingRender);
+function hasSubmissionWork(draft: SubmissionDraft): boolean {
+  return Boolean(
+    draft.project ||
+    draft.overlayModifications.length > 0 ||
+    draft.newOverlayIds.length > 0 ||
+    draft.pendingRender,
+  );
 }
 
 export async function handleRemoveChange(
-  index: number,
   field: RemovableChange,
   overlayId?: string,
 ): Promise<void> {
-  if (!submissionSummary.value) return;
-
-  // Remove the change at the specified index from the summary
-  submissionSummary.value.changes.splice(index, 1);
+  const draft = pendingSubmissionDraft.value;
+  if (!draft) return;
 
   if (field === "render") {
-    const renderProjectId = pendingSubmissionContext.value?.projectId;
-    if (renderProjectId) clearStagedRender(renderProjectId);
-    if (pendingSubmissionContext.value) pendingSubmissionContext.value.pendingRender = undefined;
+    clearStagedRender(draft.projectId);
+    draft.pendingRender = undefined;
   } else if (overlayId && isOverlayChangeField(field)) {
     await handleRemoveOverlayChange(overlayId, field);
   } else if (isProjectChangeField(field)) {
     handleRemoveProjectChange(field);
   }
 
-  // If no more changes, close the dialog
-  if (submissionSummary.value.changes.length === 0) {
+  if (!hasSubmissionWork(draft)) {
     resetSubmissionState();
     toastInfo(t("submission.noChangesToSubmit"));
-    return;
   }
-
-  recomputeSummaryClassification();
 }

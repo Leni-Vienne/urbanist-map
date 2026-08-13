@@ -19,6 +19,14 @@ export function getStagedRender(projectId: string): StagedRender | undefined {
   return stagedRenders.get(projectId);
 }
 
+export function hasStagedRender(projectId: string): boolean {
+  return stagedRenders.has(projectId);
+}
+
+export function hasStagedRenders(): boolean {
+  return stagedRenders.size > 0;
+}
+
 export function clearStagedRender(projectId: string): void {
   stagedRenders.delete(projectId);
 }

@@ -16,7 +16,7 @@ import { startShapeEditing } from "@/services/shape/shapeEditorLazy";
 import { openProjectDetail } from "@/services/core/projectSelection";
 import { closeDetail } from "@/services/overlay/selection";
 import { flyToGeometry } from "@/services/core/mapNavigation";
-import { clearStagedRender } from "@/services/submission/stagedRenderState";
+import { clearStagedRender, hasStagedRender } from "@/services/submission/stagedRenderState";
 import type { ChangeRequest } from "@/stores/changeRequestStore";
 import type { Project, Overlay } from "@/types/index";
 import { toastError, toastSuccess, toastWarn } from "@/services/core/toast";
@@ -67,21 +67,16 @@ export function useContributeActions(
   function isProjectModified(projectId: string): boolean {
     const projectInStore = projectStore.projects[projectId];
     if (projectInStore && isProjectUnsaved(projectInStore)) return true;
+    if (hasStagedRender(projectId)) return true;
 
     const project = allContributions.value.find((p) => p.id === projectId);
     return project?.overlays.some((o) => isOverlayModified(o.id)) ?? false;
   }
 
   async function handleDeleteOverlayClick(overlay: Overlay): Promise<void> {
-    // A staged render has no overlay row to delete: drop it from stagedRenderState and clear the
-    // project's modified flag unless other unsaved overlays remain.
+    // A staged render has no overlay row to delete: drop it from stagedRenderState.
     if (isStagedRenderOverlay(overlay) && overlay.projectId) {
-      const projectId = overlay.projectId;
-      clearStagedRender(projectId);
-      const hasOtherUnsaved = Object.values(overlayStore.liveOverlays).some(
-        (o) => o.projectId === projectId && isOverlayUnsaved(o),
-      );
-      projectStore.updateProject(projectId, { isModified: hasOtherUnsaved });
+      clearStagedRender(overlay.projectId);
       return;
     }
 

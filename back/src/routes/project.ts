@@ -175,10 +175,7 @@ export const projectRouter = router({
 
         if (publishTransaction) {
           await assignProjectBoundary(publishTransaction.id);
-          return {
-            id: publishTransaction.id,
-            exists: true,
-          };
+          return;
         }
       }
 
@@ -212,11 +209,6 @@ export const projectRouter = router({
         lat: resultRow.lat,
         lng: resultRow.lng,
       });
-
-      return {
-        id: resultRow.id,
-        exists: false,
-      };
     } catch (error) {
       // Re-throw TRPCErrors as-is to preserve error codes and messages
       if (error instanceof TRPCError) {

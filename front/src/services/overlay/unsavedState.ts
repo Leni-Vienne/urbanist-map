@@ -4,6 +4,7 @@
 import type { LatLng, OverlayObject, PendingOverlayModification, Project } from "@/types/index";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
+import { hasStagedRender, hasStagedRenders } from "@/services/submission/stagedRenderState";
 
 type OverlayLike = Pick<OverlayObject, "id" | "status">;
 type ProjectLike = Pick<Project, "id" | "status" | "isModified">;
@@ -82,6 +83,7 @@ export function isOverlayUnsaved(overlay: OverlayLike): boolean {
 export function isProjectUnsaved(project: ProjectLike): boolean {
   if (project.status === null) return true;
   if (project.isModified === true) return true;
+  if (hasStagedRender(project.id)) return true;
   const overlayStore = useOverlayStore();
   return Object.values(overlayStore.liveOverlays).some(
     (o) => o.projectId === project.id && isOverlayUnsaved(o),
@@ -92,6 +94,7 @@ export function hasUnsavedChanges(): boolean {
   const projectStore = useProjectStore();
   const overlayStore = useOverlayStore();
 
+  if (hasStagedRenders()) return true;
   if (Object.values(overlayStore.liveOverlays).some(isOverlayUnsaved)) return true;
   if (Object.values(projectStore.projects).some(isProjectUnsaved)) return true;
   return false;

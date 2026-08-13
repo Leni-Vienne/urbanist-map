@@ -353,11 +353,7 @@ function confirmOverlay(targetProjectId: string) {
 
 function confirmRender(targetProjectId: string, file: File) {
   try {
-    // Stage the render exactly like the project form does, then mark the project modified so the
-    // popup's "Submit change request" picks it up. It rides the same submission pipeline as every
-    // other change; nothing uploads until the user confirms the submission.
     setStagedRender(targetProjectId, { file, previewUrl: imagePreviewUrl.value });
-    projectStore.updateProject(targetProjectId, { isModified: true });
     toastSuccess(t("imageUpload.renderStagedDetail"), t("imageUpload.renderStaged"));
     uiStore.closeImageUploadDialog();
   } catch (error) {

@@ -371,7 +371,9 @@
     "removeChange": "Retirer cette modification",
     "changesLabel": "Modifications",
     "noChangesToSubmit": "Aucune modification à soumettre",
-    "newOverlay": "Nouvelle image"
+    "newOverlay": "Nouvelle image",
+    "overlayUnavailable": "Une image de cet envoi n'est plus disponible. Rouvrez-le et vérifiez vos modifications.",
+    "projectUnavailable": "Le projet de cet envoi n'est plus disponible. Rouvrez-le et vérifiez vos modifications."
   },
   "pages": {
     "home": {

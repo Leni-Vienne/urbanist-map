@@ -73,7 +73,7 @@
               rounded
               class="shrink-0"
               :disabled="isSubmitting"
-              @click="handleRemoveChange(index, change.field, change.overlayId)"
+              @click="handleRemoveChange(change.field, change.overlayId)"
               v-tooltip.top="$t('submission.removeChange')"
             />
           </div>
@@ -152,7 +152,7 @@ const emit = defineEmits<{
   "update:visible": [value: boolean];
   confirm: [reason: string];
   cancel: [];
-  "remove-change": [index: number, field: RemovableChange, overlayId?: string];
+  "remove-change": [field: RemovableChange, overlayId?: string];
 }>();
 
 const isVisible = computed({
@@ -180,7 +180,7 @@ function handleConfirm() {
   changeReason.value = "";
 }
 
-function handleRemoveChange(index: number, field: RemovableChange, overlayId?: string) {
-  emit("remove-change", index, field, overlayId);
+function handleRemoveChange(field: RemovableChange, overlayId?: string) {
+  emit("remove-change", field, overlayId);
 }
 </script>
