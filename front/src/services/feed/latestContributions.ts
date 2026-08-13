@@ -222,7 +222,7 @@ export function showOsmUpdates(): void {
 
 // Fetched once and then held. Sharing the in-flight promise keeps back-to-back activations to one
 // request; a failed attempt drops it so the next activation retries.
-function loadOsmSyncStatus(): Promise<void> {
+async function loadOsmSyncStatus(): Promise<void> {
   osmSyncStatusRequest ??= fetchOsmSyncStatus();
   return osmSyncStatusRequest;
 }

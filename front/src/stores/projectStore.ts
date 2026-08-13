@@ -89,6 +89,9 @@ export const useProjectStore = defineStore("project", () => {
   function getHydratedProject(projectId: string): HydratedProject | null {
     if (!hydratedProjectIds.value[projectId]) return null;
     const project = projects.value[projectId];
+    // hydratedProjectIds carries the detail-fields invariant; it is a separate structure from
+    // projects, so nothing at the type level connects the two.
+    // oxlint-disable-next-line no-unsafe-type-assertion
     return project ? (project as HydratedProject) : null;
   }
 

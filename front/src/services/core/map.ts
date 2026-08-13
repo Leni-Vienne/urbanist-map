@@ -156,10 +156,11 @@ function transformMapRequest(url: string): RequestParameters | undefined {
 // This reaches into the handler's private `_aroundPoint`, as there is no public API for it.
 function enableCursorTrackingScrollZoom(targetMap: MaplibreMap): void {
   /* eslint-disable no-underscore-dangle -- mirrors MapLibre's private fields */
+  // MapLibre types `_aroundPoint` as always present, but only assigns it once a gesture starts,
+  // so it is undefined on the wheel events that precede one.
   // eslint-disable-next-line no-unsafe-type-assertion
-  const handler = targetMap.scrollZoom as MaplibreMap["scrollZoom"] & {
+  const handler = targetMap.scrollZoom as Omit<MaplibreMap["scrollZoom"], "_aroundPoint"> & {
     _aroundPoint?: { x: number; y: number };
-    _aroundCenter?: boolean;
     cursorTrackingPatched?: boolean;
   };
   if (handler.cursorTrackingPatched) return;

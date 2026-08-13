@@ -145,8 +145,8 @@ function collectPendingShapes(
         status: overlay.status,
         name: project.name,
         timeline_status: project.timelineStatus,
-        tags: project.tags ? JSON.stringify(project.tags) : null,
-        first_tag: project.tags?.[0] ?? null,
+        tags: JSON.stringify(project.tags),
+        first_tag: project.tags[0] ?? null,
       },
     });
   }

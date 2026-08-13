@@ -151,8 +151,8 @@ const hasUnacknowledgedModeratedContributions = computed(
 const { t } = useI18n();
 const userPopover = ref<{
   visible: boolean;
-  toggle(event: Event): void;
-  hide(): void;
+  toggle: (event: Event) => void;
+  hide: () => void;
 } | null>(null);
 const isMenuOpen = computed<boolean>(() => userPopover.value?.visible ?? false);
 

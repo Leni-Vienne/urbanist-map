@@ -48,9 +48,10 @@ export const VERIFIABLE_CLAIMS = [
 ];
 
 export function botNameFromUa(ua: string): string {
-  const m = ua.match(
-    /(?<botName>OAI-SearchBot|ChatGPT-User|GPTBot|ClaudeBot|PerplexityBot|CCBot|Googlebot|Google-CloudVertexBot|bingbot|YandexBot|Baiduspider|Applebot|AhrefsBot|SemrushBot|xAI-SearchBot|DeepSeekBot|wpbot|CMS-Checker|[A-Za-z-]*[Bb]ot[A-Za-z-]*)/,
-  );
+  const m =
+    /(?<botName>OAI-SearchBot|ChatGPT-User|GPTBot|ClaudeBot|PerplexityBot|CCBot|Googlebot|Google-CloudVertexBot|bingbot|YandexBot|Baiduspider|Applebot|AhrefsBot|SemrushBot|xAI-SearchBot|DeepSeekBot|wpbot|CMS-Checker|[A-Za-z-]*[Bb]ot[A-Za-z-]*)/.exec(
+      ua,
+    );
   return m?.groups?.botName ?? "unnamed bot";
 }
 
@@ -136,7 +137,7 @@ export async function fetchRangePrefixes(
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const body = (await res.json()) as { prefixes?: Record<string, string | undefined>[] };
+      const body: { prefixes?: Record<string, string | undefined>[] } = await res.json();
       raw[operator] = (body.prefixes ?? []).map(pickRangePrefix).filter(isPresentPrefix);
     } catch (error) {
       onError?.(operator, error);

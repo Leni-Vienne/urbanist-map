@@ -278,7 +278,7 @@ function refreshEditHandlesGeometry(skipCorner = -1): void {
   if (!transform) return;
 
   const corners = transformToCorners(transform);
-  mlMap.getSource<GeoJSONSource>(session.fillSourceId)?.setData(polygonFeature(corners));
+  void mlMap.getSource<GeoJSONSource>(session.fillSourceId)?.setData(polygonFeature(corners));
 
   session.cornerMarkers.forEach((marker, i) => {
     if (i === skipCorner) return;

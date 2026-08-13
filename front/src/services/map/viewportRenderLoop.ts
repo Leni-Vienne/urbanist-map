@@ -204,7 +204,7 @@ function reconcileOverlayExistence(bounds: ViewportBounds): void {
     const hasMarker = registry.getMarker(id) !== null;
 
     // Local/unsaved overlay: bounds-exempt, gated only on visibility + filters.
-    if (liveObject && liveObject.status === null) {
+    if (liveObject?.status === null) {
       if (!isValidQuad(liveObject.baselineCorners)) continue;
       if (shouldDisplayOverlay(liveObject, mode, userId)) {
         destructionQueue.delete(id);

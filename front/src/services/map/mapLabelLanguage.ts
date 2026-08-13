@@ -57,7 +57,7 @@ export function pickBoundaryName(
 // Each label layer's untouched text-field, captured the first time we override it, so the
 // "default" mode can restore OpenFreeMap's exact labels. Liberty's layers are identical
 // across style reloads, so a cached original stays valid after satellite/plan switches.
-const originalTextFields = new Map<string, unknown>();
+const originalTextFields = new Map<string, AllLayoutProperties["text-field"]>();
 
 // Liberty's label layers default to local/native names. We rewrite their text-field to prefer the
 // chosen language, falling back to the local Latin name then the raw OSM name so untranslated
@@ -107,12 +107,10 @@ export function applyMapLabelLanguage(
     if (!textFieldReferencesName(textField)) continue;
 
     // Capture the original before the first override so "default" can restore it later.
-    if (!originalTextFields.has(layer.id)) {
-      originalTextFields.set(layer.id, textField);
-    }
+    const original = originalTextFields.get(layer.id) ?? textField;
+    originalTextFields.set(layer.id, original);
 
-    const value = nameExpression ?? originalTextFields.get(layer.id);
-    mlMap.setLayoutProperty(layer.id, "text-field", value as AllLayoutProperties["text-field"]);
+    mlMap.setLayoutProperty(layer.id, "text-field", nameExpression ?? original);
   }
 }
 

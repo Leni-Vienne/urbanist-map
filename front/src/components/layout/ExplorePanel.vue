@@ -381,7 +381,7 @@ const rows = computed(() =>
   }),
 );
 
-const filterPopover = ref<{ toggle(event: Event): void } | null>(null);
+const filterPopover = ref<{ toggle: (event: Event) => void } | null>(null);
 
 function openFilters(event: Event) {
   if (isMobile.value) {

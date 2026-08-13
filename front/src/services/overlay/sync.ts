@@ -19,21 +19,23 @@ import { createOverlayObject } from "@/utils/typeFactories";
 import type { ModifiableField, OverlayObject, OverlayRenderData } from "@/types/index";
 
 // Backend-owned fields that define an overlay's default (unedited) position and caption.
+const BACKEND_FIELD_KEYS = [
+  "baselineCorners",
+  "baselineCaption",
+  "hasPendingChanges",
+  "suggestedCorners",
+  "suggestedCaption",
+] as const;
+
 export type OverlayBackendFields = Partial<
-  Pick<
-    OverlayObject,
-    | "baselineCorners"
-    | "baselineCaption"
-    | "hasPendingChanges"
-    | "suggestedCorners"
-    | "suggestedCaption"
-  >
+  Pick<OverlayObject, (typeof BACKEND_FIELD_KEYS)[number]>
 >;
 
 // True when every provided field already equals the overlay's current value, making the write
 // (and its display consequences) a no-op.
 function fieldsAlreadyApplied(overlayObject: OverlayObject, fields: OverlayBackendFields): boolean {
-  for (const key of Object.keys(fields) as (keyof OverlayBackendFields)[]) {
+  for (const key of BACKEND_FIELD_KEYS) {
+    if (!(key in fields)) continue;
     if (key === "baselineCorners" || key === "suggestedCorners") {
       if (!sameCorners(fields[key] ?? null, overlayObject[key] ?? null)) return false;
     } else if (fields[key] !== overlayObject[key]) return false;

@@ -52,8 +52,8 @@ import {
 
 const { locale } = useI18n();
 const languagePopover = ref<{
-  toggle(event: Event): void;
-  hide(): void;
+  toggle: (event: Event) => void;
+  hide: () => void;
 } | null>(null);
 const isLoading = ref(false);
 const loadingLocale = ref<Locale | null>(null);

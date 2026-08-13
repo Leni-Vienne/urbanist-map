@@ -142,7 +142,7 @@ export function syncMapAreaOutline(): void {
   const data = buildAreaFeatures(area);
   const source = mlMap.getSource<GeoJSONSource>(SOURCE_ID);
   if (source) {
-    source.setData(data);
+    void source.setData(data);
     return;
   }
   addAreaLayers(mlMap, data);

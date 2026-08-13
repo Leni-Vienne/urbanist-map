@@ -500,13 +500,9 @@ function transformOverlayRow(row: OverlayLocationRow, overlayChangeRequests: Ove
     : null;
   /* oxlint-enable */
 
-  const captionChangeRequest = overlayChangeRequests.find((cr) => cr.fieldName === "caption");
+  const captionValue = overlayChangeRequests.find((cr) => cr.fieldName === "caption")?.newValue;
   const suggestedCaption =
-    captionChangeRequest &&
-    captionChangeRequest.newValue !== null &&
-    captionChangeRequest.newValue !== undefined
-      ? String(captionChangeRequest.newValue)
-      : null;
+    captionValue === null || captionValue === undefined ? null : String(captionValue);
 
   return {
     id: row.overlayId,

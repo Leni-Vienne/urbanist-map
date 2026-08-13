@@ -47,8 +47,8 @@ import {
 
 const { t } = useI18n();
 const mapLanguagePopover = ref<{
-  toggle(event: Event): void;
-  hide(): void;
+  toggle: (event: Event) => void;
+  hide: () => void;
 } | null>(null);
 
 const options = computed<{ code: MapLabelLanguage; name: string }[]>(() => [

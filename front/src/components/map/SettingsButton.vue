@@ -26,7 +26,7 @@ import { isMobile } from "@/services/core/viewport";
 
 const settingsPopover = ref<{
   visible: boolean;
-  toggle(event: Event): void;
+  toggle: (event: Event) => void;
 } | null>(null);
 const isOpen = computed<boolean>(() => settingsPopover.value?.visible ?? false);
 

@@ -236,17 +236,13 @@ interface Props {
   idPrefix?: string;
 }
 
-type Emits = {
-  (e: "update:formData", value: ProjectFormData): void;
-};
-
 const props = withDefaults(defineProps<Props>(), {
   originalData: undefined,
   showChangeIndicators: false,
   idPrefix: "project",
 });
 
-const emit = defineEmits<Emits>();
+const emit = defineEmits<{ "update:formData": [value: ProjectFormData] }>();
 
 const { t, te } = useI18n();
 

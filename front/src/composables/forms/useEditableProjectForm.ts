@@ -30,12 +30,10 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
     return projectFormFieldsDiffer(originalData[fieldName], formData[fieldName]);
   }
 
-  const hasChanges = computed(() => {
+  const hasChanges = computed(() =>
     // oxlint-disable-next-line no-unsafe-type-assertion
-    return Object.keys(formData).some((key) =>
-      fieldDiffersFromOriginal(key as keyof ProjectFormData),
-    );
-  });
+    (Object.keys(formData) as (keyof ProjectFormData)[]).some(fieldDiffersFromOriginal),
+  );
 
   function resetChanges() {
     Object.assign(formData, originalData);

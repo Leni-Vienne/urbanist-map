@@ -397,7 +397,7 @@ export function updatePendingProjectPointsSource(geojson: GeoJSON.FeatureCollect
 
   const source = getMapOrNull()?.getSource<GeoJSONSource>("pending-project-points-source");
   if (source) {
-    source.setData(geojson);
+    void source.setData(geojson);
   }
 }
 
@@ -407,7 +407,7 @@ export function updatePendingProjectShapesSource(geojson: GeoJSON.FeatureCollect
 
   const source = getMapOrNull()?.getSource<GeoJSONSource>("pending-project-shapes-source");
   if (source) {
-    source.setData(geojson);
+    void source.setData(geojson);
   }
 }
 
