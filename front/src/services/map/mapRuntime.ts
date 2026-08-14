@@ -8,7 +8,7 @@ import { mapRotationEnabled } from "@/services/core/settings";
 import { setupEventListeners, clearMapSessionData } from "@/services/map/viewportTriggers";
 import { clearPendingProjectSourceCache } from "@/services/map/tiles/basemap";
 import { clearHybridInteractionHandlers } from "@/services/map/tiles/layers";
-import { clearAllProjectShapes } from "@/services/map/shapes/rendering";
+import { clearPreviewShapes } from "@/services/map/shapes/rendering";
 import { clearHoverPreview } from "@/services/map/hoverPreviewState";
 import { hideEditHandles } from "@/services/overlay/editing";
 import { hideCropHandles } from "@/services/overlay/cropHandles";
@@ -48,7 +48,7 @@ export function startMapRuntime(target: MaplibreMap): () => void {
     for (const stop of stops.toReversed()) stop();
 
     clearOverlayRenderObjects();
-    clearAllProjectShapes();
+    clearPreviewShapes();
     clearHoverPreview();
 
     // Session sets and the pending-source payloads replayed onto a style are re-fetched by the next

@@ -1,35 +1,18 @@
-import type {
-  ExpressionSpecification,
-  LineLayerSpecification,
-  MapMouseEvent,
-  LngLatBounds,
-} from "maplibre-gl";
+import type { ExpressionSpecification, LineLayerSpecification, MapMouseEvent } from "maplibre-gl";
 import type { Feature } from "geojson";
 import type { Project } from "@/types/index";
 import { getMap, getMapOrNull } from "@/services/core/map";
-import { useFocusStore } from "@/stores/focusStore";
-import { openProjectDetail } from "@/services/core/projectSelection";
-import { extendBoundsWithGeometry } from "@/utils/cornersBounds";
-import {
-  setShapeEntry,
-  hasProjectShapes,
-  highlightProjectShapes,
-  clearAllShapeEntries,
-  setProjectShapesVisible,
-  type ShapeEntry,
-  type ShapeEventBinding,
-} from "@/services/map/shapes/registry";
-import {
-  SHAPE_LINE_WIDTH,
-  SHAPE_LINE_WIDTH_HOVER,
-  SHAPE_LONG_DASH,
-  SHAPE_SHORT_DASH,
-} from "@/services/map/shapes/styleConstants";
+import { SHAPE_LINE_WIDTH } from "@/services/map/shapes/styleConstants";
 import { getProjectTagColor } from "@/constants/projectTags";
 
 type MapLibreMap = ReturnType<typeof getMap>;
+type ShapeMapEvent = "click" | "mouseenter" | "mouseleave";
 
-const HOVER_FILL_OPACITY = 0.35;
+interface ShapeEventBinding {
+  type: ShapeMapEvent;
+  layerId: string;
+  handler: (e: MapMouseEvent) => void;
+}
 
 type LineGeomType = "LineString" | "MultiLineString";
 type PolygonGeomType = "Polygon" | "MultiPolygon";
@@ -53,35 +36,6 @@ function toShapeFeatures(geometries: GeoJSON.Geometry[]): Feature[] {
   return features;
 }
 
-/** Combined bounds of a collection's line/polygon geometries (points excluded), or null. */
-export function computeShapeBounds(geometries: GeoJSON.Geometry[]): LngLatBounds | null {
-  let bounds: LngLatBounds | null = null;
-  for (const geometry of geometries) {
-    if (geometry.type === "Point" || geometry.type === "MultiPoint") continue;
-    bounds = extendBoundsWithGeometry(bounds, geometry);
-  }
-  return bounds;
-}
-
-// Dash pattern + line-cap matching the view-mode MVT styling for each timeline status.
-function lineLayoutAndDash(timelineStatus: Project["timelineStatus"]): {
-  cap: "butt" | "round";
-  dash: [number, number] | null;
-  opacity: number;
-} {
-  if (timelineStatus === "completed") return { cap: "round", dash: null, opacity: 1 };
-  if (timelineStatus === "proposed") return { cap: "round", dash: SHAPE_SHORT_DASH, opacity: 0.9 };
-  return { cap: "butt", dash: SHAPE_LONG_DASH, opacity: 1 };
-}
-
-function shapeSourceId(projectId: string): string {
-  return `project-shape-${projectId}`;
-}
-
-function isProjectFocused(projectId: string): boolean {
-  return useFocusStore().highlightedProjectId === projectId;
-}
-
 interface ShapeLayerStyle {
   color: string;
   fillOpacity: number;
@@ -100,9 +54,8 @@ interface ShapeLayerIds {
   hitLayerId: string | null;
 }
 
-// Add the geojson source plus the fill / line / transparent-hit layers shared by the
-// project-shape and change-request-preview renderers. The transparent hit line is wide
-// so thin lines are easy to click.
+// Add the preview source plus fill, line and transparent-hit layers. The transparent line is wide
+// so thin geometry remains easy to click.
 function buildShapeLayers(
   mlMap: MapLibreMap,
   sourceId: string,
@@ -243,103 +196,6 @@ function bindLayerEvents(
   return bindings;
 }
 
-// Wire hover/click on the interaction layers (fill for polygons, transparent hit line for lines).
-function wireShapeInteraction(
-  project: Project,
-  fillLayerId: string | null,
-  hitLayerId: string | null,
-): ShapeEventBinding[] {
-  const mlMap = getMap();
-  // When a line crosses this project's own polygon, one click hits both the fill and hit
-  // layers, firing onClick twice. Dedupe on the source DOM event so it is handled once.
-  let lastClickTimeStamp = -1;
-
-  const focus = useFocusStore();
-  function onEnter(): void {
-    focus.setHoverTarget({ kind: "project", projectId: project.id });
-    mlMap.getCanvas().style.cursor = "pointer";
-  }
-  function onLeave(): void {
-    mlMap.getCanvas().style.cursor = "";
-    focus.setHoverTarget(null);
-  }
-  function onClick(e: MapMouseEvent): void {
-    if (e.originalEvent.timeStamp === lastClickTimeStamp) return;
-    lastClickTimeStamp = e.originalEvent.timeStamp;
-    openProjectDetail(project);
-  }
-
-  return bindLayerEvents(mlMap, [fillLayerId, hitLayerId], { onEnter, onLeave, onClick });
-}
-
-/**
- * Render a project's GeometryCollection as MapLibre layers. Idempotent: a project already in the
- * registry is skipped. Lines/polygon outlines share one line layer, polygons add a fill layer, and
- * line geometries get a transparent wide hit layer so thin lines are easy to click.
- * If oldGeometry is provided and differs, it renders underneath as a gray ghost.
- */
-export function renderProjectShapes(
-  project: Project,
-  oldGeometry?: GeoJSON.GeometryCollection | null,
-): void {
-  if (hasProjectShapes(project.id)) return;
-
-  const mlMap = getMap();
-  const color = getProjectTagColor(project.tags);
-
-  const features = buildFeatureDiff(project.geometry, oldGeometry, color);
-  if (features.length === 0) return;
-
-  const { cap, dash, opacity } = lineLayoutAndDash(project.timelineStatus);
-  const baseFillOpacity = project.timelineStatus === "proposed" ? 0.05 : 0.2;
-
-  const sourceId = shapeSourceId(project.id);
-  const { layerIds, lineLayerId, fillLayerId, hitLayerId } = buildShapeLayers(
-    mlMap,
-    sourceId,
-    features,
-    {
-      color,
-      fillOpacity: baseFillOpacity,
-      lineCap: cap,
-      lineWidth: SHAPE_LINE_WIDTH,
-      lineOpacity: opacity,
-      lineDash: dash,
-    },
-  );
-
-  const eventBindings = wireShapeInteraction(project, fillLayerId, hitLayerId);
-
-  const entry: ShapeEntry = {
-    sourceId,
-    layerIds,
-    lineLayerId,
-    fillLayerId,
-    baseLineWidth: SHAPE_LINE_WIDTH,
-    hoverLineWidth: SHAPE_LINE_WIDTH_HOVER,
-    baseFillOpacity,
-    hoverFillOpacity: HOVER_FILL_OPACITY,
-    bounds: computeShapeBounds([
-      ...(project.geometry?.geometries || []),
-      ...(oldGeometry?.geometries || []),
-    ]),
-    eventBindings,
-  };
-  setShapeEntry(project.id, entry);
-
-  // Apply hover style immediately if the project is already focused (e.g. shapes
-  // re-rendered after a mode switch while the detail panel is open).
-  if (isProjectFocused(project.id)) highlightProjectShapes(project.id);
-}
-
-/** Remove all rendered shape layers and any active preview. */
-export function clearAllProjectShapes(): void {
-  clearAllShapeEntries();
-  clearPreviewShapes();
-}
-
-// ── Change-request preview (ephemeral, not registered in the shape registry) ──────────
-
 interface PreviewState {
   sourceId: string;
   layerIds: string[];
@@ -347,12 +203,10 @@ interface PreviewState {
 }
 
 let preview: PreviewState | null = null;
-// The project whose regular shapes are temporarily hidden during preview.
-let previewHiddenProjectId: string | null = null;
 
 /**
  * Render a temporary preview (with ghost diff).
- * Not registered in the shape registry, call clearPreviewShapes() to remove.
+ * Call clearPreviewShapes() to remove it.
  */
 export function renderPreviewShapes(
   project: Project,
@@ -363,10 +217,6 @@ export function renderPreviewShapes(
   clearPreviewShapes();
 
   const mlMap = getMap();
-  // Temporarily hide this project's regular shapes so they don't overlap the preview.
-  setProjectShapesVisible(project.id, false);
-  previewHiddenProjectId = project.id;
-
   const color = getProjectTagColor(project.tags);
   const features = buildFeatureDiff(newGeometry, oldGeometry, color);
   if (features.length === 0) return;
@@ -414,8 +264,8 @@ function wirePreviewInteraction(
   return bindLayerEvents(mlMap, [fillLayerId, hitLayerId], { onEnter, onLeave, onClick });
 }
 
-/** Remove the preview layers and restore any hidden project shapes. */
-function clearPreviewShapes(): void {
+/** Remove the temporary preview layers. */
+export function clearPreviewShapes(): void {
   const mlMap = getMapOrNull();
   if (preview && mlMap) {
     for (const binding of preview.eventBindings) {
@@ -427,9 +277,4 @@ function clearPreviewShapes(): void {
     if (mlMap.getSource(preview.sourceId)) mlMap.removeSource(preview.sourceId);
   }
   preview = null;
-
-  if (previewHiddenProjectId) {
-    setProjectShapesVisible(previewHiddenProjectId, true);
-    previewHiddenProjectId = null;
-  }
 }

@@ -330,12 +330,15 @@ function overlayRasterLayerId(id: string): string {
 
 type ImageCoordinates = [[number, number], [number, number], [number, number], [number, number]];
 
-// Back rasters anchor just beneath the project geometry lines (project-shapes-*), which sit above
-// the overlay-footprints outline/fill band. So a back image renders ABOVE every overlay footprint
-// border (its own and neighbours'), preventing one overlay's border from cutting across another's
-// image, while project geometry styling still draws on top of the image.
+// Back rasters anchor just beneath the first pending or approved project-geometry layer. Every
+// footprint border stays below the image while both project-shape sources stay above it.
 function getVectorLayersBottomId(mlMap: MaplibreMap): string | undefined {
-  const anchor = mlMap.getStyle().layers.find((layer) => layer.id.startsWith("project-shapes"));
+  const anchor = mlMap
+    .getStyle()
+    .layers.find(
+      (layer) =>
+        layer.id === "pending-project-shapes-fill" || layer.id.startsWith("project-shapes"),
+    );
   return anchor?.id;
 }
 

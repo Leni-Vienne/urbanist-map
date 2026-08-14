@@ -7,7 +7,6 @@ import {
   syncEditHandlesForCurrentState,
 } from "@/services/overlay/editing";
 import { watchMarkerColors } from "@/services/overlay/markers";
-import { watchShapeRendering } from "@/services/map/shapes/renderLoop";
 import {
   installViewportRenderLoop,
   stopViewportRenderLoop,
@@ -15,7 +14,6 @@ import {
 } from "@/services/map/viewportRenderLoop";
 import { watchViewportModeData, refreshMapSessionData } from "@/services/map/viewportTriggers";
 import { watchTileLayerState, syncTileLayerState } from "@/services/map/tiles/layers";
-import { watchShapeHighlighting } from "@/services/map/projectDetailWatcher";
 import { watchMapAreaOutline, syncMapAreaOutline } from "@/services/map/mapAreaOutline";
 
 /**
@@ -29,11 +27,9 @@ export function startMapStateCoordinator(): () => void {
     watchModeTransitions(),
     watchEditHandles(),
     watchOverlayReconciliation(),
-    watchShapeRendering(),
     watchMarkerColors(),
     watchViewportModeData(),
     watchTileLayerState(),
-    watchShapeHighlighting(),
     watchMapAreaOutline(),
   ];
 

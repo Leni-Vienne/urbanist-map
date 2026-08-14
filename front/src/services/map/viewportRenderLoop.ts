@@ -23,7 +23,6 @@ import { upsertOverlayFromWire } from "@/services/overlay/sync";
 import * as registry from "@/services/overlay/mapLayers";
 import { createRafBatchQueue } from "@/utils/rafBatchQueue";
 import { cornersIntersectBounds } from "@/utils/cornersBounds";
-import { renderAllProjectShapes } from "@/services/map/shapes/renderLoop";
 import { getMapSessionSnapshot } from "@/services/map/mapSessionState";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 
@@ -84,9 +83,6 @@ function runViewportRenderLoopNow(): void {
   if (!getMapOrNull()) return;
 
   reconcileOverlayExistence(getPaddedViewportBounds());
-
-  // Render shapes for all visible projects (both overlay-bearing and standalone)
-  renderAllProjectShapes();
 }
 
 // Drains in batches of 10 per frame to keep bulk teardown (e.g. Edit -> View) off the main thread.

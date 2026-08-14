@@ -9,7 +9,7 @@ import {
   mobileAwareFlyToBounds,
   MOBILE_CONTENT_TOP_INSET,
 } from "@/services/core/mapNavigation";
-import { computeShapeBounds } from "@/services/map/shapes/rendering";
+import { buildShapeBounds } from "@/utils/cornersBounds";
 import { onMapReady, bootedFromDeeplinkView, DEEPLINK_FIT_MAX_ZOOM } from "@/services/core/map";
 
 import { loadOrNull } from "@/services/core/errorHandling";
@@ -48,7 +48,7 @@ export async function handleProjectDeepLink(
     // dev server, where nothing is injected, it falls back to the animated move.
     const instant = bootedFromDeeplinkView.value;
     const camera = { mobileTopInset: MOBILE_CONTENT_TOP_INSET, instant };
-    const shapeBounds = project.geometry ? computeShapeBounds(project.geometry.geometries) : null;
+    const shapeBounds = buildShapeBounds(project.geometry);
     onMapReady(() => {
       function frameProject(): void {
         if (shapeBounds) {

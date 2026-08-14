@@ -202,9 +202,10 @@ import type { Project, Overlay, PendingChangeRequest, UserStatsPayload } from "@
 
 import { useUiStore } from "@/stores/uiStore";
 import { useFocusStore } from "@/stores/focusStore";
+import { useProjectStore } from "@/stores/projectStore";
 import { handleOverlayClickNavigation } from "@/services/overlay/clickHandler";
 import { mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
-import { getProjectShapeBounds, hasProjectShapes } from "@/services/map/shapes/registry";
+import { buildShapeBounds } from "@/utils/cornersBounds";
 import { navigateToProject } from "@/services/navigation/projectNavigation";
 import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/selection";
 
@@ -256,6 +257,7 @@ const { t } = useI18n();
 
 const uiStore = useUiStore();
 const focusStore = useFocusStore();
+const projectStore = useProjectStore();
 
 const { showScrollFade } = useScrollFade();
 
@@ -320,12 +322,13 @@ function getPendingChangeCount(project: Project): number {
 }
 
 async function handleCardClick(project: Project) {
-  if (hasProjectShapes(project.id)) {
-    const bounds = getProjectShapeBounds(project.id);
-    if (bounds) {
-      mobileAwareFlyToBounds(bounds);
-      return;
-    }
+  const originalGeometry = project.isModified
+    ? projectStore.getOriginalProject(project.id)?.geometry
+    : null;
+  const bounds = buildShapeBounds(project.geometry, originalGeometry);
+  if (bounds) {
+    mobileAwareFlyToBounds(bounds);
+    return;
   }
   const firstOverlay = project.overlays?.[0];
   if (firstOverlay) {

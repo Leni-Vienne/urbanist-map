@@ -40,8 +40,22 @@ function collectLocalProjectShapes(
   shapes: GeoJSON.Feature[],
 ): void {
   if (mode !== "edit") return;
-  for (const project of Object.values(useProjectStore().projects)) {
+  const projectStore = useProjectStore();
+  for (const project of Object.values(projectStore.projects)) {
     if (!project.isModified && project.status !== null) continue;
+    const originalGeometry = project.isModified
+      ? projectStore.getOriginalProject(project.id)?.geometry
+      : null;
+    if (originalGeometry && JSON.stringify(originalGeometry) !== JSON.stringify(project.geometry)) {
+      shapes.push(
+        createProjectShapeFeature(project, originalGeometry, {
+          color: "#9ca3af",
+          opacity: 0.4,
+          fillOpacity: 0.1,
+          hoverOpacity: 0.4,
+        }),
+      );
+    }
     addProjectShape(project, standaloneShapeProjectIds, shapes);
   }
 }
@@ -166,9 +180,18 @@ function addProjectShape(
 ): void {
   if (!project.geometry || standaloneShapeProjectIds.has(project.id)) return;
 
-  shapes.push({
+  shapes.push(createProjectShapeFeature(project, project.geometry));
+  standaloneShapeProjectIds.add(project.id);
+}
+
+function createProjectShapeFeature(
+  project: ProjectShapeInput,
+  geometry: GeoJSON.GeometryCollection,
+  style: Record<string, string | number> = {},
+): GeoJSON.Feature {
+  return {
     type: "Feature",
-    geometry: project.geometry,
+    geometry,
     properties: {
       id: project.id,
       sourceLayer: "project-shapes",
@@ -177,9 +200,9 @@ function addProjectShape(
       timeline_status: project.timelineStatus,
       tags: project.tags ? JSON.stringify(project.tags) : null,
       first_tag: project.tags?.[0] ?? null,
+      ...style,
     },
-  });
-  standaloneShapeProjectIds.add(project.id);
+  };
 }
 
 function renderPendingProjectSources(

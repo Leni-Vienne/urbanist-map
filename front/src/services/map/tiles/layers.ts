@@ -130,7 +130,11 @@ function getTagColorExpression(tagExpression: unknown[]): ExpressionSpecificatio
 }
 
 function getProjectLineColorExpression(): ExpressionSpecification {
-  return getTagColorExpression([["get", "first_tag"]]);
+  return [
+    "coalesce",
+    ["get", "color"],
+    getTagColorExpression([["get", "first_tag"]]),
+  ] as ExpressionSpecification;
 }
 
 // Per-cluster count of a single tag, read from the count_<tag> property the tile bakes in (0 when
@@ -667,6 +671,24 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
     const sizeFilter = getSizeFilterExpressionForShapes();
     const merged = combineFilters(baseLayerFilter, shapesBaseFilter, sizeFilter);
     setLayerFilter(mlMap, layerId, merged);
+  }
+
+  const editorProjectId = useUiStore().shapeEditorProject?.id;
+  const pendingHiddenFilter = editorProjectId
+    ? buildHiddenIdExclusionFilter([editorProjectId])
+    : null;
+  for (const spec of getProjectShapeLayerSpecs()) {
+    const layerId = `pending-${spec.id}`;
+    if (!mlMap.getLayer(layerId)) continue;
+    setLayerFilter(
+      mlMap,
+      layerId,
+      combineFilters(
+        ["==", ["get", "sourceLayer"], "project-shapes"] as FilterSpecification,
+        spec.filter,
+        pendingHiddenFilter,
+      ),
+    );
   }
 
   applyFootprintLayerFilters(mlMap);
@@ -1241,7 +1263,7 @@ function getProjectShapeLayerSpecs(): ProjectShapeLayerSpec[] {
       ],
       paint: {
         "fill-color": getProjectLineColorExpression(),
-        "fill-opacity": withHoverState(0.2, 0.35),
+        "fill-opacity": withHoverState(["coalesce", ["get", "fillOpacity"], 0.2], 0.35),
       },
     },
     {
@@ -1254,7 +1276,7 @@ function getProjectShapeLayerSpecs(): ProjectShapeLayerSpec[] {
       ] as FilterSpecification,
       paint: {
         "fill-color": getProjectLineColorExpression(),
-        "fill-opacity": withHoverState(0.05, 0.35),
+        "fill-opacity": withHoverState(["coalesce", ["get", "fillOpacity"], 0.05], 0.35),
       },
     },
     {
@@ -1268,6 +1290,7 @@ function getProjectShapeLayerSpecs(): ProjectShapeLayerSpec[] {
         // continuous hover/selected highlight on top (line-dasharray can't read feature-state).
         "line-width": SHAPE_LINE_WIDTH,
         "line-dasharray": SHAPE_LONG_DASH,
+        "line-opacity": ["coalesce", ["get", "opacity"], 1],
       },
     },
     {
@@ -1278,6 +1301,7 @@ function getProjectShapeLayerSpecs(): ProjectShapeLayerSpec[] {
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": mergeZoomHoverState(SHAPE_LINE_WIDTH, SHAPE_LINE_WIDTH_HOVER),
+        "line-opacity": ["coalesce", ["get", "opacity"], 1],
       },
     },
     {
@@ -1289,7 +1313,7 @@ function getProjectShapeLayerSpecs(): ProjectShapeLayerSpec[] {
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": SHAPE_LINE_WIDTH,
-        "line-opacity": 0.9,
+        "line-opacity": ["coalesce", ["get", "opacity"], 0.9],
         "line-dasharray": SHAPE_SHORT_DASH,
       },
     },
@@ -1307,7 +1331,12 @@ function getProjectShapeLayerSpecs(): ProjectShapeLayerSpec[] {
       paint: {
         "line-color": getProjectLineColorExpression(),
         "line-width": SHAPE_LINE_WIDTH_HOVER,
-        "line-opacity": ["case", hoverOrSelectedCondition(), 1, 0],
+        "line-opacity": [
+          "case",
+          hoverOrSelectedCondition(),
+          ["coalesce", ["get", "hoverOpacity"], 1],
+          0,
+        ],
       },
     },
   ];
@@ -1466,24 +1495,6 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     paint: getProjectPointPaint(),
   });
 
-  // The pending source is a single geojson collection holding both shapes and footprints, so each
-  // layer also has to filter on the sourceLayer property the MVT band gets from "source-layer".
-  for (const spec of getProjectShapeLayerSpecs()) {
-    mlMap.addLayer(
-      {
-        ...spec,
-        id: `pending-${spec.id}`,
-        source: "pending-project-shapes-source",
-        filter: [
-          "all",
-          ["==", ["get", "sourceLayer"], "project-shapes"],
-          spec.filter,
-        ] as FilterSpecification,
-      },
-      FOOTPRINT_BAND_BEFORE_ID,
-    );
-  }
-
   mlMap.addLayer(
     {
       id: "pending-overlay-footprints-fill",
@@ -1517,6 +1528,24 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     },
     FOOTPRINT_BAND_BEFORE_ID,
   );
+
+  // The pending source is a single geojson collection holding both shapes and footprints, so each
+  // layer also has to filter on the sourceLayer property the MVT band gets from "source-layer".
+  for (const spec of getProjectShapeLayerSpecs()) {
+    mlMap.addLayer(
+      {
+        ...spec,
+        id: `pending-${spec.id}`,
+        source: "pending-project-shapes-source",
+        filter: [
+          "all",
+          ["==", ["get", "sourceLayer"], "project-shapes"],
+          spec.filter,
+        ] as FilterSpecification,
+      },
+      FOOTPRINT_BAND_BEFORE_ID,
+    );
+  }
 
   applyTagFiltersToVectorLayers(mlMap);
 }

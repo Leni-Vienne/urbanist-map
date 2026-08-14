@@ -5,7 +5,6 @@ import { useUiStore } from "@/stores/uiStore";
 import { useMapStore } from "@/stores/mapStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useFocusStore } from "@/stores/focusStore";
-import { highlightProjectShapes, unhighlightProjectShapes } from "@/services/map/shapes/registry";
 
 // Permanent slugs never change once assigned, so a session-lifetime cache is always valid and saves
 // refetching the slug of a project selected more than once.
@@ -82,21 +81,6 @@ function watchSelectedPanelCleanup(): void {
           (id) => id !== projectId,
         );
       }
-    },
-  );
-}
-
-// Drive the GeoJSON project-shape outline (edit/moderation layers) off the focused project: light
-// the newly focused project's shapes and revert the previously focused one. The vector tile
-// "selected" feature-state is handled separately.
-export function watchShapeHighlighting(): () => void {
-  const focus = useFocusStore();
-
-  return watch(
-    () => focus.highlightedProjectId,
-    (newProjectId, oldProjectId) => {
-      if (oldProjectId && oldProjectId !== newProjectId) unhighlightProjectShapes(oldProjectId);
-      if (newProjectId) highlightProjectShapes(newProjectId);
     },
   );
 }

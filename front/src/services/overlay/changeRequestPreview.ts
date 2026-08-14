@@ -11,7 +11,8 @@ import { getEditModeRestingCorners } from "@/services/overlay/positionState";
 import { openOverlayDetail } from "@/services/overlay/selection";
 import { clearAllMapContent } from "@/services/overlay/teardown";
 import { mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
-import { renderPreviewShapes, computeShapeBounds } from "@/services/map/shapes/rendering";
+import { renderPreviewShapes } from "@/services/map/shapes/rendering";
+import { buildShapeBounds } from "@/utils/cornersBounds";
 import { openProjectDetail } from "@/services/core/projectSelection";
 import type { LatLng, Overlay, PendingChangeRequest, Project } from "@/types/index";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
@@ -213,7 +214,7 @@ export async function previewShapes(options: PreviewShapesOptions): Promise<void
     return;
   }
 
-  const bounds = computeShapeBounds(geometry.geometries);
+  const bounds = buildShapeBounds(geometry);
   if (!bounds) return;
 
   if (project.countryCode && mapStore.selectedCountryCode !== project.countryCode) {

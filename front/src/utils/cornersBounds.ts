@@ -32,6 +32,19 @@ export function extendBoundsWithGeometry(
   return result;
 }
 
+export function buildShapeBounds(
+  ...collections: (GeoJSON.GeometryCollection | null | undefined)[]
+): LngLatBounds | null {
+  let bounds: LngLatBounds | null = null;
+  for (const collection of collections) {
+    for (const geometry of collection?.geometries ?? []) {
+      if (geometry.type === "Point" || geometry.type === "MultiPoint") continue;
+      bounds = extendBoundsWithGeometry(bounds, geometry);
+    }
+  }
+  return bounds;
+}
+
 /**
  * AABB intersection test: true if the bounding box of `corners` overlaps `bounds`.
  * Works on raw {lat,lng} corners to avoid allocating bounds objects per call, which

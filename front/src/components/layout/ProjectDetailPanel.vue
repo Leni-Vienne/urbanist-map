@@ -143,7 +143,7 @@ import { useAuthStore } from "@/stores/authStore";
 
 import { viewOriginalOverlay } from "@/services/overlay/navigation";
 import { flyToGeometry, mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
-import { computeShapeBounds } from "@/services/map/shapes/rendering";
+import { buildShapeBounds } from "@/utils/cornersBounds";
 import { openProjectForEditing } from "@/services/core/projectSelection";
 import { closeDetail } from "@/services/overlay/selection";
 
@@ -251,9 +251,8 @@ const canRecenter = computed(
 function handleRecenter() {
   const target = project.value;
   if (!target || typeof target.lat !== "number" || typeof target.lng !== "number") return;
-  const geometries = target.geometry?.geometries;
-  if (geometries?.length) {
-    const bounds = computeShapeBounds(geometries);
+  if (target.geometry?.geometries.length) {
+    const bounds = buildShapeBounds(target.geometry);
     if (bounds) {
       mobileAwareFlyToBounds(bounds, { maxZoom: 17 });
       return;

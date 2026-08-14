@@ -80,8 +80,6 @@ import { useMapStore } from "@/stores/mapStore";
 
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
-import { renderProjectShapes } from "@/services/map/shapes/rendering";
-import { clearProjectShapes } from "@/services/map/shapes/registry";
 import { stopShapeEditing } from "@/services/shape/shapeEditorLazy";
 import { showSubmissionDialog } from "@/services/submission/submissionDialogState";
 
@@ -189,13 +187,6 @@ async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
   projectStore.addProject(project);
   projectStore.updateProject(project.id, { geometry, isModified: true });
   await stopShapeEditing();
-  // Re-render updated shapes immediately: the editor's own layers are gone after teardown,
-  // and the viewport loop only covers backend overlays.
-  clearProjectShapes(project.id);
-  if (geometry.geometries.length > 0) {
-    const updatedProject = projectStore.projects[project.id] ?? { ...project, geometry };
-    renderProjectShapes(updatedProject);
-  }
   uiStore.closeShapeEditor();
   toastSuccess(t("shapes.savedLocally"));
 }
