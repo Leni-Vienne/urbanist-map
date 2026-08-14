@@ -347,3 +347,9 @@ function formatFlexibleDateFromProp(
   return formatFlexibleDate(dbToFlexibleDate(date, precision));
 }
 </script>
+
+<style scoped>
+:deep(.p-select-label) {
+  padding-right: 0;
+}
+</style>
