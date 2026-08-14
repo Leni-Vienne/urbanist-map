@@ -22,6 +22,21 @@ function tabToMode(tab: PanelTab): AppMode {
   }
 }
 
+// The tab a given mode lands on.
+function modeToTab(targetMode: AppMode): PanelTab {
+  switch (targetMode) {
+    case "view":
+      return "latest";
+    case "edit":
+      return "contribute";
+    case "moderation":
+      return "moderation";
+    default:
+      // eslint-disable-next-line restrict-template-expressions
+      throw new Error(`Unhandled mode: ${targetMode}`);
+  }
+}
+
 export const useMapStore = defineStore("map", () => {
   const uiStore = useUiStore();
   const authStore = useAuthStore();
@@ -45,21 +60,6 @@ export const useMapStore = defineStore("map", () => {
     if (target !== "view" && !authStore.isAuthenticated) return "view";
     return target;
   });
-
-  // The tab a given mode lands on.
-  function modeToTab(targetMode: AppMode): PanelTab {
-    switch (targetMode) {
-      case "view":
-        return "latest";
-      case "edit":
-        return "contribute";
-      case "moderation":
-        return "moderation";
-      default:
-        // eslint-disable-next-line restrict-template-expressions
-        throw new Error(`Unhandled mode: ${targetMode}`);
-    }
-  }
 
   // Switching mode is really navigation to that mode's tab. Already being in the target mode
   // (e.g. on either of the two view tabs) leaves the user where they are.

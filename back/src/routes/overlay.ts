@@ -505,7 +505,7 @@ export const overlayRouter = router({
       // Combine and sort by updatedAt
       const combined = [...moderatedOverlays, ...moderatedProjects]
         .toSorted((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
-        .map((item) => ({ ...item, tags: item.tags ?? [] }));
+        .map((item) => Object.assign(item, { tags: item.tags ?? [] }));
 
       return combined;
     } catch (error) {

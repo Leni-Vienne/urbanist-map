@@ -75,8 +75,8 @@ export function ipToBigInt(ip: string): { value: bigint; size: number } | undefi
       if (groups.length !== 8) return undefined;
       let v = 0n;
       for (const g of groups) {
-        const n = parseInt(g, 16);
-        if (!Number.isInteger(n) || n < 0 || n > 0xffff) return undefined;
+        const n = Number.parseInt(g, 16);
+        if (!Number.isInteger(n) || n < 0 || n > 0xff_ff) return undefined;
         v = (v << 16n) | BigInt(n);
       }
       return { value: v, size: 128 };
@@ -135,7 +135,7 @@ export async function fetchRangePrefixes(
   const raw: Record<string, string[]> = {};
   for (const [operator, url] of Object.entries(RANGE_SOURCES)) {
     try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+      const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const body: { prefixes?: Record<string, string | undefined>[] } = await res.json();
       raw[operator] = (body.prefixes ?? []).map(pickRangePrefix).filter(isPresentPrefix);

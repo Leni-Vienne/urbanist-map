@@ -121,7 +121,7 @@ export function onStyleSwitch(run: (phase: StyleSwitchPhase) => void): void {
 
 /** Run every style-switch listener for `phase`. A listener that throws does not stop the others. */
 export function emitStyleSwitch(phase: StyleSwitchPhase): void {
-  for (const run of [...styleSwitchCallbacks]) {
+  for (const run of styleSwitchCallbacks) {
     try {
       run(phase);
     } catch (error) {

@@ -210,8 +210,8 @@ export function whenImageReady(
 // Detach every pending waiter and clear its timeout. Their overlay's image layer is never going to
 // come online on the map they were registered against.
 function cancelImageReadyWaiters(): void {
-  for (const waiters of [...imageReadyWaiters.values()]) {
-    for (const waiter of [...waiters]) waiter.cancel();
+  for (const waiters of imageReadyWaiters.values()) {
+    for (const waiter of waiters) waiter.cancel();
   }
   imageReadyWaiters.clear();
 }

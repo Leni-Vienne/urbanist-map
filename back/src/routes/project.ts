@@ -524,12 +524,11 @@ export const projectRouter = router({
 
       const projectsWithOverlays = allProjects.map((project) => {
         const projectOverlaysList = overlaysByProjectId.get(project.id) ?? [];
-        return {
-          ...project,
+        return Object.assign(project, {
           tags: project.tags ?? [],
           overlays: projectOverlaysList,
           overlayIds: projectOverlaysList.map((overlay) => overlay.id),
-        };
+        });
       });
 
       return { projects: projectsWithOverlays };
