@@ -7,6 +7,7 @@ import type {
   FilterSpecification,
   FillLayerSpecification,
   LineLayerSpecification,
+  CircleLayerSpecification,
   ExpressionSpecification,
 } from "maplibre-gl";
 import type { TileProperties } from "@/types/index";
@@ -238,6 +239,23 @@ function hoverOrSelectedCondition(): ExpressionSpecification {
   ] as ExpressionSpecification;
 }
 
+// Circle paint shared by the MVT project-points layer and the geojson pending-project-points layer,
+// so a pending marker is pixel-identical to the approved marker it becomes on approval.
+function getProjectPointPaint(): CircleLayerSpecification["paint"] {
+  return {
+    "circle-color": getProjectPointColorExpression(),
+    "circle-radius": [
+      "case",
+      hoverOrSelectedCondition(),
+      getPointRadiusExpression(true),
+      getPointRadiusExpression(false),
+    ] as ExpressionSpecification,
+    "circle-stroke-width": getPointStrokeWidthExpression(),
+    "circle-stroke-color": getPointStrokeColorExpression(),
+    "circle-stroke-opacity": getPointStrokeOpacityExpression(),
+  };
+}
+
 // Paint-value expression that switches to hoverValue when the feature is hovered or selected.
 // Lets the base layer carry its own highlight in place (one repaint) instead of toggling a separate
 // hover layer with setFilter (which reloads every visible tile).
@@ -420,41 +438,34 @@ function getStatusFilterExpression(): FilterSpecification | null {
 }
 
 /**
- * Build a size filter expression for the project-points layer.
- * Checks against min_size_m/max_size_m which reflect the full grid cell, not just the representative.
+ * Build a size filter expression matching features whose [minProperty, maxProperty] size range
+ * overlaps the active filter range. Features with a null maxProperty pass through, otherwise the
+ * default min size would hide every standalone/overlay-only project.
  * Returns null if the size filter is at its default (no filtering needed).
  */
-function getSizeFilterExpressionForPoints(): FilterSpecification | null {
+function getSizeFilterExpression(
+  minProperty: string,
+  maxProperty: string,
+): FilterSpecification | null {
   const [minSize, maxSize] = sizeFilterRange.value;
   if (minSize === 0 && maxSize === Infinity) return null;
 
-  // A cell matches if its size range overlaps the filter range.
-  const conditions: unknown[] = [[">=", ["get", "max_size_m"], minSize]];
+  const conditions: unknown[] = [[">=", ["get", maxProperty], minSize]];
   if (maxSize !== Infinity) {
-    conditions.push(["<=", ["get", "min_size_m"], maxSize]);
+    conditions.push(["<=", ["get", minProperty], maxSize]);
   }
   const rangeFilter = allOf(conditions);
-  // Cells of only no-geometry projects have null max_size_m; let them pass like the shapes filter,
-  // otherwise the default min size would hide every standalone/overlay-only project.
-  return ["any", ["==", ["get", "max_size_m"], null], rangeFilter] as FilterSpecification;
+  return ["any", ["==", ["get", maxProperty], null], rangeFilter] as FilterSpecification;
 }
 
-/**
- * Build a size filter expression for the project-shapes layer.
- * Standalone shape-points with missing geometry_size_m pass through the size filter.
- */
+// The points layer carries a grid cell's min/max, which spans more than its representative project.
+function getSizeFilterExpressionForPoints(): FilterSpecification | null {
+  return getSizeFilterExpression("min_size_m", "max_size_m");
+}
+
+// A shape is a single geometry, so its range collapses to one property.
 function getSizeFilterExpressionForShapes(): FilterSpecification | null {
-  const [minSize, maxSize] = sizeFilterRange.value;
-  if (minSize === 0 && maxSize === Infinity) return null;
-
-  // Allow missing geometry_size_m to pass through the size filter. (for projects with no geometry)
-  const conditions: unknown[] = [[">=", ["get", "geometry_size_m"], minSize]];
-  if (maxSize !== Infinity) {
-    conditions.push(["<=", ["get", "geometry_size_m"], maxSize]);
-  }
-
-  const rangeFilter = allOf(conditions);
-  return ["any", ["==", ["get", "geometry_size_m"], null], rangeFilter] as FilterSpecification;
+  return getSizeFilterExpression("geometry_size_m", "geometry_size_m");
 }
 
 /**
@@ -709,7 +720,7 @@ function watchHiddenProjects(): () => void {
   return watch(
     () => computeHiddenProjectIds().toSorted().join("|"),
     (key) => {
-      hiddenProjectIdsCache = key ? key.split("|") : [];
+      hiddenProjectIdsCache = key.length > 0 ? key.split("|") : [];
       const mlMap = getMapOrNull();
       if (mlMap) applyTagFiltersToVectorLayers(mlMap);
     },
@@ -766,7 +777,7 @@ function watchHiddenOverlays(): () => void {
   return watch(
     () => computeHiddenOverlayIds().toSorted().join("|"),
     (key) => {
-      hiddenOverlayIdsCache = key ? key.split("|") : [];
+      hiddenOverlayIdsCache = key.length > 0 ? key.split("|") : [];
       const mlMap = getMapOrNull();
       if (mlMap) applyFootprintLayerFilters(mlMap);
     },
@@ -834,14 +845,11 @@ function setCursorHoverState(
   let shapeId: string | null = null;
   let overlayId: string | null = null;
   if (vectorFeature) {
-    const sourceLayer = String(
-      vectorFeature.sourceLayer || vectorFeature.properties?.sourceLayer || "",
-    );
-    if (sourceLayer === "overlay-footprints") {
-      shapeId = getFeaturePropertyAsString(vectorFeature, "project_id") || null;
-      overlayId = getFeaturePropertyAsString(vectorFeature, "id") || null;
+    if (getFeatureSourceLayer(vectorFeature) === "overlay-footprints") {
+      shapeId = getFeatureProperty(vectorFeature, "project_id");
+      overlayId = getFeatureProperty(vectorFeature, "id");
     } else {
-      shapeId = getFeaturePropertyAsString(vectorFeature, "id") || null;
+      shapeId = getFeatureProperty(vectorFeature, "id");
     }
   }
 
@@ -881,7 +889,7 @@ function setSelectedHoverState(mlMap: MaplibreMap): void {
 
 function getVectorFeatureFromFeatures(features: any[]): RenderedMapFeature | null {
   const vectorFeature = features.find((feature) => {
-    const sourceLayer = String(feature?.sourceLayer || feature?.properties?.sourceLayer || "");
+    const sourceLayer = getFeatureSourceLayer(feature);
     return sourceLayer === "overlay-footprints" || sourceLayer === "project-shapes";
   });
 
@@ -889,13 +897,12 @@ function getVectorFeatureFromFeatures(features: any[]): RenderedMapFeature | nul
 }
 
 function handleVectorFeatureClick(feature: RenderedMapFeature): void {
-  const sourceLayer = String(feature.sourceLayer || feature.properties?.sourceLayer || "");
-  const isFootprint = sourceLayer === "overlay-footprints";
+  const isFootprint = getFeatureSourceLayer(feature) === "overlay-footprints";
   const projectId = isFootprint
-    ? getFeaturePropertyAsString(feature, "project_id")
-    : getFeaturePropertyAsString(feature, "id");
+    ? getFeatureProperty(feature, "project_id")
+    : getFeatureProperty(feature, "id");
 
-  if (projectId.length === 0) {
+  if (projectId === null) {
     return;
   }
   // A clicked feature is on-screen by definition: desktop docks the detail in a side column beside
@@ -904,8 +911,8 @@ function handleVectorFeatureClick(feature: RenderedMapFeature): void {
   // succession to read each one. Only cluster expansion (handlePointFeatureClick) moves the camera.
 
   if (isFootprint) {
-    const overlayId = getFeaturePropertyAsString(feature, "id");
-    if (overlayId) {
+    const overlayId = getFeatureProperty(feature, "id");
+    if (overlayId !== null) {
       openOverlayDetail(overlayId);
     }
   } else {
@@ -976,6 +983,23 @@ export function syncTileLayerState(): void {
   if (mlMap) setSelectedHoverState(mlMap);
 }
 
+// Features under the cursor, with the point/cluster marker split out. A marker under the cursor owns
+// the interaction and suppresses the shape behind it, so hover and click agree on the target.
+function queryInteractionFeatures(event: MapMouseEvent, mlMap: MaplibreMap) {
+  const features = queryFeaturesAtPoint(
+    event.point,
+    mlMap,
+    CLICK_QUERY_LAYERS,
+    VECTOR_HOVER_HIT_RADIUS_PX,
+  );
+
+  const pointFeature = features.find(
+    (f) => f?.layer?.id === "project-points" || f?.layer?.id === "pending-project-points",
+  );
+
+  return { features, pointFeature };
+}
+
 function registerMapInteractionListeners(mlMap: MaplibreMap): void {
   // queryRenderedFeatures is synchronous and walks MapLibre's internal feature tree.
   // mousemove fires at up to 500+/sec, which would saturate the main thread.
@@ -985,20 +1009,9 @@ function registerMapInteractionListeners(mlMap: MaplibreMap): void {
   let hoverTrailingEvent: { event: MapMouseEvent; clientX: number; clientY: number } | null = null;
 
   function processHover(event: MapMouseEvent, clientX: number, clientY: number): void {
-    const features = queryFeaturesAtPoint(
-      event.point,
-      mlMap,
-      CLICK_QUERY_LAYERS,
-      VECTOR_HOVER_HIT_RADIUS_PX,
-    );
-
-    const pointFeature = features.find(
-      (f) => f?.layer?.id === "project-points" || f?.layer?.id === "pending-project-points",
-    );
+    const { features, pointFeature } = queryInteractionFeatures(event, mlMap);
 
     mlMap.getContainer().classList.toggle("cursor-pointer", features.length > 0);
-    // A point/cluster marker under the cursor owns the hover (it wins the hover card and the click),
-    // so suppress the shape behind it rather than lighting both features at once.
     const vectorFeature = pointFeature ? null : getVectorFeatureFromFeatures(features);
     setCursorHoverState(
       mlMap,
@@ -1065,18 +1078,7 @@ function registerMapInteractionListeners(mlMap: MaplibreMap): void {
   mlMap.on("click", (event: MapMouseEvent) => {
     clearHoverPreview();
 
-    const features = queryFeaturesAtPoint(
-      event.point,
-      mlMap,
-      CLICK_QUERY_LAYERS,
-      VECTOR_HOVER_HIT_RADIUS_PX,
-    );
-
-    // Match the hover precedence (updateHoverPreview checks the point first): a point/cluster marker
-    // under the cursor wins over a shape behind it, so the click target agrees with the hover card.
-    const pointFeature = features.find(
-      (f) => f?.layer?.id === "project-points" || f?.layer?.id === "pending-project-points",
-    );
+    const { features, pointFeature } = queryInteractionFeatures(event, mlMap);
     if (pointFeature) {
       void handlePointFeatureClick(pointFeature);
       return;
@@ -1173,10 +1175,10 @@ function updateHoverPreview(
 
   if (vectorFeature) {
     const projectId =
-      String(vectorFeature.sourceLayer) === "overlay-footprints"
-        ? getFeaturePropertyAsString(vectorFeature, "project_id")
-        : getFeaturePropertyAsString(vectorFeature, "id");
-    if (projectId.length > 0) {
+      getFeatureSourceLayer(vectorFeature) === "overlay-footprints"
+        ? getFeatureProperty(vectorFeature, "project_id")
+        : getFeatureProperty(vectorFeature, "id");
+    if (projectId !== null) {
       triggerProjectHover(projectId, getHoverDataFromFeature(vectorFeature), clientX, clientY);
       return;
     }
@@ -1185,18 +1187,24 @@ function updateHoverPreview(
   clearHoverPreview();
 }
 
-function getFeaturePropertyAsString(feature: RenderedMapFeature, key: string): string {
+// Tile properties are scalars, so a missing key and a blank value both mean "no value here".
+function getFeatureProperty(feature: RenderedMapFeature, key: string): string | null {
   const value = feature.properties?.[key];
-  if (value === null || value === undefined) return "";
-  return String(value);
+  if (value === null || value === undefined) return null;
+  const text = String(value);
+  return text.length > 0 ? text : null;
+}
+
+// The source layer sits on the feature for MVT features and in the properties for the GeoJSON
+// pending sources.
+function getFeatureSourceLayer(feature: RenderedMapFeature): string {
+  return feature.sourceLayer ?? String(feature.properties?.sourceLayer ?? "");
 }
 
 /** Extract hover card data from a vector tile feature's properties. */
 function getHoverDataFromFeature(feature: RenderedMapFeature): HoverProjectData {
-  const name = getFeaturePropertyAsString(feature, "name") || null;
-  const timelineStatus = parseTimelineStatus(
-    getFeaturePropertyAsString(feature, "timeline_status"),
-  );
+  const name = getFeatureProperty(feature, "name");
+  const timelineStatus = parseTimelineStatus(getFeatureProperty(feature, "timeline_status"));
   // Tags are encoded as a JSON array string in the tile (e.g. '["building","road"]')
   let tags: string[] = [];
   try {
@@ -1206,6 +1214,103 @@ function getHoverDataFromFeature(feature: RenderedMapFeature): HoverProjectData 
     // malformed tags, leave empty
   }
   return { name, timelineStatus, tags };
+}
+
+type ProjectShapeLayerSpec =
+  | (Pick<FillLayerSpecification, "id" | "type" | "paint"> & {
+      filter: FilterSpecification;
+    })
+  | (Pick<LineLayerSpecification, "id" | "type" | "layout" | "paint"> & {
+      filter: FilterSpecification;
+    });
+
+// The project-shape band, in stack order. Rendered twice: once from the MVT source and once from
+// the pending-geojson source, so a pending shape is pixel-identical to the approved shape it
+// becomes on approval. `filter` holds only the discriminator; the pending band ANDs in its own
+// sourceLayer clause. The paint expressions read the live tag selection, so this is rebuilt per call.
+function getProjectShapeLayerSpecs(): ProjectShapeLayerSpec[] {
+  return [
+    {
+      id: "project-shapes-fill",
+      type: "fill",
+      // Exclude proposed: they get their own fill layer with reduced opacity
+      filter: [
+        "all",
+        ["==", ["geometry-type"], "Polygon"],
+        ["!=", ["get", "timeline_status"], "proposed"],
+      ],
+      paint: {
+        "fill-color": getProjectLineColorExpression(),
+        "fill-opacity": withHoverState(0.2, 0.35),
+      },
+    },
+    {
+      id: "project-shapes-proposed-fill",
+      type: "fill",
+      filter: [
+        "all",
+        ["==", ["geometry-type"], "Polygon"],
+        isProposedFilterExpression,
+      ] as FilterSpecification,
+      paint: {
+        "fill-color": getProjectLineColorExpression(),
+        "fill-opacity": withHoverState(0.05, 0.35),
+      },
+    },
+    {
+      // under_construction / planned / canceled: long dashes
+      id: "project-shapes",
+      type: "line",
+      filter: isNeitherProposedNorCompletedFilterExpression,
+      paint: {
+        "line-color": getProjectLineColorExpression(),
+        // Dashed bases stay static; the solid project-shapes-hover-solid overlay draws the
+        // continuous hover/selected highlight on top (line-dasharray can't read feature-state).
+        "line-width": SHAPE_LINE_WIDTH,
+        "line-dasharray": SHAPE_LONG_DASH,
+      },
+    },
+    {
+      id: "project-shapes-completed",
+      type: "line",
+      filter: isCompletedFilterExpression,
+      layout: { "line-cap": "round" },
+      paint: {
+        "line-color": getProjectLineColorExpression(),
+        "line-width": mergeZoomHoverState(SHAPE_LINE_WIDTH, SHAPE_LINE_WIDTH_HOVER),
+      },
+    },
+    {
+      // Short dashes, reduced opacity to visually de-emphasize speculative projects.
+      id: "project-shapes-proposed-dashed",
+      type: "line",
+      filter: isProposedFilterExpression,
+      layout: { "line-cap": "round" },
+      paint: {
+        "line-color": getProjectLineColorExpression(),
+        "line-width": SHAPE_LINE_WIDTH,
+        "line-opacity": 0.9,
+        "line-dasharray": SHAPE_SHORT_DASH,
+      },
+    },
+    {
+      // Solid continuous highlight for the dashed shapes (everything except completed, which is
+      // already solid). Stays fully transparent until the feature is hovered/selected, then draws an
+      // opaque line over the dashes. Driven purely by feature-state opacity, so toggling it only
+      // repaints (no tile reload) the way a setFilter hover layer would have. Tag/status/size/zoom
+      // filters are applied via LAYERS_WITH_EXISTING_FILTERS so it never lights a feature the dashed
+      // base wouldn't render.
+      id: "project-shapes-hover-solid",
+      type: "line",
+      filter: ["!=", ["get", "timeline_status"], "completed"],
+      layout: { "line-cap": "round" },
+      paint: {
+        "line-color": getProjectLineColorExpression(),
+        "line-width": SHAPE_LINE_WIDTH_HOVER,
+        "line-opacity": ["case", hoverOrSelectedCondition(), 1, 0],
+      },
+    },
+  ];
 }
 
 /**
@@ -1239,111 +1344,14 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     promoteId: { "overlay-footprints": "id", "project-shapes": "id", "project-points": "id" },
   });
 
-  mlMap.addLayer({
-    id: "project-shapes-fill",
-    type: "fill",
-    source: "project-sources",
-    "source-layer": "project-shapes",
-    minzoom: PROJECT_SHAPES_MIN_ZOOM,
-    // Exclude proposed: they get their own fill layer with reduced opacity
-    filter: [
-      "all",
-      ["==", ["geometry-type"], "Polygon"],
-      ["!=", ["get", "timeline_status"], "proposed"],
-    ],
-    paint: {
-      "fill-color": getProjectLineColorExpression(),
-      "fill-opacity": withHoverState(0.2, 0.35),
-    },
-  });
-
-  // Proposed project shapes fill, lower opacity to reduce visual weight
-  mlMap.addLayer({
-    id: "project-shapes-proposed-fill",
-    type: "fill",
-    source: "project-sources",
-    "source-layer": "project-shapes",
-    minzoom: PROJECT_SHAPES_MIN_ZOOM,
-    filter: [
-      "all",
-      ["==", ["geometry-type"], "Polygon"],
-      isProposedFilterExpression,
-    ] as FilterSpecification,
-    paint: {
-      "fill-color": getProjectLineColorExpression(),
-      "fill-opacity": withHoverState(0.05, 0.35),
-    },
-  });
-
-  // Project geometry shapes (lines/polygons), visible from zoom 9
-  // under_construction / planned / canceled: long dashes
-  mlMap.addLayer({
-    id: "project-shapes",
-    type: "line",
-    source: "project-sources",
-    "source-layer": "project-shapes",
-    minzoom: PROJECT_SHAPES_MIN_ZOOM,
-    filter: isNeitherProposedNorCompletedFilterExpression,
-    paint: {
-      "line-color": getProjectLineColorExpression(),
-      // Dashed bases stay static; the solid project-shapes-hover-solid overlay draws the
-      // continuous hover/selected highlight on top (line-dasharray can't read feature-state).
-      "line-width": SHAPE_LINE_WIDTH,
-      "line-dasharray": SHAPE_LONG_DASH,
-    },
-  });
-
-  // completed project shapes: solid line
-  mlMap.addLayer({
-    id: "project-shapes-completed",
-    type: "line",
-    source: "project-sources",
-    "source-layer": "project-shapes",
-    minzoom: PROJECT_SHAPES_MIN_ZOOM,
-    filter: isCompletedFilterExpression,
-    layout: { "line-cap": "round" },
-    paint: {
-      "line-color": getProjectLineColorExpression(),
-      "line-width": mergeZoomHoverState(SHAPE_LINE_WIDTH, SHAPE_LINE_WIDTH_HOVER),
-    },
-  });
-
-  // proposed project shapes: short dashes, reduced opacity to visually de-emphasize speculative projects
-  mlMap.addLayer({
-    id: "project-shapes-proposed-dashed",
-    type: "line",
-    source: "project-sources",
-    "source-layer": "project-shapes",
-    minzoom: PROJECT_SHAPES_MIN_ZOOM,
-    filter: isProposedFilterExpression,
-    layout: { "line-cap": "round" },
-    paint: {
-      "line-color": getProjectLineColorExpression(),
-      "line-width": SHAPE_LINE_WIDTH,
-      "line-opacity": 0.9,
-      "line-dasharray": SHAPE_SHORT_DASH,
-    },
-  });
-
-  // Solid continuous highlight for the dashed shapes (everything except completed, which is already
-  // solid). Stays fully transparent until the feature is hovered/selected, then draws an opaque line
-  // over the dashes. Driven purely by feature-state opacity, so toggling it only repaints (no tile
-  // reload) the way a setFilter hover layer would have. Tag/status/size/zoom filters are applied via
-  // LAYERS_WITH_EXISTING_FILTERS so it never lights a feature the dashed base wouldn't render.
-  mlMap.addLayer({
-    id: "project-shapes-hover-solid",
-    type: "line",
-    source: "project-sources",
-    "source-layer": "project-shapes",
-    minzoom: PROJECT_SHAPES_MIN_ZOOM,
-    filter: ["!=", ["get", "timeline_status"], "completed"],
-    layout: { "line-cap": "round" },
-    paint: {
-      "line-color": getProjectLineColorExpression(),
-      "line-width": SHAPE_LINE_WIDTH_HOVER,
-      "line-opacity": ["case", hoverOrSelectedCondition(), 1, 0],
-    },
-  });
+  for (const spec of getProjectShapeLayerSpecs()) {
+    mlMap.addLayer({
+      ...spec,
+      source: "project-sources",
+      "source-layer": "project-shapes",
+      minzoom: PROJECT_SHAPES_MIN_ZOOM,
+    });
+  }
 
   const hiddenIds = computeHiddenOverlayIds();
   hiddenOverlayIdsCache = hiddenIds;
@@ -1362,7 +1370,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       "fill-opacity": 0.001,
     },
   };
-  if (hiddenFilter) footprintsFillLayer.filter = hiddenFilter;
+  if (hiddenFilter !== undefined) footprintsFillLayer.filter = hiddenFilter;
   mlMap.addLayer(footprintsFillLayer, FOOTPRINT_BAND_BEFORE_ID);
 
   // Invisible sentinel layer, no status filter needed since all footprints trigger overlay loading.
@@ -1397,7 +1405,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       "line-opacity": withHoverState(0.6, 1),
     },
   };
-  if (hiddenFilter) footprintsOutlineLayer.filter = hiddenFilter;
+  if (hiddenFilter !== undefined) footprintsOutlineLayer.filter = hiddenFilter;
   mlMap.addLayer(footprintsOutlineLayer, FOOTPRINT_BAND_BEFORE_ID);
 
   // Individual MVT points
@@ -1409,18 +1417,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     minzoom: PROJECT_POINTS_MIN_ZOOM,
     // No maxzoom: standalone (no-geometry) projects have no shape to take over at high zoom,
     // so the center marker must keep rendering past z15 (overzoomed from the z14 MVT source).
-    paint: {
-      "circle-color": getProjectPointColorExpression(),
-      "circle-radius": [
-        "case",
-        hoverOrSelectedCondition(),
-        getPointRadiusExpression(true),
-        getPointRadiusExpression(false),
-      ] as ExpressionSpecification,
-      "circle-stroke-width": getPointStrokeWidthExpression(),
-      "circle-stroke-color": getPointStrokeColorExpression(),
-      "circle-stroke-opacity": getPointStrokeOpacityExpression(),
-    },
+    paint: getProjectPointPaint(),
   });
 
   // Cluster count, drawn over the (enlarged) cluster circles. Only cell_count > 1 gets a label;
@@ -1466,136 +1463,26 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     id: "pending-project-points",
     type: "circle",
     source: "pending-project-points-source",
-    paint: {
-      "circle-color": getProjectPointColorExpression(),
-      "circle-radius": [
-        "case",
-        hoverOrSelectedCondition(),
-        getPointRadiusExpression(true),
-        getPointRadiusExpression(false),
-      ] as ExpressionSpecification,
-      "circle-stroke-width": getPointStrokeWidthExpression(),
-      "circle-stroke-color": getPointStrokeColorExpression(),
-      "circle-stroke-opacity": getPointStrokeOpacityExpression(),
-    },
+    paint: getProjectPointPaint(),
   });
 
-  mlMap.addLayer(
-    {
-      id: "pending-project-shapes-fill",
-      type: "fill",
-      source: "pending-project-shapes-source",
-      filter: [
-        "all",
-        ["==", ["get", "sourceLayer"], "project-shapes"],
-        ["==", ["geometry-type"], "Polygon"],
-        ["!=", ["get", "timeline_status"], "proposed"],
-      ] as FilterSpecification,
-      paint: {
-        "fill-color": getProjectLineColorExpression(),
-        "fill-opacity": withHoverState(0.2, 0.35),
+  // The pending source is a single geojson collection holding both shapes and footprints, so each
+  // layer also has to filter on the sourceLayer property the MVT band gets from "source-layer".
+  for (const spec of getProjectShapeLayerSpecs()) {
+    mlMap.addLayer(
+      {
+        ...spec,
+        id: `pending-${spec.id}`,
+        source: "pending-project-shapes-source",
+        filter: [
+          "all",
+          ["==", ["get", "sourceLayer"], "project-shapes"],
+          spec.filter,
+        ] as FilterSpecification,
       },
-    },
-    FOOTPRINT_BAND_BEFORE_ID,
-  );
-
-  mlMap.addLayer(
-    {
-      id: "pending-project-shapes-proposed-fill",
-      type: "fill",
-      source: "pending-project-shapes-source",
-      filter: [
-        "all",
-        ["==", ["get", "sourceLayer"], "project-shapes"],
-        ["==", ["geometry-type"], "Polygon"],
-        isProposedFilterExpression,
-      ] as FilterSpecification,
-      paint: {
-        "fill-color": getProjectLineColorExpression(),
-        "fill-opacity": withHoverState(0.05, 0.35),
-      },
-    },
-    FOOTPRINT_BAND_BEFORE_ID,
-  );
-
-  mlMap.addLayer(
-    {
-      id: "pending-project-shapes",
-      type: "line",
-      source: "pending-project-shapes-source",
-      filter: [
-        "all",
-        ["==", ["get", "sourceLayer"], "project-shapes"],
-        isNeitherProposedNorCompletedFilterExpression,
-      ] as FilterSpecification,
-      paint: {
-        "line-color": getProjectLineColorExpression(),
-        "line-width": SHAPE_LINE_WIDTH,
-        "line-dasharray": SHAPE_LONG_DASH,
-      },
-    },
-    FOOTPRINT_BAND_BEFORE_ID,
-  );
-
-  mlMap.addLayer(
-    {
-      id: "pending-project-shapes-completed",
-      type: "line",
-      source: "pending-project-shapes-source",
-      filter: [
-        "all",
-        ["==", ["get", "sourceLayer"], "project-shapes"],
-        isCompletedFilterExpression,
-      ] as FilterSpecification,
-      layout: { "line-cap": "round" },
-      paint: {
-        "line-color": getProjectLineColorExpression(),
-        "line-width": mergeZoomHoverState(SHAPE_LINE_WIDTH, SHAPE_LINE_WIDTH_HOVER),
-      },
-    },
-    FOOTPRINT_BAND_BEFORE_ID,
-  );
-
-  mlMap.addLayer(
-    {
-      id: "pending-project-shapes-proposed-dashed",
-      type: "line",
-      source: "pending-project-shapes-source",
-      filter: [
-        "all",
-        ["==", ["get", "sourceLayer"], "project-shapes"],
-        isProposedFilterExpression,
-      ] as FilterSpecification,
-      layout: { "line-cap": "round" },
-      paint: {
-        "line-color": getProjectLineColorExpression(),
-        "line-width": SHAPE_LINE_WIDTH,
-        "line-opacity": 0.9,
-        "line-dasharray": SHAPE_SHORT_DASH,
-      },
-    },
-    FOOTPRINT_BAND_BEFORE_ID,
-  );
-
-  mlMap.addLayer(
-    {
-      id: "pending-project-shapes-hover-solid",
-      type: "line",
-      source: "pending-project-shapes-source",
-      filter: [
-        "all",
-        ["==", ["get", "sourceLayer"], "project-shapes"],
-        ["!=", ["get", "timeline_status"], "completed"],
-      ] as FilterSpecification,
-      layout: { "line-cap": "round" },
-      paint: {
-        "line-color": getProjectLineColorExpression(),
-        "line-width": SHAPE_LINE_WIDTH_HOVER,
-        "line-opacity": ["case", hoverOrSelectedCondition(), 1, 0],
-      },
-    },
-    FOOTPRINT_BAND_BEFORE_ID,
-  );
+      FOOTPRINT_BAND_BEFORE_ID,
+    );
+  }
 
   mlMap.addLayer(
     {

@@ -9,8 +9,8 @@ import {
 } from "terra-draw";
 import { TerraDrawMapLibreGLAdapter } from "terra-draw-maplibre-gl-adapter";
 import { getMap } from "@/services/core/map";
-import { LngLatBounds } from "maplibre-gl";
-import { forEachPosition } from "@/utils/geojson";
+import type { LngLatBounds } from "maplibre-gl";
+import { extendBoundsWithGeometry } from "@/utils/cornersBounds";
 import { ref } from "vue";
 import type { JsonObject } from "@shared/json";
 
@@ -268,10 +268,7 @@ export async function addLayersFromGeometry(
 
     draw.addFeatures(geometryToFeatures(geom));
 
-    forEachPosition(geom, (lng, lat) => {
-      if (bounds) bounds.extend([lng, lat]);
-      else bounds = new LngLatBounds([lng, lat], [lng, lat]);
-    });
+    bounds = extendBoundsWithGeometry(bounds, geom);
   }
 
   return bounds;

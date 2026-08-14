@@ -9,62 +9,50 @@
   </div>
 
   <!-- Project name field -->
-  <div class="flex flex-col gap-1">
-    <FloatLabel class="w-full" variant="in">
-      <!-- @vue-expect-error PrimeVue v-model type mismatch -->
-      <InputText
-        id="project-name-input"
-        v-model="projectName"
-        :class="getInputClass('name')"
-        required
-        minlength="8"
-        autocomplete="off"
-        dir="auto"
-        @blur="validateFieldHelper('name')"
-        @input="validateFieldHelper('name')"
-      />
-      <label for="project-name-input" class="text-(--p-text-color-secondary)"
-        >{{ $t("project.name") }} *</label
-      >
-    </FloatLabel>
-    <small v-if="getFieldError('name')" class="text-red-600 text-xs block">{{
-      getFieldError("name")
-    }}</small>
-    <ChangeIndicator
-      :show="showChangeIndicators && anyFieldChanged('name')"
-      :original-value="originalData?.name"
+  <FormField
+    :label="`${$t('project.name')} *`"
+    :error="getFieldError('name')"
+    :changed="showChange('name')"
+    :original-value="originalData?.name"
+    v-slot="{ inputId, inputClass }"
+  >
+    <!-- @vue-expect-error PrimeVue v-model type mismatch -->
+    <InputText
+      :id="inputId"
+      v-model="projectName"
+      :class="inputClass"
+      required
+      minlength="8"
+      autocomplete="off"
+      dir="auto"
+      @blur="validateFieldHelper('name')"
+      @input="validateFieldHelper('name')"
     />
-  </div>
+  </FormField>
 
   <!-- Project description field -->
-  <div class="flex flex-col gap-1">
-    <FloatLabel class="w-full" variant="in">
-      <Textarea
-        id="project-description-input"
-        v-model="projectDescription"
-        :class="getInputClass('description')"
-        rows="2"
-        dir="auto"
-        @blur="validateFieldHelper('description')"
-        @input="validateFieldHelper('description')"
-      />
-      <label for="project-description-input" class="text-(--p-text-color-secondary)">{{
-        $t("common.description")
-      }}</label>
-    </FloatLabel>
-    <small v-if="getFieldError('description')" class="text-red-600 text-xs block">{{
-      getFieldError("description")
-    }}</small>
-    <ChangeIndicator
-      :show="showChangeIndicators && anyFieldChanged('description')"
-      :original-value="originalData?.description"
+  <FormField
+    :label="$t('common.description')"
+    :error="getFieldError('description')"
+    :changed="showChange('description')"
+    :original-value="originalData?.description"
+    v-slot="{ inputId, inputClass }"
+  >
+    <Textarea
+      :id="inputId"
+      v-model="projectDescription"
+      :class="inputClass"
+      rows="2"
+      dir="auto"
+      @blur="validateFieldHelper('description')"
+      @input="validateFieldHelper('description')"
     />
-  </div>
+  </FormField>
 
   <!-- Timeline status selector -->
   <TimelineStatusSelector v-model="timelineStatus" :id-prefix="idPrefix" />
   <ChangeIndicator
-    :show="showChangeIndicators && anyFieldChanged('timelineStatus')"
+    :show="showChange('timelineStatus')"
     :original-value="formatTimelineStatus(originalData?.timelineStatus)"
   />
 
@@ -79,7 +67,7 @@
         @blur="validateFieldHelper('startDate')"
       />
       <ChangeIndicator
-        :show="showChangeIndicators && anyFieldChanged('startDate', 'startDatePrecision')"
+        :show="showChange('startDate', 'startDatePrecision')"
         :original-value="
           formatFlexibleDateFromProp(originalData?.startDate, originalData?.startDatePrecision)
         "
@@ -95,7 +83,7 @@
         @blur="validateFieldHelper('endDate')"
       />
       <ChangeIndicator
-        :show="showChangeIndicators && anyFieldChanged('endDate', 'endDatePrecision')"
+        :show="showChange('endDate', 'endDatePrecision')"
         :original-value="
           formatFlexibleDateFromProp(originalData?.endDate, originalData?.endDatePrecision)
         "
@@ -117,7 +105,7 @@
         />
         <small class="text-muted-color block mt-1">{{ $t("project.proposalDateHelp") }}</small>
         <ChangeIndicator
-          :show="showChangeIndicators && anyFieldChanged('proposalDate', 'proposalDatePrecision')"
+          :show="showChange('proposalDate', 'proposalDatePrecision')"
           :original-value="
             formatFlexibleDateFromProp(
               originalData?.proposalDate,
@@ -130,30 +118,24 @@
   </Panel>
 
   <!-- Source URL field -->
-  <div class="flex flex-col gap-1">
-    <FloatLabel class="w-full" variant="in">
-      <!-- @vue-expect-error PrimeVue v-model type mismatch -->
-      <InputText
-        id="source-url-input"
-        type="url"
-        v-model="sourceUrl"
-        :class="getInputClass('sourceUrl')"
-        autocomplete="off"
-        @blur="validateFieldHelper('sourceUrl')"
-        @input="validateFieldHelper('sourceUrl')"
-      />
-      <label for="source-url-input" class="text-(--p-text-color-secondary)">{{
-        $t("project.sourceUrl")
-      }}</label>
-    </FloatLabel>
-    <small v-if="getFieldError('sourceUrl')" class="text-red-600 text-xs block">{{
-      getFieldError("sourceUrl")
-    }}</small>
-    <ChangeIndicator
-      :show="showChangeIndicators && anyFieldChanged('sourceUrl')"
-      :original-value="originalData?.sourceUrl"
+  <FormField
+    :label="$t('project.sourceUrl')"
+    :error="getFieldError('sourceUrl')"
+    :changed="showChange('sourceUrl')"
+    :original-value="originalData?.sourceUrl"
+    v-slot="{ inputId, inputClass }"
+  >
+    <!-- @vue-expect-error PrimeVue v-model type mismatch -->
+    <InputText
+      :id="inputId"
+      type="url"
+      v-model="sourceUrl"
+      :class="inputClass"
+      autocomplete="off"
+      @blur="validateFieldHelper('sourceUrl')"
+      @input="validateFieldHelper('sourceUrl')"
     />
-  </div>
+  </FormField>
 
   <!-- Tags field -->
   <div class="flex flex-col gap-2">
@@ -203,10 +185,7 @@
       </button>
     </div>
 
-    <ChangeIndicator
-      :show="showChangeIndicators && anyFieldChanged('tags')"
-      :original-value="formatTags(originalData?.tags)"
-    />
+    <ChangeIndicator :show="showChange('tags')" :original-value="formatTags(originalData?.tags)" />
   </div>
 </template>
 
@@ -228,6 +207,7 @@ import { projectFormFieldsDiffer } from "@/utils/projectFormHelpers";
 import TimelineStatusSelector, { type TimelineStatus } from "./TimelineStatusSelector.vue";
 import FlexibleDatePicker from "./FlexibleDatePicker.vue";
 import ChangeIndicator from "./ChangeIndicator.vue";
+import FormField from "./FormField.vue";
 
 interface Props {
   formData: ProjectFormData;
@@ -246,7 +226,7 @@ const emit = defineEmits<{ "update:formData": [value: ProjectFormData] }>();
 
 const { t, te } = useI18n();
 
-const { getFieldError, hasFieldError, validateField } = useFieldValidation(projectSchema);
+const { getFieldError, validateField } = useFieldValidation(projectSchema);
 
 // formData is owned by the parent: reads come from the prop, writes emit a merged snapshot.
 function patchFormData(patch: Partial<ProjectFormData>) {
@@ -281,9 +261,10 @@ function tagLabel(slug: string) {
   return te(`tags.${slug}`) ? t(`tags.${slug}`) : slug;
 }
 
-function anyFieldChanged(...fieldNames: (keyof ProjectFormData)[]): boolean {
+// A change indicator appears only in change-request mode, and only for a field the user edited.
+function showChange(...fieldNames: (keyof ProjectFormData)[]): boolean {
   const originalData = props.originalData;
-  if (!originalData) return false;
+  if (!props.showChangeIndicators || !originalData) return false;
 
   for (const fieldName of fieldNames) {
     if (projectFormFieldsDiffer(originalData[fieldName], props.formData[fieldName])) return true;
@@ -357,11 +338,6 @@ const flexibleEndDate = computed({
 function validateFieldHelper(fieldPath: string) {
   const validationData = prepareProjectValidationData(props.formData);
   validateField(fieldPath, validationData);
-}
-
-function getInputClass(fieldName: string) {
-  const errorClass = hasFieldError(fieldName) ? "p-invalid" : "";
-  return [{ "w-full": true }, errorClass];
 }
 
 function formatFlexibleDateFromProp(

@@ -115,7 +115,12 @@
               </div>
             </div>
           </div>
-          <div v-if="showScrollFade" class="detail-scroll-fade"></div>
+          <!-- The fade matches the panel background, not the hover background the class defaults to. -->
+          <div
+            v-if="showScrollFade"
+            class="scroll-fade-overlay"
+            style="--scroll-fade-color: var(--p-content-background)"
+          ></div>
         </div>
       </div>
     </template>
@@ -125,7 +130,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, useTemplateRef, watch } from "vue";
+import { computed, useTemplateRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
 import { useDetailProject } from "@/composables/project/useDetailProject";
@@ -161,9 +166,7 @@ const { t } = useI18n();
 const lightbox = useTemplateRef<InstanceType<typeof ImageLightbox>>("lightbox");
 
 // Hide the scrollbar on the fields area and fade its bottom edge while there's more to scroll.
-const scrollAreaRef = ref<HTMLElement | null>(null);
-const contentRef = ref<HTMLElement | null>(null);
-const { showScrollFade } = useScrollFade(scrollAreaRef, contentRef);
+const { scrollAreaRef, contentRef, showScrollFade } = useScrollFade();
 
 const uiStore = useUiStore();
 const authStore = useAuthStore();
@@ -279,16 +282,6 @@ function handleBack() {
 </script>
 
 <style scoped>
-/* Bottom fade over the fields scroll area, matching the panel background, shown only when scrollable. */
-.detail-scroll-fade {
-  position: absolute;
-  inset-inline: 0;
-  bottom: 0;
-  height: 3rem;
-  pointer-events: none;
-  background: linear-gradient(to top, var(--p-content-background), transparent);
-}
-
 /* Replayed when the panel stays open but switches to another project, signalling new content. */
 .detail-content-refresh {
   animation: detail-content-refresh 0.28s ease-out;

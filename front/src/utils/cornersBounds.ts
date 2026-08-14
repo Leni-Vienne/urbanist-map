@@ -1,5 +1,6 @@
 import { LngLat, LngLatBounds } from "maplibre-gl";
 import type { LatLng } from "@/types/index";
+import { forEachPosition } from "@/utils/geojson";
 
 interface SimpleBounds {
   north: number;
@@ -15,6 +16,20 @@ export function buildLngLatBounds(corners: LatLng[]): LngLatBounds {
     bounds.extend(new LngLat(c.lng, c.lat));
   }
   return bounds;
+}
+
+// Grow `bounds` to enclose every position of a geometry, allocating it on the first position seen.
+// Returns the grown bounds, or null when `bounds` was null and the geometry held no positions.
+export function extendBoundsWithGeometry(
+  bounds: LngLatBounds | null,
+  geometry: GeoJSON.Geometry,
+): LngLatBounds | null {
+  let result = bounds;
+  forEachPosition(geometry, (lng, lat) => {
+    if (result) result.extend([lng, lat]);
+    else result = new LngLatBounds([lng, lat], [lng, lat]);
+  });
+  return result;
 }
 
 /**

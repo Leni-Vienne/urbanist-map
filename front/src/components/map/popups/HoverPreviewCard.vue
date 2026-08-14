@@ -18,12 +18,7 @@
               :key="tc.tag"
               class="flex items-center justify-between gap-3"
             >
-              <span
-                class="text-[0.65rem] font-semibold px-1.5 py-0.5 rounded-full"
-                :style="getTagChipStyle(tc.tag)"
-              >
-                {{ tagLabel(tc.tag) }}
-              </span>
+              <TagChip :tag="tc.tag" size="sm" />
               <span class="text-sm font-semibold text-color tabular-nums">{{ tc.count }}</span>
             </div>
           </div>
@@ -67,14 +62,7 @@
         </div>
         <!-- Tags row -->
         <div v-if="hoverPreview.data.tags.length > 0" class="flex flex-wrap gap-1 mt-0.5">
-          <span
-            v-for="tag in hoverPreview.data.tags"
-            :key="tag"
-            class="text-[0.65rem] font-semibold px-1.5 py-0.5 rounded-full"
-            :style="getTagChipStyle(tag)"
-          >
-            {{ $te(`tags.${tag}`) ? $t(`tags.${tag}`) : tag }}
-          </span>
+          <TagChip v-for="tag in hoverPreview.data.tags" :key="tag" :tag="tag" size="sm" />
         </div>
       </template>
     </div>
@@ -85,9 +73,9 @@
 import { computed, nextTick, ref, watch, watchEffect } from "vue";
 import { useI18n } from "vue-i18n";
 import { hoverPreview, hoverPreviewX, hoverPreviewY } from "@/services/map/hoverPreviewState";
-import { PROJECT_TAG_MAP, DEFAULT_TAG_COLOR, getTagChipStyle } from "@/constants/projectTags";
-import { UNTAGGED_PROJECT_FILTER } from "@/services/core/filters";
+import { PROJECT_TAG_MAP, DEFAULT_TAG_COLOR } from "@/constants/projectTags";
 import LinePreview from "@/components/common/LinePreview.vue";
+import TagChip from "@/components/common/TagChip.vue";
 import { useFocusStore } from "@/stores/focusStore";
 
 const { te: $te, t: $t } = useI18n();
@@ -108,12 +96,6 @@ const sortedTagCounts = computed(() => {
   if (!preview || preview.type !== "cluster" || !preview.tagCounts) return [];
   return preview.tagCounts.toSorted((a, b) => b.count - a.count);
 });
-
-// Localized label for a cluster breakdown chip: a tag slug, or the untagged sentinel.
-function tagLabel(slug: string): string {
-  if (slug === UNTAGGED_PROJECT_FILTER) return $t("map.controls.untagged");
-  return $te(`tags.${slug}`) ? $t(`tags.${slug}`) : slug;
-}
 
 function firstTagColor(slug: string | undefined): string {
   return PROJECT_TAG_MAP.get(slug ?? "")?.color ?? DEFAULT_TAG_COLOR;

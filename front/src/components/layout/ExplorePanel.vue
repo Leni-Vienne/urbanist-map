@@ -463,10 +463,8 @@ function isSelectedRow(contribution: LatestContribution): boolean {
     : contribution.id === focusStore.selectedProjectId;
 }
 
-const scrollAreaRef = ref<HTMLElement | null>(null);
-const contentRef = ref<HTMLElement | null>(null);
 const loadMoreSentinel = ref<HTMLElement | null>(null);
-const { showScrollFade } = useScrollFade(scrollAreaRef, contentRef);
+const { scrollAreaRef, showScrollFade } = useScrollFade();
 
 const selectedRowId = computed(() => focusStore.selectedOverlayId ?? focusStore.selectedProjectId);
 

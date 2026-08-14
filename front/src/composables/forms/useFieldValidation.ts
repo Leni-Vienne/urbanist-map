@@ -33,13 +33,8 @@ export function useFieldValidation<T>(schema: z.ZodType<T>) {
     return error ? t(error.key, error.params ?? {}) : null;
   }
 
-  function hasFieldError(fieldPath: string): boolean {
-    return Boolean(fieldErrors.value[fieldPath]);
-  }
-
   return {
     validateField,
     getFieldError,
-    hasFieldError,
   };
 }

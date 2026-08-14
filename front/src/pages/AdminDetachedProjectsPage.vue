@@ -70,14 +70,7 @@
               </div>
               <div class="flex items-center gap-2 flex-wrap text-muted-color text-sm">
                 <span>{{ data.countryCode }}</span>
-                <span
-                  v-for="tag in data.tags || []"
-                  :key="tag"
-                  class="px-2 py-0.5 rounded-full text-xs font-semibold"
-                  :style="getTagChipStyle(tag)"
-                >
-                  {{ tagLabel(tag) }}
-                </span>
+                <TagChip v-for="tag in data.tags || []" :key="tag" :tag="tag" />
               </div>
             </div>
           </div>
@@ -174,14 +167,7 @@
                       v-if="cand.tags && cand.tags.length"
                       class="flex items-center gap-1 flex-wrap"
                     >
-                      <span
-                        v-for="tag in cand.tags"
-                        :key="tag"
-                        class="px-2 py-0.5 rounded-full text-xs font-semibold"
-                        :style="getTagChipStyle(tag)"
-                      >
-                        {{ tagLabel(tag) }}
-                      </span>
+                      <TagChip v-for="tag in cand.tags" :key="tag" :tag="tag" />
                     </div>
                   </div>
                 </div>
@@ -272,7 +258,7 @@ import { toastSuccess, toastError, toastInfo } from "@/services/core/toast";
 import { trpc, type RouterOutput } from "@/client";
 import type { DataTableExpandedRows } from "primevue/datatable";
 import ShapeThumbnail from "@/components/common/ShapeThumbnail.vue";
-import { getTagChipStyle } from "@/constants/projectTags";
+import TagChip from "@/components/common/TagChip.vue";
 
 type DetachedProject = RouterOutput["moderation"]["getDetachedProjects"][number];
 type Candidate = DetachedProject["candidates"][number];
@@ -304,10 +290,6 @@ async function loadDetachedProjects() {
 // falling back to the raw key for any field without a label.
 function formatFields(fields: string[]): string {
   return fields.map((f) => (te(`fields.${f}`) ? t(`fields.${f}`) : f)).join(", ");
-}
-
-function tagLabel(slug: string): string {
-  return te(`tags.${slug}`) ? t(`tags.${slug}`) : slug;
 }
 
 // Link that focuses this project on the map: prefer the /project/<slug> deep link (opens the detail

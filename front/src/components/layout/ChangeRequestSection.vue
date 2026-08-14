@@ -107,7 +107,7 @@ import {
   previewOverlayGeometry,
   previewShapes,
 } from "@/services/overlay/changeRequestPreview";
-import type { Project, Overlay, PendingChangeRequest } from "@/types/index";
+import type { Project, Overlay, PendingChangeRequest, UserStatsPayload } from "@/types/index";
 import ChangeValueDisplay from "@/components/layout/ChangeValueDisplay.vue";
 
 interface Props {
@@ -132,15 +132,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-  "show-user-stats": [
-    data: {
-      userId: string;
-      username?: string | null;
-      approvedCount?: number | null;
-      rejectedCount?: number | null;
-      reportCount?: number;
-    },
-  ];
+  "show-user-stats": [data: UserStatsPayload];
 }>();
 
 const { t } = useI18n();

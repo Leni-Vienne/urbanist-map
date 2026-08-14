@@ -221,6 +221,20 @@ function isPointInPolygon(lat: number, lng: number, ring: number[][]): boolean {
 }
 
 /**
+ * Check if a point is inside a single polygon: within its outer ring (`rings[0]`) and outside
+ * every hole that follows.
+ */
+function isPointInRings(lat: number, lng: number, rings: number[][][]): boolean {
+  const outerRing = rings[0];
+  if (!outerRing || !isPointInPolygon(lat, lng, outerRing)) return false;
+  for (let i = 1; i < rings.length; i += 1) {
+    const hole = rings[i];
+    if (hole && isPointInPolygon(lat, lng, hole)) return false;
+  }
+  return true;
+}
+
+/**
  * Check if a point is inside any of the country's polygons (hole support included).
  */
 function isPointInCountry(
@@ -229,39 +243,11 @@ function isPointInCountry(
   geojson: FeatureCollection<Polygon | MultiPolygon>,
 ): boolean {
   for (const feature of geojson.features) {
-    if (feature.geometry.type === "MultiPolygon") {
-      for (const polygon of feature.geometry.coordinates) {
-        const outerRing = polygon[0];
-        if (outerRing && isPointInPolygon(lat, lng, outerRing)) {
-          let inHole = false;
-          for (let i = 1; i < polygon.length; i += 1) {
-            const hole = polygon[i];
-            if (hole && isPointInPolygon(lat, lng, hole)) {
-              inHole = true;
-              break;
-            }
-          }
-          if (!inHole) {
-            return true;
-          }
-        }
-      }
-    } else {
-      const outerRing = feature.geometry.coordinates[0];
-      if (outerRing && isPointInPolygon(lat, lng, outerRing)) {
-        let inHole = false;
-        for (let i = 1; i < feature.geometry.coordinates.length; i += 1) {
-          const hole = feature.geometry.coordinates[i];
-          if (hole && isPointInPolygon(lat, lng, hole)) {
-            inHole = true;
-            break;
-          }
-        }
-        if (!inHole) {
-          return true;
-        }
-      }
-    }
+    const polygons =
+      feature.geometry.type === "MultiPolygon"
+        ? feature.geometry.coordinates
+        : [feature.geometry.coordinates];
+    if (polygons.some((rings) => isPointInRings(lat, lng, rings))) return true;
   }
   return false;
 }

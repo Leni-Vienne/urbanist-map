@@ -1,16 +1,13 @@
 ﻿<template>
   <div class="w-full">
-    <button
-      type="button"
-      class="appearance-none bg-transparent border-0 text-left flex items-center py-[0.35rem] px-2 w-full cursor-pointer rounded text-color transition-colors duration-200 text-[0.9rem] hover:bg-black/5 dark:hover:bg-white/10"
+    <SettingsMenuRow
+      as="button"
+      icon="pi pi-language text-base"
+      :label="$t('controls.language')"
       @click="toggleMenu"
-      :aria-label="$t('controls.language')"
-      @dblclick.stop
     >
-      <i class="pi pi-language text-base"></i>
-      <span class="ml-2">{{ $t("controls.language") }}</span>
-      <span class="ml-auto text-sm text-muted-color">{{ locale.toUpperCase() }}</span>
-    </button>
+      <span class="text-sm text-muted-color">{{ locale.toUpperCase() }}</span>
+    </SettingsMenuRow>
 
     <Popover ref="languagePopover">
       <div class="flex flex-col w-40">
@@ -42,6 +39,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
+import SettingsMenuRow from "@/components/map/SettingsMenuRow.vue";
 import {
   availableLocales,
   saveLocale,

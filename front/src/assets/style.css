@@ -97,5 +97,9 @@ html .maplibregl-map {
   bottom: 0;
   height: 3rem;
   pointer-events: none;
-  background: linear-gradient(to top, var(--p-content-hover-background), transparent);
+  background: linear-gradient(
+    to top,
+    var(--scroll-fade-color, var(--p-content-hover-background)),
+    transparent
+  );
 }

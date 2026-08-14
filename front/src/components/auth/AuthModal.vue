@@ -34,21 +34,11 @@
           />
         </div>
 
-        <div
-          v-if="errorMessage"
-          class="p-error flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded dark:bg-red-900/30 dark:border-red-700 dark:text-red-300"
-        >
-          <i class="pi pi-exclamation-triangle"></i>
-          {{ errorMessage }}
-        </div>
+        <InlineBanner v-if="errorMessage" severity="error">{{ errorMessage }}</InlineBanner>
 
-        <div
-          v-if="resetLinkSent"
-          class="p-info flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded dark:bg-blue-900/30 dark:border-blue-700 dark:text-blue-200"
-        >
-          <i class="pi pi-info-circle"></i>
+        <InlineBanner v-if="resetLinkSent" severity="info">
           {{ $t("auth.resetLinkSent") }}
-        </div>
+        </InlineBanner>
 
         <div class="flex flex-col gap-3 mt-2">
           <Button
@@ -87,19 +77,10 @@
               class="w-full"
               :class="{ 'last-used-method': lastOsmUsed && isLoginMode }"
             />
-            <!-- Last used badge for OpenStreetMap -->
-            <span
+            <LastUsedBadge
               v-if="lastOsmUsed && isLoginMode"
-              class="absolute top-0 -right-1 translate-y-[-33%] text-xs px-3 py-1.5 rounded-full font-semibold z-50"
-              style="
-                background-color: var(--p-primary-color);
-                color: var(--p-primary-contrast-color);
-                box-shadow: var(--p-button-shadow);
-              "
               :title="$t('auth.lastUsedOpenStreetMap')"
-            >
-              {{ $t("auth.lastUsed") }}
-            </span>
+            />
           </div>
         </div>
 
@@ -116,19 +97,7 @@
               'last-used-method': lastGoogleUsed && isLoginMode,
             }"
           />
-          <!-- Last used badge for Google -->
-          <span
-            v-if="lastGoogleUsed && isLoginMode"
-            class="absolute top-0 -right-1 translate-y-[-33%] text-xs px-3 py-1.5 rounded-full font-semibold z-50"
-            style="
-              background-color: var(--p-primary-color);
-              color: var(--p-primary-contrast-color);
-              box-shadow: var(--p-button-shadow);
-            "
-            :title="$t('auth.lastUsedGoogle')"
-          >
-            {{ $t("auth.lastUsed") }}
-          </span>
+          <LastUsedBadge v-if="lastGoogleUsed && isLoginMode" :title="$t('auth.lastUsedGoogle')" />
         </div>
 
         <div class="flex items-center my-4">
@@ -156,19 +125,11 @@
               'last-used-input': lastEmailUsed && isLoginMode,
             }"
           />
-          <!-- Last used badge for email method -->
-          <span
+          <LastUsedBadge
             v-if="lastEmailUsed && isLoginMode"
-            class="absolute top-7.5 -right-1 translate-y-[-33%] text-xs px-3 py-1.5 rounded-full font-semibold z-50"
-            style="
-              background-color: var(--p-primary-color);
-              color: var(--p-primary-contrast-color);
-              box-shadow: var(--p-button-shadow);
-            "
             :title="$t('auth.lastUsedEmail')"
-          >
-            {{ $t("auth.lastUsed") }}
-          </span>
+            top="top-7.5"
+          />
           <small v-if="emailError" class="p-error">{{ emailError }}</small>
         </div>
 
@@ -234,13 +195,7 @@
           <div id="turnstile-widget"></div>
         </div>
 
-        <div
-          v-if="errorMessage"
-          class="p-error flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded dark:bg-red-900/30 dark:border-red-700 dark:text-red-300"
-        >
-          <i class="pi pi-exclamation-triangle"></i>
-          {{ errorMessage }}
-        </div>
+        <InlineBanner v-if="errorMessage" severity="error">{{ errorMessage }}</InlineBanner>
 
         <!-- Registration success message -->
         <div
@@ -290,6 +245,8 @@ import { toastSuccess, toastInfo } from "@/services/core/toast";
 import { ref, reactive, computed, watch, nextTick } from "vue";
 import { useI18n } from "vue-i18n";
 import { useAuthStore } from "@/stores/authStore";
+import LastUsedBadge from "@/components/auth/LastUsedBadge.vue";
+import InlineBanner from "@/components/common/InlineBanner.vue";
 
 const props = defineProps<{
   visible: boolean;
@@ -580,11 +537,7 @@ async function handleForgotPassword() {
 }
 
 /* Highlight last used login method with border color using PrimeVue tokens */
-.last-used-method {
-  border: 1px solid var(--p-primary-color) !important;
-  box-shadow: 0 0 0 2px var(--p-primary-50) !important;
-}
-
+.last-used-method,
 .last-used-input {
   border: 1px solid var(--p-primary-color) !important;
   box-shadow: 0 0 0 2px var(--p-primary-50) !important;

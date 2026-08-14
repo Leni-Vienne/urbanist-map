@@ -1,5 +1,6 @@
 import * as registry from "@/services/overlay/mapLayers";
 import { mobileAwareFlyTo } from "@/services/core/mapNavigation";
+import { createSvgCanvasLayer, createSvgPath } from "@/utils/svgCanvasLayer";
 import * as maplibregl from "maplibre-gl";
 import {
   LngLat,
@@ -475,16 +476,9 @@ export function showEditHandles(overlayObject: OverlayObject): void {
       .addTo(mlMap),
   );
 
-  const svgContainer = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svgContainer.style.position = "absolute";
-  svgContainer.style.top = "0";
-  svgContainer.style.left = "0";
-  svgContainer.style.width = "100%";
-  svgContainer.style.height = "100%";
-  svgContainer.style.pointerEvents = "none";
-  svgContainer.style.zIndex = "1"; // Above map canvas, below markers
+  const svgContainer = createSvgCanvasLayer();
 
-  const svgPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  const svgPath = createSvgPath();
   svgPath.setAttribute("stroke", "#3b82f6");
   svgPath.setAttribute("stroke-width", "2");
   svgPath.setAttribute("fill", "transparent");

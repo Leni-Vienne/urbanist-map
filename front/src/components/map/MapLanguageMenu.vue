@@ -1,16 +1,13 @@
 <template>
   <div class="w-full">
-    <button
-      type="button"
-      class="appearance-none bg-transparent border-0 text-left flex items-center py-[0.35rem] px-2 w-full cursor-pointer rounded text-color transition-colors duration-200 text-[0.9rem] hover:bg-black/5 dark:hover:bg-white/10"
+    <SettingsMenuRow
+      as="button"
+      icon="pi pi-map text-base"
+      :label="$t('controls.mapLanguage')"
       @click="toggleMenu"
-      :aria-label="$t('controls.mapLanguage')"
-      @dblclick.stop
     >
-      <i class="pi pi-map text-base"></i>
-      <span class="ml-2">{{ $t("controls.mapLanguage") }}</span>
-      <span class="ml-auto text-sm text-muted-color">{{ currentLabel }}</span>
-    </button>
+      <span class="text-sm text-muted-color">{{ currentLabel }}</span>
+    </SettingsMenuRow>
 
     <Popover ref="mapLanguagePopover">
       <div class="flex flex-col w-44 max-h-80 overflow-y-auto">
@@ -37,6 +34,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useI18n } from "vue-i18n";
+import SettingsMenuRow from "@/components/map/SettingsMenuRow.vue";
 import {
   getBrowserLanguageCode,
   getBrowserLanguageName,

@@ -164,7 +164,7 @@ import { useModerationCountrySelector } from "@/composables/moderation/useModera
 import { approveChangeRequests, rejectChangeRequests } from "@/services/changes/changeRequests";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useModerationStore } from "@/stores/moderationStore";
-import type { Overlay, PendingChangeRequest } from "@/types/index";
+import type { Overlay, PendingChangeRequest, UserStatsPayload } from "@/types/index";
 import { trpc } from "@/client";
 import { handleOverlayClickNavigation } from "@/services/overlay/clickHandler";
 import { useFocusStore } from "@/stores/focusStore";
@@ -430,13 +430,7 @@ function openReportDialog(userId: string | null) {
   showReportDialog.value = true;
 }
 
-function handleShowUserStats(data: {
-  userId: string;
-  username?: string | null;
-  approvedCount?: number | null;
-  rejectedCount?: number | null;
-  reportCount?: number;
-}) {
+function handleShowUserStats(data: UserStatsPayload) {
   userStatsDialogData.value = {
     userId: data.userId,
     username: data.username ?? null,

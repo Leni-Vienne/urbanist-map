@@ -212,6 +212,16 @@ export interface OverlayObject extends OverlayData {
 
 export type PanelTab = "latest" | "filter" | "contribute" | "moderation";
 
+// Author identity + spam-detection stats forwarded up the contributor-click chain to UserStatsDialog.
+// The counts are optional because list endpoints hydrate them, but map/editor contexts do not.
+export interface UserStatsPayload {
+  userId: string;
+  username?: string | null;
+  approvedCount?: number | null;
+  rejectedCount?: number | null;
+  reportCount?: number;
+}
+
 // Wire shape of an overlay row as the contribution/moderation endpoints return it.
 type BackendOverlayMetadata =
   RouterOutput["project"]["getUsersContributions"]["projects"][number]["overlays"][number];

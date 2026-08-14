@@ -192,13 +192,13 @@
 <script setup lang="ts">
 import { toastWarn, toastError } from "@/services/core/toast";
 
-import { computed, ref } from "vue";
+import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import ProjectHeader from "@/components/project/ProjectHeader.vue";
 import ProjectContent from "@/components/project/ProjectContent.vue";
 import PanelEmptyState from "@/components/common/PanelEmptyState.vue";
 
-import type { Project, Overlay, PendingChangeRequest } from "@/types/index";
+import type { Project, Overlay, PendingChangeRequest, UserStatsPayload } from "@/types/index";
 
 import { useUiStore } from "@/stores/uiStore";
 import { useFocusStore } from "@/stores/focusStore";
@@ -248,15 +248,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-  "show-user-stats": [
-    data: {
-      userId: string;
-      username?: string | null;
-      approvedCount?: number | null;
-      rejectedCount?: number | null;
-      reportCount?: number;
-    },
-  ];
+  "show-user-stats": [data: UserStatsPayload];
   "external-project-click": [];
 }>();
 
@@ -265,9 +257,7 @@ const { t } = useI18n();
 const uiStore = useUiStore();
 const focusStore = useFocusStore();
 
-const scrollAreaRef = ref<HTMLElement | null>(null);
-const contentRef = ref<HTMLElement | null>(null);
-const { showScrollFade } = useScrollFade(scrollAreaRef, contentRef);
+const { showScrollFade } = useScrollFade();
 
 // The selected project as it appears in the list, if it is one of `projects`. Lifted into the card.
 const selectedInListProject = computed(() =>

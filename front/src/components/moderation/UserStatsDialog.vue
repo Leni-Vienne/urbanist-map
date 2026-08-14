@@ -54,13 +54,13 @@
       </div>
 
       <!-- High rejection warning -->
-      <div
+      <InlineBanner
         v-if="hasHighRejectionRate"
-        class="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded text-red-700 font-semibold text-sm dark:bg-red-900/30 dark:border-red-700 dark:text-red-300"
+        severity="error"
+        class="text-red-700 font-semibold text-sm"
       >
-        <i class="pi pi-exclamation-triangle text-red-600"></i>
         {{ $t("moderation.userStats.highRejectionRate") }}
-      </div>
+      </InlineBanner>
     </div>
 
     <template #footer>
@@ -86,6 +86,7 @@
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
+import InlineBanner from "@/components/common/InlineBanner.vue";
 
 interface Props {
   visible?: boolean;

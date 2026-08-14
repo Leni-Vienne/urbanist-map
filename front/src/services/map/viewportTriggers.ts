@@ -68,6 +68,20 @@ function clearResolvedChangeRequestState(sessionOverlayIds: string[]): void {
   }
 }
 
+// Cache a fetched session set into the stores, then make it the mode's snapshot and render it.
+function applyMapSessionRows(
+  mode: "edit" | "moderation",
+  projects: SessionProjectInput[],
+  overlays: OverlayData[],
+): void {
+  const projectIds = cacheMapSessionProjects(projects);
+  const overlayIds = cacheMapSessionOverlays(overlays);
+  if (mode === "edit") clearResolvedChangeRequestState(overlayIds);
+  replaceMapSessionSnapshot({ mode, overlayIds, projectIds });
+  renderMapSessionPendingSources();
+  runViewportRenderLoop();
+}
+
 // Mode transitions are not serialized and the country selection can change mid-flight, so a fetch
 // may resolve after the state it was issued for is gone. Every fetch takes a token and applies its
 // rows only while that token is still current; starting a fetch or clearing the snapshot invalidates
@@ -111,13 +125,7 @@ async function refreshEditSessionData(): Promise<void> {
   if (!rows) return;
   if (token !== sessionFetchToken) return;
 
-  const projectIds = cacheMapSessionProjects(rows.projects);
-  const overlays = rows.overlays.map(overlayWireToData);
-  const overlayIds = cacheMapSessionOverlays(overlays);
-  clearResolvedChangeRequestState(overlayIds);
-  replaceMapSessionSnapshot({ mode: "edit", overlayIds, projectIds });
-  renderMapSessionPendingSources();
-  runViewportRenderLoop();
+  applyMapSessionRows("edit", rows.projects, rows.overlays.map(overlayWireToData));
 }
 
 /**
@@ -144,12 +152,7 @@ async function refreshModerationMapData(): Promise<void> {
   if (!rows) return;
   if (token !== sessionFetchToken) return;
 
-  const projectIds = cacheMapSessionProjects(rows.projects);
-  const overlays = rows.overlays.map(overlayWireToData);
-  const overlayIds = cacheMapSessionOverlays(overlays);
-  replaceMapSessionSnapshot({ mode: "moderation", overlayIds, projectIds });
-  renderMapSessionPendingSources();
-  runViewportRenderLoop();
+  applyMapSessionRows("moderation", rows.projects, rows.overlays.map(overlayWireToData));
 }
 
 /**

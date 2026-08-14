@@ -198,7 +198,7 @@ import { handleOverlayClickNavigation } from "@/services/overlay/clickHandler";
 import { viewOriginalOverlay } from "@/services/overlay/navigation";
 import { buildImageUrl, buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
-import type { Project, Overlay, PendingChangeRequest } from "@/types/index";
+import type { Project, Overlay, PendingChangeRequest, UserStatsPayload } from "@/types/index";
 import { getStatusSeverity } from "@/utils/statusHelpers";
 
 import ContributorInfo from "@/components/common/ContributorInfo.vue";
@@ -224,15 +224,7 @@ interface Props {
 const props = defineProps<Props>();
 
 const emit = defineEmits<{
-  "show-user-stats": [
-    data: {
-      userId: string;
-      username?: string | null;
-      approvedCount?: number | null;
-      rejectedCount?: number | null;
-      reportCount?: number;
-    },
-  ];
+  "show-user-stats": [data: UserStatsPayload];
   "project-click": [project: Project];
   "highlight-project": [project: Project];
   "remove-project-highlight": [project: Project];

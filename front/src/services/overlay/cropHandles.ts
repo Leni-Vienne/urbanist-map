@@ -17,6 +17,7 @@ import {
 import { commitOverlayEdit } from "@/services/overlay/history";
 import { updateMarkerPosition } from "@/services/overlay/markers";
 import { imageRequiresCredentials } from "@/utils/imageUrl";
+import { createSvgCanvasLayer, createSvgPath } from "@/utils/svgCanvasLayer";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import type { OverlayObject } from "@/types/index";
 
@@ -45,7 +46,6 @@ interface CropSession {
   onRender: () => void;
 }
 
-const SVG_NS = "http://www.w3.org/2000/svg";
 const MIN_FRAC = 0.05;
 const EDGES: Edge[] = ["top", "bottom", "left", "right"];
 
@@ -178,21 +178,14 @@ export function showCropHandles(overlayObject: OverlayObject): void {
 
   const bounds: CropBounds = { u0: 0, u1: 1, v0: 0, v1: 1 };
 
-  const svgContainer = document.createElementNS(SVG_NS, "svg");
-  svgContainer.style.position = "absolute";
-  svgContainer.style.top = "0";
-  svgContainer.style.left = "0";
-  svgContainer.style.width = "100%";
-  svgContainer.style.height = "100%";
-  svgContainer.style.pointerEvents = "none";
-  svgContainer.style.zIndex = "1";
+  const svgContainer = createSvgCanvasLayer();
 
-  const maskPath = document.createElementNS(SVG_NS, "path");
+  const maskPath = createSvgPath();
   maskPath.setAttribute("fill", "#000000");
   maskPath.setAttribute("fill-opacity", "0.45");
   maskPath.setAttribute("fill-rule", "evenodd");
 
-  const framePath = document.createElementNS(SVG_NS, "path");
+  const framePath = createSvgPath();
   framePath.setAttribute("stroke", "#3b82f6");
   framePath.setAttribute("stroke-width", "2");
   framePath.setAttribute("fill", "transparent");

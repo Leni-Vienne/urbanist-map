@@ -1,7 +1,7 @@
-import {
-  type ExpressionSpecification,
-  type LineLayerSpecification,
-  type MapMouseEvent,
+import type {
+  ExpressionSpecification,
+  LineLayerSpecification,
+  MapMouseEvent,
   LngLatBounds,
 } from "maplibre-gl";
 import type { Feature } from "geojson";
@@ -9,7 +9,7 @@ import type { Project } from "@/types/index";
 import { getMap, getMapOrNull } from "@/services/core/map";
 import { useFocusStore } from "@/stores/focusStore";
 import { openProjectDetail } from "@/services/core/projectSelection";
-import { forEachPosition } from "@/utils/geojson";
+import { extendBoundsWithGeometry } from "@/utils/cornersBounds";
 import {
   setShapeEntry,
   hasProjectShapes,
@@ -58,10 +58,7 @@ export function computeShapeBounds(geometries: GeoJSON.Geometry[]): LngLatBounds
   let bounds: LngLatBounds | null = null;
   for (const geometry of geometries) {
     if (geometry.type === "Point" || geometry.type === "MultiPoint") continue;
-    forEachPosition(geometry, (lng, lat) => {
-      if (bounds) bounds.extend([lng, lat]);
-      else bounds = new LngLatBounds([lng, lat], [lng, lat]);
-    });
+    bounds = extendBoundsWithGeometry(bounds, geometry);
   }
   return bounds;
 }

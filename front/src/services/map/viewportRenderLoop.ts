@@ -25,8 +25,8 @@ import { createRafBatchQueue } from "@/utils/rafBatchQueue";
 import { cornersIntersectBounds } from "@/utils/cornersBounds";
 import { renderAllProjectShapes } from "@/services/map/shapes/renderLoop";
 import { getMapSessionSnapshot } from "@/services/map/mapSessionState";
-
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
+
 interface ViewportBounds {
   north: number;
   south: number;

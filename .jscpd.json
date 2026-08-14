@@ -1,6 +1,6 @@
 {
   "threshold": 1,
-  "minTokens": 70,
+  "minTokens": 40,
   "ignore": [
     "**/*.spec.ts",
     "**/*.test.ts",

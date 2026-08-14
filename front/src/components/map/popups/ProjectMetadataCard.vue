@@ -57,14 +57,7 @@
     <div v-if="project.tags && project.tags.length > 0" :class="cls.row">
       <span :class="cls.label">{{ $t("project.tags") }}</span>
       <div class="flex flex-wrap gap-1.5">
-        <span
-          v-for="tag in project.tags"
-          :key="tag"
-          class="px-2.5 py-0.5 rounded-full text-xs font-semibold"
-          :style="getTagChipStyle(tag)"
-        >
-          {{ $te(`tags.${tag}`) ? $t(`tags.${tag}`) : tag }}
-        </span>
+        <TagChip v-for="tag in project.tags" :key="tag" :tag="tag" />
       </div>
     </div>
 
@@ -161,9 +154,9 @@ import type { Project } from "@/types/index";
 import { formatProjectDateRangeParts } from "@/utils/projectDateFormat";
 import { formatSourceUrl } from "@/utils/urlFormat";
 import { useI18n } from "vue-i18n";
-import { getTagChipStyle } from "@/constants/projectTags";
 import { useWikidataEntity, type WikidataEntity } from "@/composables/project/useWikidataEntity";
 import ImageLightbox from "@/components/common/ImageLightbox.vue";
+import TagChip from "@/components/common/TagChip.vue";
 import { mapLabelLanguageRef, pickBoundaryName } from "@/services/map/mapLabelLanguage";
 import type { JsonObject } from "@shared/json";
 

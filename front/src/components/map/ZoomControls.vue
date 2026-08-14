@@ -33,6 +33,7 @@
 import { computed, onMounted, onUnmounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { getMap, getMapOrNull, currentZoomLevel } from "@/services/core/map";
+import { isTypingTarget } from "@/utils/keyboard";
 
 const { t } = useI18n();
 
@@ -54,13 +55,6 @@ function zoomOut() {
   getMap().zoomOut();
 }
 
-// Don't steal +/- while the user is typing, or while a modal dialog/drawer is open.
-function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  if (target.isContentEditable) return true;
-  return ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
-}
-
 function isModalOpen(): boolean {
   return document.querySelector(".p-dialog-mask, .p-drawer-mask") !== null;
 }
@@ -68,6 +62,7 @@ function isModalOpen(): boolean {
 function handleKeyDown(event: KeyboardEvent) {
   // Leave Ctrl/Cmd/Alt combos to the browser (e.g. native page zoom on Ctrl +/-).
   if (event.ctrlKey || event.metaKey || event.altKey) return;
+  // Don't steal +/- while the user is typing, or while a modal dialog/drawer is open.
   if (isTypingTarget(event.target) || isModalOpen()) return;
 
   if (event.key === "+" || event.key === "=") {

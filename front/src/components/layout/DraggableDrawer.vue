@@ -125,6 +125,22 @@ function isDragTarget(target: HTMLElement): boolean {
   );
 }
 
+// Resize to match the pointer at `clientY`, emitting on every move for continuous reactivity.
+function applyDragHeight(clientY: number) {
+  const deltaPercent = ((startY - clientY) / viewportHeight.value) * 100;
+  const newHeight = Math.min(MAX_HEIGHT_PERCENT, startHeight + deltaPercent);
+
+  currentHeight.value = newHeight;
+  emit("update:heightPercent", newHeight);
+}
+
+function beginDrag(clientY: number) {
+  isDragging.value = true;
+  startY = clientY;
+  startHeight = currentHeight.value;
+  viewportHeight.value = globalThis.innerHeight;
+}
+
 function handleTouchStart(e: TouchEvent) {
   const target = e.target as HTMLElement;
   if (!isDragTarget(target)) {
@@ -133,10 +149,7 @@ function handleTouchStart(e: TouchEvent) {
   const touch = e.touches[0];
   if (!touch) return;
 
-  isDragging.value = true;
-  startY = touch.clientY;
-  startHeight = currentHeight.value;
-  viewportHeight.value = globalThis.innerHeight;
+  beginDrag(touch.clientY);
 }
 
 function handleTouchMove(e: TouchEvent) {
@@ -146,14 +159,7 @@ function handleTouchMove(e: TouchEvent) {
   const touch = e.touches[0];
   if (!touch) return;
 
-  const deltaY = startY - touch.clientY;
-  const deltaPercent = (deltaY / viewportHeight.value) * 100;
-
-  const newHeight = Math.min(MAX_HEIGHT_PERCENT, startHeight + deltaPercent);
-  currentHeight.value = newHeight;
-
-  // Emit updates during drag for continuous reactivity
-  emit("update:heightPercent", newHeight);
+  applyDragHeight(touch.clientY);
 }
 
 function handleTouchEnd() {
@@ -169,22 +175,12 @@ function handleMouseDown(e: MouseEvent) {
     return;
   }
 
-  isDragging.value = true;
-  startY = e.clientY;
-  startHeight = currentHeight.value;
-  viewportHeight.value = globalThis.innerHeight;
+  beginDrag(e.clientY);
 
   function handleMouseMove(moveEvent: MouseEvent) {
     if (!isDragging.value) return;
 
-    const deltaY = startY - moveEvent.clientY;
-    const deltaPercent = (deltaY / viewportHeight.value) * 100;
-
-    const newHeight = Math.min(MAX_HEIGHT_PERCENT, startHeight + deltaPercent);
-    currentHeight.value = newHeight;
-
-    // Emit updates during drag for continuous reactivity
-    emit("update:heightPercent", newHeight);
+    applyDragHeight(moveEvent.clientY);
   }
 
   function handleMouseUp() {

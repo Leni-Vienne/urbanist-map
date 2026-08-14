@@ -517,12 +517,8 @@ export function deriveOverlayFilename(id: string, imageUrl: string, fallback = "
 // (crop apply, or undo/redo stepping across a crop), not just the position. Opacity and front/back
 // order are keyed by overlay id and so survive the rebuild.
 export function replaceOverlayImageSource(id: string, imageUrl: string, corners: LatLng[]): void {
-  const mlMap = getMap();
   const handle = getImageHandle(id);
-  if (handle) {
-    if (mlMap.getLayer(handle.rasterLayerId)) mlMap.removeLayer(handle.rasterLayerId);
-    if (mlMap.getSource(handle.sourceId)) mlMap.removeSource(handle.sourceId);
-  }
+  if (handle) removeImageFromMap(handle);
 
   const store = useOverlayStore();
   const overlay = store.liveOverlays[id];
