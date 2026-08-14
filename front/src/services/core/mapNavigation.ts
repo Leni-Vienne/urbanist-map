@@ -34,6 +34,8 @@ interface FlyOptions {
 }
 
 interface FlyToBoundsOptions extends FlyOptions {
+  /** Minimum destination zoom. Bounds may be clipped when fitting them would zoom out further. */
+  minZoom?: number;
   maxZoom?: number;
   /** A single inset, or [horizontal, vertical] in pixels. */
   padding?: number | [number, number];
@@ -328,6 +330,10 @@ function mercatorZoomForBounds(
   return Math.max(0, Math.min(zoom, 22));
 }
 
+function applyBoundsZoomLimits(zoom: number, options: FlyToBoundsOptions): number {
+  return Math.min(options.maxZoom ?? 22, Math.max(options.minZoom ?? 0, zoom));
+}
+
 /**
  * Fit a bounds, with mobile-aware padding. Returns true if a move started, false when none will fire
  * `moveend` (bounds already framed, or `instant`), so callers waiting on that event can act
@@ -348,7 +354,8 @@ export function mobileAwareFlyToBounds(
 
   // Zero-area bounds make cameraForBounds return undefined scale; route to flyTo instead.
   if (west === east && south === north) {
-    return mobileAwareFlyTo([north, east], options.maxZoom ?? 17, options);
+    const zoom = applyBoundsZoomLimits(options.maxZoom ?? 17, options);
+    return mobileAwareFlyTo([north, east], zoom, options);
   }
 
   const llb: [[number, number], [number, number]] = [
@@ -387,8 +394,20 @@ export function mobileAwareFlyToBounds(
   // MapLibre projection and so can't hit the same NaN.
   if (!cameraForBoundsOk) {
     const center: LatLngInput = [(south + north) / 2, (west + east) / 2];
-    const zoom = mercatorZoomForBounds(west, south, east, north, padding, options.maxZoom);
+    const zoom = applyBoundsZoomLimits(
+      mercatorZoomForBounds(west, south, east, north, padding, options.maxZoom),
+      options,
+    );
     return mobileAwareFlyTo(center, zoom, { duration: options.duration, instant: options.instant });
+  }
+
+  const limitedTargetZoom = applyBoundsZoomLimits(targetZoom, options);
+  if (limitedTargetZoom !== targetZoom) {
+    const center: LatLngInput = [(south + north) / 2, (west + east) / 2];
+    return mobileAwareFlyTo(center, limitedTargetZoom, {
+      duration: options.duration,
+      instant: options.instant,
+    });
   }
 
   const centerDistance = haversineMeters(

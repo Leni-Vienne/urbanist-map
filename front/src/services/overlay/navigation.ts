@@ -11,13 +11,17 @@ import { getOverlayBounds } from "@/services/overlay/markers";
 import { overlayWireToData } from "@/utils/typeFactories";
 import { toastError, toastInfo } from "@/services/core/toast";
 import { upsertOverlayFromWire } from "@/services/overlay/sync";
+import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 
 // Helper to zoom to overlay bounds
 function zoomToOverlayBounds(overlay: OverlayObject): void {
   // Try to get bounds from overlay data (works whether the image layer exists or not)
   const overlayBounds = getOverlayBounds(overlay);
   if (overlayBounds) {
-    mobileAwareFlyToBounds(overlayBounds);
+    mobileAwareFlyToBounds(overlayBounds, {
+      minZoom: getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS),
+      maxZoom: 18,
+    });
     return;
   }
 

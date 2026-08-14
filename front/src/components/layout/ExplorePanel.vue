@@ -272,11 +272,10 @@ import { useScrollFade } from "@/composables/ui/useScrollFade";
 import {
   navigateToProject,
   navigateToProjectBounds,
-  zoomToOverlayAndSelect,
 } from "@/services/navigation/projectNavigation";
 import type { LatestContribution } from "@/types/index";
 import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/selection";
-import { mobileAwareFlyTo } from "@/services/core/mapNavigation";
+import { handleOverlayClickNavigation } from "@/services/overlay/clickHandler";
 import { LngLatBounds } from "maplibre-gl";
 
 const { t, te, locale } = useI18n();
@@ -436,13 +435,7 @@ function handleContributionLeave(contribution: LatestContribution) {
 
 async function handleContributionClick(contribution: LatestContribution) {
   if (contribution.type === "overlay") {
-    if (contribution.corners) {
-      zoomToOverlayAndSelect(contribution.id, contribution.corners);
-    } else if (contribution.centroid) {
-      mobileAwareFlyTo([contribution.centroid.lat, contribution.centroid.lng], 18);
-    } else {
-      console.warn("Contribution has no location data to fly to!", contribution);
-    }
+    await handleOverlayClickNavigation(contribution);
   } else if (contribution.type === "standalone") {
     if (contribution.geometryBbox) {
       // Fly to the actual geometry bounds instead of the project center point.
