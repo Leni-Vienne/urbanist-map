@@ -278,26 +278,9 @@ export function clearEntry(id: string): void {
   entries.delete(id);
 }
 
-/**
- * Clear all entries from the registry.
- * @param preserveMarkers - If true, only remove the image layers and keep the marker refs +
- *                          markers on the map, so the pins don't flicker while the images are
- *                          re-created. If false, remove both.
- */
-export function clearAll(preserveMarkers: boolean): void {
-  for (const [id, entry] of entries) {
-    if (entry.imageHandle) {
-      removeImageFromMap(entry.imageHandle);
-    }
-
-    if (preserveMarkers) {
-      entry.imageHandle = null;
-      if (entry.marker === null) entries.delete(id);
-    } else {
-      entry.marker?.remove();
-      entries.delete(id);
-    }
-  }
+/** Clear every image layer, marker and registry entry. */
+export function clearAll(): void {
+  for (const id of entries.keys()) clearEntry(id);
 }
 
 // Per-overlay display choices (front/back pinning, opacity) and pending image-ready waiters. Held
@@ -315,7 +298,7 @@ export function clearOverlayDisplayPrefs(): void {
  * they are user choices, not map objects.
  */
 export function clearMapObjectRegistry(): void {
-  clearAll(false);
+  clearAll();
   gestureOwned.clear();
   cancelImageReadyWaiters();
 }

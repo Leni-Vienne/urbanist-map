@@ -4,15 +4,6 @@ import { closeDetail } from "@/services/overlay/selection";
 import { clearMapSessionSnapshot } from "@/services/map/mapSessionState";
 
 /**
- * Remove only the overlay image layers, keeping the markers on the map and the overlay store
- * data intact. Used entering edit mode, where the images are re-created at their edit-session
- * position rather than the view-mode baseline footprint.
- */
-export function clearOverlayImagesOnly(): void {
-  registry.clearAll(true);
-}
-
-/**
  * Remove every overlay map object (images, markers, gesture ownership, image-ready
  * waiters) while leaving the overlay store data and the current selection untouched. Used on map
  * teardown, where the render objects die with the MapLibre instance but the application state
@@ -30,7 +21,7 @@ export function clearOverlayRenderObjects(): void {
  */
 export function clearOverlayRenderState(): void {
   closeDetail();
-  registry.clearAll(false);
+  registry.clearAll();
 }
 
 /**
@@ -38,7 +29,7 @@ export function clearOverlayRenderState(): void {
  */
 export function clearAllOverlays(): void {
   closeDetail();
-  registry.clearAll(false);
+  registry.clearAll();
   useOverlayStore().clearLiveOverlays();
 }
 

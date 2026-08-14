@@ -14,11 +14,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { debounce } from "@/utils/debounce";
 import { isOverlayVisible } from "@/services/overlay/visibility";
 import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
-import {
-  clearAllOverlays,
-  clearOverlayImagesOnly,
-  clearOverlayRenderState,
-} from "@/services/overlay/teardown";
+import { clearAllOverlays, clearOverlayRenderState } from "@/services/overlay/teardown";
 import * as registry from "@/services/overlay/mapLayers";
 import { clearOverlayChangeRequestState, upsertOverlayFromWire } from "@/services/overlay/sync";
 import { createProjectObject, overlayWireToData } from "@/utils/typeFactories";
@@ -215,11 +211,8 @@ async function syncSessionDataForMode(newMode: AppMode, oldMode: AppMode): Promi
     }
   }
 
-  // View mode is tiles-only, so clear before loading the session data.
-  if (oldMode === "view") {
-    if (newMode === "edit") clearOverlayImagesOnly();
-    else clearAllOverlays();
-  }
+  // Moderation must not inherit view-mode overlay data; its country fetch supplies its own set.
+  if (oldMode === "view" && newMode === "moderation") clearAllOverlays();
 
   if (newMode === "edit") await refreshEditSessionData();
   else await refreshModerationMapData();
