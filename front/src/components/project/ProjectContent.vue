@@ -150,7 +150,7 @@
               <button
                 v-if="overlay.replacesOverlayId && overlay.status === 'pending'"
                 class="inline-flex items-center gap-1 py-1 px-2 text-xs font-semibold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-400/12 border border-purple-200 dark:border-purple-400/40 rounded-md cursor-pointer transition-all duration-200 whitespace-nowrap hover:bg-purple-100 dark:hover:bg-purple-400/20 hover:border-purple-300 dark:hover:border-purple-400/60 hover:text-purple-800 dark:hover:text-purple-200"
-                @click.stop="onNavigateToOverlay(overlay.replacesOverlayId)"
+                @click.stop="viewOriginalOverlay(overlay.replacesOverlayId)"
                 v-tooltip.top="$t('overlay.viewOriginalOverlay')"
               >
                 <i class="pi pi-arrow-up-left text-2.5"></i>
@@ -195,6 +195,7 @@ import { computed, useTemplateRef } from "vue";
 import { AccordionContent } from "primevue";
 import { useI18n } from "vue-i18n";
 import { handleOverlayClickNavigation } from "@/services/overlay/clickHandler";
+import { viewOriginalOverlay } from "@/services/overlay/navigation";
 import { buildImageUrl, buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
 import type { Project, Overlay, PendingChangeRequest } from "@/types/index";
@@ -217,7 +218,6 @@ interface Props {
   hideChevron?: boolean;
   // Render as a plain card (a <div>) instead of an AccordionContent, for use outside an Accordion.
   plain?: boolean;
-  onNavigateToOverlay: (overlayId: string) => Promise<void>;
   onOverlayClick?: (overlay: Overlay, shouldFitBounds: boolean) => Promise<void>;
 }
 

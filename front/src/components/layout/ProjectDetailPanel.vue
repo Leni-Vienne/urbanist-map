@@ -107,7 +107,7 @@
                 <button
                   type="button"
                   class="inline-flex items-center gap-2 font-medium text-sm text-purple-600 dark:text-purple-300 bg-purple-50 dark:bg-purple-400/12 border border-purple-200 dark:border-purple-400/40 rounded-md cursor-pointer px-3 py-1.5 transition-all w-full justify-center hover:bg-purple-100 dark:hover:bg-purple-400/20 hover:border-purple-300 dark:hover:border-purple-400/60 hover:text-purple-700 dark:hover:text-purple-200"
-                  @click.stop="handleViewOriginalOverlay(overlay.replacesOverlayId)"
+                  @click.stop="viewOriginalOverlay(overlay.replacesOverlayId)"
                 >
                   <i class="pi pi-arrow-left text-sm"></i>
                   {{ $t("overlay.viewOriginalOverlay") }}
@@ -125,8 +125,6 @@
 </template>
 
 <script setup lang="ts">
-import { toastError } from "@/services/core/toast";
-
 import { computed, ref, useTemplateRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
@@ -138,7 +136,7 @@ import { isMobile } from "@/services/core/viewport";
 import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
 
-import { navigateToOverlay } from "@/services/overlay/navigation";
+import { viewOriginalOverlay } from "@/services/overlay/navigation";
 import { flyToGeometry, mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
 import { computeShapeBounds } from "@/services/map/shapes/rendering";
 import { openProjectForEditing } from "@/services/core/projectSelection";
@@ -277,21 +275,6 @@ function handleEdit() {
 // Back returns to the panel's tab list, closing whichever detail is open.
 function handleBack() {
   closeDetail();
-}
-
-async function handleViewOriginalOverlay(originalOverlayId: string) {
-  try {
-    const success = await navigateToOverlay(originalOverlayId);
-    if (!success) {
-      toastError(t("overlay.failedToNavigate"), t("overlay.navigationFailed"));
-    }
-  } catch (error) {
-    console.error("Failed to navigate to original overlay:", error);
-    toastError(
-      error instanceof Error ? error.message : t("overlay.failedToNavigate"),
-      t("overlay.navigationFailed"),
-    );
-  }
 }
 </script>
 

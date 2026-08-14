@@ -54,7 +54,6 @@
                 :is-contribute-panel="isContributePanel"
                 :show-user-stats-link="showUserStatsLink"
                 hide-chevron
-                :on-navigate-to-overlay="navigateToOverlayById"
                 :on-overlay-click="onOverlayClick"
                 @show-user-stats="(data) => emit('show-user-stats', data)"
                 @project-click="emit('external-project-click')"
@@ -123,7 +122,6 @@
               :overlay-changes-map="overlayChangesMap"
               :is-contribute-panel="isContributePanel"
               :show-user-stats-link="showUserStatsLink"
-              :on-navigate-to-overlay="navigateToOverlayById"
               :on-overlay-click="onOverlayClick"
               @show-user-stats="(data) => emit('show-user-stats', data)"
               @project-click="handleCardClick"
@@ -295,51 +293,26 @@ const flatOrderedProjects = computed(() => {
   return selectedId ? props.projects.filter((p) => p.id !== selectedId) : props.projects;
 });
 
-async function navigateToOverlayById(overlayId: string) {
-  for (const project of props.projects) {
-    if (project.overlays) {
-      const overlay = project.overlays.find((o) => o.id === overlayId);
-      if (overlay) {
-        if (props.onOverlayClick) {
-          await props.onOverlayClick(overlay, true);
-        } else {
-          await handleOverlayClickNavigation(overlay, true);
-        }
-        return;
-      }
+const projectChangesMap = computed(() => groupChangesByEntityId(props.changeRequests, "project"));
+
+const overlayChangesMap = computed(() => groupChangesByEntityId(props.changeRequests, "overlay"));
+
+function groupChangesByEntityId(
+  requests: PendingChangeRequest[],
+  entityType: PendingChangeRequest["entityType"],
+): Map<string, PendingChangeRequest[]> {
+  const map = new Map<string, PendingChangeRequest[]>();
+  for (const req of requests) {
+    if (req.entityType !== entityType) continue;
+    let list = map.get(req.entityId);
+    if (!list) {
+      list = [];
+      map.set(req.entityId, list);
     }
+    list.push(req);
   }
+  return map;
 }
-
-const projectChangesMap = computed(() => {
-  const map = new Map<string, PendingChangeRequest[]>();
-  for (const req of props.changeRequests) {
-    if (req.entityType === "project") {
-      let list = map.get(req.entityId);
-      if (!list) {
-        list = [];
-        map.set(req.entityId, list);
-      }
-      list.push(req);
-    }
-  }
-  return map;
-});
-
-const overlayChangesMap = computed(() => {
-  const map = new Map<string, PendingChangeRequest[]>();
-  for (const req of props.changeRequests) {
-    if (req.entityType === "overlay") {
-      let list = map.get(req.entityId);
-      if (!list) {
-        list = [];
-        map.set(req.entityId, list);
-      }
-      list.push(req);
-    }
-  }
-  return map;
-});
 
 function getProjectChangeRequestsForProject(project: Project): PendingChangeRequest[] {
   if (project.status === "pending") {

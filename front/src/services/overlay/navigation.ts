@@ -9,7 +9,7 @@ import { openOverlayDetail, raiseSelectedOverlayWhenReady } from "@/services/ove
 import { getMarker } from "@/services/overlay/mapLayers";
 import { getOverlayBounds } from "@/services/overlay/markers";
 import { overlayWireToData } from "@/utils/typeFactories";
-import { toastInfo } from "@/services/core/toast";
+import { toastError, toastInfo } from "@/services/core/toast";
 import { upsertOverlayFromWire } from "@/services/overlay/sync";
 
 // Helper to zoom to overlay bounds
@@ -96,6 +96,24 @@ async function loadOverlay(overlayId: string): Promise<void> {
 export async function navigateToOverlay(overlayId: string): Promise<boolean> {
   await loadOverlay(overlayId);
   return selectAndCenterOverlay(overlayId);
+}
+
+/**
+ * Navigates to the overlay a pending replacement supersedes, toasting when it can't be reached.
+ */
+export async function viewOriginalOverlay(originalOverlayId: string): Promise<void> {
+  try {
+    const success = await navigateToOverlay(originalOverlayId);
+    if (!success) {
+      toastError(t("overlay.failedToNavigate"), t("overlay.navigationFailed"));
+    }
+  } catch (error) {
+    console.error("Failed to navigate to original overlay:", error);
+    toastError(
+      error instanceof Error ? error.message : t("overlay.failedToNavigate"),
+      t("overlay.navigationFailed"),
+    );
+  }
 }
 
 function selectAndCenterOverlay(overlayId: string) {
