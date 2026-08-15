@@ -14,6 +14,7 @@ import { eq, and, inArray, sql, or, isNull, isNotNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../database";
 import { isUserBlocked } from "../db/helpers";
+import { scalarGeometrySizeMSql } from "../db/geometrySize";
 import { submitChangeRequestSchema } from "@shared/validation/schemas";
 import * as rateLimit from "../lib/rateLimit";
 import { getClientIp } from "../utils/ip";
@@ -136,14 +137,14 @@ function buildUpdateData(change: { entityType: string; fieldName: string; newVal
   const isProjectGeometryField = change.entityType === "project" && change.fieldName === "geometry";
   if (isProjectGeometryField) {
     if (change.newValue === null || change.newValue === undefined) {
-      return { geometry: null };
+      return { geometry: null, geometrySizeM: null };
     }
     const collection = parseGeometryCollection(change.newValue);
     // ST_MakeValid normalizes the client-drawn shape (same as the publishProject write path) so a
     // self-intersecting or malformed collection is stored valid rather than as-drawn.
-    return {
-      geometry: sql`ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(collection)}), 4326))`,
-    };
+    const geometryExpr = sql`ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(collection)}), 4326))`;
+    // geometry_size_m is derived from the shape, so it moves with it in the same UPDATE.
+    return { geometry: geometryExpr, geometrySizeM: scalarGeometrySizeMSql(geometryExpr) };
   }
 
   if (change.entityType === "project" && PROJECT_DATE_FIELDS.has(change.fieldName)) {

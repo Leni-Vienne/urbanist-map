@@ -32,6 +32,7 @@ import {
   resolveBoundaryPath,
   resolveCountryCode,
 } from "../db/boundaryAssignment";
+import { scalarGeometrySizeMSql } from "../db/geometrySize";
 
 function normalizePrecisionForStorage(
   date: Date | null | undefined,
@@ -79,6 +80,13 @@ export const projectRouter = router({
         });
       }
 
+      // ST_MakeValid normalizes the client-drawn shape on the way in so a self-intersecting
+      // polygon (bowtie) or malformed ring ("nested shell") is stored valid rather than as-drawn.
+      // No-op for lines/points, which are always valid.
+      const geometryExpr = input.geometry
+        ? sql`ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(input.geometry)}), 4326))`
+        : null;
+
       // Build data object with proper null handling for dates and precision
       const data = {
         ...input,
@@ -96,16 +104,8 @@ export const projectRouter = router({
         sourceUrl: input.sourceUrl,
         // Set center coordinate for all projects using PostGIS
         centerCoordinate: sql`ST_SetSRID(ST_MakePoint(${input.lng}, ${input.lat}), 4326)`,
-        // ST_MakeValid normalizes the client-drawn shape on the way in so a self-intersecting
-        // polygon (bowtie) or malformed ring ("nested shell") is stored valid rather than as-drawn.
-        // No-op for lines/points, which are always valid.
-        geometry: input.geometry
-          ? sql`ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(input.geometry)}), 4326))`
-          : null,
-        // Bbox diagonal in meters, used to exclude large-geometry projects from the cluster GeoJSON source
-        geometrySizeM: input.geometry
-          ? sql`ST_Length(ST_BoundingDiagonal(ST_Envelope(ST_GeomFromGeoJSON(${JSON.stringify(input.geometry)})))::geography)`
-          : null,
+        geometry: geometryExpr,
+        geometrySizeM: geometryExpr ? scalarGeometrySizeMSql(geometryExpr) : null,
       };
 
       if (input.id) {

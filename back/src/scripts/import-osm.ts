@@ -16,6 +16,7 @@ import {
   coverageFractionSql,
   projectEffectiveGeometrySql,
 } from "../db/boundaryAssignment";
+import { geometrySizeMSql } from "../db/geometrySize";
 import { sql, eq, isNull } from "drizzle-orm";
 import { config } from "../config";
 
@@ -611,28 +612,11 @@ async function main() {
 
   // Compute geometry_size_m and the lat/lng/center_coordinate anchor in a single bulk UPDATE over
   // the changed/new rows. This avoids the double geometryJson parse that would occur inline per row,
-  // and lets PostGIS pipeline the geography computations (ST_Length, ST_Perimeter, ST_Distance,
-  // ST_PointOnSurface) across all rows in one efficient pass.
+  // and lets PostGIS pipeline the geography computations across all rows in one efficient pass.
   // The anchor uses ST_PointOnSurface so lat/lng and center_coordinate land on the geometry itself
   // (e.g. the midpoint of a railroad line) rather than the JS arithmetic centroid set during upsert,
   // which can fall off curved or asymmetric shapes. It is what marker placement and tile-based
   // navigation snap to. Unchanged rows keep the anchor a prior run already computed (see conflictSet).
-  // Spatial size in meters, used to:
-  //   - decide zoom level when flying to a project
-  //   - progressively hide center-point markers when the shape is large enough
-  //   - drive the size filter slider in the UI
-  // The cap is GREATEST(bbox_width, bbox_height), the longest side of the bounding box.
-  // Using the bbox diagonal instead would inflate areas by up to sqrt(2) (~41%) for square shapes.
-  // GREATEST(ST_Length, ST_Perimeter) handles both geometry families:
-  //   - LineString/MultiLineString: ST_Length > 0, ST_Perimeter = 0
-  //   - Polygon/MultiPolygon:       ST_Length = 0, ST_Perimeter > 0
-  // Examples (lines):
-  //   - A20 motorway (170km route, ~200km bbox diagonal): LEAST(170km, 200km) = 170km  correct
-  //   - B96a (675m total, 7200m bbox diagonal):           LEAST(675m,  7200m) = 675m   correct
-  // Examples (polygons):
-  //   - 100x100m parking lot (400m perimeter):            LEAST(400m, 100m)   = 100m   correct
-  //   - Circular park r=500m (3141m perimeter):           LEAST(3141m, 1000m) = 1000m  correct (diameter)
-  // ST_Area > 0 discriminates polygons from lines (ST_Dimension is unreliable on GeometryCollection).
   console.log("");
   log(`Computing geometry sizes and anchors for changed rows (batched)...`);
   // New or geometry-changed rows: geometry_size_m IS NULL means the upsert nulled it on a geometry
@@ -670,27 +654,7 @@ async function main() {
         FROM (
           SELECT id,
             ST_PointOnSurface(geometry) AS anchor,
-            CASE
-              WHEN ST_Area(geometry) > 0 THEN
-                LEAST(
-                  ST_Perimeter(geometry::geography),
-                  GREATEST(
-                    ST_Distance(
-                      ST_MakePoint(ST_XMin(env.e), ST_YMin(env.e))::geography,
-                      ST_MakePoint(ST_XMax(env.e), ST_YMin(env.e))::geography
-                    ),
-                    ST_Distance(
-                      ST_MakePoint(ST_XMin(env.e), ST_YMin(env.e))::geography,
-                      ST_MakePoint(ST_XMin(env.e), ST_YMax(env.e))::geography
-                    )
-                  )
-                )
-              ELSE
-                LEAST(
-                  ST_Length(geometry::geography),
-                  ST_Length(ST_BoundingDiagonal(env.e)::geography)
-                )
-            END AS size
+            ${sql.raw(geometrySizeMSql("geometry", "env.e"))} AS size
           FROM projects, LATERAL (SELECT ST_Envelope(geometry) AS e) env
           WHERE id IN (${idList})
         ) AS sizes

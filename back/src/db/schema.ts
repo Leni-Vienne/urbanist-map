@@ -236,7 +236,7 @@ export const projects = pgTable(
     // srid omitted (see overlays.centroid): values are SRID 4326, column typmod is unconstrained.
     centerCoordinate: geometry("center_coordinate", { type: "point", mode: "xy" }), // PostGIS point for spatial queries (computed from lat/lng)
     geometry: geometryCollectionType("geometry"), // PostGIS GeometryCollection for project shapes (lines + polygons)
-    geometrySizeM: doublePrecision("geometry_size_m"), // LEAST(total line/polygon length, global bbox diagonal) in meters. See import-osm.ts for rationale. Null = no geometry.
+    geometrySizeM: doublePrecision("geometry_size_m"), // Shape extent in meters: traced length or perimeter, capped by the bounding box. Null = no geometry.
     tags: text("tags").array(), // Project category tags (e.g. 'tram', 'rail', 'bike')
     version: integer("version").default(1).notNull(), // Version for optimistic locking during moderation
     rejectionReason: text("rejection_reason"), // Moderator-selected reason when rejecting (NULL for approved/pending)
