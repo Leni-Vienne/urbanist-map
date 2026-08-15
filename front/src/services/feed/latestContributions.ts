@@ -171,7 +171,8 @@ async function refreshLatestContributions(): Promise<void> {
 
 export async function loadMoreLatestContributions(): Promise<void> {
   const pageCursor = cursor.value;
-  if (!pageCursor || loadingMore.value) return;
+  const key = queryKey.value;
+  if (!pageCursor || loading.value || loadingMore.value || loadedKey.value !== key) return;
 
   requestToken += 1;
   const token = requestToken;

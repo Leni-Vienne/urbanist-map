@@ -478,7 +478,7 @@ function observeLoadMore(): void {
 
   const root = scrollAreaRef.value;
   const sentinel = loadMoreSentinel.value;
-  if (!root || !sentinel || !hasMore.value) return;
+  if (!root || !sentinel || isLoading.value || !hasMore.value) return;
 
   loadMoreObserver ??= new IntersectionObserver(handleLoadMoreIntersect, {
     root,
@@ -488,7 +488,12 @@ function observeLoadMore(): void {
 }
 
 function handleLoadMoreIntersect(entries: IntersectionObserverEntry[]): void {
-  if (!entries.some((entry) => entry.isIntersecting) || isLoadingMore.value || !hasMore.value) {
+  if (
+    !entries.some((entry) => entry.isIntersecting) ||
+    isLoading.value ||
+    isLoadingMore.value ||
+    !hasMore.value
+  ) {
     return;
   }
   void loadMoreLatestContributions();
@@ -499,7 +504,7 @@ function stopObservingLoadMore(): void {
 }
 
 watch(
-  () => [loadMoreSentinel.value, hasMore.value, isLoadingMore.value],
+  () => [loadMoreSentinel.value, hasMore.value, isLoading.value, isLoadingMore.value],
   () => {
     void nextTick().then(observeLoadMore);
   },
