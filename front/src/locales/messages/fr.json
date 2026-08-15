@@ -613,7 +613,6 @@
     "overlayRejected": "Image rejetée",
     "overlayRejectedDetail": "L'image a été rejetée",
     "switchedToEditMode": "Mode édition activé",
-    "pendingOverlaysOnlyInEditMode": "Les images en attente ne sont visibles qu'en mode édition",
     "switchedToViewMode": "Mode consultation activé",
     "switchedToModerationMode": "Mode modération activé",
     "changeApproved": "Modification approuvée",

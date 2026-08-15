@@ -1,4 +1,3 @@
-import { nextTick } from "vue";
 import { navigateToProject } from "@/services/navigation/projectNavigation";
 import { mobileAwareFlyTo } from "@/services/core/mapNavigation";
 import { navigateToOverlay } from "@/services/overlay/navigation";
@@ -11,20 +10,13 @@ import type { Overlay, LatestContribution } from "@/types/index";
 import { canModerateCountry } from "@/services/moderation/moderationCountrySync";
 import { loadOrNull } from "@/services/core/errorHandling";
 import { isValidQuad } from "@/services/overlay/transform";
-import { toastWarn, toastInfo, toastError } from "@/services/core/toast";
+import { toastWarn, toastError } from "@/services/core/toast";
 
 // Union type to accept overlays from moderation and contributions panels
 type NavigableOverlay = Overlay | LatestContribution;
 
-/**
- * Navigate to an overlay, handling all necessary state changes.
- * Switches to edit mode when in view mode (required to see pending overlays).
- * In moderation mode, pending overlays are already visible so mode is kept.
- */
-export async function handleOverlayClickNavigation(
-  overlay: NavigableOverlay,
-  shouldToggleEditMode = false,
-): Promise<void> {
+/** Navigate to an overlay, including rejected/replaced fallback and moderation access checks. */
+export async function handleOverlayClickNavigation(overlay: NavigableOverlay): Promise<void> {
   try {
     const overlayStore = useOverlayStore();
     const mapStore = useMapStore();
@@ -45,25 +37,6 @@ export async function handleOverlayClickNavigation(
       }
       // Auto-select the country so ModerationPanel loads its pending submissions
       mapStore.setSelectedCountryCode(overlay.countryCode);
-    }
-
-    // Only switch to edit mode if currently in view mode
-    // In moderation mode, pending overlays are already visible, so don't switch
-    if (mapStore.mode === "view" && shouldToggleEditMode) {
-      mapStore.setMode("edit");
-
-      // Only show toast for pending overlays (for approved ones it's less critical)
-      if ("status" in overlay && overlay.status === "pending") {
-        toastInfo(
-          t("moderation.pendingOverlaysOnlyInEditMode"),
-          t("moderation.switchedToEditMode"),
-        );
-      }
-
-      // Let the mode-change watchers run (they kick off overlay rendering) before navigating.
-      // navigateToOverlay loads the overlay itself and tolerates async registration, so no
-      // fixed delay is needed here.
-      await nextTick();
     }
 
     await navigateToOverlay(overlay.id);

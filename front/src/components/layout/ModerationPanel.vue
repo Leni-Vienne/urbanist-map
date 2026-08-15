@@ -296,11 +296,11 @@ watch(showReportDialog, (isOpen) => {
   }
 });
 
-async function handleViewOverlayPosition(overlay: Overlay, shouldFitBounds: boolean) {
+async function handleViewOverlayPosition(overlay: Overlay) {
   if (!viewedOverlayIds.value.includes(overlay.id)) {
     viewedOverlayIds.value.push(overlay.id);
   }
-  await handleOverlayClickNavigation(overlay, shouldFitBounds);
+  await handleOverlayClickNavigation(overlay);
 }
 
 // Helper to show success toast and refetch pending counts

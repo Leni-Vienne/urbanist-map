@@ -54,7 +54,7 @@
                 :is-contribute-panel="isContributePanel"
                 :show-user-stats-link="showUserStatsLink"
                 hide-chevron
-                :on-overlay-click="onOverlayClick"
+                :on-overlay-click="handleOverlayCardClick"
                 @show-user-stats="(data) => emit('show-user-stats', data)"
                 @project-click="emit('external-project-click')"
                 @highlight-project="handleProjectHighlight"
@@ -122,7 +122,7 @@
               :overlay-changes-map="overlayChangesMap"
               :is-contribute-panel="isContributePanel"
               :show-user-stats-link="showUserStatsLink"
-              :on-overlay-click="onOverlayClick"
+              :on-overlay-click="handleOverlayCardClick"
               @show-user-stats="(data) => emit('show-user-stats', data)"
               @project-click="handleCardClick"
               @highlight-project="handleProjectHighlight"
@@ -219,7 +219,7 @@ interface Props {
   emptyMessage?: string;
   emptySubMessage?: string;
   changeRequests?: PendingChangeRequest[];
-  onOverlayClick?: (overlay: Overlay, shouldFitBounds: boolean) => Promise<void>;
+  onOverlayClick?: (overlay: Overlay) => Promise<void>;
   // Enables "my contributions" behavior in change request sections (e.g. own-change wording).
   isContributePanel?: boolean;
   showUserStatsLink?: boolean;
@@ -348,9 +348,9 @@ function handleProjectUnhighlight() {
 
 async function handleOverlayCardClick(overlay: Overlay) {
   if (props.onOverlayClick) {
-    await props.onOverlayClick(overlay, true);
+    await props.onOverlayClick(overlay);
   } else {
-    await handleOverlayClickNavigation(overlay, true);
+    await handleOverlayClickNavigation(overlay);
   }
 }
 

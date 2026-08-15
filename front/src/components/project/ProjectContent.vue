@@ -87,7 +87,7 @@
               ? 'hover:bg-orange-100 active:bg-orange-100 dark:hover:bg-orange-400/20 dark:active:bg-orange-400/20'
               : 'hover:bg-white dark:hover:bg-white/10 active:bg-white dark:active:bg-white/10'
           "
-          @click="handleOverlayCardClick(overlay, true)"
+          @click="handleOverlayCardClick(overlay)"
           @mouseenter="$emit('highlight-overlay', overlay.id)"
           @mouseleave="$emit('remove-highlight', overlay.id)"
         >
@@ -194,7 +194,6 @@
 import { computed, useTemplateRef } from "vue";
 import { AccordionContent } from "primevue";
 import { useI18n } from "vue-i18n";
-import { handleOverlayClickNavigation } from "@/services/overlay/clickHandler";
 import { viewOriginalOverlay } from "@/services/overlay/navigation";
 import { buildImageUrl, buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
@@ -218,7 +217,7 @@ interface Props {
   hideChevron?: boolean;
   // Render as a plain card (a <div>) instead of an AccordionContent, for use outside an Accordion.
   plain?: boolean;
-  onOverlayClick?: (overlay: Overlay, shouldFitBounds: boolean) => Promise<void>;
+  onOverlayClick: (overlay: Overlay) => Promise<void>;
 }
 
 const props = defineProps<Props>();
@@ -279,18 +278,14 @@ function handleOverlayContributorClick(
   handleContributorClick(data, overlay.authorApprovedCount, overlay.authorRejectedCount);
 }
 
-async function handleOverlayCardClick(overlay: Overlay, shouldFitBounds: boolean) {
+async function handleOverlayCardClick(overlay: Overlay) {
   // Renders aren't georeferenced, so they open in the lightbox instead of navigating on the map.
   if (overlay.kind === "render") {
     openLightbox(overlay);
     return;
   }
 
-  if (props.onOverlayClick) {
-    await props.onOverlayClick(overlay, shouldFitBounds);
-  } else {
-    await handleOverlayClickNavigation(overlay, shouldFitBounds);
-  }
+  await props.onOverlayClick(overlay);
 }
 
 function getOverlayChangeRequestsForOverlay(overlayId: string): PendingChangeRequest[] {
