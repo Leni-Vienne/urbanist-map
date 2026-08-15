@@ -118,8 +118,6 @@
           class="group flex items-center gap-3 px-2 py-2 cursor-pointer transition-all duration-150 hover:bg-black/5 dark:hover:bg-white/10 active:bg-black/5 dark:active:bg-white/10 active:scale-[0.98]"
           :class="{ 'contribution-row-selected': isSelectedRow(row.contribution) }"
           @click="handleContributionClick(row.contribution)"
-          @mouseenter="handleContributionHover(row.contribution)"
-          @mouseleave="handleContributionLeave(row.contribution)"
         >
           <div
             class="contribution-thumbnail w-13 h-13 md:w-15 md:h-15 rounded-lg overflow-hidden shrink-0 flex items-center justify-center relative"
@@ -274,7 +272,6 @@ import {
   navigateToProjectBounds,
 } from "@/services/navigation/projectNavigation";
 import type { LatestContribution } from "@/types/index";
-import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/selection";
 import { handleOverlayClickNavigation } from "@/services/overlay/clickHandler";
 import { LngLatBounds } from "maplibre-gl";
 
@@ -418,18 +415,6 @@ function filterLabel(filter: ActiveFilter): string {
       return t("map.controls.onlyWithImages");
     default:
       return "";
-  }
-}
-
-function handleContributionHover(contribution: LatestContribution) {
-  if (contribution.type === "overlay") {
-    highlightOverlayById(contribution.id);
-  }
-}
-
-function handleContributionLeave(contribution: LatestContribution) {
-  if (contribution.type === "overlay") {
-    removeOverlayHighlight(contribution.id);
   }
 }
 

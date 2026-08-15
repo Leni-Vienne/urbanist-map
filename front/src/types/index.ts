@@ -210,7 +210,7 @@ export interface OverlayObject extends OverlayData {
   positionState: OverlayPositionState;
 }
 
-export type PanelTab = "latest" | "filter" | "contribute" | "moderation";
+export type PanelTab = "explore" | "filter" | "contribute" | "moderation";
 
 // Author identity + spam-detection stats forwarded up the contributor-click chain to UserStatsDialog.
 // The counts are optional because list endpoints hydrate them, but map/editor contexts do not.

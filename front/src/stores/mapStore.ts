@@ -9,7 +9,7 @@ import { useModerationStore } from "@/stores/moderationStore";
 // The active panel tab is the single source of truth; the map mode is derived from it.
 function tabToMode(tab: PanelTab): AppMode {
   switch (tab) {
-    case "latest":
+    case "explore":
     case "filter":
       return "view";
     case "contribute":
@@ -26,7 +26,7 @@ function tabToMode(tab: PanelTab): AppMode {
 function modeToTab(targetMode: AppMode): PanelTab {
   switch (targetMode) {
     case "view":
-      return "latest";
+      return "explore";
     case "edit":
       return "contribute";
     case "moderation":

@@ -8,7 +8,7 @@ import { useUiStore } from "@/stores/uiStore";
 // The area filter is picked from the feed's filter surface, which mobile hosts in a tab of its own.
 const isAreaFilterOnScreen = computed(() => {
   const tab = useUiStore().activeTab;
-  return tab === "latest" || tab === "filter";
+  return tab === "explore" || tab === "filter";
 });
 
 const SOURCE_ID = "map-area-filter";

@@ -32,7 +32,7 @@
       <div v-if="!detailVisible" class="flex flex-col">
         <div
           class="grid transition-[grid-template-rows] duration-200 ease-in-out"
-          :class="activeTab === 'latest' ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'"
+          :class="activeTab === 'explore' ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'"
         >
           <div class="overflow-hidden">
             <div class="title-container ml-4 pb-1">

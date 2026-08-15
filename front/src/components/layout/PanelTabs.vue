@@ -35,7 +35,7 @@ const TABS: {
   requiresModerator?: boolean;
 }[] = [
   {
-    key: "latest",
+    key: "explore",
     labelKey: "navigation.latestContributions",
     mobileLabelKey: "navigation.latestContributionsShort",
   },

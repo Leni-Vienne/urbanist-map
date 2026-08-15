@@ -4,7 +4,7 @@
          load-more observer on activation. The other panels load their data on mount, so caching
          them would strand stale contributions and moderation queues across account switches. -->
     <KeepAlive>
-      <ExplorePanel v-if="activeTab === 'latest'" />
+      <ExplorePanel v-if="activeTab === 'explore'" />
     </KeepAlive>
     <!-- overflow-x hidden removes the spurious horizontal scrollbar from the sliders -->
     <div v-if="activeTab === 'filter'" class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4">

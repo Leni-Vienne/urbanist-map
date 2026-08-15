@@ -16,7 +16,7 @@ export const useUiStore = defineStore("ui", () => {
   const overlayEditTarget = ref<OverlayEditTarget | null>(null);
 
   // Shared tab state between desktop SideMenu and mobile MobileDrawer
-  const activeTab = ref<PanelTab>("latest");
+  const activeTab = ref<PanelTab>("explore");
   const mobileDrawerHeightPercent = ref(40);
 
   const imageUploadProjectId = ref<string | null>(null);
@@ -73,7 +73,7 @@ export const useUiStore = defineStore("ui", () => {
   // Reset the state scoped to the signed-in user: the active tab (which the map mode derives from),
   // every panel and dialog, and their retained entities. Viewport preferences are left alone.
   function clearAllState() {
-    activeTab.value = "latest";
+    activeTab.value = "explore";
     markerPlacementBarVisible.value = false;
     moderatedContributionsDialogVisible.value = false;
     activeAccordionPanels.value = [];
