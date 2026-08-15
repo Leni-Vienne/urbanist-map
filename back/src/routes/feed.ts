@@ -357,13 +357,6 @@ function buildLatestOverlaysQuery(
       countryCode: projects.countryCode,
       country: boundaryName("country").as("country"),
       tags: projects.tags,
-      centroidLat: sql<number>`ST_Y(${overlays.centroid})`.as("centroidLat"),
-      centroidLng: sql<number>`ST_X(${overlays.centroid})`.as("centroidLng"),
-      corners: sql<{ lat: number; lng: number }[]>`(
-        SELECT json_agg(json_build_object('lat', ST_Y(geom), 'lng', ST_X(geom)) ORDER BY path[2])
-        FROM ST_DumpPoints(${overlays.corners}) AS dump(path, geom)
-        WHERE path[2] <= 4
-      )`.as("corners"),
     })
     .from(overlays)
     .leftJoin(projects, eq(overlays.projectId, projects.id))
@@ -403,11 +396,6 @@ function mapOverlayContribution(o: LatestOverlayRow) {
     countryCode: o.countryCode,
     country: o.country,
     tags: o.tags ?? [],
-    centroid:
-      typeof o.centroidLat === "number" && typeof o.centroidLng === "number"
-        ? { lat: o.centroidLat, lng: o.centroidLng }
-        : null,
-    corners: o.corners,
   };
 }
 
