@@ -10,6 +10,7 @@ type FeedCursor = RouterOutput["feed"]["getLatestContributions"]["nextCursor"];
 type OsmSyncStatus = RouterOutput["feed"]["getOsmSyncStatus"];
 
 type ContributionSource = "all" | "community" | "osm";
+type SelectedContributionSource = Exclude<ContributionSource, "all">;
 export type MapArea = {
   west: number;
   south: number;
@@ -28,20 +29,18 @@ const loadingMore = ref(false);
 const latestProjectCount = ref<number | null>(null);
 const countLoading = ref(false);
 
-// Empty or complete selection both mean "no narrowing", so the toggles stay independent and a
-// selected pair reads as selected instead of collapsing to a single All button.
-export const sourceSelection = ref<Exclude<ContributionSource, "all">[]>(["community"]);
+// A complete selection means "no narrowing", so the toggles stay independent and a selected pair
+// reads as selected instead of collapsing to a single All button.
+export const sourceSelection = ref<SelectedContributionSource[]>(["community"]);
 export const mapArea = ref<MapArea | null>(null);
 const osmSyncStatus = shallowRef<OsmSyncStatus | null>(null);
 let osmSyncStatusRequest: Promise<void> | null = null;
 
 const osmEverSelected = ref(false);
 
-function soleSelection<T extends string>(values: T[]): T | "all" {
-  return values.length === 1 ? (values[0] ?? "all") : "all";
-}
-
-export const source = computed<ContributionSource>(() => soleSelection(sourceSelection.value));
+export const source = computed<ContributionSource>(() =>
+  sourceSelection.value.length === 1 ? (sourceSelection.value[0] ?? "all") : "all",
+);
 
 // Identifies the query the loaded rows belong to. Comparing it against the live one tells whether
 // the list is stale without keeping a copy of the filter state.

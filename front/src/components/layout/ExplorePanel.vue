@@ -12,6 +12,7 @@
             option-label="label"
             option-value="value"
             multiple
+            :allow-empty="false"
             size="small"
           />
         </div>
