@@ -152,7 +152,7 @@ function keysetCondition(
   idExpr: SQL | typeof projects.id,
   cursor: FeedStreamCursor | null | undefined,
 ): SQL[] {
-  if (!cursor || cursor === EXHAUSTED_STREAM) return [];
+  if (cursor === null || cursor === undefined || cursor === EXHAUSTED_STREAM) return [];
   return [
     sql`(${dateExpr}, ${idExpr}) < (${new Date(cursor.date)}::timestamptz, ${cursor.id}::uuid)`,
   ];

@@ -120,7 +120,7 @@ function prepareSessionForPersistence(data: unknown): SessionPersistence {
   }
 
   let expiresAt = new Date(Date.now() + DEFAULT_EXPIRY_MS);
-  if (inner.expiresAt) {
+  if (inner.expiresAt !== undefined) {
     const parsed = new Date(inner.expiresAt);
     if (!Number.isNaN(parsed.getTime())) {
       expiresAt = parsed;

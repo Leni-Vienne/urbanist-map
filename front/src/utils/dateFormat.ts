@@ -5,9 +5,8 @@
 
 /** Format a date as dd/mm/yyyy. */
 export function formatDate(date: Date | string | null | undefined): string {
-  if (!date) return "";
-
-  const d = typeof date === "string" ? new Date(date) : date;
+  // A nullish or empty input parses to an Invalid Date, which the NaN check below rejects.
+  const d = date instanceof Date ? date : new Date(date ?? "");
   if (Number.isNaN(d.getTime())) return "";
 
   const day = String(d.getDate()).padStart(2, "0");
@@ -22,12 +21,8 @@ export function formatRelativeTime(
   date: Date | string | null | undefined,
   t: (key: string, args?: Record<string, string | number>) => string,
 ): string {
-  if (!date) {
-    return t("common.unknown");
-  }
-
   const now = new Date();
-  const targetDate = typeof date === "string" ? new Date(date) : date;
+  const targetDate = date instanceof Date ? date : new Date(date ?? "");
 
   if (Number.isNaN(targetDate.getTime())) {
     return t("common.unknown");

@@ -99,7 +99,7 @@ function normalizeDatePrecision(
   projectValueSource: Partial<Project>,
 ): unknown {
   const dateValue = projectValueSource[dateField];
-  if (!dateValue) {
+  if (dateValue === null || dateValue === undefined || dateValue === "") {
     return precisionValue ?? null;
   }
 

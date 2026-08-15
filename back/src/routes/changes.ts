@@ -231,22 +231,17 @@ async function checkModeratorChangeRequestPermission(
   return countryCode;
 }
 
-// Shared guard for the approve/reject batch mutations: verify the moderator id and that they
-// may moderate every change request in the batch. Returns the moderator user id.
+// Shared guard for the approve/reject batch mutations: verify the moderator may moderate every
+// change request in the batch. Returns the moderator user id.
 async function authorizeChangeRequestBatch(
   changeRequestIds: string[],
   user: { id: string; role: string | null; moderatedCountries: string[] | null },
 ): Promise<string> {
-  const moderatorUserId = user.id;
-  if (!moderatorUserId) {
-    throw new TRPCError({ code: "UNAUTHORIZED", message: "Moderator access required" });
-  }
-
   for (const changeRequestId of changeRequestIds) {
     await checkModeratorChangeRequestPermission(changeRequestId, user);
   }
 
-  return moderatorUserId;
+  return user.id;
 }
 
 // Common select fields for change requests with user info

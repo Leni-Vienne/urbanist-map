@@ -2,9 +2,9 @@ import type { TimelineStatus } from "../../../back/src/db/schema";
 import type { Project, ProjectFormData } from "@/types/index";
 
 function toDateObject(value: Date | string | null | undefined): Date | null {
-  if (!value) return null;
   if (value instanceof Date) return value;
-  const date = new Date(value);
+  // A nullish or empty input parses to an Invalid Date, which the NaN check below rejects.
+  const date = new Date(value ?? "");
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
@@ -44,7 +44,12 @@ export function projectFormFieldsDiffer(
     return original.getTime() !== current.getTime();
   }
 
-  if ((original instanceof Date && !current) || (!original && current instanceof Date)) {
+  const isOriginalEmpty = original === null || original === "";
+  const isCurrentEmpty = current === null || current === "";
+  if (
+    (original instanceof Date && isCurrentEmpty) ||
+    (isOriginalEmpty && current instanceof Date)
+  ) {
     return true;
   }
 

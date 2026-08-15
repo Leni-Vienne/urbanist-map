@@ -371,7 +371,7 @@ export const useAuthStore = defineStore("auth", () => {
 });
 
 // Enable HMR for this store
-// oxlint-disable no-unnecessary-condition strict-void-return
+// oxlint-disable no-unnecessary-condition strict-void-return strict-boolean-expressions
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useAuthStore, import.meta.hot));
 }

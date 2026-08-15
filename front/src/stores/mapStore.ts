@@ -82,7 +82,7 @@ export const useMapStore = defineStore("map", () => {
 });
 
 // Enable HMR for this store
-// eslint-disable no-unnecessary-condition strict-void-return
+// oxlint-disable no-unnecessary-condition strict-void-return strict-boolean-expressions
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useMapStore, import.meta.hot));
 }

@@ -185,9 +185,7 @@ export async function destroyShapeEditor(): Promise<void> {
   draw = null;
   // Terra Draw sets the canvas cursor to crosshair while drawing and does not
   // restore it on stop, so reset it here.
-  const canvas = getMap().getCanvas();
-  // oxlint-disable-next-line no-unnecessary-condition
-  if (canvas) canvas.style.cursor = "";
+  getMap().getCanvas().style.cursor = "";
 }
 
 /**
