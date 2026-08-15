@@ -5,11 +5,13 @@ import {
   getOverlayImageCorners,
   getImageHandle,
   deriveOverlayFilename,
+  isGestureOwned,
   scheduleOverlayReconcile,
 } from "@/services/overlay/mapLayers";
 import { isValidQuad } from "@/services/overlay/transform";
 import { getEditModeRestingCorners } from "@/services/overlay/positionState";
 import { isTypingTarget } from "@/utils/keyboard";
+import { useMapStore } from "@/stores/mapStore";
 
 // Build a history step, cloning corners so later mutations don't alias a stored step.
 export function makeHistoryState(
@@ -63,10 +65,12 @@ export function redo() {
 }
 
 function applyHistoryAction(action: "undo" | "redo") {
+  if (useMapStore().mode !== "edit") return;
+
   const overlayStore = useOverlayStore();
 
   const id = useFocusStore().selectedOverlayId;
-  if (!id || !getImageHandle(id)) return;
+  if (!id || !getImageHandle(id) || isGestureOwned(id)) return;
 
   const target = action === "undo" ? overlayStore.undoHistory(id) : overlayStore.redoHistory(id);
   if (!target) return;

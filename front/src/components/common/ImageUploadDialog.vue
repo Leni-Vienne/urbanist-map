@@ -338,13 +338,11 @@ function confirmOverlay(targetProjectId: string) {
 
     if (replacementId) {
       toastSuccess(t("toasts.replacementOverlayDetail"), t("toasts.replacementOverlayCreated"));
-      // Reset replacement state after creating the overlay
-      overlayStore.resetReplacement();
     } else {
       toastSuccess(t("overlay.positionOverlayOnMap"), t("overlay.overlayCreated"));
     }
 
-    uiStore.closeImageUploadDialog();
+    handleClose();
   } catch (error) {
     console.error("Error creating overlay:", error);
     toastError(t("overlay.uploadFailedDetail"), t("overlay.uploadFailed"));
@@ -355,7 +353,7 @@ function confirmRender(targetProjectId: string, file: File) {
   try {
     setStagedRender(targetProjectId, { file, previewUrl: imagePreviewUrl.value });
     toastSuccess(t("imageUpload.renderStagedDetail"), t("imageUpload.renderStaged"));
-    uiStore.closeImageUploadDialog();
+    handleClose();
   } catch (error) {
     console.error("Error staging render:", error);
     toastError(
@@ -366,6 +364,7 @@ function confirmRender(targetProjectId: string, file: File) {
 }
 
 function handleClose() {
+  overlayStore.resetReplacement();
   uiStore.closeImageUploadDialog();
 }
 

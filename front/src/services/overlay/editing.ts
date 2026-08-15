@@ -23,13 +23,7 @@ import {
   raiseOverlayImage,
   deriveOverlayFilename,
 } from "@/services/overlay/mapLayers";
-import {
-  transformToCorners,
-  cornersToTransform,
-  isValidQuad,
-  SIGN,
-  type OverlayTransform,
-} from "@/services/overlay/transform";
+import { transformToCorners, SIGN, type OverlayTransform } from "@/services/overlay/transform";
 import { updateMarkerPosition } from "@/services/overlay/markers";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
@@ -46,7 +40,6 @@ import type { OverlayObject, LatLng } from "@/types/index";
 import { createOverlayObject } from "@/utils/typeFactories";
 import { addOverlayToProjectWithId } from "@/services/project/projectMutations";
 import { openOverlayDetail, whenImageReadyIfSelected } from "@/services/overlay/selection";
-import { resolveOverlayCorners } from "@/services/overlay/data";
 import { makeHistoryState, commitOverlayEdit } from "@/services/overlay/history";
 import { watch } from "vue";
 import { toastInfo, toastWarn } from "@/services/core/toast";
@@ -441,6 +434,8 @@ function wireSurfaceDrag(s: EditSession): void {
  * transparent whole-surface drag layer, and 4 aspect-locked corner handles.
  */
 export function showEditHandles(overlayObject: OverlayObject): void {
+  if (session?.id === overlayObject.id) return;
+
   const mlMap = getMap();
   const handle = getImageHandle(overlayObject.id);
   // eslint-disable-next-line no-unnecessary-condition
@@ -449,13 +444,7 @@ export function showEditHandles(overlayObject: OverlayObject): void {
   hideEditHandles();
 
   // Handles line up with the image as currently rendered; showing them never moves the image.
-  let transform = getCurrentTransform(overlayObject.id);
-  if (!transform) {
-    const corners = resolveOverlayCorners(overlayObject, "image") ?? overlayObject.baselineCorners;
-    if (!isValidQuad(corners)) return;
-    transform = cornersToTransform(corners);
-    setOverlayImageTransform(overlayObject.id, transform);
-  }
+  const transform = handle.transform;
   const rectCorners = transformToCorners(transform);
 
   const fillSourceId = editSourceId(overlayObject.id);
@@ -491,9 +480,6 @@ export function showEditHandles(overlayObject: OverlayObject): void {
   }
   mlMap.on("render", onRender);
 
-  // Force an initial sync just in case the map is idle and doesn't fire a render event immediately.
-  syncSvgOutline();
-
   session = {
     id: overlayObject.id,
     overlayObject,
@@ -508,6 +494,8 @@ export function showEditHandles(overlayObject: OverlayObject): void {
 
   wireCornerDrag(session);
   wireSurfaceDrag(session);
+  // The map may already be idle and never emit another render event.
+  syncSvgOutline();
 }
 
 // Re-adds the edit-handle source/layer that setStyle() drops on a basemap switch. The DOM corner
@@ -590,11 +578,7 @@ function syncEditHandles(selectedId: string | null, mode: AppMode): void {
   });
 }
 
-/**
- * Project the already-current (selection, mode) onto a freshly mounted map. The selection survives a
- * map teardown but does not change across it, so the selection watcher never fires and cannot be
- * what rebuilds the handles.
- */
+/** Project the retained selection onto a map once its style and project layers are ready. */
 export function syncEditHandlesForCurrentState(): void {
   syncEditHandles(useFocusStore().selectedOverlayId, useMapStore().mode);
 }
@@ -613,7 +597,6 @@ export function watchEditHandles(): () => void {
     (selectedId) => {
       syncEditHandles(selectedId, mapStore.mode);
     },
-    { immediate: true },
   );
 
   const unregisterModeTransition = onModeTransition("editHandles", (newMode) => {
