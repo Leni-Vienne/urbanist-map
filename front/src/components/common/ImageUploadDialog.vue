@@ -202,7 +202,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
 
-import { addOverlay } from "@/services/overlay/editing";
+import { createLocalOverlay } from "@/services/overlay/editing";
 import { setStagedRender } from "@/services/submission/stagedRenderState";
 import { MAX_UPLOAD_FILE_SIZE_BYTES, MAX_UPLOAD_FILE_SIZE_MB } from "@shared/uploadLimits";
 
@@ -326,23 +326,27 @@ function handleConfirm() {
   if (step.value === "render") {
     confirmRender(projectId, selectedFile.value);
   } else {
-    confirmOverlay(projectId);
+    void confirmOverlay(projectId);
   }
 }
 
-function confirmOverlay(targetProjectId: string) {
-  try {
-    const replacementId = overlayStore.replacementOverlayId;
+async function confirmOverlay(targetProjectId: string) {
+  const replacementId = overlayStore.replacementOverlayId;
+  const creation = createLocalOverlay(
+    imagePreviewUrl.value,
+    targetProjectId,
+    replacementId ?? undefined,
+  );
+  handleClose();
 
-    addOverlay(imagePreviewUrl.value, targetProjectId, replacementId ?? undefined);
+  try {
+    await creation;
 
     if (replacementId) {
       toastSuccess(t("toasts.replacementOverlayDetail"), t("toasts.replacementOverlayCreated"));
     } else {
       toastSuccess(t("overlay.positionOverlayOnMap"), t("overlay.overlayCreated"));
     }
-
-    handleClose();
   } catch (error) {
     console.error("Error creating overlay:", error);
     toastError(t("overlay.uploadFailedDetail"), t("overlay.uploadFailed"));

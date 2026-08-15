@@ -2,34 +2,23 @@ import * as registry from "@/services/overlay/mapLayers";
 import { mobileAwareFlyTo } from "@/services/core/mapNavigation";
 import { createSvgCanvasLayer, createSvgPath } from "@/utils/svgCanvasLayer";
 import * as maplibregl from "maplibre-gl";
-import {
-  LngLat,
-  type GeoJSONSource,
-  type Map as MaplibreMap,
-  type MapMouseEvent,
-} from "maplibre-gl";
+import type { GeoJSONSource, MapMouseEvent } from "maplibre-gl";
 import type { Feature, Polygon } from "geojson";
+import { getMap, getMapOrNull, onStyleSwitch, type StyleSwitchPhase } from "@/services/core/map";
 import {
-  getMap,
-  getMapOrNull,
-  currentZoomLevel,
-  onStyleSwitch,
-  type StyleSwitchPhase,
-} from "@/services/core/map";
-import {
+  deriveOverlayFilename,
   getImageHandle,
   setOverlayImageTransform,
   getCurrentTransform,
   raiseOverlayImage,
-  deriveOverlayFilename,
 } from "@/services/overlay/mapLayers";
 import { transformToCorners, SIGN, type OverlayTransform } from "@/services/overlay/transform";
 import { updateMarkerPosition } from "@/services/overlay/markers";
 import { useOverlayStore } from "@/stores/overlayStore";
-import { useProjectStore } from "@/stores/projectStore";
 import { useMapStore } from "@/stores/mapStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
+import { useProjectStore } from "@/stores/projectStore";
 import { validateOverlaySize } from "@shared/overlayValidation";
 import { onModeTransition } from "@/services/map/modeTransition";
 import type { AppMode } from "@shared/types";
@@ -42,140 +31,88 @@ import { addOverlayToProjectWithId } from "@/services/project/projectMutations";
 import { openOverlayDetail, whenImageReadyIfSelected } from "@/services/overlay/selection";
 import { makeHistoryState, commitOverlayEdit } from "@/services/overlay/history";
 import { watch } from "vue";
-import { toastInfo, toastWarn } from "@/services/core/toast";
+import { toastWarn } from "@/services/core/toast";
 
 // Overlay editing operations
 
-// Helper to create a new overlay object
-function createNewOverlayObject(id: string, imageUrl: string, projectId: string): OverlayObject {
-  const filename = deriveOverlayFilename(id, imageUrl);
-  const authStore = useAuthStore();
+const DEFAULT_OVERLAY_WIDTH_METERS = 100;
+const NEW_OVERLAY_ZOOM = 16;
 
-  // null = local only, never submitted to backend.
-  // Avoid undefined here: the factory promotes undefined to "pending",
-  // which then requires authorId === currentUserId to pass visibility checks.
-  // null takes the dedicated local-overlay branch in isOverlayVisible and always returns true.
+function buildLocalOverlay(id: string, imageUrl: string, projectId: string): OverlayObject {
   return createOverlayObject({
     id,
-    filename,
+    filename: deriveOverlayFilename(id, imageUrl),
     projectId,
-    authorId: authStore.user?.id ?? null, // Set to current user's ID
+    authorId: useAuthStore().user?.id ?? null,
     imageUrl,
-    status: null, // null = local only, never submitted
+    status: null,
   });
 }
 
-// Read an image's aspect ratio (width / height). Falls back to square on failure.
 async function loadImageAspect(imageUrl: string): Promise<number> {
   return new Promise((resolve) => {
-    const img = new Image();
-    img.addEventListener("load", () => {
-      resolve(img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : 1);
+    const image = new Image();
+    image.addEventListener("load", () => {
+      const aspect = image.naturalWidth / image.naturalHeight;
+      resolve(Number.isFinite(aspect) && aspect > 0 ? aspect : 1);
     });
-    img.addEventListener("error", () => resolve(1));
-    img.src = imageUrl;
+    image.addEventListener("error", () => resolve(1));
+    image.src = imageUrl;
   });
 }
 
-// Place a new overlay as a rectangle centered on the current view, sized from the image aspect.
-async function defaultCornersForNewOverlay(
-  imageUrl: string,
-  target: MaplibreMap,
-): Promise<LatLng[]> {
-  const aspect = await loadImageAspect(imageUrl);
-  const center = target.getCenter();
-  const widthMeters = 100;
+function defaultCorners(center: LatLng, aspect: number): LatLng[] {
   return transformToCorners({
-    center: { lat: center.lat, lng: center.lng },
-    width: widthMeters,
-    height: widthMeters / aspect,
+    center,
+    width: DEFAULT_OVERLAY_WIDTH_METERS,
+    height: DEFAULT_OVERLAY_WIDTH_METERS / aspect,
     bearing: 0,
   });
 }
 
-/**
- * Add a new overlay to the map
- *
- * @param imageUrl
- * @param projectId
- * @param replacesOverlayId
- * @returns the ID of the newly created overlay
- */
-export function addOverlay(
+export async function createLocalOverlay(
   imageUrl: string,
   projectId: string,
   replacesOverlayId?: string,
-): string | undefined {
+): Promise<void> {
+  const target = getMap();
   const overlayStore = useOverlayStore();
-  const mapStore = useMapStore();
-
-  // Only allow adding overlays in edit mode
-  if (mapStore.mode !== "edit") {
-    return undefined;
-  }
-
-  if (!projectId) {
-    throw new Error("Project Required: A project must be selected to add an overlay");
-  }
+  const project = useProjectStore().projects[projectId];
+  const projectCenter: LatLng | null =
+    typeof project?.lat === "number" && typeof project.lng === "number"
+      ? { lat: project.lat, lng: project.lng }
+      : null;
+  const shouldZoom =
+    projectCenter !== null &&
+    target.getZoom() < getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
+  const currentCenter = target.getCenter();
+  const placementCenter: LatLng = shouldZoom
+    ? projectCenter
+    : { lat: currentCenter.lat, lng: currentCenter.lng };
 
   const id = crypto.randomUUID();
-  const target = getMap();
-
-  // Create overlay object using proper schema structure
-  const overlayObject = createNewOverlayObject(id, imageUrl, projectId);
-
-  // If this is a replacement overlay, set the replacement reference
+  const overlay = buildLocalOverlay(id, imageUrl, projectId);
   if (replacesOverlayId) {
-    overlayObject.replacesOverlayId = replacesOverlayId;
-    const originalOverlay = overlayStore.liveOverlays[replacesOverlayId];
-    overlayObject.caption = t("overlay.replacementCaption", {
-      name: originalOverlay?.caption ?? t("overlay.untitled"),
+    overlay.replacesOverlayId = replacesOverlayId;
+    overlay.caption = t("overlay.replacementCaption", {
+      name: overlayStore.liveOverlays[replacesOverlayId]?.caption ?? t("overlay.untitled"),
     });
   }
 
-  // Check if we need to zoom in to make overlay visible
-  const needsZoom =
-    currentZoomLevel.value < getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
-  const projectStore = useProjectStore();
-
-  const project = projectStore.projects[projectId];
-
-  async function createAndSetupOverlay(): Promise<void> {
-    const corners = await defaultCornersForNewOverlay(imageUrl, target);
-    if (getMapOrNull() !== target) return;
-    overlayObject.baselineCorners = corners;
-    overlayObject.history = [makeHistoryState(corners, overlayObject.imageUrl)];
-
-    overlayStore.addOverlay(id, overlayObject);
-    // The reconciler owns the image + marker for the new local overlay, and creates them as soon
-    // as the zoom allows.
-    registry.scheduleOverlayReconcile();
-
-    // Add to project AFTER storing in overlays to avoid "not found" error.
-    addOverlayToProjectWithId(projectId, id);
-    openOverlayDetail(id);
+  if (shouldZoom) {
+    mobileAwareFlyTo(placementCenter, NEW_OVERLAY_ZOOM);
   }
 
-  // If zoom level is too low, zoom to project location first, then create overlay
-  if (needsZoom && project && typeof project.lat === "number" && typeof project.lng === "number") {
-    const targetZoom = 16;
+  const aspect = await loadImageAspect(imageUrl);
+  if (getMapOrNull() !== target) throw new Error("Map closed while creating an overlay");
 
-    // Show toast to inform user about auto-zoom
+  const corners = defaultCorners(placementCenter, aspect);
+  overlay.baselineCorners = corners;
+  overlay.history = [makeHistoryState(corners, overlay.imageUrl)];
 
-    toastInfo(t("overlay.zoomInToSeeOverlay"), t("overlay.zoomingToProject"));
-
-    mobileAwareFlyTo(new LngLat(project.lng, project.lat), targetZoom);
-
-    // Wait for zoom to complete before creating overlay
-    void target.once("zoomend", () => {
-      if (getMapOrNull() !== target) return;
-      void createAndSetupOverlay();
-    });
-  } else {
-    void createAndSetupOverlay();
-  }
-
-  return id;
+  overlayStore.addOverlay(id, overlay);
+  addOverlayToProjectWithId(projectId, id);
+  openOverlayDetail(id);
 }
 
 interface CornerDragState {

@@ -228,8 +228,6 @@
     "uploadFailed": "Échec du téléchargement",
     "uploadFailedDetail": "Échec du téléchargement du fichier image",
     "noChangesToSave": "Aucune modification à enregistrer",
-    "zoomingToProject": "Zoom vers le projet",
-    "zoomInToSeeOverlay": "Le niveau de zoom était trop faible, zoom automatique pour afficher l'image téléchargée",
     "onlyOneOverlayInProject": "Ce projet n'a qu'une seule image",
     "replacementCaption": "Remplacement de {name}"
   },
