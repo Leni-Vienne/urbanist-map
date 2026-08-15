@@ -118,6 +118,8 @@
           :ref="(element) => registerRow(row.contribution.id, element)"
           class="group flex items-center gap-3 px-2 py-2 cursor-pointer transition-all duration-150 hover:bg-black/5 dark:hover:bg-white/10 active:bg-black/5 dark:active:bg-white/10 active:scale-[0.98]"
           :class="{ 'contribution-row-selected': isSelectedRow(row.contribution) }"
+          @mouseenter="handleContributionHover(row.contribution, row.color)"
+          @mouseleave="clearContributionHover(row.contribution.id)"
           @click="handleContributionClick(row.contribution)"
         >
           <div
@@ -274,7 +276,8 @@ import {
 } from "@/services/navigation/projectNavigation";
 import type { LatestContribution } from "@/types/index";
 import { handleOverlayClickNavigation } from "@/services/overlay/clickHandler";
-import { LngLatBounds } from "maplibre-gl";
+import { getMapOrNull } from "@/services/core/map";
+import { LngLatBounds, Marker } from "maplibre-gl";
 
 const { t, te, locale } = useI18n();
 const uiStore = useUiStore();
@@ -442,6 +445,43 @@ function isSelectedRow(contribution: LatestContribution): boolean {
     : contribution.id === focusStore.selectedProjectId;
 }
 
+let hoveredContributionId: string | null = null;
+let locationBeacon: Marker | null = null;
+
+function handleContributionHover(contribution: LatestContribution, color: string): void {
+  hoveredContributionId = contribution.id;
+  if (contribution.type === "overlay") {
+    focusStore.setHoverTarget({
+      kind: "overlay",
+      overlayId: contribution.id,
+      projectId: contribution.projectId,
+    });
+  } else {
+    focusStore.setHoverTarget({ kind: "project", projectId: contribution.id });
+  }
+
+  locationBeacon?.remove();
+  locationBeacon = null;
+  if (typeof contribution.lat !== "number" || typeof contribution.lng !== "number") return;
+  const map = getMapOrNull();
+  if (!map) return;
+
+  const element = document.createElement("div");
+  element.className = "explore-project-beacon";
+  element.style.setProperty("--beacon-color", color);
+  locationBeacon = new Marker({ element, anchor: "center" })
+    .setLngLat([contribution.lng, contribution.lat])
+    .addTo(map);
+}
+
+function clearContributionHover(contributionId?: string): void {
+  if (contributionId && contributionId !== hoveredContributionId) return;
+  hoveredContributionId = null;
+  focusStore.setHoverTarget(null);
+  locationBeacon?.remove();
+  locationBeacon = null;
+}
+
 const loadMoreSentinel = ref<HTMLElement | null>(null);
 const { scrollAreaRef, showScrollFade } = useScrollFade();
 
@@ -516,8 +556,14 @@ watch(isLoading, resetScrollForRefresh);
 
 onMounted(observeLoadMore);
 onActivated(observeLoadMore);
-onDeactivated(stopObservingLoadMore);
-onBeforeUnmount(stopObservingLoadMore);
+onDeactivated(() => {
+  stopObservingLoadMore();
+  clearContributionHover();
+});
+onBeforeUnmount(() => {
+  stopObservingLoadMore();
+  clearContributionHover();
+});
 
 onActivated(activateLatestContributions);
 </script>
@@ -549,5 +595,15 @@ onActivated(activateLatestContributions);
 
 .contribution-row-selected {
   background-color: color-mix(in srgb, var(--p-primary-color) 10%, transparent);
+}
+
+:global(.explore-project-beacon) {
+  width: 18px;
+  height: 18px;
+  border: 3px solid white;
+  border-radius: 9999px;
+  background: var(--beacon-color);
+  box-shadow: 0 0 0 2px rgb(15 23 42 / 55%);
+  pointer-events: none;
 }
 </style>

@@ -357,9 +357,12 @@ function buildLatestOverlaysQuery(
       countryCode: projects.countryCode,
       country: boundaryName("country").as("country"),
       tags: projects.tags,
+      projectId: overlays.projectId,
+      lat: projects.lat,
+      lng: projects.lng,
     })
     .from(overlays)
-    .leftJoin(projects, eq(overlays.projectId, projects.id))
+    .innerJoin(projects, eq(overlays.projectId, projects.id))
     .where(and(...overlayConditions(input)))
     .orderBy(overlays.projectId, desc(overlays.updatedAt))
     .as("latest_overlay_per_project");
@@ -396,6 +399,9 @@ function mapOverlayContribution(o: LatestOverlayRow) {
     countryCode: o.countryCode,
     country: o.country,
     tags: o.tags ?? [],
+    projectId: o.projectId,
+    lat: o.lat,
+    lng: o.lng,
   };
 }
 
