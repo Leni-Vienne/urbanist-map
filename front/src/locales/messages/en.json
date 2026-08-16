@@ -645,6 +645,7 @@
     "failedToLoadCountries": "Failed to load countries list",
     "pleaseSelectCountry": "Please select a country to view pending submissions",
     "pendingProjects": "Pending Projects",
+    "otherPendingProjects": "Other pending projects",
     "allReviewed": "All submissions reviewed",
     "noPendingItems": "No pending submissions to moderate",
     "replacementConflicts": {

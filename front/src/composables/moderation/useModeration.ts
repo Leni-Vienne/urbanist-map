@@ -19,23 +19,42 @@ type ApprovalResult = {
   message?: string;
 };
 
+let moderationFetchToken = 0;
+
 export function useModeration() {
   const moderationStore = useModerationStore();
   const mapStore = useMapStore();
+  const authStore = useAuthStore();
 
-  const overlays = computed(() => moderationStore.overlays);
   const projects = computed(() => moderationStore.projects);
+  const overlays = computed(() => projects.value.flatMap((project) => project.overlays));
   const changeRequests = computed(() => moderationStore.changeRequests);
 
-  async function fetchPendingSubmissions() {
-    if (moderationStore.moderationLoaded) {
+  async function fetchPendingSubmissions(options?: { force?: boolean }) {
+    if (!options?.force && moderationStore.moderationLoadStatus !== "idle") {
       return;
+    }
+
+    moderationFetchToken += 1;
+    const requestToken = moderationFetchToken;
+    const countryCode = mapStore.selectedCountryCode;
+    const userId = authStore.user?.id;
+    moderationStore.startModerationLoading();
+
+    function isCurrentRequest(): boolean {
+      return (
+        requestToken === moderationFetchToken &&
+        mapStore.selectedCountryCode === countryCode &&
+        authStore.user?.id === userId
+      );
     }
 
     try {
       const response = await trpc.moderation.getPendingSubmissions.query({
-        countryCode: mapStore.selectedCountryCode ?? undefined,
+        countryCode: countryCode ?? undefined,
       });
+
+      if (!isCurrentRequest()) return;
 
       // The moderation backend query omits the derived overlayIds array and the parsed geometry.
       // Coerce here so the stored projects satisfy Project.
@@ -47,11 +66,12 @@ export function useModeration() {
       }));
 
       moderationStore.setModerationData({
-        overlays: response.overlays,
         projects: moderationProjects,
         changeRequests: response.changeRequests,
       });
     } catch (error) {
+      if (!isCurrentRequest()) return;
+      moderationStore.stopModerationLoading();
       // No country selected yet: stay silent, the UI prompts the user to pick one.
       if (error instanceof Error && error.message.includes("must select a country")) {
         return;
@@ -116,7 +136,7 @@ export function useModeration() {
 
     // Refetch so the panel reflects the new server state, whether the write
     // succeeded or hit a version conflict.
-    moderationStore.resetModerationLoaded();
+    moderationStore.invalidateModerationData();
     await fetchPendingSubmissions();
 
     if (!result.success) {
@@ -225,7 +245,6 @@ export function useModeration() {
   }
 
   onMounted(() => {
-    const authStore = useAuthStore();
     const user = authStore.user;
     if (!user) return;
 
@@ -237,7 +256,7 @@ export function useModeration() {
 
     // Admins fetch unfiltered; moderators only when the active country is one they can access.
     if (isAdmin || (mapCountryCode && canAccessMapCountry)) {
-      void fetchPendingSubmissions();
+      void fetchPendingSubmissions({ force: true });
     }
   });
 

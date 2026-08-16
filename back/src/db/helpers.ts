@@ -1,5 +1,4 @@
 import { sql, eq, and, inArray, type SQL } from "drizzle-orm";
-import type { PgColumn } from "drizzle-orm/pg-core";
 import { db, type Database } from "../database";
 import {
   projects,
@@ -136,59 +135,6 @@ export function boundaryName(
     ))
     FROM chain WHERE ${range} ORDER BY admin_level DESC LIMIT 1
   )`;
-}
-
-interface PaginationFilters {
-  countryCode?: string;
-  cursor?: string;
-}
-
-export async function buildPaginationConditions(
-  filters: PaginationFilters,
-  sortColumn: PgColumn,
-): Promise<SQL[]> {
-  const conditions: SQL[] = [];
-
-  if (filters.countryCode) {
-    conditions.push(eq(projects.countryCode, filters.countryCode));
-  }
-
-  // Cursor-based pagination: fetch records after the cursor position
-  if (filters.cursor) {
-    const cursorProject = await db
-      .select({ sortValue: sortColumn })
-      .from(projects)
-      .where(eq(projects.id, filters.cursor))
-      .limit(1);
-
-    const cursorValue = cursorProject[0];
-    if (cursorValue) {
-      // Composite keyset boundary: the sort column (createdAt/updatedAt) is not unique
-      // (batch imports and bulk approvals share a timestamp), so a bare `< sortValue` would
-      // skip every row tied with the cursor. Tie-break on the unique project id. Must match
-      // the DESC ordering at every call site (sortColumn DESC, id DESC).
-      conditions.push(
-        sql`(${sortColumn} < ${cursorValue.sortValue}
-             OR (${sortColumn} = ${cursorValue.sortValue} AND ${projects.id} < ${filters.cursor}::uuid))`,
-      );
-    }
-  }
-
-  return conditions;
-}
-
-export function buildPaginationResponse<T extends { id: string }>(results: T[], limit: number) {
-  const hasMore = results.length > limit;
-  const items = hasMore ? results.slice(0, limit) : results;
-  const lastItem = items[items.length - 1];
-
-  return {
-    items,
-    pagination: {
-      nextCursor: hasMore && lastItem ? lastItem.id : null,
-      hasMore,
-    },
-  };
 }
 
 // PostGIS geometry extracted as JSON for corners and centroid

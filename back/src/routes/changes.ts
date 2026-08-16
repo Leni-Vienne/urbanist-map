@@ -499,7 +499,7 @@ export const changesRouter = router({
     .mutation(async ({ input, ctx }) => {
       try {
         if (input.changeRequestIds.length === 0) {
-          return { resolvedChangeRequestIds: [] };
+          return { success: true };
         }
 
         const moderatorUserId = await authorizeChangeRequestBatch(input.changeRequestIds, ctx.user);
@@ -508,10 +508,6 @@ export const changesRouter = router({
           .select()
           .from(changeRequests)
           .where(inArray(changeRequests.id, input.changeRequestIds));
-
-        // Competing changes the moderator soft rejects below. Returned to the client so it can
-        // drop them from the pending list locally instead of refetching the whole panel.
-        const conflictedChangeRequestIds: string[] = [];
 
         for (const change of changesToApprove) {
           await db.transaction(async (tx) => {
@@ -567,7 +563,7 @@ export const changesRouter = router({
             // Mark all other pending changes for the same field as 'conflicted' (soft rejection)
             // This tells users their suggestion wasn't chosen, not that it was invalid
             // Note: 'conflicted' does NOT count as rejection (user's suggestion was valid, just not chosen)
-            const conflicted = await tx
+            await tx
               .update(changeRequests)
               .set({
                 status: "conflicted",
@@ -582,9 +578,7 @@ export const changesRouter = router({
                   sql`${changeRequests.id} != ${change.id}`,
                   eq(changeRequests.status, "pending"),
                 ),
-              )
-              .returning({ id: changeRequests.id });
-            conflictedChangeRequestIds.push(...conflicted.map((c) => c.id));
+              );
           });
         }
 
@@ -606,12 +600,7 @@ export const changesRouter = router({
           invalidateLatestContributionsCache();
         }
 
-        return {
-          resolvedChangeRequestIds: [
-            ...changesToApprove.map((change) => change.id),
-            ...conflictedChangeRequestIds,
-          ],
-        };
+        return { success: true };
       } catch (error) {
         if (error instanceof TRPCError) throw error;
         console.error("Error approving change requests:", error);

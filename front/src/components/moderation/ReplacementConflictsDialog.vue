@@ -152,33 +152,13 @@
 import { buildImageUrl, buildThumbnailUrl } from "@/utils/imageUrl";
 import { useI18n } from "vue-i18n";
 import { formatDate } from "@/utils/dateFormat";
+import type { RouterOutput } from "@/client";
 
 const { t: $t } = useI18n();
 
-export interface ReplacementConflicts {
-  isReplacement: boolean;
-  originalOverlayCaption: string | null;
-  originalOverlayFilename: string;
-  newOverlayFilename: string;
-  newOverlayCaption: string | null;
-  pendingChangeRequests: {
-    id: string;
-    fieldName: string;
-    oldValue: any;
-    newValue: any;
-    changeReason: string | null;
-    requestedBy: string | null;
-    createdAt: Date;
-  }[];
-  competingReplacements: {
-    id: string;
-    filename: string;
-    caption: string | null;
-    authorId: string | null;
-    createdAt: Date;
-  }[];
-  hasConflicts: boolean;
-}
+export type ReplacementConflicts = NonNullable<
+  RouterOutput["moderation"]["checkReplacementConflicts"]
+>;
 
 interface Props {
   conflicts: ReplacementConflicts | null;
@@ -211,7 +191,7 @@ function handleConfirm() {
   emit("confirm");
 }
 
-function formatValue(value: any): string {
+function formatValue(value: unknown): string {
   if (value === null || value === undefined) {
     return $t("common.unknown");
   }

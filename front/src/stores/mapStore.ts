@@ -49,7 +49,7 @@ export const useMapStore = defineStore("map", () => {
   function setSelectedCountryCode(code: string | null) {
     if (selectedCountryCode.value === code) return;
     selectedCountryCode.value = code;
-    useModerationStore().resetModerationLoaded();
+    useModerationStore().invalidateModerationData();
   }
 
   // Derived, read-only. Edit and moderation require authentication, so an unauthenticated user

@@ -4,11 +4,10 @@ import type { Project, Overlay, ContributionProject, PendingChangeRequest } from
 import type { RouterOutput } from "@/client";
 import { useProjectStore } from "@/stores/projectStore";
 
-type PendingOverlay = RouterOutput["moderation"]["getPendingSubmissions"]["overlays"][0];
 type CountryItem = RouterOutput["country"]["getAllCountries"][0];
+type ModerationLoadStatus = "idle" | "loading" | "loaded";
 
 export const useModerationStore = defineStore("moderation", () => {
-  const overlays = ref<PendingOverlay[]>([]);
   const projectIds = ref<string[]>([]);
   const projectOverlays = ref<Record<string, Overlay[]>>({});
   const changeRequests = ref<PendingChangeRequest[]>([]);
@@ -29,7 +28,7 @@ export const useModerationStore = defineStore("moderation", () => {
     return result;
   });
 
-  const moderationLoaded = ref(false);
+  const moderationLoadStatus = ref<ModerationLoadStatus>("idle");
 
   const allCountries = ref<CountryItem[]>([]);
   const countriesLoaded = ref(false);
@@ -38,11 +37,9 @@ export const useModerationStore = defineStore("moderation", () => {
   const pendingCountsLoaded = ref(false);
 
   function setModerationData(data: {
-    overlays: PendingOverlay[];
     projects: Project[];
     changeRequests: PendingChangeRequest[];
   }) {
-    overlays.value = data.overlays;
     const nextProjectIds: string[] = [];
     const nextProjectOverlays: Record<string, Overlay[]> = {};
     const projectStore = useProjectStore();
@@ -62,45 +59,24 @@ export const useModerationStore = defineStore("moderation", () => {
     projectIds.value = nextProjectIds;
     projectOverlays.value = nextProjectOverlays;
     changeRequests.value = data.changeRequests;
-    moderationLoaded.value = true;
+    moderationLoadStatus.value = "loaded";
   }
 
-  function resetModerationLoaded() {
-    moderationLoaded.value = false;
-    overlays.value = [];
+  function startModerationLoading() {
+    moderationLoadStatus.value = "loading";
+  }
+
+  function stopModerationLoading() {
+    if (moderationLoadStatus.value === "loading") {
+      moderationLoadStatus.value = "idle";
+    }
+  }
+
+  function invalidateModerationData() {
+    moderationLoadStatus.value = "idle";
     projectIds.value = [];
     projectOverlays.value = {};
     changeRequests.value = [];
-  }
-
-  // A project belongs in the moderation list only while it still has something pending:
-  // the project itself, one of its overlays, or a change request on either.
-  function hasPendingModerationContent(project: Project): boolean {
-    if (project.status === "pending") return true;
-    const inlineOverlays = project.overlays ?? [];
-    if (inlineOverlays.some((overlay) => overlay.status === "pending")) return true;
-
-    const overlayIds = new Set(inlineOverlays.map((overlay) => overlay.id));
-    return changeRequests.value.some(
-      (cr) =>
-        (cr.entityType === "project" && cr.entityId === project.id) ||
-        (cr.entityType === "overlay" && overlayIds.has(cr.entityId)),
-    );
-  }
-
-  function removeChangeRequests(changeRequestIds: string[]) {
-    changeRequests.value = changeRequests.value.filter((cr) => !changeRequestIds.includes(cr.id));
-    // Approving/rejecting a change can leave an otherwise-approved project with nothing pending;
-    // drop it here so the panel matches a fresh fetch without paying for getPendingSubmissions.
-    const retainedIds = new Set(
-      projects.value.filter(hasPendingModerationContent).map((project) => project.id),
-    );
-    projectIds.value = projectIds.value.filter((id) => retainedIds.has(id));
-    for (const id of Object.keys(projectOverlays.value)) {
-      if (retainedIds.has(id)) continue;
-      // oxlint-disable-next-line no-dynamic-delete
-      delete projectOverlays.value[id];
-    }
   }
 
   function setAllCountries(countries: CountryItem[]) {
@@ -117,27 +93,12 @@ export const useModerationStore = defineStore("moderation", () => {
     pendingCountsLoaded.value = false;
   }
 
-  // Adjust a country's pending badge locally after a successful approval/rejection,
-  // avoiding a full refetch. Removes the entry once it reaches zero.
-  function decrementPendingCount(countryCode: string | null) {
-    if (!countryCode) return;
-    const current = pendingCountsByCountry.value.get(countryCode);
-    if (current === undefined) return;
-    const next = current - 1;
-    if (next > 0) {
-      pendingCountsByCountry.value.set(countryCode, next);
-    } else {
-      pendingCountsByCountry.value.delete(countryCode);
-    }
-  }
-
   // Clear all state on logout or account switch.
   function clearAllState() {
-    overlays.value = [];
     projectIds.value = [];
     projectOverlays.value = {};
     changeRequests.value = [];
-    moderationLoaded.value = false;
+    moderationLoadStatus.value = "idle";
     allCountries.value = [];
     countriesLoaded.value = false;
     pendingCountsByCountry.value.clear();
@@ -145,21 +106,20 @@ export const useModerationStore = defineStore("moderation", () => {
   }
 
   return {
-    overlays,
     projects,
     changeRequests,
-    moderationLoaded,
+    moderationLoadStatus,
     allCountries,
     countriesLoaded,
     pendingCountsByCountry,
     pendingCountsLoaded,
     setModerationData,
-    resetModerationLoaded,
-    removeChangeRequests,
+    startModerationLoading,
+    stopModerationLoading,
+    invalidateModerationData,
     setAllCountries,
     setPendingCounts,
     resetPendingCounts,
-    decrementPendingCount,
     clearAllState,
   };
 });

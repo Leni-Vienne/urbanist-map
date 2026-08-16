@@ -3,7 +3,7 @@
     v-model:visible="dialogVisible"
     :header="$t('moderation.reportUser.report')"
     :modal="true"
-    :closable="true"
+    :closable="!isLoading"
     :draggable="false"
     :style="{ width: '400px', maxWidth: '90vw' }"
   >
@@ -46,58 +46,38 @@
 </template>
 
 <script setup lang="ts">
-import { toastSuccess, toastError } from "@/services/core/toast";
+import { computed, ref, watch } from "vue";
 
-import { ref, computed } from "vue";
-import { useI18n } from "vue-i18n";
-
-import { trpc } from "@/client";
-
-const props = defineProps<{
-  visible: boolean;
-  userId: string | null;
-}>();
+const props = withDefaults(
+  defineProps<{
+    visible: boolean;
+    isLoading?: boolean;
+  }>(),
+  { isLoading: false },
+);
 
 const emit = defineEmits<{
   "update:visible": [value: boolean];
-  reported: [];
+  report: [reason: string];
 }>();
 
-const { t } = useI18n();
+const reason = ref("");
 
 const dialogVisible = computed({
   get: () => props.visible,
   set: (value) => emit("update:visible", value),
 });
 
-const reason = ref("");
-const isLoading = ref(false);
+watch(
+  () => props.visible,
+  (visible) => {
+    if (visible) reason.value = "";
+  },
+);
 
-async function handleReport() {
-  if (!props.userId) return;
-
-  isLoading.value = true;
-  try {
-    await trpc.moderation.reportUser.mutate({
-      userId: props.userId,
-      reason: reason.value || undefined,
-    });
-
-    toastSuccess(
-      t("moderation.reportUser.reportSuccessDetail"),
-      t("moderation.reportUser.reportSuccess"),
-    );
-    emit("reported");
-    handleCancel();
-  } catch (error) {
-    console.error("Failed to report user:", error);
-    toastError(
-      error instanceof Error ? error.message : undefined,
-      t("moderation.reportUser.reportFailed"),
-    );
-  } finally {
-    isLoading.value = false;
-  }
+function handleReport() {
+  if (props.isLoading) return;
+  emit("report", reason.value);
 }
 
 function handleCancel() {

@@ -10,12 +10,9 @@ import {
   type EntityType,
 } from "../../db/schema";
 import { and, eq, or, sql, inArray, ne, type SQL } from "drizzle-orm";
-import type { PgColumn } from "drizzle-orm/pg-core";
 import {
   buildProjectModerationQuery,
   buildOverlayModerationQuery,
-  buildPaginationConditions,
-  buildPaginationResponse,
   addConflictFlags,
 } from "../../db/helpers";
 import { TRPCError } from "@trpc/server";
@@ -46,13 +43,8 @@ export const queueProcedures = {
 
         const replacesOverlayId = overlayRecord.replacesOverlayId;
 
-        // If not a replacement, no conflicts to check
         if (!replacesOverlayId) {
-          return {
-            isReplacement: false,
-            pendingChangeRequests: [],
-            competingReplacements: [],
-          };
+          return null;
         }
 
         const originalOverlay = await db
@@ -81,8 +73,6 @@ export const queueProcedures = {
             oldValue: changeRequests.oldValue,
             newValue: changeRequests.newValue,
             changeReason: changeRequests.changeReason,
-            requestedBy: changeRequests.requestedBy,
-            createdAt: changeRequests.createdAt,
           })
           .from(changeRequests)
           .where(
@@ -99,7 +89,6 @@ export const queueProcedures = {
             id: overlays.id,
             filename: overlays.filename,
             caption: overlays.caption,
-            authorId: overlays.authorId,
             createdAt: overlays.createdAt,
           })
           .from(overlays)
@@ -111,15 +100,17 @@ export const queueProcedures = {
             ),
           );
 
+        if (pendingChanges.length === 0 && competingReplacements.length === 0) {
+          return null;
+        }
+
         return {
-          isReplacement: true,
           originalOverlayCaption: originalRecord.caption,
           originalOverlayFilename: originalRecord.filename,
           newOverlayFilename: overlayRecord.filename,
           newOverlayCaption: overlayRecord.caption,
           pendingChangeRequests: pendingChanges,
           competingReplacements,
-          hasConflicts: pendingChanges.length > 0 || competingReplacements.length > 0,
         };
       } catch (error) {
         console.error("Error checking replacement conflicts:", error);
@@ -135,18 +126,12 @@ export const queueProcedures = {
     .input(
       z
         .object({
-          limit: z.number().min(1).max(100).optional().default(50),
-          cursor: z.string().uuid().optional(),
-          sortBy: z.enum(["createdAt", "updatedAt"]).optional().default("createdAt"),
           countryCode: z.string().length(3).optional(),
         })
         .optional(),
     )
     .query(async ({ input = {}, ctx }) => {
       try {
-        const sortColumn = input.sortBy === "updatedAt" ? projects.updatedAt : projects.createdAt;
-        const limit = input.limit ?? 50;
-
         const userModeratedCountries = ctx.user.moderatedCountries;
         const isAdmin = ctx.user.role === "admin";
         const moderatorId = ctx.user.id;
@@ -177,11 +162,6 @@ export const queueProcedures = {
           collectPendingProjectIds(),
         ]);
 
-        const paginationConditions = await buildPaginationConditions(
-          { countryCode: effectiveCountryCode, cursor: input.cursor },
-          sortColumn,
-        );
-
         const projectModerationConditions = [
           or(
             eq(projects.status, "pending"),
@@ -192,18 +172,17 @@ export const queueProcedures = {
               ? [inArray(projects.id, pendingProjectIds.pendingChangeProjectIds)]
               : []),
           ),
-          ...paginationConditions,
+          effectiveCountryCode ? eq(projects.countryCode, effectiveCountryCode) : undefined,
         ];
 
         const { projectsResult, overlaysResult, overlayChanges, projectChanges } =
-          await fetchModerationData(projectModerationConditions, sortColumn, limit);
+          await fetchModerationData(projectModerationConditions);
 
         const changeRequestsResult = [...overlayChanges, ...projectChanges].toSorted(
           (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
         );
 
         const changeRequestsWithConflictInfo = addConflictFlags(changeRequestsResult);
-        const paginationResponse = buildPaginationResponse(projectsResult, limit);
 
         // Filter out rejected and replaced overlays
         const visibleOverlays = overlaysResult.filter(
@@ -212,7 +191,7 @@ export const queueProcedures = {
 
         // Filter by reported users
         const filteredProjects = filterContentByReportedUsers(
-          paginationResponse.items,
+          projectsResult,
           hiddenUserIds,
           "ownerId",
         );
@@ -227,14 +206,15 @@ export const queueProcedures = {
           "requestedBy",
         );
 
-        const { projectsWithOverlays, overlaysWithReports, changeRequestsWithReports } =
-          await enrichWithReportCounts(filteredProjects, filteredOverlays, filteredChangeRequests);
+        const { projectsWithOverlays, changeRequestsWithReports } = await enrichWithReportCounts(
+          filteredProjects,
+          filteredOverlays,
+          filteredChangeRequests,
+        );
 
         return {
           projects: projectsWithOverlays,
-          overlays: overlaysWithReports,
           changeRequests: changeRequestsWithReports,
-          pagination: paginationResponse.pagination,
         };
       } catch (error) {
         console.error("Error fetching pending submissions:", error);
@@ -372,10 +352,16 @@ async function collectPendingProjectIds(): Promise<{
         END`.as("projectId"),
       })
       .from(changeRequests)
-      .leftJoin(overlays, eq(changeRequests.entityId, overlays.id)).where(sql`CASE
-        WHEN ${changeRequests.entityType} = 'project' THEN ${changeRequests.entityId} IS NOT NULL
-        WHEN ${changeRequests.entityType} = 'overlay' THEN ${overlays.projectId} IS NOT NULL
-      END`),
+      .leftJoin(overlays, eq(changeRequests.entityId, overlays.id))
+      .where(
+        and(
+          eq(changeRequests.status, "pending"),
+          sql`CASE
+            WHEN ${changeRequests.entityType} = 'project' THEN ${changeRequests.entityId} IS NOT NULL
+            WHEN ${changeRequests.entityType} = 'overlay' THEN ${overlays.projectId} IS NOT NULL
+          END`,
+        ),
+      ),
   ]);
 
   const pendingOverlayProjectIds = projectsWithPendingOverlays
@@ -387,17 +373,12 @@ async function collectPendingProjectIds(): Promise<{
   return { pendingOverlayProjectIds, pendingChangeProjectIds };
 }
 
-async function fetchModerationData(
-  projectModerationConditions: (SQL | undefined)[],
-  sortColumn: PgColumn,
-  limit: number,
-) {
+async function fetchModerationData(projectModerationConditions: (SQL | undefined)[]) {
   // Fetch projects first to scope change request queries to exact project IDs,
   // avoiding slow full-table scans via COALESCE country conditions on the join
   const projectsResult = await buildProjectModerationQuery(db)
     .where(and(...projectModerationConditions))
-    .orderBy(sql`${sortColumn} DESC`, sql`${projects.id} DESC`)
-    .limit(limit + 1);
+    .orderBy(sql`${projects.createdAt} DESC`, sql`${projects.id} DESC`);
 
   const projectIds = projectsResult.map((p) => p.id);
 
@@ -406,7 +387,7 @@ async function fetchModerationData(
   }
 
   const [overlaysResult, overlayChanges, projectChanges] = await Promise.all([
-    buildOverlayModerationQuery(db).where(and(...projectModerationConditions)),
+    buildOverlayModerationQuery(db).where(inArray(overlays.projectId, projectIds)),
     // Overlay change requests scoped to the fetched project IDs
     db
       .select({
@@ -516,20 +497,18 @@ async function enrichWithReportCounts(
     }
   }
 
-  const projectsWithOverlays = filteredProjects.map((project) =>
-    Object.assign(project, {
-      ownerReportCount: project.ownerId ? (reportCountMap.get(project.ownerId) ?? 0) : 0,
-      overlays: filteredOverlays.filter((overlay) => overlay.projectId === project.id),
+  const overlaysWithReports = filteredOverlays.map((overlay) =>
+    Object.assign(overlay, {
+      authorReportCount: overlay.authorId ? (reportCountMap.get(overlay.authorId) ?? 0) : 0,
     }),
   );
 
-  const overlaysWithReports = filteredOverlays
-    .filter((overlay) => overlay.status === "pending")
-    .map((overlay) =>
-      Object.assign(overlay, {
-        authorReportCount: overlay.authorId ? (reportCountMap.get(overlay.authorId) ?? 0) : 0,
-      }),
-    );
+  const projectsWithOverlays = filteredProjects.map((project) =>
+    Object.assign(project, {
+      ownerReportCount: project.ownerId ? (reportCountMap.get(project.ownerId) ?? 0) : 0,
+      overlays: overlaysWithReports.filter((overlay) => overlay.projectId === project.id),
+    }),
+  );
 
   const changeRequestsWithReports = filteredChangeRequests.map((change) => {
     const requestedByReportCount = change.requestedBy
@@ -538,5 +517,5 @@ async function enrichWithReportCounts(
     return Object.assign(change, { requestedByReportCount });
   });
 
-  return { projectsWithOverlays, overlaysWithReports, changeRequestsWithReports };
+  return { projectsWithOverlays, changeRequestsWithReports };
 }

@@ -1,5 +1,4 @@
 import { trpc } from "@/client";
-import { useModerationStore } from "@/stores/moderationStore";
 import { useChangeRequestStore, type ChangeRequest } from "@/stores/changeRequestStore";
 import { loadOrNull } from "@/services/core/errorHandling";
 import { useOverlayStore } from "@/stores/overlayStore";
@@ -20,18 +19,13 @@ export async function refreshPendingChangeRequests(options?: { force?: boolean }
 
 export async function approveChangeRequests(changeRequestIds: string[]) {
   try {
-    const result = await trpc.changes.approveChangeRequests.mutate({ changeRequestIds });
+    await trpc.changes.approveChangeRequests.mutate({ changeRequestIds });
 
-    // The approved changes plus any competing changes the backend marked 'conflicted' are no
-    // longer pending. Drop them from the moderation panel locally instead of refetching every
-    // pending submission for the country.
-    const moderationStore = useModerationStore();
-    moderationStore.removeChangeRequests(result.resolvedChangeRequestIds);
     // The current user's own change requests are fetched lazily, so just invalidate; a conflicted
     // change of theirs must reappear with its conflict badge on the next My Contributions load.
     useChangeRequestStore().resetLoaded();
 
-    return result;
+    return true;
   } catch (error) {
     console.error("Failed to approve change requests:", error);
     return null;
@@ -43,7 +37,6 @@ export async function rejectChangeRequests(changeRequestIds: string[]): Promise<
     await trpc.changes.rejectChangeRequests.mutate({ changeRequestIds });
 
     useChangeRequestStore().removeChangeRequests(changeRequestIds);
-    useModerationStore().removeChangeRequests(changeRequestIds);
 
     return true;
   } catch (error) {

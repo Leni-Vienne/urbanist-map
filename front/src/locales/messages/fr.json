@@ -645,6 +645,7 @@
     "failedToLoadCountries": "Échec du chargement de la liste des pays",
     "pleaseSelectCountry": "Veuillez sélectionner un pays pour voir les contributions en attente",
     "pendingProjects": "Projets en attente",
+    "otherPendingProjects": "Autres projets en attente",
     "allReviewed": "Toutes les soumissions ont été examinées",
     "noPendingItems": "Aucune soumission en attente à modérer",
     "replacementConflicts": {

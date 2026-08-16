@@ -12,8 +12,8 @@
     <!-- Report User Dialog -->
     <ReportUserDialog
       v-model:visible="showReportDialog"
-      :user-id="userToReport"
-      @reported="handleUserReported"
+      :is-loading="isProcessingReport"
+      @report="handleReportConfirm"
     />
 
     <!-- User Stats Dialog -->
@@ -97,6 +97,7 @@
         :empty-message="$t('moderation.allReviewed')"
         :empty-sub-message="$t('moderation.noPendingItems')"
         :show-user-stats-link="true"
+        :list-header-label="$t('moderation.otherPendingProjects')"
         :selected-project-id="selectedProjectId"
         @show-user-stats="handleShowUserStats"
         :on-overlay-click="handleViewOverlayPosition"
@@ -167,6 +168,7 @@ import { useModerationStore } from "@/stores/moderationStore";
 import type { Overlay, PendingChangeRequest, UserStatsPayload } from "@/types/index";
 import { trpc } from "@/client";
 import { handleOverlayClickNavigation } from "@/services/overlay/clickHandler";
+import { refreshMapSessionData } from "@/services/map/viewportTriggers";
 import { useFocusStore } from "@/stores/focusStore";
 
 import ProjectAccordionPanel from "./ProjectAccordionPanel.vue";
@@ -209,10 +211,7 @@ const {
 const focusStore = useFocusStore();
 const selectedProjectId = computed(() => focusStore.selectedProjectId);
 
-// Show loading state when a country is selected but data hasn't been fetched yet
-const isLoading = computed(
-  () => Boolean(selectedCountryCode.value) && !moderationStore.moderationLoaded,
-);
+const isLoading = computed(() => moderationStore.moderationLoadStatus === "loading");
 
 // Track which overlay positions have been viewed by the moderator (using array for better reactivity)
 const viewedOverlayIds = ref<string[]>([]);
@@ -227,6 +226,7 @@ const isProcessingConflicts = ref(false);
 
 const showReportDialog = ref(false);
 const userToReport = ref<string | null>(null);
+const isProcessingReport = ref(false);
 
 const showRejectConfirmDialog = ref(false);
 const isProcessingRejection = ref(false);
@@ -286,21 +286,13 @@ watch(
       viewedChangeRequestIds.value.push(state.changeId);
     }
   },
-  { deep: true },
 );
 
-// Clear pending rejection if report dialog is closed without reporting
-watch(showReportDialog, (isOpen) => {
-  if (!isOpen && pendingRejection.value) {
-    pendingRejection.value = null;
-  }
-});
-
 async function handleViewOverlayPosition(overlay: Overlay) {
-  if (!viewedOverlayIds.value.includes(overlay.id)) {
+  const navigated = await handleOverlayClickNavigation(overlay);
+  if (navigated && !viewedOverlayIds.value.includes(overlay.id)) {
     viewedOverlayIds.value.push(overlay.id);
   }
-  await handleOverlayClickNavigation(overlay);
 }
 
 // Helper to show success toast and refetch pending counts
@@ -371,7 +363,7 @@ async function handleApproveOverlay(id: string) {
         overlayId: id,
       });
 
-      if (conflicts.hasConflicts) {
+      if (conflicts) {
         // Show confirmation dialog
         pendingConflicts.value = conflicts;
         pendingOverlayId = id;
@@ -430,6 +422,43 @@ function openReportDialog(userId: string | null) {
   showReportDialog.value = true;
 }
 
+async function reportUser(userId: string, reason: string): Promise<boolean> {
+  try {
+    await trpc.moderation.reportUser.mutate({
+      userId,
+      reason: reason || undefined,
+    });
+    toastSuccess(
+      t("moderation.reportUser.reportSuccessDetail"),
+      t("moderation.reportUser.reportSuccess"),
+    );
+    moderationStore.invalidateModerationData();
+    await fetchPendingSubmissions();
+    return true;
+  } catch (error) {
+    console.error("Failed to report user:", error);
+    toastError(
+      error instanceof Error ? error.message : undefined,
+      t("moderation.reportUser.reportFailed"),
+    );
+    return false;
+  }
+}
+
+async function handleReportConfirm(reason: string) {
+  if (!userToReport.value) return;
+
+  isProcessingReport.value = true;
+  try {
+    if (await reportUser(userToReport.value, reason)) {
+      showReportDialog.value = false;
+      userToReport.value = null;
+    }
+  } finally {
+    isProcessingReport.value = false;
+  }
+}
+
 function handleShowUserStats(data: UserStatsPayload) {
   userStatsDialogData.value = {
     userId: data.userId,
@@ -439,12 +468,6 @@ function handleShowUserStats(data: UserStatsPayload) {
     reportCount: data.reportCount ?? 0,
   };
   showUserStatsDialog.value = true;
-}
-
-async function handleUserReported() {
-  // Just refresh the moderation data
-  moderationStore.resetModerationLoaded();
-  await fetchPendingSubmissions();
 }
 
 // Handle overlay rejection - show confirmation dialog first
@@ -465,12 +488,18 @@ async function executeRejectOverlay(id: string, rejectionReason?: string): Promi
   return result.success;
 }
 
+async function refreshAfterChangeRequest(mapDataChanged: boolean): Promise<void> {
+  moderationStore.invalidateModerationData();
+  const mapRefresh = mapDataChanged ? refreshMapSessionData() : Promise.resolve();
+  await Promise.all([fetchPendingSubmissions(), refetchPendingCounts(), mapRefresh]);
+}
+
 // Handle change request approval with toast notifications
 async function handleApproveChange(changeId: string) {
   const result = await approveChangeRequests([changeId]);
 
   if (result) {
-    moderationStore.decrementPendingCount(selectedCountryCode.value);
+    await refreshAfterChangeRequest(true);
     toastSuccess(t("moderation.changeApprovedDetail"), t("moderation.changeApproved"));
   } else {
     toastError(t("moderation.approvalFailedDetail"), t("moderation.approvalFailed"));
@@ -501,22 +530,7 @@ async function handleRejectionConfirm(options: RejectionOptions) {
     if (!rejectionSucceeded) return;
 
     if (options.reportUser && rejection.userId) {
-      try {
-        await trpc.moderation.reportUser.mutate({
-          userId: rejection.userId,
-          reason: options.reportReason || undefined,
-        });
-        toastInfo(
-          t("moderation.reportUser.reportSuccessDetail"),
-          t("moderation.reportUser.reportSuccess"),
-        );
-      } catch (error) {
-        console.error("Failed to report user:", error);
-        toastError(
-          error instanceof Error ? error.message : undefined,
-          t("moderation.reportUser.reportFailed"),
-        );
-      }
+      await reportUser(rejection.userId, options.reportReason);
     }
   } finally {
     isProcessingRejection.value = false;
@@ -540,7 +554,7 @@ async function executeRejectChange(changeId: string): Promise<boolean> {
   const rejected = await rejectChangeRequests([changeId]);
 
   if (rejected) {
-    moderationStore.decrementPendingCount(selectedCountryCode.value);
+    await refreshAfterChangeRequest(false);
     toastInfo(t("moderation.changeRejectedDetail"), t("moderation.changeRejected"));
   } else {
     toastError(t("moderation.rejectionFailedDetail"), t("moderation.rejectionFailed"));

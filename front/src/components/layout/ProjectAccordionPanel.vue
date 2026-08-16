@@ -91,15 +91,14 @@
           v-model:value="uiStore.activeAccordionPanels"
           class="city-accordion"
         >
-          <!-- "Your contributions" section header: custom controls (contribute panel) or plain divider -->
           <template v-if="$slots['contributions-header']">
             <slot name="contributions-header"></slot>
           </template>
-          <template v-else-if="selectedCard && flatOrderedProjects.length > 0">
+          <template v-else-if="listHeaderLabel && selectedCard && flatOrderedProjects.length > 0">
             <div
               class="pt-1 pb-0.5 text-[0.75rem] font-semibold text-primary-color uppercase tracking-wide"
             >
-              {{ $t("contribute.yourContributions") }}
+              {{ listHeaderLabel }}
             </div>
           </template>
 
@@ -232,6 +231,9 @@ interface Props {
   // Keep the content area mounted even when the (filtered) project list is empty, so a consumer
   // rendering its own filter controls via #contributions-header does not lose them on empty results.
   keepContentVisible?: boolean;
+  // Divider label above the list, rendered only under a selected card and only without the
+  // #contributions-header slot.
+  listHeaderLabel?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -246,6 +248,7 @@ const props = withDefaults(defineProps<Props>(), {
   selectedProjectId: null,
   pinnedExternalProject: null,
   keepContentVisible: false,
+  listHeaderLabel: "",
 });
 
 const emit = defineEmits<{

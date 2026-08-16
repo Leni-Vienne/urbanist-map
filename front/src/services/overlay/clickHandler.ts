@@ -16,7 +16,7 @@ import { toastWarn, toastError } from "@/services/core/toast";
 type NavigableOverlay = Overlay | LatestContribution;
 
 /** Navigate to an overlay, including rejected/replaced fallback and moderation access checks. */
-export async function handleOverlayClickNavigation(overlay: NavigableOverlay): Promise<void> {
+export async function handleOverlayClickNavigation(overlay: NavigableOverlay): Promise<boolean> {
   try {
     const overlayStore = useOverlayStore();
     const mapStore = useMapStore();
@@ -24,8 +24,7 @@ export async function handleOverlayClickNavigation(overlay: NavigableOverlay): P
     // For rejected or replaced overlays, navigate to overlay's centroid if available
     // Otherwise fall back to project center
     if ("status" in overlay && (overlay.status === "rejected" || overlay.status === "replaced")) {
-      await navigateToReplacedOrRejectedOverlay(overlay, overlayStore);
-      return;
+      return navigateToReplacedOrRejectedOverlay(overlay, overlayStore);
     }
 
     // In moderation mode, auto-select the contribution's country for the moderation panel
@@ -33,19 +32,20 @@ export async function handleOverlayClickNavigation(overlay: NavigableOverlay): P
     if (mapStore.mode === "moderation" && overlay.countryCode) {
       if (!canModerateCountry(overlay.countryCode)) {
         toastWarn(t("moderation.noAccessToThisCountry"), t("moderation.title"));
-        return;
+        return false;
       }
       // Auto-select the country so ModerationPanel loads its pending submissions
       mapStore.setSelectedCountryCode(overlay.countryCode);
     }
 
-    await navigateToOverlay(overlay.id);
+    return navigateToOverlay(overlay.id);
   } catch (error) {
     console.error("Failed to navigate to overlay:", error);
     toastError(
       error instanceof Error ? error.message : t("overlay.failedToNavigate"),
       t("location.navigationFailed"),
     );
+    return false;
   }
 }
 
@@ -56,9 +56,9 @@ export async function handleOverlayClickNavigation(overlay: NavigableOverlay): P
 async function navigateToReplacedOrRejectedOverlay(
   overlay: NavigableOverlay,
   overlayStore: ReturnType<typeof useOverlayStore>,
-): Promise<void> {
+): Promise<boolean> {
   if (!("projectId" in overlay) || !overlay.projectId) {
-    return;
+    return false;
   }
   const { projectId } = overlay;
 
@@ -69,7 +69,7 @@ async function navigateToReplacedOrRejectedOverlay(
     const centroidLng = storeCorners.reduce((sum, c) => sum + c.lng, 0) / storeCorners.length;
 
     mobileAwareFlyTo([centroidLat, centroidLng], 18);
-    return;
+    return true;
   }
 
   const project = await loadOrNull(async () => trpc.project.getById.query({ id: projectId }), {
@@ -78,5 +78,8 @@ async function navigateToReplacedOrRejectedOverlay(
 
   if (project && typeof project.lat === "number" && typeof project.lng === "number") {
     navigateToProject(project.lat, project.lng, project.id);
+    return true;
   }
+
+  return false;
 }
