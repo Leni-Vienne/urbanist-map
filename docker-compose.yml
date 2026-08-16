@@ -19,7 +19,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
     networks:
       - app-network
     command:
@@ -83,8 +83,8 @@ services:
     working_dir: /home/bun/app
     command: ["bun", "./server.bundle.js"]
     ports:
-      # Expose backend to host for Caddy reverse proxy access
-      - "${BACKEND_PORT:-3000}:3000"
+      # Expose backend to the host loopback for Caddy reverse proxy access
+      - "127.0.0.1:${BACKEND_PORT:-3000}:3000"
     networks:
       - app-network
     healthcheck:
@@ -125,7 +125,7 @@ services:
     networks:
       - app-network
     ports:
-      - "${ALLOY_PORT:-12345}:12345" # Alloy UI
+      - "127.0.0.1:${ALLOY_PORT:-12345}:12345" # Alloy UI
     logging:
       driver: json-file
       options:

@@ -35,10 +35,9 @@ loki.process "json" {
     }
   }
 
-  // cfCountry is a stream label so LogQL can filter on it without parsing every line, and so the
-  // counters below carry it. Cloudflare emits a two-letter code (plus XX for unknown and T1 for
-  // Tor), which keeps this bounded at a few hundred streams. Never promote ip or path: both are
-  // unbounded and would wreck the index.
+  // cfCountry is a stream label so LogQL can filter on it without parsing every line. Cloudflare
+  // emits a two-letter code (plus XX for unknown and T1 for Tor), which keeps this bounded at a few
+  // hundred streams. Never promote ip or path: both are unbounded and would wreck the index.
   //
   // botClass is the request-time verdict from back/src/services/botClassifier.ts: 5 fixed values
   // (official-range, scanner, declared-bot, human-likely, unknown). botKind collapses those to
@@ -61,26 +60,6 @@ loki.process "json" {
     }
   }
 
-  // Health checks reach the container directly rather than through Cloudflare, so they carry no
-  // client IP and no country. They outnumber real traffic several times over and are excluded from
-  // the counter only, not from Loki.
-  stage.match {
-    selector = "{service=\"backend\"} != \"/api/health\""
-
-    // Aggregate counters exposed on Alloy's own /metrics endpoint. They hold no IP and no
-    // identifier, so they are anonymous data rather than personal data.
-    stage.metrics {
-      metric.counter {
-        name        = "requests_total"
-        description = "Backend requests, labelled by the stream's cfCountry, level, botClass and botKind"
-        source      = "status"
-        action      = "inc"
-        // Countries appear sparsely at this traffic level, so keep series alive well past the
-        // default 5m to stop them dropping out between requests.
-        max_idle_duration = "24h"
-      }
-    }
-  }
 }
 
 loki.relabel "backend" {
