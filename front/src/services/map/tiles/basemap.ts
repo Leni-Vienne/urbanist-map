@@ -553,10 +553,8 @@ async function checkEsriMaxZoom() {
     if (!getMapOrNull()) return;
     try {
       const maxZoom = await fetchEsriMaxZoom(center.lat, center.lng);
-      if (maxZoom) {
-        maxZoomCache.set(cacheKey, maxZoom);
-        applyEsriMaxZoom(maxZoom);
-      }
+      maxZoomCache.set(cacheKey, maxZoom);
+      applyEsriMaxZoom(maxZoom);
     } catch (error) {
       console.warn("Failed to fetch Esri metadata", error);
     }

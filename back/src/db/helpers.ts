@@ -492,13 +492,20 @@ async function fetchOwnOverlayChangeRequests(
   return changeRequestsByOverlay;
 }
 
+function isCorner(value: unknown): value is { lat: number; lng: number } {
+  if (typeof value !== "object" || value === null) return false;
+  return (
+    "lat" in value &&
+    "lng" in value &&
+    typeof value.lat === "number" &&
+    typeof value.lng === "number"
+  );
+}
+
 function transformOverlayRow(row: OverlayLocationRow, overlayChangeRequests: OverlayChangeValue[]) {
-  const cornersChangeRequest = overlayChangeRequests.find((cr) => cr.fieldName === "corners");
-  /* oxlint-disable no-unsafe-type-assertion */
-  const suggestedCorners = cornersChangeRequest?.newValue
-    ? (cornersChangeRequest.newValue as { lat: number; lng: number }[])
-    : null;
-  /* oxlint-enable */
+  const newCorners = overlayChangeRequests.find((cr) => cr.fieldName === "corners")?.newValue;
+  const suggestedCorners =
+    Array.isArray(newCorners) && newCorners.every(isCorner) ? newCorners : null;
 
   const captionValue = overlayChangeRequests.find((cr) => cr.fieldName === "caption")?.newValue;
   const suggestedCaption =

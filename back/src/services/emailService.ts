@@ -10,13 +10,14 @@ interface EmailServiceConfig {
 }
 
 function readConfig(): EmailServiceConfig {
+  const smtpPort = Number.parseInt(process.env.SMTP_PORT ?? "", 10);
   const config: EmailServiceConfig = {
     host:
       process.env.SMTP_HOST ??
       (process.env.SES_REGION
         ? `email-smtp.${process.env.SES_REGION}.amazonaws.com`
         : "email-smtp.us-east-1.amazonaws.com"),
-    port: Number(process.env.SMTP_PORT) || 587,
+    port: smtpPort > 0 ? smtpPort : 587,
     user: process.env.SMTP_USERNAME ?? "",
     password: process.env.SMTP_PASSWORD ?? "",
     from: process.env.FROM_EMAIL ?? "",

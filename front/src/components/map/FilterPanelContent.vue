@@ -275,7 +275,7 @@ function tagStyle(tag: ProjectTag) {
     return { backgroundColor: tag.color, color: tag.textColor, borderColor: tag.color };
   }
   if (theme.value === "dark") {
-    return { backgroundColor: tag.color + "28", color: tag.textColor, borderColor: tag.color };
+    return { backgroundColor: `${tag.color}28`, color: tag.textColor, borderColor: tag.color };
   }
   return { backgroundColor: "transparent", color: tag.color, borderColor: tag.color };
 }

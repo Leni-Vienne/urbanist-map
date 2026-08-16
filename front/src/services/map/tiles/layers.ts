@@ -2,6 +2,7 @@ import type {
   AllLayoutProperties,
   AllPaintProperties,
   Map as MaplibreMap,
+  MapGeoJSONFeature,
   MapMouseEvent,
   PointLike,
   FilterSpecification,
@@ -94,15 +95,6 @@ const CLICK_QUERY_LAYERS = [
   "pending-overlay-footprints-fill",
   "pending-overlay-footprints-outline",
 ] as const;
-
-type RenderedMapFeature = {
-  properties?: TileProperties;
-  sourceLayer?: string;
-  geometry?: {
-    coordinates?: unknown;
-  };
-  id?: string | number;
-};
 
 const DEFAULT_PROJECT_LINE_COLOR = "#7ea2b7";
 
@@ -699,7 +691,7 @@ function queryFeaturesAtPoint(
   mlMap: MaplibreMap,
   layers: readonly string[],
   hitRadius: number,
-): any[] {
+): MapGeoJSONFeature[] {
   const existingLayers = layers.filter((l) => mlMap.getLayer(l));
   if (existingLayers.length === 0) return [];
 
@@ -861,7 +853,7 @@ function idSet(...ids: (string | null | undefined)[]): Set<string> {
 // its parent project's shape (project_id), matching the previous setFilter behaviour.
 function setCursorHoverState(
   mlMap: MaplibreMap,
-  vectorFeature: RenderedMapFeature | null,
+  vectorFeature: MapGeoJSONFeature | null,
   pointId: string | number | null,
 ): void {
   let shapeId: string | null = null;
@@ -909,7 +901,9 @@ function setSelectedHoverState(mlMap: MaplibreMap): void {
   );
 }
 
-function getVectorFeatureFromFeatures(features: any[]): RenderedMapFeature | null {
+function getVectorFeatureFromFeatures(
+  features: readonly MapGeoJSONFeature[],
+): MapGeoJSONFeature | null {
   const vectorFeature = features.find((feature) => {
     const sourceLayer = getFeatureSourceLayer(feature);
     return sourceLayer === "overlay-footprints" || sourceLayer === "project-shapes";
@@ -918,7 +912,7 @@ function getVectorFeatureFromFeatures(features: any[]): RenderedMapFeature | nul
   return vectorFeature ?? null;
 }
 
-function handleVectorFeatureClick(feature: RenderedMapFeature): void {
+function handleVectorFeatureClick(feature: MapGeoJSONFeature): void {
   const isFootprint = getFeatureSourceLayer(feature) === "overlay-footprints";
   const projectId = isFootprint
     ? getFeatureProperty(feature, "project_id")
@@ -945,19 +939,18 @@ function handleVectorFeatureClick(feature: RenderedMapFeature): void {
   }
 }
 
-async function handlePointFeatureClick(pointFeature: RenderedMapFeature): Promise<void> {
-  const projectId = String(pointFeature.properties?.id ?? pointFeature.id ?? "");
+async function handlePointFeatureClick(pointFeature: MapGeoJSONFeature): Promise<void> {
+  const projectId = String(pointFeature.properties.id ?? pointFeature.id ?? "");
   if (projectId.length === 0) return;
 
-  const props: TileProperties = pointFeature.properties ?? {};
-  const coordinates = pointFeature.geometry?.coordinates;
-  const hasCoords = Array.isArray(coordinates) && coordinates.length >= 2;
-  const [lng, lat] = hasCoords ? coordinates : [0, 0];
+  const props: TileProperties = pointFeature.properties;
+  const geometry = pointFeature.geometry;
+  const [lng, lat] = geometry.type === "Point" ? geometry.coordinates : [];
 
   // Cluster marker (drawn larger with a count): zoom in to spread the cell apart, the conventional
   // expand gesture, and open no detail since a cluster has no single project.
   const cellCount = Number(props.cell_count ?? 1);
-  if (hasCoords && cellCount > 1) {
+  if (lng !== undefined && lat !== undefined && cellCount > 1) {
     mobileAwareFlyTo([lat, lng], getMap().getZoom() + CLUSTER_EXPAND_ZOOM_STEP);
     return;
   }
@@ -1016,7 +1009,7 @@ function queryInteractionFeatures(event: MapMouseEvent, mlMap: MaplibreMap) {
   );
 
   const pointFeature = features.find(
-    (f) => f?.layer?.id === "project-points" || f?.layer?.id === "pending-project-points",
+    (f) => f.layer.id === "project-points" || f.layer.id === "pending-project-points",
   );
 
   return { features, pointFeature };
@@ -1038,7 +1031,7 @@ function registerMapInteractionListeners(mlMap: MaplibreMap): void {
     setCursorHoverState(
       mlMap,
       vectorFeature,
-      pointFeature?.properties?.id ?? pointFeature?.id ?? null,
+      pointFeature?.properties.id ?? pointFeature?.id ?? null,
     );
     // Re-assert the pinned/external highlight every frame so a project selected without a cursor
     // move (sidebar hover, detail open) stays lit; the diff makes an unchanged set a no-op.
@@ -1156,12 +1149,12 @@ function buildClusterTagCounts(props: TileProperties): ClusterTagCount[] | undef
 // an active tag filter) actually matches the selection; the per-tag breakdown is attached so the card
 // can report how many of the cluster's projects match each filtered tag.
 function showClusterHover(
-  pointFeature: RenderedMapFeature,
+  pointFeature: MapGeoJSONFeature,
   cellCount: number,
   clientX: number,
   clientY: number,
 ): void {
-  const props: TileProperties = pointFeature.properties ?? {};
+  const props: TileProperties = pointFeature.properties;
   const isHighQuality = props.is_high_quality === true;
   let name = isHighQuality ? String(props.name ?? "") : null;
   if (name && selectedProjectTags.value.length > 0) {
@@ -1177,14 +1170,14 @@ function showClusterHover(
  * Extracted to keep the mousemove handler below the complexity limit.
  */
 function updateHoverPreview(
-  vectorFeature: RenderedMapFeature | null,
-  pointFeature: RenderedMapFeature | undefined,
+  vectorFeature: MapGeoJSONFeature | null,
+  pointFeature: MapGeoJSONFeature | undefined,
   clientX: number,
   clientY: number,
 ): void {
   if (pointFeature) {
-    const cellCount = Number(pointFeature.properties?.cell_count ?? 1);
-    const projectId = String(pointFeature.properties?.id ?? pointFeature.id ?? "");
+    const cellCount = Number(pointFeature.properties.cell_count ?? 1);
+    const projectId = String(pointFeature.properties.id ?? pointFeature.id ?? "");
     if (cellCount > 1) {
       showClusterHover(pointFeature, cellCount, clientX, clientY);
     } else if (projectId.length > 0) {
@@ -1210,8 +1203,8 @@ function updateHoverPreview(
 }
 
 // Tile properties are scalars, so a missing key and a blank value both mean "no value here".
-function getFeatureProperty(feature: RenderedMapFeature, key: string): string | null {
-  const value = feature.properties?.[key];
+function getFeatureProperty(feature: MapGeoJSONFeature, key: string): string | null {
+  const value: unknown = feature.properties[key];
   if (value === null || value === undefined) return null;
   const text = String(value);
   return text.length > 0 ? text : null;
@@ -1219,18 +1212,18 @@ function getFeatureProperty(feature: RenderedMapFeature, key: string): string | 
 
 // The source layer sits on the feature for MVT features and in the properties for the GeoJSON
 // pending sources.
-function getFeatureSourceLayer(feature: RenderedMapFeature): string {
-  return feature.sourceLayer ?? String(feature.properties?.sourceLayer ?? "");
+function getFeatureSourceLayer(feature: MapGeoJSONFeature): string {
+  return feature.sourceLayer ?? String(feature.properties.sourceLayer ?? "");
 }
 
 /** Extract hover card data from a vector tile feature's properties. */
-function getHoverDataFromFeature(feature: RenderedMapFeature): HoverProjectData {
+function getHoverDataFromFeature(feature: MapGeoJSONFeature): HoverProjectData {
   const name = getFeatureProperty(feature, "name");
   const timelineStatus = parseTimelineStatus(getFeatureProperty(feature, "timeline_status"));
   // Tags are encoded as a JSON array string in the tile (e.g. '["building","road"]')
   let tags: string[] = [];
   try {
-    const raw = feature.properties?.tags;
+    const raw: unknown = feature.properties.tags;
     if (typeof raw === "string" && raw.length > 0) tags = JSON.parse(raw) as string[];
   } catch {
     // malformed tags, leave empty

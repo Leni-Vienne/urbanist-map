@@ -16,10 +16,7 @@ const cache = new Map<string, WikidataEntity | null>();
 const pending = new Map<string, Promise<WikidataEntity | null>>();
 
 function commonsUrl(filename: string): string {
-  return (
-    "https://commons.wikimedia.org/wiki/Special:FilePath/" +
-    encodeURIComponent(filename.replace(/ /g, "_"))
-  );
+  return `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(filename.replace(/ /g, "_"))}`;
 }
 
 function isRecord(value: unknown): value is JsonObject {

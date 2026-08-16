@@ -86,11 +86,11 @@
         "allowString": true,
         "allowAny": true,
         "allowNullableBoolean": true,
-        "allowNullableEnum": true,
-        "allowNullableNumber": true,
+        "allowNullableEnum": false,
+        "allowNullableNumber": false,
         "allowNullableObject": true,
         "allowNullableString": true,
-        "allowNumber": true
+        "allowNumber": false
       }
     ],
     "no-explicit-any": "off",
@@ -99,7 +99,6 @@
     "typescript/no-namespace": "off", // conflicts with prefer-namespace-keyword
     "no-continue": "off", // warns about early continues which is odd
     "no-void": "off", // conflicts with "Promises must be awaited or explicitly marked as void" rule
-    "prefer-template": "off",
     "unicorn/filename-case": "off",
 
     "switch-case-braces": "off",

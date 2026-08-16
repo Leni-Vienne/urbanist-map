@@ -47,9 +47,9 @@ const mapAreaSchema = z
 
 const feedQuerySchema = z.object({
   source: z.enum(["all", "community", "osm"]).optional().default("all"),
-  tags: z.array(z.string()).optional(),
+  tags: z.array(z.string()).optional().default([]),
   includeUntagged: z.boolean().optional(),
-  statuses: z.array(z.string()).optional(),
+  statuses: z.array(z.string()).optional().default([]),
   minSizeM: z.number().optional(),
   maxSizeM: z.number().optional(),
   modifiedAfterMs: z.number().optional(),
@@ -74,7 +74,7 @@ function projectFilterConditions(input: FeedInput, nameColumn: SQL | typeof proj
   const conditions: SQL[] = [];
 
   const tagMatches: SQL[] = [];
-  if (input.tags && input.tags.length > 0) {
+  if (input.tags.length > 0) {
     tagMatches.push(sql`${projects.tags} && ${textArray(input.tags)}`);
   }
   if (input.includeUntagged) {
@@ -85,7 +85,7 @@ function projectFilterConditions(input: FeedInput, nameColumn: SQL | typeof proj
     if (combined) conditions.push(combined);
   }
 
-  if (input.statuses && input.statuses.length > 0) {
+  if (input.statuses.length > 0) {
     conditions.push(sql`${projects.timelineStatus} = ANY(${textArray(input.statuses)})`);
   }
   // NULL geometry_size_m (no geometry) falls outside any explicit bound.
@@ -448,9 +448,9 @@ export function invalidateLatestContributionsCache() {
 function cacheKey(input: FeedPageInput): string | null {
   const isDefaultPage =
     !input.cursor &&
-    !input.tags?.length &&
+    input.tags.length === 0 &&
     !input.includeUntagged &&
-    !input.statuses?.length &&
+    input.statuses.length === 0 &&
     input.minSizeM === undefined &&
     input.maxSizeM === undefined &&
     input.modifiedAfterMs === undefined &&
@@ -464,8 +464,8 @@ function cacheKey(input: FeedPageInput): string | null {
 function contributionCountCacheKey(input: FeedInput): string {
   return JSON.stringify({
     ...input,
-    tags: input.tags?.toSorted(),
-    statuses: input.statuses?.toSorted(),
+    tags: input.tags.toSorted(),
+    statuses: input.statuses.toSorted(),
   });
 }
 
