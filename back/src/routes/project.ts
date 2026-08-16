@@ -112,8 +112,6 @@ export const projectRouter = router({
         // Capture projectId in const for type narrowing inside transaction
         const projectId = input.id;
 
-        // Use transaction to prevent race conditions between validation and update
-        // This ensures status/ownership checks remain valid when update executes
         const publishTransaction = await db.transaction(async (tx) => {
           // Check if project exists and validate permissions
           const existingProject = await tx
@@ -167,8 +165,21 @@ export const projectRouter = router({
               version: sql`${projects.version} + 1`,
               updatedAt: new Date(),
             })
-            .where(eq(projects.id, projectId))
+            .where(
+              and(
+                eq(projects.id, projectId),
+                eq(projects.ownerId, ctx.user.id),
+                or(eq(projects.status, "pending"), eq(projects.status, "rejected")),
+              ),
+            )
             .returning();
+
+          if (!updateResult[0]) {
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: "Project status changed while it was being updated",
+            });
+          }
 
           return updateResult[0];
         });

@@ -498,19 +498,46 @@ export const changesRouter = router({
     .input(approveChangeRequestSchema)
     .mutation(async ({ input, ctx }) => {
       try {
-        if (input.changeRequestIds.length === 0) {
-          return { success: true };
-        }
+        if (input.changeRequestIds.length === 0) return;
 
         const moderatorUserId = await authorizeChangeRequestBatch(input.changeRequestIds, ctx.user);
 
         const changesToApprove = await db
           .select()
           .from(changeRequests)
-          .where(inArray(changeRequests.id, input.changeRequestIds));
+          .where(
+            and(
+              inArray(changeRequests.id, input.changeRequestIds),
+              eq(changeRequests.status, "pending"),
+            ),
+          );
 
-        for (const change of changesToApprove) {
-          await db.transaction(async (tx) => {
+        if (changesToApprove.length !== new Set(input.changeRequestIds).size) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "A change request was already resolved",
+          });
+        }
+
+        await db.transaction(async (tx) => {
+          for (const change of changesToApprove) {
+            const claimedRequests = await tx
+              .update(changeRequests)
+              .set({
+                status: "approved",
+                resolvedAt: new Date(),
+                resolvedBy: moderatorUserId,
+              })
+              .where(and(eq(changeRequests.id, change.id), eq(changeRequests.status, "pending")))
+              .returning({ id: changeRequests.id });
+
+            if (!claimedRequests[0]) {
+              throw new TRPCError({
+                code: "CONFLICT",
+                message: "A change request was already resolved",
+              });
+            }
+
             // Build update data with proper handling for geometry fields
             const updateData = buildUpdateData(change);
 
@@ -542,16 +569,6 @@ export const changesRouter = router({
               approvedBy: moderatorUserId,
             });
 
-            // Mark this change as approved instead of deleting
-            await tx
-              .update(changeRequests)
-              .set({
-                status: "approved",
-                resolvedAt: new Date(),
-                resolvedBy: moderatorUserId,
-              })
-              .where(eq(changeRequests.id, change.id));
-
             // Increment the requester's approved count
             if (change.requestedBy) {
               await tx
@@ -579,8 +596,8 @@ export const changesRouter = router({
                   eq(changeRequests.status, "pending"),
                 ),
               );
-          });
-        }
+          }
+        });
 
         const seen = new Set<string>();
         for (const change of changesToApprove) {
@@ -599,8 +616,6 @@ export const changesRouter = router({
         if (changesToApprove.length > 0) {
           invalidateLatestContributionsCache();
         }
-
-        return { success: true };
       } catch (error) {
         if (error instanceof TRPCError) throw error;
         console.error("Error approving change requests:", error);
@@ -619,26 +634,33 @@ export const changesRouter = router({
 
         const moderatorUserId = await authorizeChangeRequestBatch(input.changeRequestIds, ctx.user);
 
-        // Get the requestedBy for each change request to increment their rejection counts
-        const changesToReject = await db
-          .select({ id: changeRequests.id, requestedBy: changeRequests.requestedBy })
-          .from(changeRequests)
-          .where(inArray(changeRequests.id, input.changeRequestIds));
-
         // Use transaction to atomically update status and increment rejection counts
         await db.transaction(async (tx) => {
           // Mark changes as rejected instead of deleting (for audit trail)
-          await tx
+          const rejectedChanges = await tx
             .update(changeRequests)
             .set({
               status: "rejected",
               resolvedAt: new Date(),
               resolvedBy: moderatorUserId,
             })
-            .where(inArray(changeRequests.id, input.changeRequestIds));
+            .where(
+              and(
+                inArray(changeRequests.id, input.changeRequestIds),
+                eq(changeRequests.status, "pending"),
+              ),
+            )
+            .returning({ requestedBy: changeRequests.requestedBy });
+
+          if (rejectedChanges.length !== new Set(input.changeRequestIds).size) {
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: "A change request was already resolved",
+            });
+          }
 
           // Increment rejection count for each requester
-          for (const change of changesToReject) {
+          for (const change of rejectedChanges) {
             if (change.requestedBy) {
               await tx
                 .update(users)

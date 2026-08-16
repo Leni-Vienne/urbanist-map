@@ -241,7 +241,7 @@ export const detachedProcedures = {
         }
         invalidateLatestContributionsCache();
 
-        return { success: true, movedOverlays: result.movedOverlayIds.length };
+        return { movedOverlays: result.movedOverlayIds.length };
       } catch (error) {
         console.error("Error re-linking detached project:", error);
         if (error instanceof TRPCError) throw error;
@@ -267,7 +267,6 @@ export const detachedProcedures = {
         if (!updated[0]) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Detached project not found" });
         }
-        return { success: true };
       } catch (error) {
         console.error("Error dismissing detached project:", error);
         if (error instanceof TRPCError) throw error;

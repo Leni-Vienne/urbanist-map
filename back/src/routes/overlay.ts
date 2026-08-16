@@ -68,6 +68,32 @@ async function assertFilenameUnclaimed(filename: string, exceptOverlayId?: strin
   }
 }
 
+async function assertValidReplacementTarget(
+  replacesOverlayId: string | undefined,
+  projectId: string,
+): Promise<void> {
+  if (!replacesOverlayId) return;
+
+  const targets = await db
+    .select({ id: overlays.id })
+    .from(overlays)
+    .where(
+      and(
+        eq(overlays.id, replacesOverlayId),
+        eq(overlays.projectId, projectId),
+        eq(overlays.status, "approved"),
+      ),
+    )
+    .limit(1);
+
+  if (!targets[0]) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "A replacement must target an approved overlay from the same project",
+    });
+  }
+}
+
 export const overlayRouter = router({
   getOverlay: publicProcedure.input(getOverlaySchema).query(async ({ input, ctx }) => {
     try {
@@ -204,6 +230,7 @@ export const overlayRouter = router({
       }
 
       await assertFilenameUnclaimed(input.filename, input.id);
+      await assertValidReplacementTarget(input.replacesOverlayId, input.projectId);
 
       // Extract corner coordinates
       const [topLeft, topRight, bottomRight, bottomLeft] = input.corners;
@@ -245,33 +272,44 @@ export const overlayRouter = router({
         centroid: sql`ST_SetSRID(ST_MakePoint(${centroid.lng}, ${centroid.lat}), 4326)`,
       };
 
-      // Use upsert operation to avoid race conditions - atomic insert or update
-      const upsertedOverlayResult = await db
-        .insert(overlays)
-        .values(overlayData)
-        .onConflictDoUpdate({
-          target: overlays.id,
-          set: {
-            filename: overlayData.filename,
-            caption: overlayData.caption,
-            projectId: overlayData.projectId,
-            authorId: overlayData.authorId,
-            replacesOverlayId: overlayData.replacesOverlayId,
-            corners: overlayData.corners,
-            centroid: overlayData.centroid,
-            version: sql`${overlays.version} + 1`, // Increment version on update for optimistic locking
-            updatedAt: sql`NOW()`,
-          },
-        })
-        .returning({
-          id: overlays.id,
-          status: overlays.status,
-          authorId: overlays.authorId,
-        });
+      const upsertedOverlayResult = existingOverlay[0]
+        ? await db
+            .update(overlays)
+            .set({
+              filename: overlayData.filename,
+              caption: overlayData.caption,
+              projectId: overlayData.projectId,
+              authorId: overlayData.authorId,
+              replacesOverlayId: overlayData.replacesOverlayId,
+              corners: overlayData.corners,
+              centroid: overlayData.centroid,
+              version: sql`${overlays.version} + 1`,
+              updatedAt: sql`NOW()`,
+            })
+            .where(
+              and(
+                eq(overlays.id, input.id),
+                eq(overlays.authorId, ctx.user.id),
+                or(eq(overlays.status, "pending"), eq(overlays.status, "rejected")),
+              ),
+            )
+            .returning({
+              id: overlays.id,
+              status: overlays.status,
+              authorId: overlays.authorId,
+            })
+        : await db.insert(overlays).values(overlayData).returning({
+            id: overlays.id,
+            status: overlays.status,
+            authorId: overlays.authorId,
+          });
 
       const upsertedOverlay = upsertedOverlayResult[0];
       if (!upsertedOverlay) {
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to upsert overlay" });
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Overlay status changed while it was being updated",
+        });
       }
 
       const wasUpdate = Boolean(existingOverlay[0]);
@@ -351,14 +389,28 @@ export const overlayRouter = router({
       }
 
       // An undefined caption is dropped by drizzle, leaving the field untouched.
-      await db
+      const updatedOverlays = await db
         .update(overlays)
         .set({
           caption: input.caption,
           version: sql`${overlays.version} + 1`, // Increment version on update for optimistic locking
           updatedAt: new Date(),
         })
-        .where(eq(overlays.id, input.id));
+        .where(
+          and(
+            eq(overlays.id, input.id),
+            eq(overlays.authorId, userId),
+            or(eq(overlays.status, "pending"), eq(overlays.status, "rejected")),
+          ),
+        )
+        .returning({ id: overlays.id });
+
+      if (!updatedOverlays[0]) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Overlay status changed while it was being updated",
+        });
+      }
     } catch (error) {
       if (error instanceof TRPCError) throw error;
       console.error("Error updating overlay:", error);
@@ -407,17 +459,33 @@ export const overlayRouter = router({
           });
         }
 
-        // Delete images first (safer - if DB delete fails, we just have orphaned files)
+        const deletedOverlays = await db
+          .delete(overlays)
+          .where(
+            and(
+              eq(overlays.id, input.id),
+              eq(overlays.authorId, userId),
+              eq(overlays.status, "pending"),
+            ),
+          )
+          .returning({ filename: overlays.filename });
+
+        const deletedOverlay = deletedOverlays[0];
+        if (!deletedOverlay) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "Overlay status changed while it was being deleted",
+          });
+        }
+
         try {
-          await deleteLocalImages(overlayToDelete.filename, "both");
+          await deleteLocalImages(deletedOverlay.filename, "both");
           console.log(`Deleted local images for overlay ${input.id}`);
         } catch (error) {
           console.error(`Failed to delete images for overlay ${input.id}:`, error);
           // Log to orphaned files but don't fail the deletion
           // The deleteLocalImages function handles logging internally
         }
-
-        await db.delete(overlays).where(eq(overlays.id, input.id));
       } catch (error) {
         console.error("Error deleting overlay:", error);
         if (error instanceof TRPCError) throw error;

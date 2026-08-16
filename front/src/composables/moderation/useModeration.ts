@@ -1,6 +1,5 @@
 import { computed, onMounted } from "vue";
 import { trpc } from "@/client";
-import { loadOrNull } from "@/services/core/errorHandling";
 
 import { useModerationStore } from "@/stores/moderationStore";
 import { useOverlayStore } from "@/stores/overlayStore";
@@ -13,10 +12,18 @@ import type { Project } from "@/types/index";
 import { toastError } from "@/services/core/toast";
 
 // Result type for approval operations
-type ApprovalResult = {
+export type ApprovalResult = {
   success: boolean;
   error?: "not_found" | "version_conflict" | "unknown";
   message?: string;
+};
+
+type ApprovalRequest = {
+  id: string;
+  status: "approved" | "rejected";
+  itemType: "overlay" | "project";
+  rejectionReason?: string;
+  rejectAllOverlays?: boolean;
 };
 
 let moderationFetchToken = 0;
@@ -82,23 +89,11 @@ export function useModeration() {
   }
 
   // Generic approval handler for any moderation item type
-  async function setApprovalStatus(
-    id: string,
-    status: "approved" | "rejected",
-    itemType: "overlay" | "project",
-    items: { id: string; version: number }[],
-    apiCall: (params: {
-      id: string;
-      expectedVersion: number;
-      status: "approved" | "rejected";
-      handleReplacementConflicts?: boolean;
-      rejectionReason?: string;
-      rejectAllOverlays?: boolean;
-    }) => Promise<{ success: boolean }>,
-    handleReplacementConflicts?: boolean,
-    rejectionReason?: string,
-    rejectAllOverlays?: boolean,
-  ): Promise<ApprovalResult> {
+  async function setApprovalStatus(request: ApprovalRequest): Promise<ApprovalResult> {
+    const { id, status, itemType } = request;
+    const isOverlay = itemType === "overlay";
+    const items: { id: string; version: number }[] = isOverlay ? overlays.value : projects.value;
+
     const item = items.find((i) => i.id === id);
     if (!item) {
       return {
@@ -113,19 +108,39 @@ export function useModeration() {
         ? `moderation.${itemType}ApprovalFailed`
         : `moderation.${itemType}RejectionFailed`;
 
-    const result = await loadOrNull(
-      async () =>
-        apiCall({
-          id,
-          expectedVersion: item.version,
-          status,
-          handleReplacementConflicts,
-          rejectionReason,
-          rejectAllOverlays,
-        }),
-      { errorMessage: `${t(failureMessageKey)}. Please try again.` },
-    );
+    const expectedVersion = item.version;
 
+    async function submitApproval(): Promise<{ success: boolean }> {
+      if (isOverlay) {
+        return trpc.moderation.setOverlayApprovalStatusWithVersion.mutate({
+          id,
+          expectedVersion,
+          status,
+          rejectionReason: request.rejectionReason,
+        });
+      }
+
+      return trpc.moderation.setProjectApprovalStatusWithVersion.mutate({
+        id,
+        expectedVersion,
+        status,
+        rejectionReason: request.rejectionReason,
+        rejectAllOverlays: request.rejectAllOverlays,
+      });
+    }
+
+    async function submitApprovalOrNull(): Promise<{ success: boolean } | null> {
+      try {
+        return await submitApproval();
+      } catch (error) {
+        console.error(`Failed to set ${itemType} moderation status:`, error);
+        moderationStore.invalidateModerationData();
+        await fetchPendingSubmissions();
+        return null;
+      }
+    }
+
+    const result = await submitApprovalOrNull();
     if (!result) {
       return {
         success: false,
@@ -158,7 +173,6 @@ export function useModeration() {
   async function setOverlayStatus(
     id: string,
     status: "approved" | "rejected",
-    handleReplacementConflicts?: boolean,
     rejectionReason?: string,
   ): Promise<ApprovalResult> {
     const overlayStore = useOverlayStore();
@@ -166,15 +180,12 @@ export function useModeration() {
     const overlay = overlays.value.find((o) => o.id === id);
     const replacesOverlayId = overlay?.replacesOverlayId;
 
-    const result = await setApprovalStatus(
+    const result = await setApprovalStatus({
       id,
       status,
-      "overlay",
-      overlays.value,
-      trpc.moderation.setOverlayApprovalStatusWithVersion.mutate,
-      handleReplacementConflicts,
+      itemType: "overlay",
       rejectionReason,
-    );
+    });
 
     if (result.success) {
       const overlayObject = overlayStore.liveOverlays[id];
@@ -185,7 +196,7 @@ export function useModeration() {
       }
 
       // If a replacement overlay was approved, remove the original and any competing replacements
-      if (status === "approved" && handleReplacementConflicts && replacesOverlayId) {
+      if (status === "approved" && replacesOverlayId) {
         removeOverlayFromMapAndStore(replacesOverlayId);
 
         const competingReplacements = Object.values(overlayStore.liveOverlays).filter(
@@ -201,15 +212,12 @@ export function useModeration() {
     return result;
   }
 
-  async function approveOverlay(
-    id: string,
-    handleReplacementConflicts?: boolean,
-  ): Promise<ApprovalResult> {
-    return setOverlayStatus(id, "approved", handleReplacementConflicts);
+  async function approveOverlay(id: string): Promise<ApprovalResult> {
+    return setOverlayStatus(id, "approved");
   }
 
   async function rejectOverlay(id: string, rejectionReason?: string): Promise<ApprovalResult> {
-    return setOverlayStatus(id, "rejected", undefined, rejectionReason);
+    return setOverlayStatus(id, "rejected", rejectionReason);
   }
 
   async function setProjectStatus(
@@ -218,18 +226,13 @@ export function useModeration() {
     rejectionReason?: string,
     rejectAllOverlays?: boolean,
   ): Promise<ApprovalResult> {
-    const result = await setApprovalStatus(
+    return setApprovalStatus({
       id,
       status,
-      "project",
-      projects.value,
-      trpc.moderation.setProjectApprovalStatusWithVersion.mutate,
-      undefined,
+      itemType: "project",
       rejectionReason,
       rejectAllOverlays,
-    );
-
-    return result;
+    });
   }
 
   async function approveProject(id: string): Promise<ApprovalResult> {

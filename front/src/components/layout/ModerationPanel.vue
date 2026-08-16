@@ -106,6 +106,7 @@
           <!-- Show moderation buttons for pending projects -->
           <ModerationActionButtons
             v-if="project.status === 'pending'"
+            :loading="isProcessingItem('project', project.id)"
             @approve="handleApproveProject(project.id)"
             @reject="handleRejectProject(project.id, project.ownerId ?? null)"
           />
@@ -123,6 +124,7 @@
                 ? $t('overlay.viewPositionRequired')
                 : ''
             "
+            :loading="isProcessingItem('overlay', overlay.id)"
             @approve="handleApproveOverlay(overlay.id)"
             @reject="handleRejectOverlay(overlay.id, overlay.authorId)"
           />
@@ -147,6 +149,7 @@
                 ? $t('overlay.viewSuggestedPosition')
                 : ''
             "
+            :loading="isProcessingItem('change', change.id)"
             @approve="handleApproveChange(change.id)"
             @reject="handleRejectChange(change.id, change.requestedBy)"
           />
@@ -160,7 +163,7 @@
 import { toastSuccess, toastInfo, toastWarn, toastError } from "@/services/core/toast";
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { useModeration } from "@/composables/moderation/useModeration";
+import { useModeration, type ApprovalResult } from "@/composables/moderation/useModeration";
 import { useModerationCountrySelector } from "@/composables/moderation/useModerationCountrySelector";
 import { approveChangeRequests, rejectChangeRequests } from "@/services/changes/changeRequests";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
@@ -225,11 +228,35 @@ let pendingOverlayId: string | null = null;
 const isProcessingConflicts = ref(false);
 
 const showReportDialog = ref(false);
-const userToReport = ref<string | null>(null);
+let userToReport: string | null = null;
 const isProcessingReport = ref(false);
 
 const showRejectConfirmDialog = ref(false);
 const isProcessingRejection = ref(false);
+const processingItemKeys = ref<Set<string>>(new Set());
+
+type ModerationItemType = "project" | "overlay" | "change";
+
+function moderationItemKey(type: ModerationItemType, id: string): string {
+  return `${type}:${id}`;
+}
+
+function isProcessingItem(type: ModerationItemType, id: string): boolean {
+  return processingItemKeys.value.has(moderationItemKey(type, id));
+}
+
+function startProcessingItem(type: ModerationItemType, id: string): boolean {
+  const key = moderationItemKey(type, id);
+  if (processingItemKeys.value.has(key)) return false;
+  processingItemKeys.value = new Set(processingItemKeys.value).add(key);
+  return true;
+}
+
+function stopProcessingItem(type: ModerationItemType, id: string): void {
+  const nextKeys = new Set(processingItemKeys.value);
+  nextKeys.delete(moderationItemKey(type, id));
+  processingItemKeys.value = nextKeys;
+}
 
 interface PendingRejectionExecution {
   type: "project" | "overlay" | "change";
@@ -310,10 +337,10 @@ function showSuccessToast(
 }
 
 // Helper to show error toast with version conflict handling
-function showErrorToast(result: { error?: string; message?: string }, approvalFailedKey: string) {
+function showErrorToast(result: ApprovalResult, approvalFailedKey: string) {
   const severity = result.error === "version_conflict" ? "warn" : "error";
   const summary =
-    result.error === "version_conflict" ? t("moderation.projectUpdated") : t(approvalFailedKey);
+    result.error === "version_conflict" ? t("moderation.submissionUpdated") : t(approvalFailedKey);
 
   if (severity === "warn") toastWarn(result.message, summary);
   else toastError(result.message, summary);
@@ -321,12 +348,18 @@ function showErrorToast(result: { error?: string; message?: string }, approvalFa
 
 // Handle project approval with toast notifications
 async function handleApproveProject(id: string) {
-  const result = await approveProject(id);
+  if (!startProcessingItem("project", id)) return;
 
-  if (result.success) {
-    showSuccessToast("moderation.projectApproved", "moderation.projectApprovedDetail");
-  } else {
-    showErrorToast(result, "moderation.approvalFailed");
+  try {
+    const result = await approveProject(id);
+
+    if (result.success) {
+      showSuccessToast("moderation.projectApproved", "moderation.projectApprovedDetail");
+    } else {
+      showErrorToast(result, "moderation.approvalFailed");
+    }
+  } finally {
+    stopProcessingItem("project", id);
   }
 }
 
@@ -354,6 +387,8 @@ async function executeRejectProject(
 
 // Handle overlay approval with replacement conflict checking
 async function handleApproveOverlay(id: string) {
+  if (!startProcessingItem("overlay", id)) return;
+
   try {
     // First check if this overlay is a replacement and if it has conflicts
     const overlay = projects.value.flatMap((p) => p.overlays ?? []).find((o) => o.id === id);
@@ -372,21 +407,23 @@ async function handleApproveOverlay(id: string) {
       }
 
       // No conflicts but it IS a replacement - handle replacement workflow
-      await proceedWithApproval(id, true);
+      await proceedWithApproval(id);
       return;
     }
 
     // Not a replacement - proceed with normal approval
-    await proceedWithApproval(id, false);
+    await proceedWithApproval(id);
   } catch (error) {
     console.error("Error checking replacement conflicts:", error);
     toastError(error instanceof Error ? error.message : t("errors.checkConflictsFailed"));
+  } finally {
+    stopProcessingItem("overlay", id);
   }
 }
 
 // Proceed with overlay approval (called after confirmation or directly if no conflicts)
-async function proceedWithApproval(id: string, handleConflicts = false) {
-  const result = await approveOverlay(id, handleConflicts);
+async function proceedWithApproval(id: string) {
+  const result = await approveOverlay(id);
 
   if (result.success) {
     showSuccessToast("moderation.overlayApproved", "moderation.overlayApprovedDetail");
@@ -398,11 +435,14 @@ async function proceedWithApproval(id: string, handleConflicts = false) {
 // Handle confirmation from replacement conflicts dialog
 async function handleConfirmReplacement() {
   if (!pendingOverlayId) return;
+  if (!startProcessingItem("overlay", pendingOverlayId)) return;
 
+  const overlayId = pendingOverlayId;
   isProcessingConflicts.value = true;
   try {
-    await proceedWithApproval(pendingOverlayId, true); // Pass true to handle conflicts
+    await proceedWithApproval(overlayId);
   } finally {
+    stopProcessingItem("overlay", overlayId);
     isProcessingConflicts.value = false;
     showConflictsDialog.value = false;
     pendingOverlayId = null;
@@ -418,7 +458,7 @@ function handleCancelReplacement() {
 
 function openReportDialog(userId: string | null) {
   if (!userId) return;
-  userToReport.value = userId;
+  userToReport = userId;
   showReportDialog.value = true;
 }
 
@@ -446,13 +486,13 @@ async function reportUser(userId: string, reason: string): Promise<boolean> {
 }
 
 async function handleReportConfirm(reason: string) {
-  if (!userToReport.value) return;
+  if (!userToReport) return;
 
   isProcessingReport.value = true;
   try {
-    if (await reportUser(userToReport.value, reason)) {
+    if (await reportUser(userToReport, reason)) {
       showReportDialog.value = false;
-      userToReport.value = null;
+      userToReport = null;
     }
   } finally {
     isProcessingReport.value = false;
@@ -496,13 +536,20 @@ async function refreshAfterChangeRequest(mapDataChanged: boolean): Promise<void>
 
 // Handle change request approval with toast notifications
 async function handleApproveChange(changeId: string) {
-  const result = await approveChangeRequests([changeId]);
+  if (!startProcessingItem("change", changeId)) return;
 
-  if (result) {
-    await refreshAfterChangeRequest(true);
-    toastSuccess(t("moderation.changeApprovedDetail"), t("moderation.changeApproved"));
-  } else {
-    toastError(t("moderation.approvalFailedDetail"), t("moderation.approvalFailed"));
+  try {
+    const result = await approveChangeRequests([changeId]);
+
+    if (result) {
+      await refreshAfterChangeRequest(true);
+      toastSuccess(t("moderation.changeApprovedDetail"), t("moderation.changeApproved"));
+    } else {
+      await refreshAfterChangeRequest(false);
+      toastError(t("moderation.approvalFailedDetail"), t("moderation.approvalFailed"));
+    }
+  } finally {
+    stopProcessingItem("change", changeId);
   }
 }
 
@@ -557,6 +604,7 @@ async function executeRejectChange(changeId: string): Promise<boolean> {
     await refreshAfterChangeRequest(false);
     toastInfo(t("moderation.changeRejectedDetail"), t("moderation.changeRejected"));
   } else {
+    await refreshAfterChangeRequest(false);
     toastError(t("moderation.rejectionFailedDetail"), t("moderation.rejectionFailed"));
   }
 

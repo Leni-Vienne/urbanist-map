@@ -167,7 +167,6 @@ export const reportProcedures = {
     .mutation(async ({ input }) => {
       try {
         await db.delete(userReports).where(eq(userReports.reportedUserId, input.userId));
-        return { success: true };
       } catch (error) {
         console.error("Error clearing user reports:", error);
         throw new TRPCError({
@@ -240,8 +239,6 @@ export const reportProcedures = {
         });
 
         await deleteUserSessions(input.userId);
-
-        return { success: true };
       } catch (error) {
         console.error("Error banning user:", error);
         throw new TRPCError({

@@ -30,6 +30,7 @@ export const queueProcedures = {
             replacesOverlayId: overlays.replacesOverlayId,
             filename: overlays.filename,
             caption: overlays.caption,
+            projectId: overlays.projectId,
           })
           .from(overlays)
           .where(eq(overlays.id, input.overlayId))
@@ -43,7 +44,7 @@ export const queueProcedures = {
 
         const replacesOverlayId = overlayRecord.replacesOverlayId;
 
-        if (!replacesOverlayId) {
+        if (!replacesOverlayId || !overlayRecord.projectId) {
           return null;
         }
 
@@ -55,7 +56,12 @@ export const queueProcedures = {
             filename: overlays.filename,
           })
           .from(overlays)
-          .where(eq(overlays.id, replacesOverlayId))
+          .where(
+            and(
+              eq(overlays.id, replacesOverlayId),
+              eq(overlays.projectId, overlayRecord.projectId),
+            ),
+          )
           .limit(1);
 
         const originalRecord = originalOverlay[0];
@@ -95,6 +101,7 @@ export const queueProcedures = {
           .where(
             and(
               eq(overlays.replacesOverlayId, replacesOverlayId),
+              eq(overlays.projectId, overlayRecord.projectId),
               eq(overlays.status, "pending"),
               ne(overlays.id, input.overlayId),
             ),

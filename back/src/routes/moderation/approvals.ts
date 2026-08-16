@@ -2,7 +2,7 @@ import { moderatorProcedure } from "../../trpc";
 import { checkModeratorCountryPermission, checkModeratorOverlayPermission } from "./shared";
 import { invalidateProjectTiles, invalidateOverlayTiles } from "../tiles";
 import { invalidateLatestContributionsCache } from "../feed";
-import { projects, overlays, approvalStatusEnum, changeRequests, users } from "../../db/schema";
+import { projects, overlays, changeRequests, users } from "../../db/schema";
 import { and, eq, or, sql, inArray, ne } from "drizzle-orm";
 import { db, type Database } from "../../database";
 import {
@@ -15,9 +15,15 @@ import { assignProjectBoundary } from "../../db/boundaryAssignment";
 import { refreshProjectIndexable } from "../../db/indexable";
 import * as z from "zod";
 
-type DbOrTx = Pick<typeof db, "update">;
+type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
-async function incrementApprovedCount(tx: DbOrTx, userId: string | null): Promise<void> {
+// A moderation attempt that lost a race (row gone, version moved, already processed). Thrown
+// rather than returned so the enclosing transaction rolls back instead of committing.
+class ModerationConflictError extends Error {
+  public override name = "ModerationConflictError";
+}
+
+async function incrementApprovedCount(tx: Transaction, userId: string | null): Promise<void> {
   if (!userId) return;
   await tx
     .update(users)
@@ -25,7 +31,7 @@ async function incrementApprovedCount(tx: DbOrTx, userId: string | null): Promis
     .where(eq(users.id, userId));
 }
 
-async function incrementRejectedCount(tx: DbOrTx, userId: string | null): Promise<void> {
+async function incrementRejectedCount(tx: Transaction, userId: string | null): Promise<void> {
   if (!userId) return;
   await tx
     .update(users)
@@ -37,7 +43,7 @@ async function incrementRejectedCount(tx: DbOrTx, userId: string | null): Promis
 const setApprovalStatusWithVersionSchema = z.object({
   id: z.string().uuid(),
   expectedVersion: z.number().int(),
-  status: z.enum(approvalStatusEnum.enumValues),
+  status: z.enum(["approved", "rejected"]),
   rejectionReason: z.string().max(500).optional(),
   rejectAllOverlays: z.boolean().optional(),
 });
@@ -45,21 +51,23 @@ const setApprovalStatusWithVersionSchema = z.object({
 export const approvalProcedures = {
   setProjectApprovalStatusWithVersion: moderatorProcedure
     .input(setApprovalStatusWithVersionSchema)
-    .mutation(async ({ input, ctx }) => {
-      try {
-        await checkModeratorCountryPermission(input.id, ctx.user);
+    .mutation(async ({ input, ctx }): Promise<{ success: boolean }> => {
+      // Outside the try so its FORBIDDEN / NOT_FOUND reaches the client instead of a 500.
+      await checkModeratorCountryPermission(input.id, ctx.user);
 
+      try {
         const statusCondition =
           input.status === "rejected"
             ? or(eq(projects.status, "pending"), eq(projects.status, "approved"))
             : eq(projects.status, "pending");
 
-        const result = await db.transaction(async (tx) => {
+        const rejectedOverlays = await db.transaction(async (tx) => {
           const updateResult = await tx
             .update(projects)
             .set({
               status: input.status,
               rejectionReason: input.status === "rejected" ? (input.rejectionReason ?? null) : null,
+              version: sql`${projects.version} + 1`,
             })
             .where(
               and(
@@ -68,103 +76,69 @@ export const approvalProcedures = {
                 statusCondition,
               ),
             )
-            .returning({
-              id: projects.id,
-              version: projects.version,
-              ownerId: projects.ownerId,
-            });
+            .returning({ ownerId: projects.ownerId });
 
           const updatedProject = updateResult[0];
           if (!updatedProject) {
-            // Either project doesn't exist, version mismatch, or status not allowed
-            const currentProject = await tx
-              .select({ version: projects.version, status: projects.status })
-              .from(projects)
-              .where(eq(projects.id, input.id))
-              .limit(1);
-
-            const projectRecord = currentProject[0];
-
-            if (!projectRecord) {
-              return { success: false, error: "Project not found" };
-            } else if (
-              projectRecord.status !== "pending" &&
-              !(input.status === "rejected" && projectRecord.status === "approved")
-            ) {
-              return { success: false, error: "Project already processed" };
-            } else {
-              return { success: false, error: "Version mismatch" };
-            }
+            throw new ModerationConflictError("Project gone, version moved, or already processed");
           }
 
           const ownerId = updatedProject.ownerId;
           if (input.status === "approved") {
             await incrementApprovedCount(tx, ownerId);
-          } else if (input.status === "rejected") {
-            await incrementRejectedCount(tx, ownerId);
-
-            let rejectedOverlayFilenames: string[] = [];
-            if (input.rejectAllOverlays) {
-              const pendingOverlays = await tx
-                .select({
-                  id: overlays.id,
-                  filename: overlays.filename,
-                  authorId: overlays.authorId,
-                })
-                .from(overlays)
-                .where(and(eq(overlays.projectId, input.id), eq(overlays.status, "pending")));
-
-              if (pendingOverlays.length > 0) {
-                await tx
-                  .update(overlays)
-                  .set({ status: "rejected", rejectionReason: input.rejectionReason ?? null })
-                  .where(and(eq(overlays.projectId, input.id), eq(overlays.status, "pending")));
-
-                for (const overlay of pendingOverlays) {
-                  await incrementRejectedCount(tx, overlay.authorId);
-                }
-
-                rejectedOverlayFilenames = pendingOverlays.map((o) => o.filename);
-              }
-            }
-
-            return {
-              success: true as const,
-              rejectedOverlayFilenames,
-            };
+            return [];
           }
 
-          return { success: true as const };
+          await incrementRejectedCount(tx, ownerId);
+          if (!input.rejectAllOverlays) return [];
+
+          const pendingOverlays = await tx
+            .select({
+              id: overlays.id,
+              filename: overlays.filename,
+              authorId: overlays.authorId,
+            })
+            .from(overlays)
+            .where(and(eq(overlays.projectId, input.id), eq(overlays.status, "pending")));
+
+          if (pendingOverlays.length === 0) return [];
+
+          await tx
+            .update(overlays)
+            .set({ status: "rejected", rejectionReason: input.rejectionReason ?? null })
+            .where(and(eq(overlays.projectId, input.id), eq(overlays.status, "pending")));
+
+          for (const overlay of pendingOverlays) {
+            await incrementRejectedCount(tx, overlay.authorId);
+          }
+
+          return pendingOverlays;
         });
 
-        if (
-          result.success &&
-          result.rejectedOverlayFilenames &&
-          result.rejectedOverlayFilenames.length > 0
-        ) {
-          for (const filename of result.rejectedOverlayFilenames) {
+        // Committed: nothing below may fail the request, or the moderator retries an action that
+        // already succeeded. Indexing has the daily import pass as its safety net.
+        try {
+          for (const overlay of rejectedOverlays) {
             try {
-              // Use project ID as identifier (no per-overlay ID available here)
-              await cleanupRejectedPendingOverlay(input.id, filename);
+              await cleanupRejectedPendingOverlay(overlay.id, overlay.filename);
             } catch (error) {
-              console.error(`Failed to cleanup rejected overlay: ${filename}`, error);
-              // Don't fail the request if cleanup fails
+              console.error(`Failed to cleanup rejected overlay: ${overlay.filename}`, error);
             }
           }
-        }
 
-        if (result.success) await invalidateProjectTiles(input.id);
-
-        if (result.success && input.status === "approved") {
+          await invalidateProjectTiles(input.id);
           invalidateLatestContributionsCache();
+          await refreshProjectIndexable(input.id);
+        } catch (error) {
+          console.error(`Post-moderation side effects failed for project ${input.id}:`, error);
         }
 
-        // Approval/rejection changes whether the project qualifies for indexing. Best-effort and
-        // post-commit; the daily import pass is the safety net.
-        if (result.success) await refreshProjectIndexable(input.id);
-
-        return result;
+        return { success: true };
       } catch (error) {
+        if (error instanceof ModerationConflictError) {
+          return { success: false };
+        }
+
         console.error("Error updating project status with version:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
@@ -174,137 +148,98 @@ export const approvalProcedures = {
     }),
 
   setOverlayApprovalStatusWithVersion: moderatorProcedure
-    .input(
-      setApprovalStatusWithVersionSchema.extend({
-        handleReplacementConflicts: z.boolean().optional().default(false),
-      }),
-    )
-    .mutation(async ({ input, ctx }) => {
+    .input(setApprovalStatusWithVersionSchema)
+    .mutation(async ({ input, ctx }): Promise<{ success: boolean }> => {
+      // Outside the try so its FORBIDDEN / NOT_FOUND reaches the client instead of a 500.
+      await checkModeratorOverlayPermission(input.id, ctx.user);
+
       try {
-        await checkModeratorOverlayPermission(input.id, ctx.user);
-
-        const overlayData = await db
-          .select({
-            id: overlays.id,
-            filename: overlays.filename,
-            replacesOverlayId: overlays.replacesOverlayId,
-            authorId: overlays.authorId,
-            projectId: overlays.projectId,
-            kind: overlays.kind,
-          })
-          .from(overlays)
-          .where(eq(overlays.id, input.id))
-          .limit(1);
-
-        const overlay = overlayData[0];
-        if (!overlay) {
-          return { success: false, error: "Overlay not found" };
-        }
-
-        const overlayFilename = overlay.filename;
-        const replacesOverlayId = overlay.replacesOverlayId;
-        const authorId = overlay.authorId;
-
         if (input.status === "rejected") {
-          return await handleOverlayRejection(
-            input.id,
-            input.expectedVersion,
-            authorId,
-            overlayFilename,
-            input.rejectionReason,
-          );
+          const rejectedOverlay = await db.transaction(async (tx) => {
+            const overlay = await getOverlayForModeration(tx, input.id);
+            await rejectOverlay(
+              tx,
+              input.id,
+              input.expectedVersion,
+              overlay.authorId,
+              input.rejectionReason,
+            );
+            return overlay;
+          });
+
+          // Committed: cleanup must not fail the request.
+          try {
+            await cleanupRejectedPendingOverlay(input.id, rejectedOverlay.filename);
+          } catch (error) {
+            console.error(`Failed to cleanup rejected overlay ${input.id}:`, error);
+          }
+
+          return { success: true };
         }
 
-        const transactionResult = await db.transaction(async (tx) => {
-          const currentOverlay = await tx
-            .select({
-              id: overlays.id,
-              status: overlays.status,
-              version: overlays.version,
-              replacesOverlayId: overlays.replacesOverlayId,
-            })
-            .from(overlays)
-            .where(eq(overlays.id, input.id))
-            .limit(1);
+        const approval = await db.transaction(async (tx) => {
+          const overlay = await getOverlayForModeration(tx, input.id);
+          const replacement = overlay.replacesOverlayId
+            ? await resolveReplacementConflicts(
+                tx,
+                overlay.replacesOverlayId,
+                input.id,
+                overlay.projectId,
+                ctx.user.id,
+              )
+            : null;
 
-          const overlayRecord = currentOverlay[0];
+          await approveOverlay(tx, input.id, input.expectedVersion, overlay.authorId);
 
-          if (!overlayRecord) {
-            return { success: false, error: "Overlay not found" };
-          }
-
-          if (overlayRecord.version !== input.expectedVersion) {
-            return { success: false, error: "Version mismatch" };
-          }
-
-          if (overlayRecord.status !== "pending") {
-            return { success: false, error: "Overlay already processed" };
-          }
-
-          let competingReplacements: { id: string; filename: string; authorId: string | null }[] =
-            [];
-          if (replacesOverlayId && input.handleReplacementConflicts) {
-            const replacementResult = await handleReplacementConflicts(
-              tx,
-              replacesOverlayId,
-              input.id,
-              ctx.user.id,
-            );
-
-            if (!replacementResult.success) {
-              return { success: false, error: replacementResult.error };
-            }
-
-            competingReplacements = replacementResult.competingReplacements;
-          }
-
-          const approvalResult = await handleOverlayApproval(
-            tx,
-            input.id,
-            input.expectedVersion,
-            authorId,
-          );
-
-          if (!approvalResult.success) {
-            return { success: false, error: approvalResult.error };
-          }
-
-          return {
-            success: true,
-            competingReplacements: replacesOverlayId ? competingReplacements : [],
-          };
+          return { overlay, replacement };
         });
 
-        if (!transactionResult.success) {
-          return transactionResult;
+        // Queue the approved image before optional cleanup work. Each post-commit side effect has
+        // its own failure boundary so one failure cannot suppress the remaining reconciliation.
+        if (process.env.NODE_ENV === "production") {
+          try {
+            queueR2Migration(approval.overlay.filename);
+          } catch (error) {
+            console.error(`Failed to queue R2 migration for overlay ${input.id}:`, error);
+          }
         }
 
-        if (replacesOverlayId && input.handleReplacementConflicts) {
-          await cleanupReplacementImages(
-            transactionResult.competingReplacements ?? [],
-            replacesOverlayId,
-          );
-        }
-
-        // Rejection returned early above, so this path always approves the overlay.
-        if (overlayFilename && process.env.NODE_ENV === "production") {
-          queueR2Migration(overlayFilename);
+        if (approval.replacement) {
+          try {
+            await cleanupReplacementImages(
+              approval.replacement.competingReplacements,
+              approval.replacement.originalOverlay,
+            );
+          } catch (error) {
+            console.error(`Failed to cleanup replacement images for overlay ${input.id}:`, error);
+          }
         }
 
         await invalidateOverlayTiles(input.id);
-        invalidateLatestContributionsCache();
+        if (approval.replacement) {
+          await invalidateOverlayTiles(approval.replacement.originalOverlay.id);
+        }
+
+        try {
+          invalidateLatestContributionsCache();
+        } catch (error) {
+          console.error(`Failed to invalidate contribution caches for overlay ${input.id}:`, error);
+        }
 
         // A newly approved map overlay extends the project's footprint, so re-derive its boundary.
-        // Best-effort and post-commit: never blocks or rolls back the approval.
-        if (overlay.kind === "map" && overlay.projectId) {
-          await assignProjectBoundary(overlay.projectId);
+        if (approval.overlay.kind === "map") {
+          await assignProjectBoundary(approval.overlay.projectId);
         }
 
         // An approved overlay can make its project newly indexable (visual content gate).
-        if (overlay.projectId) await refreshProjectIndexable(overlay.projectId);
+        await refreshProjectIndexable(approval.overlay.projectId);
 
-        return transactionResult;
+        return { success: true };
       } catch (error) {
+        if (error instanceof ModerationConflictError) {
+          return { success: false };
+        }
+
         console.error("Error updating overlay status with version:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
@@ -314,92 +249,91 @@ export const approvalProcedures = {
     }),
 };
 
-async function handleOverlayRejection(
+async function getOverlayForModeration(tx: Transaction, overlayId: string) {
+  const rows = await tx
+    .select({
+      filename: overlays.filename,
+      replacesOverlayId: overlays.replacesOverlayId,
+      authorId: overlays.authorId,
+      projectId: overlays.projectId,
+      kind: overlays.kind,
+    })
+    .from(overlays)
+    .where(eq(overlays.id, overlayId))
+    .limit(1);
+
+  const overlay = rows[0];
+  if (!overlay?.projectId) {
+    throw new ModerationConflictError("Overlay gone or detached from its project");
+  }
+
+  return { ...overlay, projectId: overlay.projectId };
+}
+
+async function rejectOverlay(
+  tx: Transaction,
   overlayId: string,
   expectedVersion: number,
   authorId: string | null,
-  filename: string,
   rejectionReason?: string,
-): Promise<{ success: boolean; error?: string }> {
-  const rejectionResult = await db.transaction(async (tx) => {
-    const result = await tx
-      .update(overlays)
-      .set({
-        status: "rejected",
-        version: sql`${overlays.version} + 1`,
-        rejectionReason: rejectionReason ?? null,
-      })
-      .where(
-        and(
-          eq(overlays.id, overlayId),
-          eq(overlays.version, expectedVersion),
-          eq(overlays.status, "pending"),
-        ),
-      )
-      .returning({ id: overlays.id, version: overlays.version });
+): Promise<void> {
+  const result = await tx
+    .update(overlays)
+    .set({
+      status: "rejected",
+      version: sql`${overlays.version} + 1`,
+      rejectionReason: rejectionReason ?? null,
+    })
+    .where(
+      and(
+        eq(overlays.id, overlayId),
+        eq(overlays.version, expectedVersion),
+        eq(overlays.status, "pending"),
+      ),
+    )
+    .returning({ id: overlays.id });
 
-    if (result.length === 0) {
-      return { success: false as const, error: "Version mismatch or already processed" };
-    }
-
-    await incrementRejectedCount(tx, authorId);
-
-    return { success: true as const };
-  });
-
-  if (!rejectionResult.success) {
-    return rejectionResult;
+  if (result.length === 0) {
+    throw new ModerationConflictError("Version mismatch or already processed");
   }
 
-  try {
-    await cleanupRejectedPendingOverlay(overlayId, filename);
-  } catch (error) {
-    console.error("Failed to cleanup rejected overlay images:", error);
-    // Don't fail the rejection if cleanup fails
-  }
-
-  return { success: true };
+  await incrementRejectedCount(tx, authorId);
 }
 
-async function handleReplacementConflicts(
-  tx: Parameters<Parameters<Database["transaction"]>[0]>[0],
+// Retires the overlay being replaced and rejects the other pending candidates for it, returning
+// those losers so their images can be cleaned up once the transaction commits.
+async function resolveReplacementConflicts(
+  tx: Transaction,
   replacesOverlayId: string,
   newOverlayId: string,
+  projectId: string,
   moderatorId: string,
 ): Promise<{
-  success: boolean;
-  error?: string;
-  competingReplacements: { id: string; filename: string; authorId: string | null }[];
+  originalOverlay: { id: string; filename: string };
+  competingReplacements: { id: string; filename: string }[];
 }> {
-  const originalOverlay = await tx
-    .select({
-      id: overlays.id,
-      status: overlays.status,
-      version: overlays.version,
-      filename: overlays.filename,
-    })
-    .from(overlays)
-    .where(eq(overlays.id, replacesOverlayId))
-    .limit(1);
-
-  const originalRecord = originalOverlay[0];
-
-  if (originalRecord?.status !== "approved") {
-    return {
-      success: false,
-      error: "Original overlay not found or not approved",
-      competingReplacements: [],
-    };
-  }
-
-  await tx
+  const originalOverlays = await tx
     .update(overlays)
     .set({
       status: "replaced",
       replacedByOverlayId: newOverlayId,
       version: sql`${overlays.version} + 1`,
     })
-    .where(eq(overlays.id, replacesOverlayId));
+    .where(
+      and(
+        eq(overlays.id, replacesOverlayId),
+        eq(overlays.projectId, projectId),
+        eq(overlays.status, "approved"),
+      ),
+    )
+    .returning({ id: overlays.id, filename: overlays.filename });
+
+  const originalOverlay = originalOverlays[0];
+  if (!originalOverlay) {
+    throw new ModerationConflictError(
+      "Original overlay is not an approved overlay from the same project",
+    );
+  }
 
   await tx
     .update(changeRequests)
@@ -422,6 +356,7 @@ async function handleReplacementConflicts(
     .where(
       and(
         eq(overlays.replacesOverlayId, replacesOverlayId),
+        eq(overlays.projectId, projectId),
         eq(overlays.status, "pending"),
         ne(overlays.id, newOverlayId),
       ),
@@ -446,17 +381,17 @@ async function handleReplacementConflicts(
     }
   }
 
-  return { success: true, competingReplacements };
+  return { originalOverlay, competingReplacements };
 }
 
-async function handleOverlayApproval(
-  tx: Parameters<Parameters<Database["transaction"]>[0]>[0],
+async function approveOverlay(
+  tx: Transaction,
   overlayId: string,
   expectedVersion: number,
   authorId: string | null,
-): Promise<{ success: boolean; error?: string }> {
-  // Guard the UPDATE on version so two concurrent approvals can't both apply the
-  // side effects (the prior SELECT doesn't lock the row; this closes the race).
+): Promise<void> {
+  // The version + status guard belongs in the UPDATE itself: a preceding SELECT wouldn't lock the
+  // row, so two concurrent approvals could both pass it and apply the side effects twice.
   const result = await tx
     .update(overlays)
     .set({
@@ -464,12 +399,18 @@ async function handleOverlayApproval(
       version: sql`${overlays.version} + 1`,
       replacesOverlayId: null,
     })
-    .where(and(eq(overlays.id, overlayId), eq(overlays.version, expectedVersion)))
-    .returning({ id: overlays.id, projectId: overlays.projectId });
+    .where(
+      and(
+        eq(overlays.id, overlayId),
+        eq(overlays.version, expectedVersion),
+        eq(overlays.status, "pending"),
+      ),
+    )
+    .returning({ projectId: overlays.projectId });
 
   const approvedOverlay = result[0];
   if (!approvedOverlay) {
-    return { success: false, error: "Version mismatch or already processed" };
+    throw new ModerationConflictError("Version mismatch or already processed");
   }
 
   const approvedProjectId = approvedOverlay.projectId;
@@ -481,35 +422,19 @@ async function handleOverlayApproval(
   }
 
   await incrementApprovedCount(tx, authorId);
-
-  return { success: true };
 }
 
 async function cleanupReplacementImages(
   competingReplacements: { id: string; filename: string }[],
-  replacesOverlayId: string,
+  originalOverlay: { id: string; filename: string },
 ): Promise<void> {
-  try {
-    for (const competing of competingReplacements) {
-      try {
-        await cleanupRejectedPendingOverlay(competing.id, competing.filename);
-      } catch (error) {
-        console.error(`Failed to cleanup competing replacement ${competing.id}:`, error);
-      }
+  for (const competing of competingReplacements) {
+    try {
+      await cleanupRejectedPendingOverlay(competing.id, competing.filename);
+    } catch (error) {
+      console.error(`Failed to cleanup competing replacement ${competing.id}:`, error);
     }
-
-    const originalOverlayData = await db
-      .select({ filename: overlays.filename })
-      .from(overlays)
-      .where(eq(overlays.id, replacesOverlayId))
-      .limit(1);
-
-    const originalRecord = originalOverlayData[0];
-
-    if (originalRecord) {
-      await cleanupReplacedApprovedOverlay(replacesOverlayId, originalRecord.filename);
-    }
-  } catch (error) {
-    console.error("Failed to cleanup replacement images:", error);
   }
+
+  await cleanupReplacedApprovedOverlay(originalOverlay.id, originalOverlay.filename);
 }
