@@ -1,13 +1,12 @@
-import type { Project } from "@/types/index";
 import { useProjectStore } from "@/stores/projectStore";
 import { useAuthStore } from "@/stores/authStore";
-import { createProjectObject } from "@/utils/typeFactories";
+import { createLocalProject, type LocalProjectInput } from "@/utils/typeFactories";
 
-export function createProject(projectData: Partial<Omit<Project, "id" | "overlayIds" | "color">>) {
+export function createProject(projectData: LocalProjectInput) {
   const authStore = useAuthStore();
   const projectStore = useProjectStore();
 
-  const project = createProjectObject({
+  const project = createLocalProject({
     ...projectData,
     ownerId: projectData.ownerId ?? authStore.user?.id ?? null,
   });

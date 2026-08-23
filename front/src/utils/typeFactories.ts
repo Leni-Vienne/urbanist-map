@@ -1,12 +1,28 @@
 // Factory functions for creating type instances to reduce duplication
-import type { Project, ProjectDetailFields, OverlayObject, Overlay, LatLng } from "@/types/index";
+import type {
+  Project,
+  ProjectDetailFields,
+  ProjectSummary,
+  LocalProject,
+  HydratedProject,
+  OverlayObject,
+  Overlay,
+  LatLng,
+} from "@/types/index";
 import type { ApprovalStatus } from "@shared/types";
 import { v4 as uuidv4 } from "uuid";
 import { buildImageUrl } from "@/utils/imageUrl";
 
-// Accepts any subset of Project fields, with null allowed for any field.
-// All coercion to non-null defaults happens inside the factory body.
-type ProjectInput = { [K in keyof Project]?: Project[K] | null };
+export type LocalProjectInput = Partial<Omit<ProjectSummary, "id" | "status">> & {
+  id?: string;
+};
+
+export type ProjectWire = Omit<ProjectSummary, "tags" | "overlayIds"> & {
+  tags: string[] | null;
+  overlayIds?: string[];
+};
+
+type HydratedProjectWire = ProjectWire & ProjectDetailFields;
 
 // Rename a wire overlay's `corners` to the frontend domain field `baselineCorners`, and snapshot
 // the wire `caption` into `baselineCaption` (the approved caption, never overwritten by edits).
@@ -27,11 +43,25 @@ export function overlayWireToData<T extends { corners: LatLng[]; caption?: strin
   };
 }
 
-/**
- * Create a new Project instance with defaults
- */
+export function projectFromWire(data: ProjectWire): ProjectSummary {
+  return {
+    ...data,
+    tags: data.tags ?? [],
+    overlayIds: data.overlayIds ?? [],
+  };
+}
+
+export function hydratedProjectFromWire(data: HydratedProjectWire): HydratedProject {
+  return {
+    ...data,
+    tags: data.tags ?? [],
+    overlayIds: data.overlayIds ?? [],
+  };
+}
+
+// Create a browser-local draft. Defaults belong here because no backend row exists yet.
 // eslint-disable-next-line complexity
-export function createProjectObject(data: ProjectInput): Project {
+export function createLocalProject(data: LocalProjectInput): LocalProject {
   const id = data.id ?? uuidv4();
 
   return {
@@ -49,7 +79,7 @@ export function createProjectObject(data: ProjectInput): Project {
     createdAt: data.createdAt ?? new Date(),
     updatedAt: data.updatedAt ?? new Date(),
     ownerId: data.ownerId ?? "",
-    status: data.status ?? null,
+    status: null,
     timelineStatus: data.timelineStatus ?? "proposed",
     importSourceId: data.importSourceId ?? null,
     externalId: data.externalId ?? null,
@@ -63,21 +93,18 @@ export function createProjectObject(data: ProjectInput): Project {
     geometrySizeM: data.geometrySizeM ?? null,
     tags: data.tags ?? [],
     countryCode: data.countryCode ?? "",
-    slug: data.slug,
-    // Detail fields remain omitted until their source has supplied them.
-    render: data.render,
-    boundaryPath: data.boundaryPath,
     ownerUsername: data.ownerUsername,
   };
 }
 
-export function getProjectDetailFields(project: Project): ProjectDetailFields {
-  return {
-    slug: project.slug ?? null,
-    render: project.render ?? null,
-    ownerUsername: project.ownerUsername ?? null,
-    boundaryPath: project.boundaryPath ?? null,
-  };
+export function hasProjectDetailFields(project: Project): project is HydratedProject {
+  return (
+    project.status !== null &&
+    project.slug !== undefined &&
+    project.render !== undefined &&
+    project.ownerUsername !== undefined &&
+    project.boundaryPath !== undefined
+  );
 }
 
 /**

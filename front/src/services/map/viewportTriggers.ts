@@ -17,7 +17,7 @@ import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 import { clearAllOverlays, clearOverlayRenderState } from "@/services/overlay/teardown";
 import * as registry from "@/services/overlay/mapLayers";
 import { clearOverlayChangeRequestState, upsertOverlayFromWire } from "@/services/overlay/sync";
-import { createProjectObject, overlayWireToData } from "@/utils/typeFactories";
+import { projectFromWire, overlayWireToData, type ProjectWire } from "@/utils/typeFactories";
 import { loadOrNull } from "@/services/core/errorHandling";
 import { trpc } from "@/client";
 import {
@@ -33,15 +33,13 @@ function cacheMapSessionOverlays(overlaysData: OverlayData[]): string[] {
   return overlaysData.map((overlayData) => upsertOverlayFromWire(overlayData).id);
 }
 
-type SessionProjectInput = Parameters<typeof createProjectObject>[0] & { id: string };
-
-function cacheMapSessionProjects(projects: SessionProjectInput[]): string[] {
+function cacheMapSessionProjects(projects: ProjectWire[]): string[] {
   const projectStore = useProjectStore();
   const projectIds: string[] = [];
   for (const project of projects) {
     const current = projectStore.getProjectById(project.id);
     const stored = projectStore.adoptBackendProjectSummary(
-      createProjectObject({
+      projectFromWire({
         ...project,
         overlayIds: current?.overlayIds ?? [],
       }),
@@ -67,7 +65,7 @@ function clearResolvedChangeRequestState(sessionOverlayIds: string[]): void {
 // Cache a fetched session set into the stores, then make it the mode's snapshot and render it.
 function applyMapSessionRows(
   mode: "edit" | "moderation",
-  projects: SessionProjectInput[],
+  projects: ProjectWire[],
   overlays: OverlayData[],
 ): void {
   const projectIds = cacheMapSessionProjects(projects);

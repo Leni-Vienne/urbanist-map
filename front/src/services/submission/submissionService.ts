@@ -355,7 +355,10 @@ async function submitOverlay(
   await trpc.overlay.updateOverlay.mutate({ id: overlayId, caption });
 
   if (caption !== undefined) {
-    useProjectStore().updateOverlayInUserContributions(overlayId, { caption });
+    const projectId = getOverlayOrThrow(overlayId).projectId;
+    if (projectId) {
+      useProjectStore().updateOverlayInUserContributions(projectId, overlayId, { caption });
+    }
   }
 }
 

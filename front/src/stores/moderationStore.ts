@@ -1,6 +1,6 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { computed, ref } from "vue";
-import type { Project, Overlay, ContributionProject, PendingChangeRequest } from "@/types/index";
+import type { Overlay, ContributionProject, PendingChangeRequest } from "@/types/index";
 import type { RouterOutput } from "@/client";
 import { useProjectStore } from "@/stores/projectStore";
 
@@ -19,11 +19,7 @@ export const useModerationStore = defineStore("moderation", () => {
       const project = projectStore.getMapProjectById(id, "moderation");
       if (!project) continue;
       const inlineOverlays = projectOverlays.value[id] ?? [];
-      result.push({
-        ...project,
-        overlays: inlineOverlays,
-        overlayIds: inlineOverlays.map((overlay) => overlay.id),
-      });
+      result.push({ ...project, overlays: inlineOverlays });
     }
     return result;
   });
@@ -37,14 +33,14 @@ export const useModerationStore = defineStore("moderation", () => {
   const pendingCountsLoaded = ref(false);
 
   function setModerationData(data: {
-    projects: Project[];
+    projects: ContributionProject[];
     changeRequests: PendingChangeRequest[];
   }) {
     const nextProjectIds: string[] = [];
     const nextProjectOverlays: Record<string, Overlay[]> = {};
     const projectStore = useProjectStore();
     for (const project of data.projects) {
-      const inlineOverlays = project.overlays ?? [];
+      const inlineOverlays = project.overlays;
       const { overlays: _overlays, ...summary } = project;
       const current = projectStore.getProjectById(project.id);
       const backendProject = projectStore.getMapProjectById(project.id, "moderation");

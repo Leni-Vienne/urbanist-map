@@ -21,7 +21,6 @@ function buildLocalContribution(
   return {
     ...project,
     overlays,
-    overlayIds: overlays.map((o) => o.id),
     countryName: project.countryName ?? null,
     ownerUsername: username,
   };
@@ -47,8 +46,13 @@ export function useUserContributions() {
     if (!user) return [];
 
     const contributionsMap = new Map<string, ContributionProject>();
-    for (const contrib of Object.values(projectStore.userContributions)) {
-      contributionsMap.set(contrib.id, { ...contrib });
+    for (const [projectId, overlays] of Object.entries(projectStore.userContributionOverlays)) {
+      const project = projectStore.projects[projectId];
+      if (!project) continue;
+      contributionsMap.set(projectId, {
+        ...project,
+        overlays,
+      });
     }
 
     // Overlays aren't filtered by authorId: they can be added to projects the user doesn't own, and
@@ -92,21 +96,9 @@ export function useUserContributions() {
     );
     for (const localProject of localProjects) {
       if (contributionsMap.has(localProject.id)) continue;
-      const overlayData = localOverlays
-        .filter((o) => o.projectId === localProject.id)
-        .map((overlay) =>
-          createLocalOverlayContribution(
-            overlay,
-            {
-              countryCode: localProject.countryCode,
-              countryName: localProject.countryName ?? null,
-            },
-            user.username ?? null,
-          ),
-        );
       contributionsMap.set(
         localProject.id,
-        buildLocalContribution(localProject, overlayData, user.username ?? null),
+        buildLocalContribution(localProject, [], user.username ?? null),
       );
     }
 
@@ -136,7 +128,7 @@ export function useUserContributions() {
 
   // If the selected project is not in the user's contributions, expose it as an external pinned
   // project so the panel can show it at top as a read-only context card.
-  const pinnedExternalProject = computed<Project | null>(() => {
+  const pinnedExternalProject = computed<ContributionProject | null>(() => {
     const project = focusStore.selectedProject;
     if (!project) return null;
     // Own vs external can only be told apart once the user's contributions have loaded: the object
@@ -170,21 +162,18 @@ export function useUserContributions() {
 
   // A contribution counts as "pending" when its own status is unresolved, or any of its overlays
   // or change requests are still awaiting moderation. Everything else is "approved" (resolved).
-  function isContributionPending(project: Project): boolean {
+  function isContributionPending(project: ContributionProject): boolean {
     if (project.status === "pending" || project.status === null) return true;
 
-    const hasPendingOverlays =
-      project.overlays?.some(
-        (overlay) => overlay.status === "pending" || overlay.status === null,
-      ) ?? false;
+    const hasPendingOverlays = project.overlays.some(
+      (overlay) => overlay.status === "pending" || overlay.status === null,
+    );
     if (hasPendingOverlays) return true;
 
     return changeRequestStore.pendingChangeRequests.some((change) => {
       if (change.entityType === "project" && change.entityId === project.id) return true;
-      return (
-        project.overlays?.some(
-          (overlay) => change.entityType === "overlay" && change.entityId === overlay.id,
-        ) ?? false
+      return project.overlays.some(
+        (overlay) => change.entityType === "overlay" && change.entityId === overlay.id,
       );
     });
   }

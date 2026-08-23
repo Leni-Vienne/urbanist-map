@@ -1,7 +1,7 @@
 import { trpc } from "@/client";
 
 import { useProjectStore } from "@/stores/projectStore";
-import { createProjectObject, getProjectDetailFields } from "@/utils/typeFactories";
+import { hydratedProjectFromWire } from "@/utils/typeFactories";
 import { openProjectDetail } from "@/services/core/projectSelection";
 import { nextTick } from "vue";
 import {
@@ -35,13 +35,8 @@ export async function handleProjectDeepLink(
   if (!result) return;
 
   if (result.found) {
-    const project = createProjectObject({
-      ...result.project,
-      tags: result.project.tags ?? [],
-      overlayIds: [],
-    });
-    projectStore.upsertProjectSummary(project);
-    projectStore.applyProjectDetail(project.id, getProjectDetailFields(project));
+    const project = hydratedProjectFromWire(result.project);
+    projectStore.upsertHydratedProject(project);
     const { lat, lng } = project;
     // In production the map already booted framed on this project (the SEO shell injected its
     // bounds), so set the final camera instantly instead of flying in from the default view. On the

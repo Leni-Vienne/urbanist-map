@@ -45,7 +45,7 @@ export type PendingChangeRequest =
 export type LatestContribution = RouterOutput["feed"]["getLatestContributions"]["items"][number];
 
 // Base runtime project type with frontend state and server-only storage fields omitted.
-export interface Project extends Omit<
+interface ProjectFields extends Omit<
   DBProject,
   | "status"
   | "tags"
@@ -58,11 +58,6 @@ export interface Project extends Omit<
   | "detachedAt"
   | "rejectionReason"
 > {
-  // Override status to allow null for local unsubmitted projects
-  status: ApprovalStatus | null;
-  // Permanent SEO slug for the /project/<slug> deep link. Selected only by getById/getBySlug, so it
-  // is absent (undefined) on projects loaded from the viewport payload. Used to sync the address bar.
-  slug?: string | null;
   // Computed fields for all contexts
   overlayIds: string[];
   // Always an array on the frontend, null coerced to [] at DB boundary
@@ -75,10 +70,25 @@ export interface Project extends Omit<
   // Denormalized country name, populated by location-aware queries (resolved from admin boundaries).
   countryName?: string | null;
 
-  // Administrative breadcrumb ordered deepest-first (neighborhood, city, state, country), attached by
-  // project.getById from the admin boundary parent chain. undefined = not loaded; [] = no boundary.
-  // Each entry includes the browser, French, English, and native names used by the location picker.
-  boundaryPath?:
+  // Owner display + spam-detection fields, populated by moderation/contribution endpoints.
+  ownerUsername?: string | null;
+  ownerApprovedCount?: number | null;
+  ownerRejectedCount?: number | null;
+  ownerReportCount?: number;
+}
+
+export interface ProjectSummary extends ProjectFields {
+  status: ApprovalStatus;
+}
+
+export interface ProjectDetailFields {
+  // Permanent SEO slug for the /project/<slug> deep link.
+  slug: string | null;
+  // The project's render, scoped server-side to approved or the requester's own pending render.
+  render: ProjectRender | null;
+  ownerUsername: string | null;
+  // Administrative breadcrumb ordered deepest-first. [] means no matching boundary.
+  boundaryPath:
     | {
         name: string;
         nameEn: string | null;
@@ -86,30 +96,15 @@ export interface Project extends Omit<
         adminLevel: number;
       }[]
     | null;
-
-  // Owner display + spam-detection fields, populated by moderation/contribution endpoints.
-  ownerUsername?: string | null;
-  ownerApprovedCount?: number | null;
-  ownerRejectedCount?: number | null;
-  ownerReportCount?: number;
-
-  // The project's render (artist's impression), attached by project.getById. Scoped server-side to
-  // approved or the requester's own pending render. undefined = not loaded; null = loaded, none.
-  render?: ProjectRender | null;
-
-  // Inline overlay list, populated by the contribution/moderation endpoints (getUsersContributions,
-  // getPendingSubmissions). Absent on projects loaded from the viewport/detail paths, which carry
-  // overlayIds instead and render overlays from overlayStore.
-  overlays?: Overlay[];
 }
 
-// Fields returned only by the project detail endpoints. `null` remains a meaningful loaded value;
-// the required properties distinguish it from an omitted summary field.
-export type ProjectDetailFields = Required<
-  Pick<Project, "slug" | "render" | "ownerUsername" | "boundaryPath">
->;
+// Most consumers only need the summary. Detail fields stay optional until getById/getBySlug supplies
+// all of them; HydratedProject represents that complete state without a separate completeness ledger.
+export type LocalProject = ProjectFields & { status: null };
 
-export type HydratedProject = Project & ProjectDetailFields;
+export type Project = (ProjectSummary | LocalProject) & Partial<ProjectDetailFields>;
+
+export type HydratedProject = ProjectSummary & ProjectDetailFields;
 
 // A non-georeferenced project image (artist's impression). Stored as a kind='render' overlay.
 interface ProjectRender {
@@ -255,6 +250,5 @@ export type Overlay = Omit<
   countryName?: string | null;
 };
 
-// A project as surfaced in My Contributions: its overlay list is always hydrated (backend metadata,
-// local unsubmitted overlays, and staged renders merged in), unlike the optional overlays on Project.
+// A project as surfaced in contribution and moderation lists, with its inline overlays loaded.
 export type ContributionProject = Project & { overlays: Overlay[] };

@@ -71,7 +71,7 @@
     <!-- Project overlays -->
     <div v-if="shouldShowOverlays" class="flex flex-col">
       <div
-        v-for="overlay in project.overlays ?? []"
+        v-for="overlay in project.overlays"
         :key="overlay.id"
         class="flex flex-col transition-all duration-150"
         :class="
@@ -197,7 +197,12 @@ import { useI18n } from "vue-i18n";
 import { viewOriginalOverlay } from "@/services/overlay/navigation";
 import { buildImageUrl, buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
-import type { Project, Overlay, PendingChangeRequest, UserStatsPayload } from "@/types/index";
+import type {
+  ContributionProject,
+  Overlay,
+  PendingChangeRequest,
+  UserStatsPayload,
+} from "@/types/index";
 import { getStatusSeverity } from "@/utils/statusHelpers";
 
 import ContributorInfo from "@/components/common/ContributorInfo.vue";
@@ -208,7 +213,7 @@ import ProjectMetadataCard from "@/components/map/popups/ProjectMetadataCard.vue
 const { t } = useI18n();
 
 interface Props {
-  project: Project;
+  project: ContributionProject;
   projectChanges: PendingChangeRequest[];
   overlayChangesMap: Map<string, PendingChangeRequest[]>;
   isContributePanel: boolean;
@@ -224,9 +229,9 @@ const props = defineProps<Props>();
 
 const emit = defineEmits<{
   "show-user-stats": [data: UserStatsPayload];
-  "project-click": [project: Project];
-  "highlight-project": [project: Project];
-  "remove-project-highlight": [project: Project];
+  "project-click": [project: ContributionProject];
+  "highlight-project": [project: ContributionProject];
+  "remove-project-highlight": [project: ContributionProject];
   "highlight-overlay": [overlayId: string];
   "remove-highlight": [overlayId: string];
 }>();
@@ -239,9 +244,7 @@ const contributorDate = computed(() =>
   props.project.importSource?.type === "osm" ? null : props.project.updatedAt,
 );
 
-const shouldShowOverlays = computed(() => {
-  return props.project.overlays && props.project.overlays.length > 0;
-});
+const shouldShowOverlays = computed(() => props.project.overlays.length > 0);
 
 // Handle card click - emit event for parent to handle navigation logic
 function handleCardClick() {

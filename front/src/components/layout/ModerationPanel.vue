@@ -292,7 +292,7 @@ const pendingOverlayCount = computed(() => {
   const project = projects.value.find((p) => p.id === pendingRejection.value?.id);
   if (!project) return 0;
 
-  return project.overlays?.filter((o) => o.status === "pending").length ?? 0;
+  return project.overlays.filter((o) => o.status === "pending").length;
 });
 
 // Check if a change request is for a geometry field (corners or centroid)
@@ -391,7 +391,7 @@ async function handleApproveOverlay(id: string) {
 
   try {
     // First check if this overlay is a replacement and if it has conflicts
-    const overlay = projects.value.flatMap((p) => p.overlays ?? []).find((o) => o.id === id);
+    const overlay = projects.value.flatMap((p) => p.overlays).find((o) => o.id === id);
 
     if (overlay?.replacesOverlayId) {
       const conflicts = await trpc.moderation.checkReplacementConflicts.query({

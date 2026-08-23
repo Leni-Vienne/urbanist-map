@@ -18,7 +18,7 @@ import { closeDetail } from "@/services/overlay/selection";
 import { flyToGeometry } from "@/services/core/mapNavigation";
 import { clearStagedRender, hasStagedRender } from "@/services/submission/stagedRenderState";
 import type { ChangeRequest } from "@/stores/changeRequestStore";
-import type { Project, Overlay } from "@/types/index";
+import type { Project, Overlay, ContributionProject } from "@/types/index";
 import { toastError, toastSuccess, toastWarn } from "@/services/core/toast";
 
 // A render staged in the upload dialog but not yet submitted: kind 'render' with no status. Real
@@ -27,8 +27,8 @@ function isStagedRenderOverlay(overlay: Overlay): boolean {
   return overlay.kind === "render" && !overlay.status;
 }
 
-async function handleDeleteProjectClick(project: Project): Promise<void> {
-  await confirmAndDeleteProject(project.id, project.name, project.overlays?.length ?? 0);
+async function handleDeleteProjectClick(project: ContributionProject): Promise<void> {
+  await confirmAndDeleteProject(project.id, project.name, project.overlays.length);
 }
 
 // New project button click: opens the marker placement bar (after an auth gate and a clean slate).
@@ -49,9 +49,7 @@ function handleNewProjectClick(): void {
   uiStore.markerPlacementBarVisible = true;
 }
 
-export function useContributeActions(
-  allContributions: ComputedRef<(Project & { overlays: Overlay[] })[]>,
-) {
+export function useContributeActions(allContributions: ComputedRef<ContributionProject[]>) {
   const { t } = useI18n();
 
   const uiStore = useUiStore();

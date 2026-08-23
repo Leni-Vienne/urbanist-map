@@ -3,7 +3,7 @@ import { useProjectStore } from "@/stores/projectStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useMapStore } from "@/stores/mapStore";
 import { trpc } from "@/client";
-import { createProjectObject, getProjectDetailFields } from "@/utils/typeFactories";
+import { hydratedProjectFromWire } from "@/utils/typeFactories";
 import { syncModerationCountryFromMapClick } from "@/services/moderation/moderationCountrySync";
 import { loadOrNull } from "@/services/core/errorHandling";
 
@@ -56,14 +56,8 @@ export async function ensureProjectSummary(projectId: string): Promise<Project |
   });
   if (!result) return null;
 
-  const project = createProjectObject({ ...result, tags: result.tags ?? [], overlayIds: [] });
-  return cacheHydratedProject(project);
-}
-
-function cacheHydratedProject(project: Project): HydratedProject {
-  const projectStore = useProjectStore();
-  projectStore.upsertProjectSummary(project);
-  return projectStore.applyProjectDetail(project.id, getProjectDetailFields(project));
+  const project = hydratedProjectFromWire(result);
+  return projectStore.upsertHydratedProject(project);
 }
 
 const detailHydrations = new Map<string, Promise<HydratedProject | null>>();
@@ -94,9 +88,8 @@ async function fetchProjectDetail(projectId: string): Promise<HydratedProject | 
   if (!fresh) return null;
 
   const projectStore = useProjectStore();
-  const project = createProjectObject({ ...fresh, tags: fresh.tags ?? [], overlayIds: [] });
-  projectStore.upsertProjectSummary(project);
-  return projectStore.applyProjectDetail(projectId, getProjectDetailFields(project));
+  const project = hydratedProjectFromWire(fresh);
+  return projectStore.upsertHydratedProject(project);
 }
 
 /**

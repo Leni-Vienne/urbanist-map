@@ -8,7 +8,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { removeOverlayFromMapAndStore } from "@/services/entity/entityRemoval";
 import { refreshMapSessionData } from "@/services/map/viewportTriggers";
 import { t } from "@/locales";
-import type { Project } from "@/types/index";
+import type { ContributionProject } from "@/types/index";
 import { toastError } from "@/services/core/toast";
 
 // Result type for approval operations
@@ -65,7 +65,7 @@ export function useModeration() {
 
       // The moderation backend query omits the derived overlayIds array and the parsed geometry.
       // Coerce here so the stored projects satisfy Project.
-      const moderationProjects: Project[] = response.projects.map((project) => ({
+      const moderationProjects: ContributionProject[] = response.projects.map((project) => ({
         ...project,
         overlayIds: project.overlays.map((overlay) => overlay.id),
         geometry: null,
