@@ -190,7 +190,7 @@ export default defineConfig(({ mode }) => {
                   /\/front\/src\/services\/core\/(?:toast|errorHandling|map|viewport|filters|settings|mapNavigation|projectSelection|markersSvg)\.ts/.test(
                     id,
                   ) ||
-                  /\/front\/src\/services\/overlay\/(?:markers|visibility|changeRequestPreview|data|selection|mapLayers|transform|history|editing|unsavedState)\.ts/.test(
+                  /\/front\/src\/services\/overlay\/(?:markers|visibility|data|selection|mapLayers|transform|history|editing|unsavedState)\.ts/.test(
                     id,
                   ) ||
                   /\/front\/src\/services\/(?:moderation\/moderationCountrySync|submission\/stagedRenderState|project\/projectMutations)\.ts/.test(

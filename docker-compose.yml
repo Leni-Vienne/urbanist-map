@@ -44,7 +44,7 @@ services:
   # Backend web server, running directly on the official Bun Alpine image.
   # Image processing uses Bun.Image (no native deps needed).
   backend:
-    image: oven/bun:1.3.14-alpine
+    image: oven/bun:1.4.0-alpine
     container_name: ${COMPOSE_PROJECT_NAME}-backend
     restart: unless-stopped
     depends_on:
