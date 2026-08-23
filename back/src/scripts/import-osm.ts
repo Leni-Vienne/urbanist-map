@@ -45,10 +45,10 @@ import {
   extractTags,
   mapTimelineStatus,
   parseOsmDate,
-  shouldSkipUnchangedOsmFeature,
 } from "./osmDerive";
 import { buildProjectSlug } from "@shared/projectSlug";
 import { refreshAllIndexable } from "../db/indexable";
+import { computeOsmFeatureRevision, shouldSkipOsmFeature } from "./osmRevision";
 
 const GEOJSON_PATHS = [
   path.join(process.cwd(), "scripts/osm-extract/planet-latest_proposed_linear.geojson"),
@@ -60,8 +60,8 @@ const GEOJSON_PATHS = [
 const UPSERT_BATCH_SIZE = 1000;
 
 // Set --full (or OSM_FULL_REIMPORT=1) to bypass the unchanged-row skip and re-derive every feature.
-// Use it after changing the extraction logic (tag rules, date parsing, source-url rules, etc.) so the
-// new derivation reaches rows whose OSM edit timestamp did not change.
+// Use it after changing importer-only derivation logic (date parsing, source-url rules, etc.) when the
+// source feature and therefore its revision did not change.
 const FULL_REIMPORT = process.argv.includes("--full") || process.env.OSM_FULL_REIMPORT === "1";
 
 // Import source configuration
@@ -190,6 +190,7 @@ async function flushBatch(batch: any[]): Promise<{ ok: number; fail: number }> {
     timelineStatus: sql`EXCLUDED.timeline_status`,
     externalProperties: sql`EXCLUDED.external_properties`,
     externalLastModified: sql`EXCLUDED.external_last_modified`,
+    externalRevision: sql`EXCLUDED.external_revision`,
     lastImportedAt: sql`EXCLUDED.last_imported_at`,
     tags: sql`EXCLUDED.tags`,
     sourceUrl: sql`EXCLUDED.source_url`,
@@ -210,7 +211,7 @@ async function flushBatch(batch: any[]): Promise<{ ok: number; fail: number }> {
     geometrySizeM: sql`CASE WHEN projects.geometry IS DISTINCT FROM EXCLUDED.geometry THEN NULL ELSE projects.geometry_size_m END`,
     // Override Drizzle's $onUpdate auto-bump so updated_at only moves when a meaningful field
     // actually changed. Without this, every daily run would touch updated_at on every row.
-    // last_imported_at is intentionally excluded (it's bumped every sync by design).
+    // external_revision and last_imported_at are importer bookkeeping and intentionally excluded.
     updatedAt: sql`CASE WHEN (
       projects.name, projects.description, projects.country_code,
       projects.timeline_status, projects.external_properties,
@@ -336,15 +337,13 @@ async function main() {
   // rest. Tradeoff: a feature whose geometry drifts across a border keeps its old country until
   // something forces re-resolution; acceptable since the country is already an approximation.
   const existingCountryByExternalId = new Map<string, string>();
-  // externalId -> stored OSM edit timestamp (epoch ms). Drives the unchanged-row skip in the build
-  // loop: a feature whose osm_last_modified still matches what we stored is re-derived only under --full.
-  const existingLastModifiedByExternalId = new Map<string, number>();
+  const existingRevisionByExternalId = new Map<string, string>();
   try {
     const existing = await db
       .select({
         externalId: projects.externalId,
         countryCode: projects.countryCode,
-        externalLastModified: projects.externalLastModified,
+        externalRevision: projects.externalRevision,
       })
       .from(projects)
       .where(
@@ -353,9 +352,8 @@ async function main() {
     for (const row of existing) {
       if (!row.externalId) continue;
       if (row.countryCode) existingCountryByExternalId.set(row.externalId, row.countryCode);
-      if (row.externalLastModified) {
-        existingLastModifiedByExternalId.set(row.externalId, row.externalLastModified.getTime());
-      }
+      if (row.externalRevision)
+        existingRevisionByExternalId.set(row.externalId, row.externalRevision);
     }
   } catch (err) {
     console.error(
@@ -364,7 +362,7 @@ async function main() {
     );
   }
   log(
-    `Preloaded ${existingCountryByExternalId.size} country codes, ${existingLastModifiedByExternalId.size} edit timestamps`,
+    `Preloaded ${existingCountryByExternalId.size} country codes, ${existingRevisionByExternalId.size} revisions`,
   );
 
   // Record sync start time for pruning stale data later
@@ -417,6 +415,19 @@ async function main() {
       `No display_name: ${noName}, no end_date: ${noEndDate}, no start_date: ${noStartDate}, no tags: ${noTags}\n`,
     );
 
+    const revisions = geojson.features.map(computeOsmFeatureRevision);
+    const unchangedFeatures = geojson.features.map((feature, index) => {
+      const externalId = feature.id ? String(feature.id) : null;
+      return Boolean(
+        externalId &&
+        shouldSkipOsmFeature(
+          existingRevisionByExternalId.get(externalId),
+          revisions[index]!,
+          FULL_REIMPORT,
+        ),
+      );
+    });
+
     let inserted = 0;
     let skipped = 0;
     let unchanged = 0;
@@ -433,8 +444,10 @@ async function main() {
       geojson.features.length,
     ).fill(null);
     let reusedCount = 0;
+    let knnCount = 0;
     for (let i = 0; i < geojson.features.length; i++) {
       const f = geojson.features[i]!;
+      if (unchangedFeatures[i]) continue;
       const externalId = f.id ? String(f.id) : null;
       const cached = externalId ? existingCountryByExternalId.get(externalId) : undefined;
       if (cached) {
@@ -444,13 +457,14 @@ async function main() {
       }
       const geom = f.geometry as GeoJSON.Geometry | null;
       centroidsToResolve[i] = geom ? centroid(geom) : null;
+      knnCount++;
     }
     const resolved = await resolveCountryCodes(centroidsToResolve);
     for (let i = 0; i < resolved.length; i++) {
       if (countryCodes[i] == null) countryCodes[i] = resolved[i] ?? null;
     }
     log(
-      `Country code resolution complete (${reusedCount} reused, ${geojson.features.length - reusedCount} resolved via KNN).`,
+      `Country code resolution complete (${reusedCount} reused, ${knnCount} checked via KNN, ${unchangedFeatures.filter(Boolean).length} revision-matched).`,
     );
 
     // Build rows and flush in batches.
@@ -472,29 +486,17 @@ async function main() {
         encounteredExternalIds.add(externalId);
       }
 
-      // OSM edit timestamp, used both for the unchanged-row skip below and for storage.
+      if (unchangedFeatures[i]) {
+        if (externalId) seenExternalIds.push(externalId);
+        unchanged++;
+        continue;
+      }
+
+      // OSM edit timestamp is retained for display, filtering, and feed ordering.
       let osmLastModified: Date | null = null;
       if (featureProps["osm_last_modified"]) {
         const parsed = new Date(String(featureProps["osm_last_modified"]));
         if (!isNaN(parsed.getTime())) osmLastModified = parsed;
-      }
-
-      // Skip rows whose OSM edit timestamp is unchanged since the last import: only new or edited
-      // features pay the geometry parse + upsert cost. Still recorded as seen so the prune keeps them.
-      if (
-        shouldSkipUnchangedOsmFeature({
-          fullReimport: FULL_REIMPORT,
-          externalId,
-          osmLastModified,
-          storedLastModifiedMs: externalId
-            ? existingLastModifiedByExternalId.get(externalId)
-            : undefined,
-          encounteredInRun,
-        })
-      ) {
-        if (externalId) seenExternalIds.push(externalId);
-        unchanged++;
-        continue;
       }
 
       try {
@@ -563,6 +565,7 @@ async function main() {
           externalId,
           externalProperties,
           externalLastModified: osmLastModified,
+          externalRevision: revisions[i]!,
           lastImportedAt: syncStartTime,
           tags: tags.length > 0 ? tags : null,
           sourceUrl,
@@ -812,6 +815,7 @@ async function main() {
           importSourceId: null,
           externalId: null,
           externalLastModified: null,
+          externalRevision: null,
         })
         .where(sql`${staleCondition} AND detached_at IS NULL AND (${hasOverlays})`)
         .returning({ id: projects.id });

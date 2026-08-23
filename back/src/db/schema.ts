@@ -222,6 +222,7 @@ export const projects = pgTable(
     // Raw properties from source (OSM tags, etc.): an open key set, values whatever the source emitted.
     externalProperties: jsonb("external_properties").$type<JsonObject>(),
     externalLastModified: timestamp("external_last_modified", { withTimezone: true }), // When source data was last modified (e.g., osm_last_modified)
+    externalRevision: text("external_revision"),
     lastImportedAt: timestamp("last_imported_at", { withTimezone: true }), // For pruning stale imports
     sourceUrl: text("source_url"),
     proposalDate: timestamp("proposal_date", { withTimezone: true }),
@@ -554,7 +555,7 @@ export const deletedProjects = pgTable(
 export type DBDeletedProject = InferSelectModel<typeof deletedProjects>;
 
 // Export Drizzle-inferred types for frontend consumption
-export type DBProject = InferSelectModel<typeof projects>;
+export type DBProject = Omit<InferSelectModel<typeof projects>, "externalRevision">;
 export type DBOverlay = InferSelectModel<typeof overlays>;
 export type DBUser = InferSelectModel<typeof users>;
 export type DBChangeRequest = InferSelectModel<typeof changeRequests>;
