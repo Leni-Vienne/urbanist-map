@@ -52,15 +52,18 @@ import { ref, computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { updateOverlayInfo } from "@/services/overlay/data";
 import { useUiStore } from "@/stores/uiStore";
+import { useOverlayStore } from "@/stores/overlayStore";
 
 const bodyElement = document.body;
 
 const { t } = useI18n();
 const uiStore = useUiStore();
-const currentOverlay = uiStore.overlayEditTarget;
+const overlayStore = useOverlayStore();
+const overlayId = uiStore.overlayEditTargetId;
+const initialCaption = overlayId ? overlayStore.liveOverlays[overlayId]?.caption : undefined;
 
 const editingInfo = ref({
-  caption: currentOverlay?.caption ?? "",
+  caption: initialCaption ?? "",
 });
 
 function closeDialog() {
@@ -72,14 +75,11 @@ function handleVisibilityChange(visible: boolean) {
 }
 
 const hasChanges = computed(() => {
-  const overlay = currentOverlay;
-  if (!overlay) return false;
-  return editingInfo.value.caption !== (overlay.caption ?? "");
+  return editingInfo.value.caption !== (initialCaption ?? "");
 });
 
 function saveChanges() {
-  const overlay = currentOverlay;
-  if (!overlay) {
+  if (!overlayId || !overlayStore.liveOverlays[overlayId]) {
     console.error("No overlay to save");
     return;
   }
@@ -91,7 +91,7 @@ function saveChanges() {
   }
 
   try {
-    updateOverlayInfo(overlay.id, {
+    updateOverlayInfo(overlayId, {
       caption: editingInfo.value.caption ?? undefined,
     });
 

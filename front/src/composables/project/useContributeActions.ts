@@ -15,6 +15,7 @@ import { isOverlayUnsaved, isProjectUnsaved } from "@/services/overlay/unsavedSt
 import { startShapeEditing } from "@/services/shape/shapeEditorLazy";
 import { openProjectDetail } from "@/services/core/projectSelection";
 import { closeDetail } from "@/services/overlay/selection";
+import { ensureOverlayLoaded } from "@/services/overlay/navigation";
 import { flyToGeometry } from "@/services/core/mapNavigation";
 import { clearStagedRender, hasStagedRender } from "@/services/submission/stagedRenderState";
 import type { ChangeRequest } from "@/stores/changeRequestStore";
@@ -94,17 +95,14 @@ export function useContributeActions(allContributions: ComputedRef<ContributionP
     }
   }
 
-  function handleEditOverlayClick(overlay: Overlay): void {
-    // Prefer the live store object so in-memory caption changes are not lost on reopen
-    const liveOverlay = overlayStore.liveOverlays[overlay.id];
-    if (liveOverlay) {
-      uiStore.openOverlayEditDialog(liveOverlay);
-      return;
+  async function handleEditOverlayClick(overlay: Overlay): Promise<void> {
+    try {
+      const loadedOverlay = await ensureOverlayLoaded(overlay.id);
+      uiStore.openOverlayEditDialog(loadedOverlay.id);
+    } catch (error) {
+      console.error("Failed to load overlay for editing:", error);
+      toastError(error instanceof Error ? error.message : t("submission.overlayUnavailable"));
     }
-    uiStore.openOverlayEditDialog({
-      id: overlay.id,
-      caption: overlay.caption,
-    });
   }
 
   function handleAddImageToProject(project: Project): void {

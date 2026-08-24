@@ -83,22 +83,38 @@ export function navigateOverlaySequence(direction: "next" | "previous") {
   selectAndCenterOverlay(newOverlayId);
 }
 
-async function loadOverlay(overlayId: string): Promise<void> {
-  const overlayStore = useOverlayStore();
+const overlayLoadRequests = new Map<string, Promise<OverlayObject>>();
 
-  if (overlayStore.liveOverlays[overlayId]) {
-    return;
-  }
-
+async function fetchOverlay(overlayId: string): Promise<OverlayObject> {
   const result = await trpc.overlay.getOverlay.query({ id: overlayId });
-  upsertOverlayFromWire(overlayWireToData(result));
+  return upsertOverlayFromWire(overlayWireToData(result));
+}
+
+export async function ensureOverlayLoaded(overlayId: string): Promise<OverlayObject> {
+  const overlayStore = useOverlayStore();
+  const existing = overlayStore.liveOverlays[overlayId];
+
+  if (existing) return existing;
+
+  const pendingRequest = overlayLoadRequests.get(overlayId);
+  if (pendingRequest) return pendingRequest;
+
+  const request = fetchOverlay(overlayId);
+  overlayLoadRequests.set(overlayId, request);
+  try {
+    return await request;
+  } finally {
+    if (overlayLoadRequests.get(overlayId) === request) {
+      overlayLoadRequests.delete(overlayId);
+    }
+  }
 }
 
 /**
  * Navigates to a specific overlay by ID (loads + selects + centers).
  */
 export async function navigateToOverlay(overlayId: string): Promise<boolean> {
-  await loadOverlay(overlayId);
+  await ensureOverlayLoaded(overlayId);
   return selectAndCenterOverlay(overlayId);
 }
 

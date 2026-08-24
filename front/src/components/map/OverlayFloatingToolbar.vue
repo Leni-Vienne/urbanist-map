@@ -409,7 +409,7 @@ async function confirmCrop() {
 function onEditInfo() {
   const overlay = selectedOverlay.value;
   if (!overlay) return;
-  uiStore.openOverlayEditDialog(overlay);
+  uiStore.openOverlayEditDialog(overlay.id);
 }
 
 function onReplace() {

@@ -18,7 +18,7 @@ import { resetMapSessionState } from "@/services/map/viewportTriggers";
 // session services, which no store reset reaches.
 export async function signOut() {
   const authStore = useAuthStore();
-  const result = await authStore.signOut();
+  const signOutRequest = authStore.signOut();
 
   useUiStore().clearAllState();
   useMapStore().clearAllState();
@@ -27,11 +27,11 @@ export async function signOut() {
   useModerationStore().clearAllState();
   useChangeRequestStore().clearAllState();
   useModeratedContributionsStore().clearAllState();
-  useFocusStore().setHoverTarget(null);
+  useFocusStore().clearAllState();
 
   resetMapSessionState();
   clearOverlayDisplayPrefs();
   clearAllStagedRenders();
 
-  return result;
+  return await signOutRequest;
 }

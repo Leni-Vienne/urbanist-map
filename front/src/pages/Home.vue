@@ -37,7 +37,7 @@
       </div>
 
       <!-- Overlay caption editor, opened from the docked project detail (store-driven). -->
-      <OverlayEditor v-if="mapStore.mode === 'edit' && uiStore.overlayEditTarget" />
+      <OverlayEditor v-if="mapStore.mode === 'edit' && uiStore.overlayEditTargetId" />
 
       <!-- Hover preview card, always mounted so it can show before any detail panel is opened -->
       <HoverPreviewCard />

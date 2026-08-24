@@ -4,15 +4,32 @@ import { loadOrNull } from "@/services/core/errorHandling";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { clearOverlayChangeRequestState } from "@/services/overlay/sync";
 import { refreshMapSessionData } from "@/services/map/viewportTriggers";
+import { useAuthStore } from "@/stores/authStore";
+
+let changeRequestLoadVersion = 0;
 
 /** Ensures the current user's pending change requests are loaded; `force` refetches even if already loaded. */
-export async function refreshPendingChangeRequests(options?: { force?: boolean }) {
+export async function refreshPendingChangeRequests(options?: { force?: boolean }): Promise<void> {
+  const authStore = useAuthStore();
+  const userId = authStore.user?.id;
+  if (!userId) return;
+
   const changeRequestStore = useChangeRequestStore();
   if (changeRequestStore.loaded && !options?.force) return;
+
+  const epoch = authStore.getSessionEpoch();
+  changeRequestLoadVersion += 1;
+  const requestVersion = changeRequestLoadVersion;
   const result = await loadOrNull(async () => trpc.changes.getMyChangeRequests.query(), {
     errorMessage: "Failed to fetch pending change requests",
   });
-  if (result) {
+
+  if (
+    result &&
+    requestVersion === changeRequestLoadVersion &&
+    authStore.getSessionEpoch() === epoch &&
+    authStore.user?.id === userId
+  ) {
     changeRequestStore.setPendingChangeRequests(result);
   }
 }

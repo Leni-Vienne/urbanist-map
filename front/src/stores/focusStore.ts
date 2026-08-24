@@ -54,6 +54,11 @@ export const useFocusStore = defineStore("focus", () => {
     selection.value = target;
   }
 
+  function clearAllState(): void {
+    hover.value = null;
+    selection.value = null;
+  }
+
   return {
     selection,
     highlightedProjectId,
@@ -64,6 +69,7 @@ export const useFocusStore = defineStore("focus", () => {
     detailVisible,
     setHoverTarget,
     setSelectionTarget,
+    clearAllState,
   };
 });
 

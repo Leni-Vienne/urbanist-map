@@ -197,22 +197,25 @@ export function useUserContributions() {
     return allContributions.value.filter((project) => !isContributionPending(project));
   });
 
-  async function fetchUserContributions() {
-    if (!authStore.user) return;
+  async function fetchUserContributions(): Promise<void> {
+    const userId = authStore.user?.id;
+    if (!userId) return;
+    if (projectStore.userContributionsLoaded || projectStore.userContributionsLoading) return;
 
-    if (projectStore.userContributionsLoaded) return;
-
+    const epoch = authStore.getSessionEpoch();
     projectStore.setUserContributionsLoading(true);
     try {
       const result = await loadOrNull(async () => trpc.project.getUsersContributions.query(), {
         errorMessage: t("contribute.loadContributionsError"),
       });
 
-      if (result) {
+      if (result && epoch === authStore.getSessionEpoch() && authStore.user?.id === userId) {
         projectStore.setUserContributions(result.projects);
       }
     } finally {
-      projectStore.setUserContributionsLoading(false);
+      if (epoch === authStore.getSessionEpoch() && authStore.user?.id === userId) {
+        projectStore.setUserContributionsLoading(false);
+      }
     }
   }
 

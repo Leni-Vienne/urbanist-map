@@ -1,9 +1,6 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
-import type { Project, OverlayObject, PanelTab } from "@/types/index";
-
-// Minimal overlay data needed to open the edit dialog (caption editor only)
-type OverlayEditTarget = Pick<OverlayObject, "id" | "caption">;
+import type { Project, PanelTab } from "@/types/index";
 
 export const useUiStore = defineStore("ui", () => {
   const authModalVisible = ref(false);
@@ -13,7 +10,7 @@ export const useUiStore = defineStore("ui", () => {
 
   const projectCreationSeed = ref<Pick<Project, "lat" | "lng"> | null>(null);
   const projectEditTarget = ref<Project | null>(null);
-  const overlayEditTarget = ref<OverlayEditTarget | null>(null);
+  const overlayEditTargetId = ref<string | null>(null);
 
   // Shared tab state between desktop SideMenu and mobile MobileDrawer
   const activeTab = ref<PanelTab>("explore");
@@ -46,12 +43,12 @@ export const useUiStore = defineStore("ui", () => {
     projectEditTarget.value = null;
   }
 
-  function openOverlayEditDialog(overlay: OverlayEditTarget) {
-    overlayEditTarget.value = overlay;
+  function openOverlayEditDialog(overlayId: string) {
+    overlayEditTargetId.value = overlayId;
   }
 
   function closeOverlayEditDialog() {
-    overlayEditTarget.value = null;
+    overlayEditTargetId.value = null;
   }
 
   function openImageUploadDialog(projectId: string) {
@@ -91,7 +88,7 @@ export const useUiStore = defineStore("ui", () => {
     moderatedContributionsDialogVisible,
     projectCreationSeed,
     projectEditTarget,
-    overlayEditTarget,
+    overlayEditTargetId,
     activeTab,
     mobileDrawerHeightPercent,
     imageUploadProjectId,

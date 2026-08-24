@@ -35,9 +35,13 @@
     </template>
 
     <template #overlay-actions="{ overlay }">
-      <!-- Edit button - hide for replaced overlays and not-yet-submitted staged renders -->
       <button
-        v-if="overlay.status !== 'replaced' && !isStagedRenderOverlay(overlay)"
+        v-if="
+          (overlay.status === null ||
+            overlay.status === 'pending' ||
+            overlay.status === 'approved') &&
+          !isStagedRenderOverlay(overlay)
+        "
         class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-color hover:text-primary-hover-color hover:bg-[color-mix(in_srgb,var(--p-primary-color)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--p-primary-color)_40%,transparent)]"
         @click.stop="handleEditOverlayClick(overlay)"
         v-tooltip.top="$t('tooltips.editOverlay')"

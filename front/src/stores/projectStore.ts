@@ -99,9 +99,18 @@ export const useProjectStore = defineStore("project", () => {
 
   function upsertHydratedProject(project: HydratedProject): HydratedProject {
     const current = projects.value[project.id];
-    const stored: HydratedProject = current ? { ...current, ...project } : project;
+    const stored: HydratedProject =
+      current?.isModified && current.status !== null
+        ? {
+            ...current,
+            slug: project.slug,
+            render: project.render,
+            ownerUsername: project.ownerUsername,
+            boundaryPath: project.boundaryPath,
+          }
+        : project;
     projects.value[project.id] = stored;
-    snapshotOriginal(stored);
+    originalProjects.value[project.id] = { ...project };
     return stored;
   }
 

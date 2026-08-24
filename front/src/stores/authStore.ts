@@ -197,37 +197,61 @@ export const useAuthStore = defineStore("auth", () => {
 
   // Cached promise so concurrent callers share the same in-flight request
   let initPromise: Promise<void> | null = null;
+  let sessionEpoch = 0;
+  let authMutationPending = false;
 
-  // Idempotent: subsequent calls return the same promise
-  async function initialize(): Promise<void> {
-    if (initPromise) return initPromise;
+  function beginAuthMutation(): number {
+    sessionEpoch += 1;
+    initPromise = null;
+    authMutationPending = true;
+    return sessionEpoch;
+  }
 
-    initPromise = (async () => {
-      try {
-        // Try to get current user from server (will use session cookies)
-        const response = await fetch(`${getApiUrl()}/api/check-session`, {
-          credentials: "include",
-        });
+  function finishAuthMutation(epoch: number): void {
+    if (epoch === sessionEpoch) authMutationPending = false;
+  }
 
-        if (response.ok) {
-          const result: { user: User | null; infoMessage: string | null } = await response.json();
-          user.value = result.user;
-          infoMessage.value = result.infoMessage;
-        } else {
-          user.value = null;
-          infoMessage.value = null;
-        }
-      } catch (error) {
-        console.error("Error initializing auth:", error);
+  function getSessionEpoch(): number {
+    return sessionEpoch;
+  }
+
+  async function loadSession(epoch: number): Promise<void> {
+    try {
+      const response = await fetch(`${getApiUrl()}/api/check-session`, {
+        credentials: "include",
+      });
+
+      if (epoch !== sessionEpoch) return;
+
+      if (response.ok) {
+        const result: { user: User | null; infoMessage: string | null } = await response.json();
+        if (epoch !== sessionEpoch) return;
+        user.value = result.user;
+        infoMessage.value = result.infoMessage;
+      } else {
         user.value = null;
         infoMessage.value = null;
       }
-    })();
+    } catch (error) {
+      console.error("Error initializing auth:", error);
+      if (epoch !== sessionEpoch) return;
+      user.value = null;
+      infoMessage.value = null;
+    }
+  }
+
+  // Idempotent: subsequent calls return the same promise
+  async function initialize(): Promise<void> {
+    if (authMutationPending) return;
+    if (initPromise) return initPromise;
+
+    initPromise = loadSession(sessionEpoch);
 
     return initPromise;
   }
 
   async function signIn(email: string, password: string, rememberMe = false) {
+    const epoch = beginAuthMutation();
     try {
       const response = await fetch(`${getApiUrl()}/api/login`, {
         method: "POST",
@@ -242,6 +266,9 @@ export const useAuthStore = defineStore("auth", () => {
         await response.json();
 
       if (response.ok && result.success) {
+        if (epoch !== sessionEpoch) {
+          return { success: false, error: "auth.error.loginFailed" };
+        }
         user.value = result.user ?? null;
         setLastUsedMethod("email", result.user?.email ?? null);
         return {
@@ -260,6 +287,8 @@ export const useAuthStore = defineStore("auth", () => {
         success: false,
         error: error instanceof Error ? error.message : "Login failed",
       };
+    } finally {
+      finishAuthMutation(epoch);
     }
   }
 
@@ -272,6 +301,7 @@ export const useAuthStore = defineStore("auth", () => {
       return { success: false, error: "Google Client ID not configured" };
     }
 
+    const epoch = beginAuthMutation();
     try {
       if (!globalThis.google) {
         await loadGoogleIdentityScript();
@@ -311,6 +341,9 @@ export const useAuthStore = defineStore("auth", () => {
         });
       });
 
+      if (result.success && epoch !== sessionEpoch) {
+        return { success: false, error: "auth.error.googleAuthFailed" };
+      }
       if (result.success) {
         user.value = result.user;
         setLastUsedMethod(provider, result.user?.email ?? null);
@@ -322,19 +355,19 @@ export const useAuthStore = defineStore("auth", () => {
         success: false,
         error: error instanceof Error ? error.message : `${provider} authentication failed`,
       };
+    } finally {
+      finishAuthMutation(epoch);
     }
   }
 
   async function signOut() {
+    const epoch = beginAuthMutation();
+    user.value = null;
     try {
       const response = await fetch(`${getApiUrl()}/api/logout`, {
         method: "POST",
         credentials: "include",
       });
-
-      user.value = null;
-      // Reset initPromise so initialize() re-runs after re-login
-      initPromise = null;
 
       if (response.ok) {
         return { success: true, error: null };
@@ -344,9 +377,9 @@ export const useAuthStore = defineStore("auth", () => {
       }
     } catch (error: unknown) {
       console.error("Sign out error:", error);
-      // Clear local data even if server logout fails
-      user.value = null;
       return { success: false, error: error instanceof Error ? error.message : "Logout failed" };
+    } finally {
+      finishAuthMutation(epoch);
     }
   }
 
@@ -356,6 +389,7 @@ export const useAuthStore = defineStore("auth", () => {
     version,
     isAuthenticated,
     isModerator,
+    getSessionEpoch,
     initialize,
     signUp,
     signIn,
