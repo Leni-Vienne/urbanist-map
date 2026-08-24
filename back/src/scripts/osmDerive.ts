@@ -3,9 +3,32 @@
  * GeoJSON stats script so both read the extraction the same way.
  */
 
-import { EXTENDED_OSM_RULES, PRESENT_STATE_OSM_KEYS, isRedevelopmentSite } from "@shared/osmRules";
+import {
+  EXTENDED_OSM_RULES,
+  PRESENT_STATE_OSM_KEYS,
+  hasConstructionSignal,
+  isRedevelopmentSite,
+} from "@shared/osmRules";
 import type { TimelineStatus } from "../db/schema";
 import type { JsonObject } from "@shared/json";
+
+interface OsmSkipInput {
+  fullReimport: boolean;
+  externalId: string | null;
+  osmLastModified: Date | null;
+  storedLastModifiedMs: number | undefined;
+  encounteredInRun: boolean;
+}
+
+export function shouldSkipUnchangedOsmFeature(input: OsmSkipInput): boolean {
+  return (
+    !input.fullReimport &&
+    input.externalId !== null &&
+    input.osmLastModified !== null &&
+    !input.encounteredInRun &&
+    input.storedLastModifiedMs === input.osmLastModified.getTime()
+  );
+}
 
 export function mapTimelineStatus(projectStatus: string | undefined): TimelineStatus {
   switch (projectStatus) {
@@ -45,6 +68,7 @@ export function extractTags(props: JsonObject): string[] {
     tags.splice(bikeIdx, 1);
     tags.splice(pedIdx, 0, "bike");
   }
+  if (tags.length === 0 && hasConstructionSignal(props)) tags.push("construction");
   return tags;
 }
 

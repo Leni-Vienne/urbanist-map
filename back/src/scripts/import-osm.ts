@@ -45,6 +45,7 @@ import {
   extractTags,
   mapTimelineStatus,
   parseOsmDate,
+  shouldSkipUnchangedOsmFeature,
 } from "./osmDerive";
 import { buildProjectSlug } from "@shared/projectSlug";
 import { refreshAllIndexable } from "../db/indexable";
@@ -380,6 +381,8 @@ async function main() {
   // deletes/detaches OSM rows absent from this set, replacing the old last_imported_at timestamp check,
   // so unchanged rows can be skipped in the build loop without being mistaken for stale.
   const seenExternalIds: string[] = [];
+  const encounteredExternalIds = new Set<string>();
+  const duplicateExternalIds = new Set<string>();
 
   for (const geojsonPath of GEOJSON_PATHS) {
     if (!fs.existsSync(geojsonPath)) {
@@ -463,6 +466,11 @@ async function main() {
       const feature = geojson.features[i]!;
       const featureProps = feature.properties ?? {};
       const externalId = feature.id ? String(feature.id) : null;
+      const encounteredInRun = externalId !== null && encounteredExternalIds.has(externalId);
+      if (externalId !== null) {
+        if (encounteredInRun) duplicateExternalIds.add(externalId);
+        encounteredExternalIds.add(externalId);
+      }
 
       // OSM edit timestamp, used both for the unchanged-row skip below and for storage.
       let osmLastModified: Date | null = null;
@@ -473,13 +481,20 @@ async function main() {
 
       // Skip rows whose OSM edit timestamp is unchanged since the last import: only new or edited
       // features pay the geometry parse + upsert cost. Still recorded as seen so the prune keeps them.
-      if (!FULL_REIMPORT && externalId && osmLastModified) {
-        const storedMs = existingLastModifiedByExternalId.get(externalId);
-        if (storedMs !== undefined && storedMs === osmLastModified.getTime()) {
-          seenExternalIds.push(externalId);
-          unchanged++;
-          continue;
-        }
+      if (
+        shouldSkipUnchangedOsmFeature({
+          fullReimport: FULL_REIMPORT,
+          externalId,
+          osmLastModified,
+          storedLastModifiedMs: externalId
+            ? existingLastModifiedByExternalId.get(externalId)
+            : undefined,
+          encounteredInRun,
+        })
+      ) {
+        if (externalId) seenExternalIds.push(externalId);
+        unchanged++;
+        continue;
       }
 
       try {
@@ -606,6 +621,11 @@ async function main() {
   }
 
   console.log("");
+  if (duplicateExternalIds.size > 0) {
+    console.warn(
+      `Encountered ${duplicateExternalIds.size} duplicate external id(s); later occurrences were reprocessed. Sample: ${[...duplicateExternalIds].slice(0, 10).join(", ")}`,
+    );
+  }
   log(
     `DONE. Total Inserted: ${globalInserted}, Unchanged: ${globalUnchanged}, Skipped: ${globalSkipped}`,
   );

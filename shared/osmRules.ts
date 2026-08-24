@@ -35,6 +35,14 @@ export const PRESENT_STATE_OSM_KEYS = new Set([
 const LIFECYCLE_VALUES = new Set(["proposed", "planned", "construction"]);
 const LIFECYCLE_PREFIX_RE = /^(?:proposed|planned|construction):/;
 const PLAIN_LIFECYCLE_KEYS = ["construction", "proposed", "planned"];
+const NON_DESCRIPTIVE_CONSTRUCTION_VALUES = new Set([
+  "",
+  "yes",
+  "no",
+  "construction",
+  "proposed",
+  "planned",
+]);
 
 /**
  * True when the feature is an existing site whose project is expressed only through
@@ -167,8 +175,6 @@ const BASE_OSM_RULES: OsmRule[] = [
 
   // Coarse building use category derived by the areal extract script. Placed before the
   // generic building rules so the category tag comes first and drives display color.
-  // Landuse-only construction areas (e.g. landuse=construction) carry no category and stay untagged
-  // here, since an unknown-use construction zone is not necessarily a building.
   { key: "building_category", values: ["residential"], tag: "residential" },
   { key: "building_category", values: ["commercial"], tag: "commercial" },
   { key: "building_category", values: ["retail"], tag: "retail" },
@@ -297,10 +303,29 @@ export const EXTENDED_OSM_RULES: OsmRule[] = [
   ...LIFECYCLE_VALUE_RULES,
 ];
 
+export function hasConstructionSignal(props: JsonObject): boolean {
+  if (props.landuse === "construction") return true;
+  const construction = props.construction;
+  return (
+    typeof construction === "string" &&
+    construction.trim() !== "" &&
+    construction.trim().toLowerCase() !== "no"
+  );
+}
+
+export function formatConstructionName(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().replaceAll("_", " ").replace(/\s+/g, " ");
+  if (NON_DESCRIPTIVE_CONSTRUCTION_VALUES.has(normalized.toLowerCase())) return null;
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
 export function extractTagsFromOsmProperties(featureProperties: JsonObject[]): string[] {
   const found = new Set<string>();
+  let hasConstruction = false;
 
   for (const props of featureProperties) {
+    hasConstruction ||= hasConstructionSignal(props);
     const redevelopment = isRedevelopmentSite(props);
     for (const rule of BASE_OSM_RULES) {
       if (redevelopment && PRESENT_STATE_OSM_KEYS.has(rule.key)) continue;
@@ -313,6 +338,8 @@ export function extractTagsFromOsmProperties(featureProperties: JsonObject[]): s
       }
     }
   }
+
+  if (found.size === 0 && hasConstruction) found.add("construction");
 
   return [...found];
 }

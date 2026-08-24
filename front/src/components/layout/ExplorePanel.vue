@@ -331,9 +331,20 @@ function getThumbnailFilename(contribution: LatestContribution): string | null {
   return contribution.renderFilename;
 }
 
+function getThumbnailIcon(contribution: LatestContribution) {
+  if (
+    contribution.type === "standalone" &&
+    contribution.shape &&
+    contribution.tags[0] === "construction"
+  ) {
+    return null;
+  }
+  return getProjectTagIcon(contribution.tags);
+}
+
 // A nameless contribution is identified by where it is: the deepest known place becomes its title
-// and the rest of the breadcrumb its subtitle, its category being carried by the icon tile. Only
-// one that is nameless and placeless falls back to a placeholder.
+// and the rest of the breadcrumb its subtitle. Only one that is nameless and placeless falls back
+// to a placeholder.
 function getHeadings(contribution: LatestContribution) {
   if (contribution.name) {
     const location = formatBoundaryLocation(contribution, locale.value);
@@ -370,7 +381,7 @@ const rows = computed(() =>
       title,
       subtitle,
       isPlaceholderTitle: isPlaceholder,
-      icon: getProjectTagIcon(contribution.tags),
+      icon: getThumbnailIcon(contribution),
       color: getProjectTagColor(contribution.tags),
       shape: contribution.type === "standalone" ? contribution.shape : null,
       crossorigin:

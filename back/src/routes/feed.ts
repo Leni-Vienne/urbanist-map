@@ -253,10 +253,13 @@ function buildStandaloneProjectsQuery(
       countryCode: projects.countryCode,
       country: boundaryName("country"),
       tags: projects.tags,
-      // Simplified, low-precision shape used as the thumbnail for untagged projects, which have no
-      // category icon to fall back on. Only fetched for those rows to keep the payload small.
+      // Simplified, low-precision shape used as the thumbnail for untagged projects and projects
+      // carrying only the generic construction fallback. Only fetched for those rows.
       shape: sql<GeoJSON.GeometryCollection | null>`CASE
-        WHEN ${projects.geometry} IS NOT NULL AND COALESCE(cardinality(${projects.tags}), 0) = 0
+        WHEN ${projects.geometry} IS NOT NULL AND (
+          COALESCE(cardinality(${projects.tags}), 0) = 0
+          OR ${projects.tags} = ARRAY['construction']::text[]
+        )
         THEN ST_AsGeoJSON(ST_Simplify(${projects.geometry}, 0.00003), 5)::json
         ELSE NULL
       END`,

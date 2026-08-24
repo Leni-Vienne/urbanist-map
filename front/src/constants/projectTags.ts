@@ -7,6 +7,7 @@ import {
   CableCar,
   Factory,
   Footprints,
+  HardHat,
   House,
   Plane,
   ShoppingBag,
@@ -35,6 +36,7 @@ export interface ProjectTag {
 // inspired by OpenRailwayMap's style
 export const PROJECT_TAGS: ProjectTag[] = [
   { slug: "building", color: "#92400e", textColor: "#ffffff", icon: Building },
+  { slug: "construction", color: "#7ea2b7", textColor: "#ffffff", icon: HardHat },
   { slug: "residential", color: "#4caf50", textColor: "#ffffff", icon: House },
   { slug: "commercial", color: "#1565c0", textColor: "#ffffff", icon: Store },
   { slug: "retail", color: "#1565c0", textColor: "#ffffff", icon: ShoppingBag },
@@ -86,10 +88,10 @@ export function getProjectTagIcon(tags: string[]): Component | null {
   return PROJECT_TAG_MAP.get(firstTag)?.icon ?? null;
 }
 
-// Tags that also carry the implicit `building` tag (the building-category tags plus the
-// generic `building` itself). Grouped separately in the filter UI.
-export const BUILDING_CATEGORY_TAGS = new Set([
+// Areal development tags grouped under the close-zoom hint in the filter UI.
+export const AREAL_PROJECT_TAGS = new Set([
   "building",
+  "construction",
   "residential",
   "commercial",
   "retail",

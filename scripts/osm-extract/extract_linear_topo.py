@@ -515,6 +515,9 @@ class RelationHandler(osmium.SimpleHandler):
             return
         if tags.get('historic') or tags.get('abandoned'):
             return
+        # Multipolygon relations are areas; linearizing their member ways changes their geometry.
+        if tags.get('type') == 'multipolygon':
+            return
         member_way_ids = [m.ref for m in r.members if m.type == 'w']
         # Skip route relations that aren't themselves proposed/construction projects
         if tags.get('type') == 'route':

@@ -190,7 +190,7 @@ import type { TimelineStatus } from "../../../../back/src/db/schema";
 import {
   PROJECT_TAGS,
   PROJECT_TAG_MAP,
-  BUILDING_CATEGORY_TAGS,
+  AREAL_PROJECT_TAGS,
   type ProjectTag,
 } from "@/constants/projectTags";
 import { useTheme } from "@/composables/core/useTheme";
@@ -282,11 +282,11 @@ function tagStyle(tag: ProjectTag) {
 
 const allTags = PROJECT_TAGS.filter((tag) => !tag.hidden);
 const tagGroups: { key: string; hintKey?: string; tags: ProjectTag[] }[] = [
-  { key: "line", tags: allTags.filter((tag) => !BUILDING_CATEGORY_TAGS.has(tag.slug)) },
+  { key: "line", tags: allTags.filter((tag) => !AREAL_PROJECT_TAGS.has(tag.slug)) },
   {
     key: "building",
     hintKey: "map.controls.buildingTagsHint",
-    tags: allTags.filter((tag) => BUILDING_CATEGORY_TAGS.has(tag.slug)),
+    tags: allTags.filter((tag) => AREAL_PROJECT_TAGS.has(tag.slug)),
   },
 ];
 const untaggedFilter = UNTAGGED_PROJECT_FILTER;

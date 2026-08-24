@@ -148,6 +148,7 @@ import { openProjectForEditing } from "@/services/core/projectSelection";
 import { closeDetail } from "@/services/overlay/selection";
 
 import { buildImageUrl, imageRequiresCredentials } from "@/utils/imageUrl";
+import { formatConstructionName } from "@shared/osmRules";
 
 import ProjectMetadataCard from "@/components/map/popups/ProjectMetadataCard.vue";
 import ImageLightbox from "@/components/common/ImageLightbox.vue";
@@ -181,6 +182,8 @@ const { entity: wikidataEntity } = useWikidataEntity(
 const displayName = computed(() => {
   const current = project.value;
   if (current?.name) return current.name;
+  const constructionName = formatConstructionName(current?.externalProperties?.construction);
+  if (constructionName) return constructionName;
   return current?.importSource?.type === "osm" ? t("project.osmName") : t("project.unnamed");
 });
 
