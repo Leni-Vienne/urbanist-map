@@ -9,7 +9,7 @@
 
   <!-- Project Edit Form Dialog -->
   <Dialog
-    v-if="uiStore.projectEditTarget"
+    v-if="projectEditTarget"
     :visible="true"
     :modal="true"
     :closable="true"
@@ -22,7 +22,7 @@
     }"
   >
     <EditProjectForm
-      :project="uiStore.projectEditTarget"
+      :project="projectEditTarget"
       @close="uiStore.closeProjectEditForm"
       @submitted="uiStore.closeProjectEditForm"
     />
@@ -41,7 +41,7 @@
 <script setup lang="ts">
 import { toastSuccess, toastError } from "@/services/core/toast";
 
-import { ref, defineAsyncComponent, onUnmounted } from "vue";
+import { computed, ref, defineAsyncComponent, onUnmounted } from "vue";
 import { useI18n } from "vue-i18n";
 import * as maplibregl from "maplibre-gl";
 import type { MapMouseEvent } from "maplibre-gl";
@@ -64,6 +64,10 @@ const EditProjectForm = defineAsyncComponent(
 
 const projectStore = useProjectStore();
 const uiStore = useUiStore();
+const projectEditTarget = computed(() => {
+  const projectId = uiStore.projectEditTargetId;
+  return projectId ? (projectStore.projects[projectId] ?? null) : null;
+});
 
 const { t: $t } = useI18n();
 const markerPlacementBar = ref<InstanceType<typeof MarkerPlacementBar> | null>(null);

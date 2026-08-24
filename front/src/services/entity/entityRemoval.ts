@@ -44,16 +44,6 @@ function removeOverlay(
   const projectStore = useProjectStore();
   const authStore = useAuthStore();
 
-  const allProjectsData = projectStore.projects;
-  const projectWithOverlay = Object.values(allProjectsData).find((p) =>
-    p.overlayIds.includes(overlayId),
-  );
-
-  if (projectWithOverlay) {
-    const updatedOverlayIds = projectWithOverlay.overlayIds.filter((id) => id !== overlayId);
-    projectStore.updateProject(projectWithOverlay.id, { overlayIds: updatedOverlayIds });
-  }
-
   removeOverlayFromMapAndStore(overlayId);
 
   if (options.updateUserContributions) {
@@ -68,13 +58,10 @@ function removeProject(
   } = {},
 ) {
   const projectStore = useProjectStore();
+  const overlayStore = useOverlayStore();
 
-  const project = projectStore.projects[projectId];
-
-  if (project?.overlayIds) {
-    for (const overlayId of project.overlayIds) {
-      removeOverlayFromMapAndStore(overlayId);
-    }
+  for (const overlay of Object.values(overlayStore.liveOverlays)) {
+    if (overlay.projectId === projectId) removeOverlayFromMapAndStore(overlay.id);
   }
 
   projectStore.removeProject(projectId);

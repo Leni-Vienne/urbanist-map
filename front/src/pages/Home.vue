@@ -44,7 +44,7 @@
 
       <!-- Shape Editor Panel - lives in the map column so it stays centered on the map. -->
       <ShapeEditorPanel
-        v-if="uiStore.shapeEditorProject"
+        v-if="uiStore.shapeEditorProjectId"
         @done="handleShapesDone"
         @cancel="handleShapesCancel"
         @suggest-tags="handleSuggestTags"
@@ -56,7 +56,7 @@
       v-if="
         uiStore.projectCreationSeed ||
         uiStore.markerPlacementBarVisible ||
-        uiStore.projectEditTarget
+        uiStore.projectEditTargetId
       "
     />
 
@@ -156,7 +156,7 @@ watch(maintenanceBannerText, (value) => {
 watch(
   () => mapStore.mode,
   async (newMode, oldMode) => {
-    if (oldMode === "edit" && newMode !== "edit" && uiStore.shapeEditorProject) {
+    if (oldMode === "edit" && newMode !== "edit" && uiStore.shapeEditorProjectId) {
       await stopShapeEditing();
       uiStore.closeShapeEditor();
     }
@@ -181,22 +181,24 @@ async function preloadModeratedContributions(user: typeof authStore.user) {
 }
 
 async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
-  const project = uiStore.shapeEditorProject;
+  const projectId = uiStore.shapeEditorProjectId;
+  if (!projectId) return;
+  const project = projectStore.projects[projectId];
   if (!project) return;
-  // Ensure the project is in the store so updateProject doesn't fall back to a default with null status.
-  projectStore.addProject(project);
-  projectStore.updateProject(project.id, { geometry, isModified: true });
+  projectStore.updateProject(projectId, { geometry, isModified: true });
   await stopShapeEditing();
   uiStore.closeShapeEditor();
   toastSuccess(t("shapes.savedLocally"));
 }
 
 function handleSuggestTags(suggestedTags: string[]) {
-  const project = uiStore.shapeEditorProject;
+  const projectId = uiStore.shapeEditorProjectId;
+  if (!projectId) return;
+  const project = projectStore.projects[projectId];
   if (!project) return;
   const existing = project.tags ?? [];
   const merged = [...new Set([...existing, ...suggestedTags])];
-  projectStore.updateProject(project.id, { tags: merged, isModified: true });
+  projectStore.updateProject(projectId, { tags: merged, isModified: true });
 }
 
 async function handleShapesCancel() {

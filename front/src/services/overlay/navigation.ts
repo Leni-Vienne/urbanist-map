@@ -34,10 +34,8 @@ function zoomToOverlayBounds(overlay: OverlayObject): void {
 }
 
 /**
- * Sibling overlay ids of a project, derived from already-loaded overlays (not
- * project.overlayIds, which is only populated on detail open and can list overlays
- * that aren't loaded, hence not selectable). Shared by the toolbar index display and
- * prev/next navigation so both agree on order and count.
+ * Sibling overlay ids of a project, derived from already-loaded overlays. Shared by the toolbar
+ * index display and prev/next navigation so both agree on order and count.
  */
 export function getProjectSiblingOverlayIds(projectId: string): string[] {
   const overlayStore = useOverlayStore();

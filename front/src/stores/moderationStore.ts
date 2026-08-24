@@ -42,12 +42,10 @@ export const useModerationStore = defineStore("moderation", () => {
     for (const project of data.projects) {
       const inlineOverlays = project.overlays;
       const { overlays: _overlays, ...summary } = project;
-      const current = projectStore.getProjectById(project.id);
       const backendProject = projectStore.getMapProjectById(project.id, "moderation");
       projectStore.adoptBackendProjectSummary({
         ...summary,
         geometry: backendProject?.geometry ?? summary.geometry,
-        overlayIds: current?.overlayIds ?? inlineOverlays.map((overlay) => overlay.id),
       });
       nextProjectIds.push(project.id);
       nextProjectOverlays[project.id] = inlineOverlays;

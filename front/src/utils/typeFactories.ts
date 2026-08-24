@@ -17,9 +17,8 @@ export type LocalProjectInput = Partial<Omit<ProjectSummary, "id" | "status">> &
   id?: string;
 };
 
-export type ProjectWire = Omit<ProjectSummary, "tags" | "overlayIds"> & {
+export type ProjectWire = Omit<ProjectSummary, "tags"> & {
   tags: string[] | null;
-  overlayIds?: string[];
 };
 
 type HydratedProjectWire = ProjectWire & ProjectDetailFields;
@@ -47,7 +46,6 @@ export function projectFromWire(data: ProjectWire): ProjectSummary {
   return {
     ...data,
     tags: data.tags ?? [],
-    overlayIds: data.overlayIds ?? [],
   };
 }
 
@@ -55,7 +53,6 @@ export function hydratedProjectFromWire(data: HydratedProjectWire): HydratedProj
   return {
     ...data,
     tags: data.tags ?? [],
-    overlayIds: data.overlayIds ?? [],
   };
 }
 
@@ -88,7 +85,6 @@ export function createLocalProject(data: LocalProjectInput): LocalProject {
     importSource: data.importSource ?? null,
     lat: data.lat ?? null,
     lng: data.lng ?? null,
-    overlayIds: data.overlayIds ?? [],
     geometry: data.geometry ?? null,
     geometrySizeM: data.geometrySizeM ?? null,
     tags: data.tags ?? [],

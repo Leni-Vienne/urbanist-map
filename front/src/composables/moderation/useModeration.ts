@@ -63,11 +63,9 @@ export function useModeration() {
 
       if (!isCurrentRequest()) return;
 
-      // The moderation backend query omits the derived overlayIds array and the parsed geometry.
-      // Coerce here so the stored projects satisfy Project.
+      // The moderation backend query omits parsed geometry.
       const moderationProjects: ContributionProject[] = response.projects.map((project) => ({
         ...project,
-        overlayIds: project.overlays.map((overlay) => overlay.id),
         geometry: null,
         tags: project.tags ?? [],
       }));

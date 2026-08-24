@@ -37,13 +37,7 @@ function cacheMapSessionProjects(projects: ProjectWire[]): string[] {
   const projectStore = useProjectStore();
   const projectIds: string[] = [];
   for (const project of projects) {
-    const current = projectStore.getProjectById(project.id);
-    const stored = projectStore.adoptBackendProjectSummary(
-      projectFromWire({
-        ...project,
-        overlayIds: current?.overlayIds ?? [],
-      }),
-    );
+    const stored = projectStore.adoptBackendProjectSummary(projectFromWire(project));
     projectIds.push(stored.id);
   }
   return projectIds;

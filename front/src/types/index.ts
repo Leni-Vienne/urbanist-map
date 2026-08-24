@@ -58,8 +58,6 @@ interface ProjectFields extends Omit<
   | "detachedAt"
   | "rejectionReason"
 > {
-  // Computed fields for all contexts
-  overlayIds: string[];
   // Always an array on the frontend, null coerced to [] at DB boundary
   tags: string[];
   // Joined import source details (null for user-created projects)

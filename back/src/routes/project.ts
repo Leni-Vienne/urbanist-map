@@ -538,7 +538,6 @@ export const projectRouter = router({
         return Object.assign(project, {
           tags: project.tags ?? [],
           overlays: projectOverlaysList,
-          overlayIds: projectOverlaysList.map((overlay) => overlay.id),
         });
       });
 

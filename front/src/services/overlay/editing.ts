@@ -27,7 +27,6 @@ import { t } from "@/locales";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import type { OverlayObject, LatLng } from "@/types/index";
 import { createOverlayObject } from "@/utils/typeFactories";
-import { addOverlayToProjectWithId } from "@/services/project/projectMutations";
 import { openOverlayDetail, whenImageReadyIfSelected } from "@/services/overlay/selection";
 import { makeHistoryState, commitOverlayEdit } from "@/services/overlay/history";
 import { watch } from "vue";
@@ -111,7 +110,6 @@ export async function createLocalOverlay(
   overlay.history = [makeHistoryState(corners, overlay.imageUrl)];
 
   overlayStore.addOverlay(id, overlay);
-  addOverlayToProjectWithId(projectId, id);
   openOverlayDetail(id);
 }
 

@@ -9,7 +9,7 @@ export const useUiStore = defineStore("ui", () => {
   const moderatedContributionsDialogVisible = ref(false);
 
   const projectCreationSeed = ref<Pick<Project, "lat" | "lng"> | null>(null);
-  const projectEditTarget = ref<Project | null>(null);
+  const projectEditTargetId = ref<string | null>(null);
   const overlayEditTargetId = ref<string | null>(null);
 
   // Shared tab state between desktop SideMenu and mobile MobileDrawer
@@ -17,7 +17,7 @@ export const useUiStore = defineStore("ui", () => {
   const mobileDrawerHeightPercent = ref(40);
 
   const imageUploadProjectId = ref<string | null>(null);
-  const shapeEditorProject = ref<Project | null>(null);
+  const shapeEditorProjectId = ref<string | null>(null);
 
   // Shared accordion state that persists across panels
   const activeAccordionPanels = ref<string[]>([]);
@@ -35,12 +35,12 @@ export const useUiStore = defineStore("ui", () => {
     projectCreationSeed.value = null;
   }
 
-  function openProjectEditForm(project: Project) {
-    projectEditTarget.value = project;
+  function openProjectEditForm(projectId: string) {
+    projectEditTargetId.value = projectId;
   }
 
   function closeProjectEditForm() {
-    projectEditTarget.value = null;
+    projectEditTargetId.value = null;
   }
 
   function openOverlayEditDialog(overlayId: string) {
@@ -59,16 +59,16 @@ export const useUiStore = defineStore("ui", () => {
     imageUploadProjectId.value = null;
   }
 
-  function openShapeEditor(project: Project) {
-    shapeEditorProject.value = project;
+  function openShapeEditor(projectId: string) {
+    shapeEditorProjectId.value = projectId;
   }
 
   function closeShapeEditor() {
-    shapeEditorProject.value = null;
+    shapeEditorProjectId.value = null;
   }
 
   // Reset the state scoped to the signed-in user: the active tab (which the map mode derives from),
-  // every panel and dialog, and their retained entities. Viewport preferences are left alone.
+  // every panel and dialog, and their targets. Viewport preferences are left alone.
   function clearAllState() {
     activeTab.value = "explore";
     markerPlacementBarVisible.value = false;
@@ -87,12 +87,12 @@ export const useUiStore = defineStore("ui", () => {
     markerPlacementBarVisible,
     moderatedContributionsDialogVisible,
     projectCreationSeed,
-    projectEditTarget,
+    projectEditTargetId,
     overlayEditTargetId,
     activeTab,
     mobileDrawerHeightPercent,
     imageUploadProjectId,
-    shapeEditorProject,
+    shapeEditorProjectId,
     activeAccordionPanels,
 
     openAuthModal,

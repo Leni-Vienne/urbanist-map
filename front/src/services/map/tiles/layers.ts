@@ -665,7 +665,7 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
     setLayerFilter(mlMap, layerId, merged);
   }
 
-  const editorProjectId = useUiStore().shapeEditorProject?.id;
+  const editorProjectId = useUiStore().shapeEditorProjectId;
   const pendingHiddenFilter = editorProjectId
     ? buildHiddenIdExclusionFilter([editorProjectId])
     : null;
@@ -715,8 +715,8 @@ function computeHiddenProjectIds(): string[] {
   const uiStore = useUiStore();
   const mapStore = useMapStore();
   const hidden = new Set<string>();
-  if (uiStore.shapeEditorProject?.id && mapStore.mode === "edit") {
-    hidden.add(uiStore.shapeEditorProject.id);
+  if (uiStore.shapeEditorProjectId && mapStore.mode === "edit") {
+    hidden.add(uiStore.shapeEditorProjectId);
   }
   if (mapStore.mode === "edit") {
     for (const project of Object.values(store.projects)) {

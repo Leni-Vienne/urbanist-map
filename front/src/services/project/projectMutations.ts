@@ -15,21 +15,3 @@ export function createProject(projectData: LocalProjectInput) {
 
   return project.id;
 }
-
-export function addOverlayToProjectWithId(projectId: string, overlayId: string): boolean {
-  const projectStore = useProjectStore();
-
-  const existingProject = projectStore.projects[projectId];
-
-  if (!existingProject) {
-    return false;
-  }
-
-  const isFirstOverlay = existingProject.overlayIds.length === 0;
-
-  if (!existingProject.overlayIds.includes(overlayId)) {
-    existingProject.overlayIds.push(overlayId);
-  }
-
-  return isFirstOverlay;
-}

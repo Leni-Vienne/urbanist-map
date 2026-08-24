@@ -124,7 +124,7 @@ export function useContributeActions(allContributions: ComputedRef<ContributionP
 
     closeDetail();
 
-    uiStore.openShapeEditor(project);
+    uiStore.openShapeEditor(project.id);
     await startShapeEditing(project.id, approvedGeometry);
   }
 
@@ -145,7 +145,7 @@ export function useContributeActions(allContributions: ComputedRef<ContributionP
       projectStore.cacheProjectBackendState(projectToEdit.id);
     }
 
-    uiStore.openProjectEditForm(projectToEdit);
+    uiStore.openProjectEditForm(projectToEdit.id);
   }
 
   return {
