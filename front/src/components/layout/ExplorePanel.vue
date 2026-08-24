@@ -434,6 +434,10 @@ function filterLabel(filter: ActiveFilter): string {
 }
 
 async function handleContributionClick(contribution: LatestContribution) {
+  if (isMobile.value) {
+    clearContributionHover();
+  }
+
   if (contribution.type === "overlay") {
     await handleOverlayClickNavigation(contribution);
   } else if (contribution.type === "standalone") {
