@@ -47,7 +47,6 @@
         v-if="uiStore.shapeEditorProjectId"
         @done="handleShapesDone"
         @cancel="handleShapesCancel"
-        @suggest-tags="handleSuggestTags"
       />
     </div>
 
@@ -189,16 +188,6 @@ async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
   await stopShapeEditing();
   uiStore.closeShapeEditor();
   toastSuccess(t("shapes.savedLocally"));
-}
-
-function handleSuggestTags(suggestedTags: string[]) {
-  const projectId = uiStore.shapeEditorProjectId;
-  if (!projectId) return;
-  const project = projectStore.projects[projectId];
-  if (!project) return;
-  const existing = project.tags ?? [];
-  const merged = [...new Set([...existing, ...suggestedTags])];
-  projectStore.updateProject(projectId, { tags: merged, isModified: true });
 }
 
 async function handleShapesCancel() {

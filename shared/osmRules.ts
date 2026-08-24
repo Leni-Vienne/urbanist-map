@@ -1,7 +1,3 @@
-/**
- * OSM property mapping rules for project tags
- * Shared between frontend (projectTags.ts) and backend (import-osm.ts)
- */
 import type { JsonObject } from "./json";
 
 interface OsmRule {
@@ -318,28 +314,4 @@ export function formatConstructionName(value: unknown): string | null {
   const normalized = value.trim().replaceAll("_", " ").replace(/\s+/g, " ");
   if (NON_DESCRIPTIVE_CONSTRUCTION_VALUES.has(normalized.toLowerCase())) return null;
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
-}
-
-export function extractTagsFromOsmProperties(featureProperties: JsonObject[]): string[] {
-  const found = new Set<string>();
-  let hasConstruction = false;
-
-  for (const props of featureProperties) {
-    hasConstruction ||= hasConstructionSignal(props);
-    const redevelopment = isRedevelopmentSite(props);
-    for (const rule of BASE_OSM_RULES) {
-      if (redevelopment && PRESENT_STATE_OSM_KEYS.has(rule.key)) continue;
-      const val = props[rule.key];
-      if (typeof val === "string" || typeof val === "number") {
-        const strVal = String(val);
-        if (!rule.values || rule.values.includes(strVal)) {
-          found.add(rule.tag);
-        }
-      }
-    }
-  }
-
-  if (found.size === 0 && hasConstruction) found.add("construction");
-
-  return [...found];
 }

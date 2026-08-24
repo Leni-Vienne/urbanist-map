@@ -12,7 +12,6 @@ import { getMap } from "@/services/core/map";
 import type { LngLatBounds } from "maplibre-gl";
 import { extendBoundsWithGeometry } from "@/utils/cornersBounds";
 import { ref } from "vue";
-import type { JsonObject } from "@shared/json";
 
 const drawableGeometryTypes = new Set(["LineString", "MultiLineString", "Polygon", "MultiPolygon"]);
 
@@ -24,12 +23,10 @@ const BATCH_SIZE = 20;
 type LoadedGeoJSON = {
   geometry: GeoJSON.GeometryCollection;
   skippedGeometryTypes: string[];
-  featureProperties: JsonObject[];
 };
 
 function filterDrawableGeometries(
   geometries: (GeoJSON.Geometry | null | undefined)[],
-  featureProperties: JsonObject[] = [],
 ): LoadedGeoJSON {
   const drawable: GeoJSON.Geometry[] = [];
   const skipped = new Set<string>();
@@ -46,7 +43,6 @@ function filterDrawableGeometries(
   return {
     geometry: { type: "GeometryCollection", geometries: drawable },
     skippedGeometryTypes: [...skipped],
-    featureProperties,
   };
 }
 
@@ -290,8 +286,7 @@ export async function loadGeoJSONFile(file: File): Promise<LoadedGeoJSON> {
 
   if (parsed.type === "FeatureCollection") {
     const geometries = parsed.features.map((f) => f.geometry);
-    const featureProperties = parsed.features.map((f) => f.properties ?? {});
-    return filterDrawableGeometries(geometries, featureProperties);
+    return filterDrawableGeometries(geometries);
   }
 
   if (parsed.type === "GeometryCollection") {
@@ -300,8 +295,7 @@ export async function loadGeoJSONFile(file: File): Promise<LoadedGeoJSON> {
 
   // Single geometry or Feature
   if (parsed.type === "Feature") {
-    const featureProperties = parsed.properties ? [parsed.properties] : [];
-    return filterDrawableGeometries([parsed.geometry], featureProperties);
+    return filterDrawableGeometries([parsed.geometry]);
   }
 
   if ("coordinates" in parsed) {

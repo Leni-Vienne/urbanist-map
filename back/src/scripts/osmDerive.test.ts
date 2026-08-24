@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { extractTags, shouldSkipUnchangedOsmFeature } from "./osmDerive";
-import { extractTagsFromOsmProperties, formatConstructionName } from "@shared/osmRules";
+import { formatConstructionName } from "@shared/osmRules";
 
 describe("OSM construction fallback tag", () => {
   test("tags a bare construction landuse", () => {
@@ -21,12 +21,6 @@ describe("OSM construction fallback tag", () => {
         landuse: "construction",
       }),
     ).toEqual(["residential", "building"]);
-  });
-
-  test("uses the same fallback for frontend OSM properties", () => {
-    expect(
-      extractTagsFromOsmProperties([{ construction: "museum", landuse: "construction" }]),
-    ).toEqual(["construction"]);
   });
 
   test("turns a meaningful subtype into a display label", () => {

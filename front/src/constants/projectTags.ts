@@ -98,5 +98,3 @@ export const AREAL_PROJECT_TAGS = new Set([
   "office",
   "industrial",
 ]);
-
-export { extractTagsFromOsmProperties } from "@shared/osmRules";
