@@ -171,7 +171,6 @@ import { useModerationStore } from "@/stores/moderationStore";
 import type { Overlay, PendingChangeRequest, UserStatsPayload } from "@/types/index";
 import { trpc } from "@/client";
 import { handleOverlayClickNavigation } from "@/services/overlay/clickHandler";
-import { refreshMapSessionData } from "@/services/map/viewportTriggers";
 import { useFocusStore } from "@/stores/focusStore";
 
 import ProjectAccordionPanel from "./ProjectAccordionPanel.vue";
@@ -472,8 +471,7 @@ async function reportUser(userId: string, reason: string): Promise<boolean> {
       t("moderation.reportUser.reportSuccessDetail"),
       t("moderation.reportUser.reportSuccess"),
     );
-    moderationStore.invalidateModerationData();
-    await fetchPendingSubmissions();
+    await fetchPendingSubmissions({ force: true });
     return true;
   } catch (error) {
     console.error("Failed to report user:", error);
@@ -528,10 +526,8 @@ async function executeRejectOverlay(id: string, rejectionReason?: string): Promi
   return result.success;
 }
 
-async function refreshAfterChangeRequest(mapDataChanged: boolean): Promise<void> {
-  moderationStore.invalidateModerationData();
-  const mapRefresh = mapDataChanged ? refreshMapSessionData() : Promise.resolve();
-  await Promise.all([fetchPendingSubmissions(), refetchPendingCounts(), mapRefresh]);
+async function refreshAfterChangeRequest(): Promise<void> {
+  await Promise.all([fetchPendingSubmissions({ force: true }), refetchPendingCounts()]);
 }
 
 // Handle change request approval with toast notifications
@@ -542,10 +538,10 @@ async function handleApproveChange(changeId: string) {
     const result = await approveChangeRequests([changeId]);
 
     if (result) {
-      await refreshAfterChangeRequest(true);
+      await refreshAfterChangeRequest();
       toastSuccess(t("moderation.changeApprovedDetail"), t("moderation.changeApproved"));
     } else {
-      await refreshAfterChangeRequest(false);
+      await refreshAfterChangeRequest();
       toastError(t("moderation.approvalFailedDetail"), t("moderation.approvalFailed"));
     }
   } finally {
@@ -601,10 +597,10 @@ async function executeRejectChange(changeId: string): Promise<boolean> {
   const rejected = await rejectChangeRequests([changeId]);
 
   if (rejected) {
-    await refreshAfterChangeRequest(false);
+    await refreshAfterChangeRequest();
     toastInfo(t("moderation.changeRejectedDetail"), t("moderation.changeRejected"));
   } else {
-    await refreshAfterChangeRequest(false);
+    await refreshAfterChangeRequest();
     toastError(t("moderation.rejectionFailedDetail"), t("moderation.rejectionFailed"));
   }
 

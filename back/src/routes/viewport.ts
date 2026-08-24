@@ -1,15 +1,11 @@
-import * as z from "zod";
 import { publicProcedure, router, TRPCError } from "../trpc";
 import { projects, overlays, importSources } from "../db/schema";
 import { sql, eq, and } from "drizzle-orm";
 import { db } from "../database";
 import {
   getUserOverlayChangeRequestIds,
-  getAllOpenOverlayChangeRequestIds,
-  buildProjectVisibilityCondition,
   fetchOverlaysForMap,
   PROJECT_COLUMNS,
-  requireModeratorAccess,
 } from "../db/helpers";
 
 /**
@@ -83,79 +79,4 @@ export const viewportRouter = router({
       });
     }
   }),
-
-  // Country-scoped map fetch for moderation mode. Returns the selected country's pending set
-  // (pending overlays + approved-with-open-CR overlays + projects needing moderation) in ONE
-  // round trip, bbox-free. Approved-without-CR overlays come via MVT tiles. Fetched once per
-  // country selection; panning does not refetch.
-  getModerationMapData: publicProcedure
-    .input(z.object({ countryCode: z.string().length(3).optional() }))
-    .query(async ({ input, ctx }) => {
-      try {
-        requireModeratorAccess(ctx.user, "moderation");
-        if (!ctx.user) {
-          throw new TRPCError({
-            code: "UNAUTHORIZED",
-            message: "Authentication required for moderation mode",
-          });
-        }
-
-        const user = ctx.user;
-        const isAdmin = user.role === "admin";
-
-        if (!isAdmin) {
-          if (!input.countryCode) {
-            throw new TRPCError({
-              code: "BAD_REQUEST",
-              message: "Moderators must select a country to moderate",
-            });
-          }
-          if (!user.moderatedCountries?.includes(input.countryCode)) {
-            throw new TRPCError({
-              code: "FORBIDDEN",
-              message: "You do not have permission to moderate this country",
-            });
-          }
-        }
-
-        const effectiveCountry = input.countryCode;
-        const countryCondition = effectiveCountry
-          ? sql`${projects.countryCode} = ${effectiveCountry}`
-          : sql`TRUE`;
-
-        const openCrIds = await getAllOpenOverlayChangeRequestIds(db);
-        const overlayPendingCondition =
-          openCrIds.length > 0
-            ? sql`(${overlays.status} = 'pending' OR ${overlays.id} = ANY(${`{${openCrIds.join(",")}}`}::uuid[]))`
-            : sql`(${overlays.status} = 'pending')`;
-
-        const overlayResult = await fetchOverlaysForMap(
-          [overlayPendingCondition, countryCondition],
-          user,
-        );
-
-        const projectsData = await db
-          .select({
-            ...PROJECT_COLUMNS,
-            importSource: importSources,
-          })
-          .from(projects)
-          .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
-          .where(and(buildProjectVisibilityCondition(user, "moderation", true), countryCondition));
-
-        return {
-          overlays: overlayResult.overlays,
-          projects: mergeProjectsById(overlayResult.projects, projectsData),
-        };
-      } catch (error) {
-        if (error instanceof TRPCError) {
-          throw error;
-        }
-        console.error("Error fetching moderation map data:", error);
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to fetch moderation map data",
-        });
-      }
-    }),
 });

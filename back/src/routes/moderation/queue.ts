@@ -14,6 +14,7 @@ import {
   buildProjectModerationQuery,
   buildOverlayModerationQuery,
   addConflictFlags,
+  fetchOverlaysForMap,
 } from "../../db/helpers";
 import { TRPCError } from "@trpc/server";
 import * as z from "zod";
@@ -130,14 +131,8 @@ export const queueProcedures = {
     }),
 
   getPendingSubmissions: moderatorProcedure
-    .input(
-      z
-        .object({
-          countryCode: z.string().length(3).optional(),
-        })
-        .optional(),
-    )
-    .query(async ({ input = {}, ctx }) => {
+    .input(z.object({ countryCode: z.string().length(3) }))
+    .query(async ({ input, ctx }) => {
       try {
         const userModeratedCountries = ctx.user.moderatedCountries;
         const isAdmin = ctx.user.role === "admin";
@@ -146,16 +141,7 @@ export const queueProcedures = {
         // Early permission check - validate country access before any DB queries.
         // moderatorProcedure guarantees a non-admin has a non-empty moderatedCountries,
         // so the country gate applies to every non-admin (fail closed via ?. below).
-        const effectiveCountryCode = input.countryCode;
-
         if (!isAdmin) {
-          if (!input.countryCode) {
-            throw new TRPCError({
-              code: "BAD_REQUEST",
-              message: "Moderators must select a country to moderate",
-            });
-          }
-
           if (!userModeratedCountries?.includes(input.countryCode)) {
             throw new TRPCError({
               code: "FORBIDDEN",
@@ -179,7 +165,7 @@ export const queueProcedures = {
               ? [inArray(projects.id, pendingProjectIds.pendingChangeProjectIds)]
               : []),
           ),
-          effectiveCountryCode ? eq(projects.countryCode, effectiveCountryCode) : undefined,
+          eq(projects.countryCode, input.countryCode),
         ];
 
         const { projectsResult, overlaysResult, overlayChanges, projectChanges } =
@@ -213,15 +199,36 @@ export const queueProcedures = {
           "requestedBy",
         );
 
-        const { projectsWithOverlays, changeRequestsWithReports } = await enrichWithReportCounts(
-          filteredProjects,
-          filteredOverlays,
-          filteredChangeRequests,
+        const filteredProjectIds = new Set(filteredProjects.map((project) => project.id));
+        const changedOverlayIds = new Set(
+          filteredChangeRequests
+            .filter((change) => change.entityType === "overlay")
+            .map((change) => change.entityId),
         );
+        const mapOverlayIds = filteredOverlays
+          .filter(
+            (overlay) =>
+              overlay.kind === "map" &&
+              overlay.projectId !== null &&
+              filteredProjectIds.has(overlay.projectId) &&
+              (overlay.status === "pending" || changedOverlayIds.has(overlay.id)),
+          )
+          .map((overlay) => overlay.id);
+
+        const mapOverlayRequest =
+          mapOverlayIds.length > 0
+            ? fetchOverlaysForMap([inArray(overlays.id, mapOverlayIds)], ctx.user)
+            : Promise.resolve(null);
+        const [mapOverlayResult, { projectsWithOverlays, changeRequestsWithReports }] =
+          await Promise.all([
+            mapOverlayRequest,
+            enrichWithReportCounts(filteredProjects, filteredOverlays, filteredChangeRequests),
+          ]);
 
         return {
           projects: projectsWithOverlays,
           changeRequests: changeRequestsWithReports,
+          mapOverlays: mapOverlayResult?.overlays ?? [],
         };
       } catch (error) {
         console.error("Error fetching pending submissions:", error);

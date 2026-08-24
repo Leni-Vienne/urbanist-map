@@ -6,10 +6,11 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useMapStore } from "@/stores/mapStore";
 import { useAuthStore } from "@/stores/authStore";
 import { removeOverlayFromMapAndStore } from "@/services/entity/entityRemoval";
-import { refreshMapSessionData } from "@/services/map/viewportTriggers";
+import { applyMapSessionRows } from "@/services/map/viewportTriggers";
 import { t } from "@/locales";
 import type { ContributionProject } from "@/types/index";
 import { toastError } from "@/services/core/toast";
+import { overlayWireToData } from "@/utils/typeFactories";
 
 // Result type for approval operations
 export type ApprovalResult = {
@@ -38,19 +39,21 @@ export function useModeration() {
   const changeRequests = computed(() => moderationStore.changeRequests);
 
   async function fetchPendingSubmissions(options?: { force?: boolean }) {
+    const countryCode = mapStore.selectedCountryCode;
+    if (!countryCode) return;
     if (!options?.force && moderationStore.moderationLoadStatus !== "idle") {
       return;
     }
 
     moderationFetchToken += 1;
     const requestToken = moderationFetchToken;
-    const countryCode = mapStore.selectedCountryCode;
     const userId = authStore.user?.id;
     moderationStore.startModerationLoading();
 
     function isCurrentRequest(): boolean {
       return (
         requestToken === moderationFetchToken &&
+        mapStore.mode === "moderation" &&
         mapStore.selectedCountryCode === countryCode &&
         authStore.user?.id === userId
       );
@@ -58,15 +61,17 @@ export function useModeration() {
 
     try {
       const response = await trpc.moderation.getPendingSubmissions.query({
-        countryCode: countryCode ?? undefined,
+        countryCode,
       });
 
       if (!isCurrentRequest()) return;
 
-      // The moderation backend query omits parsed geometry.
+      const mapProjects = response.projects.map(({ overlays: _overlays, ...project }) => ({
+        ...project,
+        tags: project.tags ?? [],
+      }));
       const moderationProjects: ContributionProject[] = response.projects.map((project) => ({
         ...project,
-        geometry: null,
         tags: project.tags ?? [],
       }));
 
@@ -74,13 +79,10 @@ export function useModeration() {
         projects: moderationProjects,
         changeRequests: response.changeRequests,
       });
+      applyMapSessionRows("moderation", mapProjects, response.mapOverlays.map(overlayWireToData));
     } catch (error) {
       if (!isCurrentRequest()) return;
       moderationStore.stopModerationLoading();
-      // No country selected yet: stay silent, the UI prompts the user to pick one.
-      if (error instanceof Error && error.message.includes("must select a country")) {
-        return;
-      }
       console.error("Failed to load pending submissions:", error);
       toastError(t("moderation.fetchSubmissionsFailed"));
     }
@@ -132,8 +134,7 @@ export function useModeration() {
         return await submitApproval();
       } catch (error) {
         console.error(`Failed to set ${itemType} moderation status:`, error);
-        moderationStore.invalidateModerationData();
-        await fetchPendingSubmissions();
+        await fetchPendingSubmissions({ force: true });
         return null;
       }
     }
@@ -149,8 +150,7 @@ export function useModeration() {
 
     // Refetch so the panel reflects the new server state, whether the write
     // succeeded or hit a version conflict.
-    moderationStore.invalidateModerationData();
-    await fetchPendingSubmissions();
+    await fetchPendingSubmissions({ force: true });
 
     if (!result.success) {
       return {
@@ -159,9 +159,6 @@ export function useModeration() {
         message: t(`moderation.${itemType}VersionConflict`),
       };
     }
-
-    // Drop the just-actioned item from the moderation map set.
-    await refreshMapSessionData();
 
     return {
       success: true,
@@ -255,8 +252,7 @@ export function useModeration() {
       !user.moderatedCountries ||
       (mapCountryCode !== null && user.moderatedCountries.includes(mapCountryCode));
 
-    // Admins fetch unfiltered; moderators only when the active country is one they can access.
-    if (isAdmin || (mapCountryCode && canAccessMapCountry)) {
+    if (mapCountryCode && (isAdmin || canAccessMapCountry)) {
       void fetchPendingSubmissions({ force: true });
     }
   });

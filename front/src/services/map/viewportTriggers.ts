@@ -1,7 +1,7 @@
 // Viewport-based content manager
 // View mode: the vector tile sync and cluster source handle rendering (no data loading)
 // Edit: session-scoped fetch (own pending + own open-CR + own projects), once per entry
-// Moderation: country-scoped fetch, once per country selection
+// Moderation: no independent data loading; it renders the published session snapshot
 // moveend re-runs the render loop off the in-memory session snapshot; it performs NO network fetch, and no
 // zoom decisions: the reconciler owns what exists on the map at the current zoom.
 // All state is module-scoped: every consumer drives the same single map viewport.
@@ -57,7 +57,7 @@ function clearResolvedChangeRequestState(sessionOverlayIds: string[]): void {
 }
 
 // Cache a fetched session set into the stores, then make it the mode's snapshot and render it.
-function applyMapSessionRows(
+export function applyMapSessionRows(
   mode: "edit" | "moderation",
   projects: ProjectWire[],
   overlays: OverlayData[],
@@ -116,41 +116,9 @@ async function refreshEditSessionData(): Promise<void> {
   applyMapSessionRows("edit", rows.projects, rows.overlays.map(overlayWireToData));
 }
 
-/**
- * Fetch the selected country's moderation pending set (pending overlays + approved-with-open-CR
- * overlays + projects needing moderation) and render it. Cleared outside moderation mode or when
- * no country is selected. Called on moderation entry, country switch, and after approve/reject.
- */
-async function refreshModerationMapData(): Promise<void> {
-  const mapStore = useMapStore();
-
-  if (mapStore.mode !== "moderation" || !mapStore.selectedCountryCode) {
-    clearMapSessionSnapshot("moderation");
-    return;
-  }
-
-  // No errorMessage: a country-permission rejection is swallowed quietly (logged, not toasted).
-  const token = beginSessionFetch();
-  const rows = await loadOrNull(async () =>
-    trpc.viewport.getModerationMapData.query({
-      countryCode: mapStore.selectedCountryCode ?? undefined,
-    }),
-  );
-
-  if (!rows) return;
-  if (token !== sessionFetchToken) return;
-
-  applyMapSessionRows("moderation", rows.projects, rows.overlays.map(overlayWireToData));
-}
-
-/**
- * Refetch the map session set for the active mode. Called by mutation events (CR submit/withdraw,
- * approve/reject) so the map reflects the new server state.
- */
+/** Refetch the edit-session set when edit mode is active. */
 export async function refreshMapSessionData(): Promise<void> {
-  const mode = useMapStore().mode;
-  if (mode === "edit") await refreshEditSessionData();
-  else if (mode === "moderation") await refreshModerationMapData();
+  if (useMapStore().mode === "edit") await refreshEditSessionData();
 }
 
 // ── Event listeners ─────────────────────────────────────────────────────
@@ -203,11 +171,10 @@ async function syncSessionDataForMode(newMode: AppMode, oldMode: AppMode): Promi
     }
   }
 
-  // Moderation must not inherit view-mode overlay data; its country fetch supplies its own set.
+  // Moderation must not inherit view-mode overlay data.
   if (oldMode === "view" && newMode === "moderation") clearAllOverlays();
 
   if (newMode === "edit") await refreshEditSessionData();
-  else await refreshModerationMapData();
 
   runViewportRenderLoop();
 }
@@ -218,11 +185,14 @@ export function watchViewportModeData(): () => void {
   const unregisterModeTransition = onModeTransition("viewportSessionData", syncSessionDataForMode);
   const stopPendingProjectWatch = watchPendingProjectSources();
 
-  // Moderation follows the selected country: refetch its pending set when the code changes.
+  // Clear the old moderation snapshot when its country scope changes.
   const stopCountryWatch = watch(
     () => mapStore.selectedCountryCode,
     () => {
-      if (mapStore.mode === "moderation") void refreshModerationMapData();
+      if (mapStore.mode !== "moderation") return;
+      clearMapSessionData();
+      renderMapSessionPendingSources();
+      runViewportRenderLoop();
     },
   );
   return function stopViewportModeDataWatchers(): void {

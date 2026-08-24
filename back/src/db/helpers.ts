@@ -244,10 +244,9 @@ export function buildOverlayModerationQuery(database: Database) {
 }
 
 export function buildProjectModerationQuery(database: Database) {
-  const { geometry: _geometry, ...columnsWithoutGeometry } = PROJECT_COLUMNS;
   return database
     .select({
-      ...columnsWithoutGeometry,
+      ...PROJECT_COLUMNS,
       ownerUsername: users.username,
       ownerApprovedCount: users.approvedCount,
       ownerRejectedCount: users.rejectedCount,
@@ -307,64 +306,6 @@ export async function getUserOverlayChangeRequestIds(
     );
 
   return changeRequestResults.map((r) => r.overlayId);
-}
-
-// Fetch overlay IDs with an OPEN (pending/conflicted) change request from ANY requester.
-export async function getAllOpenOverlayChangeRequestIds(database: Database): Promise<string[]> {
-  const changeRequestResults = await database
-    .selectDistinct({ overlayId: changeRequests.entityId })
-    .from(changeRequests)
-    .where(
-      and(
-        eq(changeRequests.entityType, "overlay"),
-        inArray(changeRequests.status, ["pending", "conflicted"]),
-      ),
-    );
-
-  return changeRequestResults.map((r) => r.overlayId);
-}
-
-// Build WHERE condition for project visibility based on user context and map mode
-export function buildProjectVisibilityCondition(
-  user: UserContext,
-  mode: AppMode,
-  strictModeration = true,
-): SQL {
-  if (mode === "view") {
-    // View mode: only show approved projects
-    return eq(projects.status, "approved");
-  }
-
-  if (mode === "edit" && user) {
-    // Edit mode: show approved projects OR user's own projects (any status)
-    return sql`(${projects.status} = 'approved' OR ${projects.ownerId} = ${user.id})`;
-  }
-
-  if (mode === "moderation" && user) {
-    // If strict moderation is disabled, show approved projects for context
-    // This is useful for map views where moderators need to see surrounding approved content
-    if (!strictModeration) {
-      return sql`(${projects.status} = 'approved' OR ${projects.status} = 'pending')`;
-    }
-
-    // Moderation mode (strict): only show projects that need moderation
-    // This includes: pending projects OR projects with pending overlays OR projects with pending change requests
-    // Excludes: approved projects with only approved content and no pending changes
-    return sql`
-      ${projects.id} IN (
-        SELECT ${projects.id} FROM ${projects} WHERE ${projects.status} = 'pending'
-        UNION
-        SELECT ${overlays.projectId} FROM ${overlays} WHERE ${overlays.status} = 'pending'
-        UNION
-        SELECT ${changeRequests.entityId} FROM ${changeRequests} WHERE ${changeRequests.entityType} = 'project' AND ${changeRequests.status} = 'pending'
-        UNION
-        SELECT ${overlays.projectId} FROM ${changeRequests} JOIN ${overlays} ON ${changeRequests.entityId} = ${overlays.id} WHERE ${changeRequests.entityType} = 'overlay' AND ${changeRequests.status} = 'pending'
-      )
-    `;
-  }
-
-  // Default (anonymous or unrecognized mode): only show approved projects
-  return eq(projects.status, "approved");
 }
 
 export function buildOverlayVisibilityCondition(
@@ -540,8 +481,6 @@ export async function fetchOverlaysForMap(whereConditions: SQL[], user: UserCont
   return transformOverlayDataWithChangeRequests(overlaysData, changeRequestsByOverlay);
 }
 
-import { TRPCError } from "@trpc/server";
-
 export function isModeratorOrAdmin(user: UserContext): boolean {
   if (!user) return false;
 
@@ -552,30 +491,6 @@ export function isModeratorOrAdmin(user: UserContext): boolean {
     user.moderatedCountries.length > 0;
 
   return isAdmin || isModerator;
-}
-
-/**
- * Checks if a user has moderator or admin access for moderation mode
- * Throws TRPCError if user doesn't have required permissions
- */
-export function requireModeratorAccess(user: UserContext, mode: AppMode): void {
-  if (mode !== "moderation") {
-    return;
-  }
-
-  if (!user) {
-    throw new TRPCError({
-      code: "UNAUTHORIZED",
-      message: "Authentication required for moderation mode",
-    });
-  }
-
-  if (!isModeratorOrAdmin(user)) {
-    throw new TRPCError({
-      code: "FORBIDDEN",
-      message: "Moderator or admin access required for moderation mode",
-    });
-  }
 }
 
 // Blocked if banned OR reported by >= threshold distinct moderators.
