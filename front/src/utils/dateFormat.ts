@@ -51,11 +51,11 @@ export function formatRelativeTime(
     return diffDays === 1
       ? t("relativeTime.dayAgo", { count: diffDays })
       : t("relativeTime.daysAgo", { count: diffDays });
-  } else if (diffWeeks < 4) {
+  } else if (diffDays < 30) {
     return diffWeeks === 1
       ? t("relativeTime.weekAgo", { count: diffWeeks })
       : t("relativeTime.weeksAgo", { count: diffWeeks });
-  } else if (diffMonths < 12) {
+  } else if (diffDays < 365) {
     return diffMonths === 1
       ? t("relativeTime.monthAgo", { count: diffMonths })
       : t("relativeTime.monthsAgo", { count: diffMonths });
