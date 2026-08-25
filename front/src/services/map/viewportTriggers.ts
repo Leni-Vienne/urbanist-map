@@ -17,7 +17,6 @@ import { isOverlayVisible } from "@/services/overlay/visibility";
 import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 import { clearAllOverlays, clearOverlayRenderState } from "@/services/overlay/teardown";
 import * as registry from "@/services/overlay/mapLayers";
-import { clearOverlayChangeRequestState, upsertOverlayFromWire } from "@/services/overlay/sync";
 import { projectFromWire, overlayWireToData, type ProjectWire } from "@/utils/typeFactories";
 import { loadOrNull } from "@/services/core/errorHandling";
 import { trpc } from "@/client";
@@ -27,11 +26,12 @@ import {
 } from "@/services/map/tiles/pendingSources";
 import { clearMapSessionSnapshot, replaceMapSessionSnapshot } from "@/services/map/mapSessionState";
 import { onModeTransition } from "@/services/map/modeTransition";
-import type { OverlayData } from "@/types/index";
+import type { BackendOverlayData } from "@/types/index";
 import type { AppMode } from "@shared/types";
 
-function cacheMapSessionOverlays(overlaysData: OverlayData[]): string[] {
-  return overlaysData.map((overlayData) => upsertOverlayFromWire(overlayData).id);
+function cacheMapSessionOverlays(overlaysData: BackendOverlayData[]): string[] {
+  const overlayStore = useOverlayStore();
+  return overlaysData.map((overlayData) => overlayStore.ingestBackendOverlay(overlayData).id);
 }
 
 function cacheMapSessionProjects(projects: ProjectWire[]): string[] {
@@ -52,7 +52,22 @@ function clearResolvedChangeRequestState(sessionOverlayIds: string[]): void {
 
   for (const overlay of Object.values(overlayStore.liveOverlays)) {
     if (overlay.hasPendingChanges === true && !sessionIds.has(overlay.id)) {
-      clearOverlayChangeRequestState(overlay);
+      const defaultCaption = overlay.suggestedCaption ?? overlay.baselineCaption;
+      const captionWasUntouched = overlay.caption === defaultCaption;
+      overlayStore.updateOverlay(overlay.id, {
+        hasPendingChanges: false,
+        suggestedCorners: undefined,
+        suggestedCaption: undefined,
+        positionState: overlay.positionState === "staged" ? "staged" : "baseline",
+        caption: captionWasUntouched ? overlay.baselineCaption : overlay.caption,
+      });
+      if (
+        overlay.history.length === 1 &&
+        overlay.redoStack.length === 0 &&
+        overlay.baselineCorners?.length === 4
+      ) {
+        overlayStore.resetHistoryBaseline(overlay.id, overlay.baselineCorners);
+      }
     }
   }
 }
@@ -61,7 +76,7 @@ function clearResolvedChangeRequestState(sessionOverlayIds: string[]): void {
 export function applyMapSessionRows(
   mode: "edit" | "moderation",
   projects: ProjectWire[],
-  overlays: OverlayData[],
+  overlays: BackendOverlayData[],
 ): string[] {
   const projectIds = cacheMapSessionProjects(projects);
   const overlayIds = cacheMapSessionOverlays(overlays);

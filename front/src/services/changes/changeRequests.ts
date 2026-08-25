@@ -1,8 +1,6 @@
 import { trpc } from "@/client";
-import { useChangeRequestStore, type ChangeRequest } from "@/stores/changeRequestStore";
+import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { loadOrNull } from "@/services/core/errorHandling";
-import { useOverlayStore } from "@/stores/overlayStore";
-import { clearOverlayChangeRequestState } from "@/services/overlay/sync";
 import { refreshEditSessionData } from "@/services/map/viewportTriggers";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -62,31 +60,6 @@ export async function rejectChangeRequests(changeRequestIds: string[]): Promise<
   }
 }
 
-function hasOtherPendingChangeRequestsForOverlay(overlayId: string): boolean {
-  return useChangeRequestStore().pendingChangeRequests.some(
-    (cr) => cr.entityType === "overlay" && cr.entityId === overlayId,
-  );
-}
-
-function handleOverlayStateAfterDeletion(changeRequest: ChangeRequest) {
-  if (changeRequest.entityType !== "overlay") {
-    return;
-  }
-
-  const overlayStore = useOverlayStore();
-  const overlayObject = overlayStore.liveOverlays[changeRequest.entityId];
-
-  if (!overlayObject) {
-    return;
-  }
-
-  if (hasOtherPendingChangeRequestsForOverlay(changeRequest.entityId)) {
-    return;
-  }
-
-  clearOverlayChangeRequestState(overlayObject);
-}
-
 export async function deleteChangeRequest(changeRequestId: string): Promise<boolean> {
   const store = useChangeRequestStore();
   const changeRequest = store.pendingChangeRequests.find((cr) => cr.id === changeRequestId);
@@ -96,7 +69,6 @@ export async function deleteChangeRequest(changeRequestId: string): Promise<bool
 
     if (changeRequest) {
       store.removeChangeRequest(changeRequestId);
-      handleOverlayStateAfterDeletion(changeRequest);
       // Reconcile the session map set: a withdrawn overlay CR drops out of the session list.
       if (changeRequest.entityType === "overlay") {
         await refreshEditSessionData();

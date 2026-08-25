@@ -10,7 +10,6 @@ import { getMarker } from "@/services/overlay/mapLayers";
 import { getOverlayBounds } from "@/services/overlay/markers";
 import { overlayWireToData } from "@/utils/typeFactories";
 import { toastError, toastInfo } from "@/services/core/toast";
-import { upsertOverlayFromWire } from "@/services/overlay/sync";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 
 // Helper to zoom to overlay bounds
@@ -85,14 +84,14 @@ const overlayLoadRequests = new Map<string, Promise<OverlayObject>>();
 
 async function fetchOverlay(overlayId: string): Promise<OverlayObject> {
   const result = await trpc.overlay.getOverlay.query({ id: overlayId });
-  return upsertOverlayFromWire(overlayWireToData(result));
+  return useOverlayStore().ingestBackendOverlay(overlayWireToData(result));
 }
 
 export async function ensureOverlayLoaded(overlayId: string): Promise<OverlayObject> {
   const overlayStore = useOverlayStore();
   const existing = overlayStore.liveOverlays[overlayId];
 
-  if (existing) return existing;
+  if (existing && existing.source !== "tile") return existing;
 
   const pendingRequest = overlayLoadRequests.get(overlayId);
   if (pendingRequest) return pendingRequest;

@@ -27,8 +27,9 @@ export type PendingOverlayModification = {
 // Type for marker colors used throughout the application
 export type MarkerColor = "blue" | "green" | "orange" | "red" | "yellow" | "purple" | "grey";
 
-// Which pipeline built an OverlayData object. Tile-sourced data carries no change-request state.
-type OverlayDataSource = "tile" | "bbox" | "local";
+// The strongest authority incorporated into an overlay. Tile data is only a render projection;
+// backend data is the complete persisted snapshot, and local identifies an unpublished draft.
+type OverlayDataSource = "tile" | "backend" | "local";
 
 /**
  * Where an overlay's edit-session display rests.
@@ -149,8 +150,13 @@ export type OverlayData = Omit<
   suggestedCorners?: LatLng[];
   suggestedCaption?: string | null;
   hasPendingChanges?: boolean;
-  // Which pipeline built this data object (tile-sourced data carries no change-request state).
+  // Authority marker used to distinguish tile projections from full backend snapshots.
   source: OverlayDataSource;
+};
+
+export type BackendOverlayData = OverlayData & {
+  status: ApprovalStatus;
+  source: "backend";
 };
 
 // Property bag of a vector-tile feature. The MVT wire format carries scalars only, so a list value
@@ -170,8 +176,6 @@ export interface TileOverlayData {
   baselineCaption: string | null;
   source: "tile";
 }
-
-export type OverlayRenderData = OverlayData | TileOverlayData;
 
 // A normalized sub-rectangle of an image, u left->right, v top->bottom, each in [0, 1].
 export interface NormalizedRect {

@@ -4,7 +4,11 @@ import { getStagedRender, clearStagedRender } from "@/services/submission/staged
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useUiStore } from "@/stores/uiStore";
-import { getStagedOverlayModifications } from "@/services/overlay/unsavedState";
+import {
+  getEditModeDefaultCaption,
+  getStagedOverlayModifications,
+} from "@/services/overlay/unsavedState";
+import { getEditModeRestingCorners } from "@/services/overlay/positionState";
 import { detectProjectChanges, submitDraft } from "./submissionService";
 import {
   isOverlayChangeField,
@@ -25,7 +29,7 @@ import { parseShapeCollection } from "@/utils/geojson";
 import { buildThumbnailUrl } from "@/utils/imageUrl";
 import { deleteOverlayDirect } from "@/services/entity/entityRemoval";
 import { closeDetail } from "@/services/overlay/selection";
-import { revertOverlayFieldModification } from "@/services/overlay/sync";
+import { scheduleOverlayReconcile } from "@/services/overlay/mapLayers";
 import type {
   PendingOverlayModification,
   OverlayObject,
@@ -283,7 +287,13 @@ async function handleRemoveOverlayChange(
   }
 
   if (overlayObject) {
-    revertOverlayFieldModification(overlayId, field, overlayObject);
+    if (field === "caption") {
+      overlayObject.caption = getEditModeDefaultCaption(overlayObject);
+    } else {
+      const corners = getEditModeRestingCorners(overlayObject);
+      if (corners?.length === 4) useOverlayStore().resetHistoryBaseline(overlayId, corners);
+      scheduleOverlayReconcile();
+    }
   }
   removeOverlayFieldFromDraft(overlayId, field);
 }

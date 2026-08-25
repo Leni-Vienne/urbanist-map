@@ -10,7 +10,7 @@ import {
   matchesMapFilters,
   shouldDisplayOverlay,
 } from "@/services/overlay/visibility";
-import type { OverlayObject, OverlayData, OverlayRenderData } from "@/types/index";
+import type { OverlayObject, OverlayData } from "@/types/index";
 import { visibleStates, selectedProjectTags } from "@/services/core/filters";
 import { createOverlayMarker, updateMarkerPosition } from "@/services/overlay/markers";
 import { resolveOverlayCorners } from "@/services/overlay/data";
@@ -19,7 +19,6 @@ import {
   getFilterRejectedOverlayIds,
 } from "@/services/map/tiles/approvedOverlayCache";
 import { isValidQuad, sameCorners } from "@/services/overlay/transform";
-import { upsertOverlayFromWire } from "@/services/overlay/sync";
 import * as registry from "@/services/overlay/mapLayers";
 import { createRafBatchQueue } from "@/utils/rafBatchQueue";
 import { cornersIntersectBounds } from "@/utils/cornersBounds";
@@ -215,16 +214,16 @@ function reconcileOverlayExistence(bounds: ViewportBounds): void {
     }
 
     // Approved + tile-delivered: cache membership already applied filters and viewport.
-    const isTileManaged = tileManaged.has(id);
+    const tileData = tileManaged.get(id);
+    const isTileManaged = tileData !== undefined;
     let desired = isTileManaged;
-    let renderData: OverlayRenderData | null = tileManaged.get(id) ?? null;
     if (!isTileManaged) {
-      // Fall back to the canonical store object as the data source (edit-mode CR overlays not in
-      // this bbox, a moderation preview whose approved footprint left the viewport, a staged overlay
-      // dragged away from its footprint): membership then keys on the resolved "marker" position, so
-      // an overlay whose image sits away from its tile footprint stays alive while that position is
-      // in view. Absence from the cache does not separate "a filter rejected it" from "its position
-      // left the viewport", so the rejected set is consulted before the position test.
+      // Fall back to the canonical store object as the data source (edit-mode CR overlays absent
+      // from the tile cache, a moderation preview whose approved footprint left the viewport, a
+      // staged overlay dragged away from its footprint): membership then keys on the resolved
+      // "marker" position, so an overlay whose image sits away from its tile footprint stays alive
+      // while that position is in view. Absence from the cache does not separate "a filter rejected
+      // it" from "its position left the viewport", so the rejected set is consulted first.
       const data = liveObject ?? null;
       desired =
         data !== null &&
@@ -232,12 +231,12 @@ function reconcileOverlayExistence(bounds: ViewportBounds): void {
         isOverlayVisible(liveObject ?? data, mode, userId) &&
         matchesMapFilters(liveObject ?? data, mode) &&
         resolvedCornersInBounds(liveObject ?? data, bounds);
-      renderData = data;
     }
 
-    if (desired && renderData) {
+    if (desired) {
+      const overlayObject = tileData ? overlayStore.ingestTileOverlay(tileData) : liveObject;
+      if (!overlayObject) continue;
       destructionQueue.delete(id);
-      const overlayObject = upsertOverlayFromWire(renderData);
       if (isSessionMode && !hasMarker) {
         createOverlayMarker(overlayObject);
       }

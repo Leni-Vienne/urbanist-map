@@ -22,7 +22,6 @@ import {
   prepareOverlayValidationData,
 } from "@/utils/validationHelpers";
 import { resolveOverlayCorners } from "@/services/overlay/data";
-import { applyOverlayBackendFields, type OverlayBackendFields } from "@/services/overlay/sync";
 import { refreshEditSessionData } from "@/services/map/viewportTriggers";
 import {
   PROJECT_CHANGE_FIELDS,
@@ -321,18 +320,6 @@ async function submitOverlay(
       changes,
     });
 
-    const cornersChange = changes.find((c) => c.fieldName === "corners");
-    const captionChange = changes.find((c) => c.fieldName === "caption");
-    const overlayObject = getOverlayOrThrow(overlayId);
-    // Fields absent from the request stay untouched: applyOverlayBackendFields writes every key
-    // it is handed, so an undefined one would clear the overlay's current value.
-    const fields: OverlayBackendFields = { hasPendingChanges: true };
-    if (cornersChange?.newValue) {
-      // oxlint-disable-next-line no-unsafe-type-assertion
-      fields.suggestedCorners = cornersChange.newValue as OverlayCorners;
-    }
-    if (captionChange) fields.suggestedCaption = String(captionChange.newValue ?? "");
-    applyOverlayBackendFields(overlayObject, fields);
     return;
   }
 

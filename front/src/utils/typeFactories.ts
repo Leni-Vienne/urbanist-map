@@ -23,22 +23,20 @@ export type ProjectWire = Omit<ProjectSummary, "tags"> & {
 
 type HydratedProjectWire = ProjectWire & ProjectDetailFields;
 
-// Rename a wire overlay's `corners` to the frontend domain field `baselineCorners`, and snapshot
-// the wire `caption` into `baselineCaption` (the approved caption, never overwritten by edits).
-// The single translation from the tRPC wire shape to OverlayData.
+// Rename a complete backend overlay's `corners` to the frontend domain baseline fields.
 export function overlayWireToData<T extends { corners: LatLng[]; caption?: string | null }>(
   wire: T,
 ): Omit<T, "corners"> & {
   baselineCorners: T["corners"];
   baselineCaption: string | null;
-  source: "bbox";
+  source: "backend";
 } {
   const { corners, ...rest } = wire;
   return {
     ...rest,
     baselineCorners: corners,
     baselineCaption: rest.caption ?? null,
-    source: "bbox",
+    source: "backend",
   };
 }
 

@@ -44,17 +44,6 @@ export function getEditModeRestingCorners(overlay: {
   return getEditModeDefaultCorners(overlay);
 }
 
-// The non-staged position state follows the presence of an open change request; a staged state is
-// preserved. The single reconciler that keeps positionState consistent with the backend CR flag.
-export function reconcilePositionState(overlay: {
-  hasPendingChanges?: boolean;
-  positionState: OverlayPositionState;
-}): OverlayPositionState {
-  if (overlay.positionState === "staged") return "staged";
-  if (overlay.hasPendingChanges !== true) return "baseline";
-  return overlay.positionState === "approved-toggled" ? "approved-toggled" : "suggested";
-}
-
 // Whether the map shows the suggested (proposed) state of an overlay's open change request.
 // Edit mode defaults to it (any state other than the explicit approved-position toggle, so
 // caption-only CRs still count). Non-edit modes show the approved state unless an explicit

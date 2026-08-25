@@ -8,7 +8,7 @@
  * Triggered on camera move and on footprint tiles loading (see initVectorTileSync).
  *
  * Runs in ALL modes (view, edit, moderation). Approved overlays are always
- * delivered via tiles, the bbox tRPC fetch only returns pending content.
+ * delivered via tiles, while session endpoints provide complete backend snapshots.
  */
 
 import type * as maplibregl from "maplibre-gl";

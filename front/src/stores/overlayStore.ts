@@ -1,10 +1,45 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
-import type { OverlayObject, OverlayHistoryState, OverlayPositionState } from "@/types/index";
+import { createOverlayObject } from "@/utils/typeFactories";
+import type {
+  BackendOverlayData,
+  OverlayHistoryState,
+  OverlayObject,
+  OverlayPositionState,
+  TileOverlayData,
+} from "@/types/index";
 
 // The non-staged resting state: an open change request rests on its suggested state, else baseline.
 function restingPositionState(overlay: OverlayObject): OverlayPositionState {
   return overlay.hasPendingChanges === true ? "suggested" : "baseline";
+}
+
+function defaultCaption(overlay: OverlayObject): string | null {
+  return overlay.hasPendingChanges === true &&
+    overlay.suggestedCaption !== null &&
+    overlay.suggestedCaption !== undefined
+    ? overlay.suggestedCaption
+    : overlay.baselineCaption;
+}
+
+function hasLocalImage(overlay: OverlayObject): boolean {
+  return overlay.imageUrl.startsWith("data:") || overlay.imageUrl.startsWith("blob:");
+}
+
+function preserveLocalState(current: OverlayObject, next: OverlayObject): void {
+  if (current.caption !== defaultCaption(current)) next.caption = current.caption;
+  if (current.positionState === "staged" || current.redoStack.length > 0) {
+    next.history = current.history;
+    next.redoStack = current.redoStack;
+    next.positionState = current.positionState;
+  } else if (current.positionState === "approved-toggled" && next.hasPendingChanges === true) {
+    next.positionState = "approved-toggled";
+  }
+  if (hasLocalImage(current)) {
+    next.filename = current.filename;
+    next.imageUrl = current.imageUrl;
+  }
+  next.isTooBig = current.isTooBig;
 }
 
 export const useOverlayStore = defineStore("overlay", () => {
@@ -20,6 +55,27 @@ export const useOverlayStore = defineStore("overlay", () => {
     const current = liveOverlays.value[overlayId];
     if (!current) return;
     Object.assign(current, updates);
+  }
+
+  function ingest(data: BackendOverlayData | TileOverlayData): OverlayObject {
+    const current = liveOverlays.value[data.id];
+    const next = createOverlayObject(data);
+    next.caption = defaultCaption(next);
+    if (current) preserveLocalState(current, next);
+    if (current) Object.assign(current, next);
+    else addOverlay(data.id, next);
+    return current ?? next;
+  }
+
+  function ingestBackendOverlay(data: BackendOverlayData): OverlayObject {
+    return ingest(data);
+  }
+
+  function ingestTileOverlay(data: TileOverlayData): OverlayObject {
+    const overlay = liveOverlays.value[data.id];
+    if (!overlay) return ingest(data);
+    if (overlay.source === "backend" || overlay.status === null) return overlay;
+    return ingest(data);
   }
 
   // Replace an overlay's edit history wholesale. Callers compute the new history array
@@ -105,6 +161,8 @@ export const useOverlayStore = defineStore("overlay", () => {
     clearLiveOverlays,
     addOverlay,
     updateOverlay,
+    ingestBackendOverlay,
+    ingestTileOverlay,
     commitHistory,
     resetHistoryBaseline,
     undoHistory,

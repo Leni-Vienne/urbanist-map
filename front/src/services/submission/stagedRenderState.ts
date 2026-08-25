@@ -4,7 +4,7 @@ import { reactive } from "vue";
 // once the user confirms in the submission dialog, like every other contribution. Keyed by
 // project id so the staged render survives the form closing before the project is submitted.
 // Reactive so the project detail can show the staged preview before submission.
-export interface StagedRender {
+interface StagedRender {
   file: File;
   previewUrl: string;
 }
