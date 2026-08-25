@@ -4,7 +4,6 @@ import type { AppMode } from "@shared/types";
 import type { PanelTab } from "@/types/index";
 import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
-import { useModerationStore } from "@/stores/moderationStore";
 
 // The active panel tab is the single source of truth; the map mode is derived from it.
 function tabToMode(tab: PanelTab): AppMode {
@@ -43,13 +42,10 @@ export const useMapStore = defineStore("map", () => {
 
   const selectedCountryCode = ref<string | null>(null);
 
-  // Single write path for the active country (exposed read-only below). The moderation list
-  // is country-scoped, so any country change invalidates it; refetching is left to whoever
-  // displays it (ModerationPanel refetches while mounted, or on its next mount).
+  // Single write path for the active country (exposed read-only below).
   function setSelectedCountryCode(code: string | null) {
     if (selectedCountryCode.value === code) return;
     selectedCountryCode.value = code;
-    useModerationStore().invalidateModerationData();
   }
 
   // Derived, read-only. Edit and moderation require authentication, so an unauthenticated user

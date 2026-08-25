@@ -3,7 +3,7 @@ import { useChangeRequestStore, type ChangeRequest } from "@/stores/changeReques
 import { loadOrNull } from "@/services/core/errorHandling";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { clearOverlayChangeRequestState } from "@/services/overlay/sync";
-import { refreshMapSessionData } from "@/services/map/viewportTriggers";
+import { refreshEditSessionData } from "@/services/map/viewportTriggers";
 import { useAuthStore } from "@/stores/authStore";
 
 let changeRequestLoadVersion = 0;
@@ -99,7 +99,7 @@ export async function deleteChangeRequest(changeRequestId: string): Promise<bool
       handleOverlayStateAfterDeletion(changeRequest);
       // Reconcile the session map set: a withdrawn overlay CR drops out of the session list.
       if (changeRequest.entityType === "overlay") {
-        await refreshMapSessionData();
+        await refreshEditSessionData();
       }
     }
 

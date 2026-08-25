@@ -12,7 +12,7 @@ import {
   stopViewportRenderLoop,
   watchOverlayReconciliation,
 } from "@/services/map/viewportRenderLoop";
-import { watchViewportModeData, refreshMapSessionData } from "@/services/map/viewportTriggers";
+import { watchViewportModeData, refreshEditSessionData } from "@/services/map/viewportTriggers";
 import { watchTileLayerState, syncTileLayerState } from "@/services/map/tiles/layers";
 import { watchMapAreaOutline, syncMapAreaOutline } from "@/services/map/mapAreaOutline";
 
@@ -48,7 +48,7 @@ export function startMapStateCoordinator(): () => void {
 export async function activateMapStateCoordinator(target: MaplibreMap): Promise<void> {
   if (getMapOrNull() !== target) return;
   syncEditHandlesForCurrentState();
-  await refreshMapSessionData();
+  await refreshEditSessionData();
   if (getMapOrNull() !== target) return;
   syncTileLayerState();
   syncMapAreaOutline();

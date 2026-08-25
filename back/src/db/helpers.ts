@@ -343,10 +343,48 @@ export function buildOverlayVisibilityCondition(
 }
 
 type OverlayChangeValue = { fieldName: string; newValue: unknown };
-type OverlayLocationRow = Awaited<ReturnType<typeof fetchOverlaysWithLocation>>[number];
+const OVERLAY_LOCATION_COLUMNS = {
+  overlayId: overlays.id,
+  overlayVersion: overlays.version,
+  overlayFilename: overlays.filename,
+  overlayCaption: overlays.caption,
+  overlayStatus: overlays.status,
+  overlayProjectId: overlays.projectId,
+  overlayAuthorId: overlays.authorId,
+  overlayReplacesOverlayId: overlays.replacesOverlayId,
+  overlayReplacedByOverlayId: overlays.replacedByOverlayId,
+  overlayCreatedAt: overlays.createdAt,
+  overlayUpdatedAt: overlays.updatedAt,
+  centroidLat: sql<number>`ST_Y(${overlays.centroid})`,
+  centroidLng: sql<number>`ST_X(${overlays.centroid})`,
+  corners: sql<{ lat: number; lng: number }[]>`(
+    SELECT json_agg(json_build_object('lat', ST_Y(geom), 'lng', ST_X(geom)) ORDER BY path[2])
+    FROM ST_DumpPoints(${overlays.corners}) AS dump(path, geom)
+    WHERE path[2] <= 4
+  )`,
+};
+
+type OverlayLocationRow = Awaited<ReturnType<typeof fetchOverlayLocationRows>>[number];
+type OverlayGeometryRow = Pick<OverlayLocationRow, keyof typeof OVERLAY_LOCATION_COLUMNS>;
 type MapProjectRow = OverlayLocationRow["project"] & {
   importSource: OverlayLocationRow["importSource"];
 };
+
+async function fetchOverlayLocationRows(whereConditions: SQL[]) {
+  return await db
+    .select({
+      ...OVERLAY_LOCATION_COLUMNS,
+      project: {
+        ...PROJECT_COLUMNS,
+      },
+      importSource: importSources,
+    })
+    .from(overlays)
+    .innerJoin(projects, eq(projects.id, overlays.projectId))
+    .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
+    .where(and(eq(overlays.kind, "map"), ...whereConditions))
+    .orderBy(overlays.createdAt);
+}
 
 // The caller's own open overlay change requests, grouped by overlay id.
 async function fetchOwnOverlayChangeRequests(
@@ -389,7 +427,7 @@ function isCorner(value: unknown): value is { lat: number; lng: number } {
   );
 }
 
-function transformOverlayRow(row: OverlayLocationRow, overlayChangeRequests: OverlayChangeValue[]) {
+function transformOverlayRow(row: OverlayGeometryRow, overlayChangeRequests: OverlayChangeValue[]) {
   const newCorners = overlayChangeRequests.find((cr) => cr.fieldName === "corners")?.newValue;
   const suggestedCorners =
     Array.isArray(newCorners) && newCorners.every(isCorner) ? newCorners : null;
@@ -439,37 +477,19 @@ function transformOverlayDataWithChangeRequests(
 }
 
 export async function fetchOverlaysWithLocation(whereConditions: SQL[]) {
-  return await db
-    .select({
-      overlayId: overlays.id,
-      overlayVersion: overlays.version,
-      overlayFilename: overlays.filename,
-      overlayCaption: overlays.caption,
-      overlayStatus: overlays.status,
-      overlayProjectId: overlays.projectId,
-      overlayAuthorId: overlays.authorId,
-      overlayReplacesOverlayId: overlays.replacesOverlayId,
-      overlayReplacedByOverlayId: overlays.replacedByOverlayId,
-      overlayCreatedAt: overlays.createdAt,
-      overlayUpdatedAt: overlays.updatedAt,
-      centroidLat: sql<number>`ST_Y(${overlays.centroid})`,
-      centroidLng: sql<number>`ST_X(${overlays.centroid})`,
-      corners: sql<{ lat: number; lng: number }[]>`(
-        SELECT json_agg(json_build_object('lat', ST_Y(geom), 'lng', ST_X(geom)) ORDER BY path[2])
-        FROM ST_DumpPoints(${overlays.corners}) AS dump(path, geom)
-        WHERE path[2] <= 4
-      )`,
-      project: {
-        ...PROJECT_COLUMNS,
-      },
-      importSource: importSources,
-    })
+  return fetchOverlayLocationRows(whereConditions);
+}
+
+export async function fetchModerationMapOverlays(overlayIds: string[]) {
+  if (overlayIds.length === 0) return [];
+
+  const rows = await db
+    .select(OVERLAY_LOCATION_COLUMNS)
     .from(overlays)
-    .innerJoin(projects, eq(projects.id, overlays.projectId))
-    .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
-    // Renders are not georeferenced (null corners), so they never appear on the map.
-    .where(and(eq(overlays.kind, "map"), ...whereConditions))
+    .where(and(eq(overlays.kind, "map"), inArray(overlays.id, overlayIds)))
     .orderBy(overlays.createdAt);
+
+  return rows.map((row) => transformOverlayRow(row, []));
 }
 
 // Fetch overlays matching the given WHERE conditions, their parent projects, and the caller's own

@@ -11,6 +11,7 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useMapStore } from "@/stores/mapStore";
 import { useAuthStore } from "@/stores/authStore";
+import { useModerationStore } from "@/stores/moderationStore";
 import { debounce } from "@/utils/debounce";
 import { isOverlayVisible } from "@/services/overlay/visibility";
 import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
@@ -61,13 +62,14 @@ export function applyMapSessionRows(
   mode: "edit" | "moderation",
   projects: ProjectWire[],
   overlays: OverlayData[],
-): void {
+): string[] {
   const projectIds = cacheMapSessionProjects(projects);
   const overlayIds = cacheMapSessionOverlays(overlays);
   if (mode === "edit") clearResolvedChangeRequestState(overlayIds);
   replaceMapSessionSnapshot({ mode, overlayIds, projectIds });
   renderMapSessionPendingSources();
   runViewportRenderLoop();
+  return projectIds;
 }
 
 // Mode transitions are not serialized and the country selection can change mid-flight, so a fetch
@@ -95,7 +97,7 @@ export function clearMapSessionData(): void {
  * overlays + own non-approved projects) and render it. Cleared outside edit mode. Called on edit
  * entry and after a CR submit/withdraw.
  */
-async function refreshEditSessionData(): Promise<void> {
+export async function refreshEditSessionData(): Promise<void> {
   const authStore = useAuthStore();
   const mapStore = useMapStore();
 
@@ -114,11 +116,6 @@ async function refreshEditSessionData(): Promise<void> {
   if (token !== sessionFetchToken) return;
 
   applyMapSessionRows("edit", rows.projects, rows.overlays.map(overlayWireToData));
-}
-
-/** Refetch the edit-session set when edit mode is active. */
-export async function refreshMapSessionData(): Promise<void> {
-  if (useMapStore().mode === "edit") await refreshEditSessionData();
 }
 
 // ── Event listeners ─────────────────────────────────────────────────────
@@ -185,15 +182,18 @@ export function watchViewportModeData(): () => void {
   const unregisterModeTransition = onModeTransition("viewportSessionData", syncSessionDataForMode);
   const stopPendingProjectWatch = watchPendingProjectSources();
 
-  // Clear the old moderation snapshot when its country scope changes.
+  // Invalidate all country-scoped moderation state synchronously.
   const stopCountryWatch = watch(
     () => mapStore.selectedCountryCode,
     () => {
-      if (mapStore.mode !== "moderation") return;
-      clearMapSessionData();
-      renderMapSessionPendingSources();
-      runViewportRenderLoop();
+      useModerationStore().invalidateModerationData();
+      if (mapStore.mode === "moderation") {
+        clearMapSessionData();
+        renderMapSessionPendingSources();
+        runViewportRenderLoop();
+      }
     },
+    { flush: "sync" },
   );
   return function stopViewportModeDataWatchers(): void {
     stopCountryWatch();

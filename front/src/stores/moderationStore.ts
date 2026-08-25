@@ -33,21 +33,12 @@ export const useModerationStore = defineStore("moderation", () => {
   const pendingCountsLoaded = ref(false);
 
   function setModerationData(data: {
-    projects: ContributionProject[];
+    projectIds: string[];
+    projectOverlays: Record<string, Overlay[]>;
     changeRequests: PendingChangeRequest[];
   }) {
-    const nextProjectIds: string[] = [];
-    const nextProjectOverlays: Record<string, Overlay[]> = {};
-    const projectStore = useProjectStore();
-    for (const project of data.projects) {
-      const inlineOverlays = project.overlays;
-      const { overlays: _overlays, ...summary } = project;
-      projectStore.adoptBackendProjectSummary(summary);
-      nextProjectIds.push(project.id);
-      nextProjectOverlays[project.id] = inlineOverlays;
-    }
-    projectIds.value = nextProjectIds;
-    projectOverlays.value = nextProjectOverlays;
+    projectIds.value = data.projectIds;
+    projectOverlays.value = data.projectOverlays;
     changeRequests.value = data.changeRequests;
     moderationLoadStatus.value = "loaded";
   }

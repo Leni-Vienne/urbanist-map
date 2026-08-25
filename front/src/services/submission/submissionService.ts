@@ -23,7 +23,7 @@ import {
 } from "@/utils/validationHelpers";
 import { resolveOverlayCorners } from "@/services/overlay/data";
 import { applyOverlayBackendFields, type OverlayBackendFields } from "@/services/overlay/sync";
-import { refreshMapSessionData } from "@/services/map/viewportTriggers";
+import { refreshEditSessionData } from "@/services/map/viewportTriggers";
 import {
   PROJECT_CHANGE_FIELDS,
   type ProjectFieldChange,
@@ -563,7 +563,7 @@ export async function submitDraft(draft: SubmissionDraft, reason: string): Promi
       await refreshPendingChangeRequests({ force: true });
     }
     if (shouldRefreshMapSession) {
-      await refreshMapSessionData();
+      await refreshEditSessionData();
     }
   }
 }

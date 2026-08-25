@@ -59,8 +59,7 @@ export function useModerationCountrySelector({ onCountryDataNeeded }: Options) {
     }
   }
 
-  // The dropdown's v-model already wrote the new value via the store setter (which
-  // invalidates the list); this handler only flies to the country.
+  // The dropdown's v-model already wrote the new value; this handler only flies to the country.
   function handleCountryChange() {
     if (mapStore.selectedCountryCode) {
       flyToCountry(mapStore.selectedCountryCode);
@@ -81,9 +80,6 @@ export function useModerationCountrySelector({ onCountryDataNeeded }: Options) {
     }
   }
 
-  // mapStore.setSelectedCountryCode already invalidated the list on any country change
-  // (dropdown, map click, external nav); this watcher does the refetch, which is only
-  // needed while the panel is mounted.
   watch(
     () => mapStore.selectedCountryCode,
     (newCode) => {
