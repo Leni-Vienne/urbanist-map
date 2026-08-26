@@ -1,5 +1,5 @@
 import { sql, eq, and, inArray, type SQL } from "drizzle-orm";
-import { db, type Database } from "../database";
+import { db, type Database, type DatabaseExecutor } from "../database";
 import {
   projects,
   overlays,
@@ -10,29 +10,6 @@ import {
   importSources,
 } from "./schema";
 import type { AppMode } from "@shared/types";
-import { buildProjectSlug } from "@shared/projectSlug";
-
-// Build a permanent slug for a user-created project and resolve the (near-impossible) collision
-// against the unique constraint by appending -2, -3, ... The bulk OSM import skips this check: its
-// suffix derives from the globally-unique external id, so collisions can't occur there.
-export async function generateUniqueProjectSlug(input: {
-  name: string | null | undefined;
-  id: string;
-}): Promise<string> {
-  const base = buildProjectSlug({ name: input.name, externalId: null, id: input.id });
-  let candidate = base;
-  for (let attempt = 2; attempt < 100; attempt += 1) {
-    const existing = await db
-      .select({ id: projects.id })
-      .from(projects)
-      .where(eq(projects.slug, candidate))
-      .limit(1);
-    if (existing.length === 0) return candidate;
-    candidate = `${base}-${attempt}`;
-  }
-  // Exhausting 100 attempts is impossible in practice; fall back to the uuid-suffixed base.
-  return base;
-}
 
 // Country display name resolved from the level-2 (country) admin boundary matching a project's
 // country_code. Replaces the former join to the dropped `countries` table.
@@ -297,7 +274,7 @@ type UserContext =
 
 // Fetch overlay IDs where the user has an OPEN (pending/conflicted) change request.
 export async function getUserOverlayChangeRequestIds(
-  database: Database,
+  database: DatabaseExecutor,
   userId: string,
 ): Promise<string[]> {
   const changeRequestResults = await database
@@ -376,8 +353,8 @@ type MapProjectRow = OverlayLocationRow["project"] & {
   importSource: OverlayLocationRow["importSource"];
 };
 
-async function fetchOverlayLocationRows(whereConditions: SQL[]) {
-  return await db
+async function fetchOverlayLocationRows(database: DatabaseExecutor, whereConditions: SQL[]) {
+  return await database
     .select({
       ...OVERLAY_LOCATION_COLUMNS,
       project: {
@@ -394,12 +371,13 @@ async function fetchOverlayLocationRows(whereConditions: SQL[]) {
 
 // The caller's own open overlay change requests, grouped by overlay id.
 async function fetchOwnOverlayChangeRequests(
+  database: DatabaseExecutor,
   user: UserContext,
 ): Promise<Map<string, OverlayChangeValue[]>> {
   const changeRequestsByOverlay = new Map<string, OverlayChangeValue[]>();
   if (!user) return changeRequestsByOverlay;
 
-  const changeRequestsData = await db
+  const changeRequestsData = await database
     .select({
       entityId: changeRequests.entityId,
       fieldName: changeRequests.fieldName,
@@ -482,8 +460,11 @@ function transformOverlayDataWithChangeRequests(
   return { overlays: transformedOverlays, projects: [...projectsById.values()] };
 }
 
-export async function fetchOverlaysWithLocation(whereConditions: SQL[]) {
-  return fetchOverlayLocationRows(whereConditions);
+export async function fetchOverlaysWithLocation(
+  database: DatabaseExecutor,
+  whereConditions: SQL[],
+) {
+  return fetchOverlayLocationRows(database, whereConditions);
 }
 
 export async function fetchModerationMapOverlays(overlayIds: string[]) {
@@ -500,9 +481,13 @@ export async function fetchModerationMapOverlays(overlayIds: string[]) {
 
 // Fetch overlays matching the given WHERE conditions, their parent projects, and the caller's own
 // open change requests (never another requester's, whatever mode is asking).
-export async function fetchOverlaysForMap(whereConditions: SQL[], user: UserContext) {
-  const overlaysData = await fetchOverlaysWithLocation(whereConditions);
-  const changeRequestsByOverlay = await fetchOwnOverlayChangeRequests(user);
+export async function fetchOverlaysForMap(
+  database: DatabaseExecutor,
+  whereConditions: SQL[],
+  user: UserContext,
+) {
+  const overlaysData = await fetchOverlaysWithLocation(database, whereConditions);
+  const changeRequestsByOverlay = await fetchOwnOverlayChangeRequests(database, user);
 
   return transformOverlayDataWithChangeRequests(overlaysData, changeRequestsByOverlay);
 }

@@ -23,6 +23,8 @@ const client = new SQL(mainDbUrl.toString(), {
 
 export const db = drizzle({ client });
 export type Database = typeof db;
+export type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export type DatabaseExecutor = Database | Transaction;
 
 // MVT tile generation uses two zoom-tuned pools because the two workloads have opposite needs.
 // Both share these session settings:

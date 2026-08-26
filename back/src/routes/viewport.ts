@@ -1,12 +1,13 @@
 import { publicProcedure, router, TRPCError } from "../trpc";
 import { projects, overlays, importSources } from "../db/schema";
 import { sql, eq, and } from "drizzle-orm";
-import { db } from "../database";
+import { db, type DatabaseExecutor } from "../database";
 import {
   getUserOverlayChangeRequestIds,
   fetchOverlaysForMap,
   PROJECT_COLUMNS,
 } from "../db/helpers";
+import type { SessionUser } from "../lib/types";
 
 /**
  * Build the project JOIN condition for the overlay query in edit mode.
@@ -27,6 +28,43 @@ function mergeProjectsById<T extends { id: string }>(...projectGroups: T[][]): T
   return [...projectsById.values()];
 }
 
+export async function getEditSessionData(database: DatabaseExecutor, user: SessionUser) {
+  const userId = user.id;
+  const openCrIds = await getUserOverlayChangeRequestIds(database, userId);
+  const overlayCondition =
+    openCrIds.length > 0
+      ? sql`((${overlays.authorId} = ${userId} AND ${overlays.status} = 'pending') OR ${overlays.id} = ANY(${`{${openCrIds.join(",")}}`}::uuid[]))`
+      : sql`(${overlays.authorId} = ${userId} AND ${overlays.status} = 'pending')`;
+
+  const overlayResult = await fetchOverlaysForMap(
+    database,
+    [overlayCondition, buildEditModeViewportProjectJoinCondition(userId)],
+    user,
+  );
+  const projectsData = await database
+    .select({
+      ...PROJECT_COLUMNS,
+      importSource: importSources,
+      hasImage: sql<boolean>`EXISTS (
+        SELECT 1
+        FROM overlays AS project_image
+        WHERE project_image.project_id = ${projects.id}
+          AND (
+            project_image.status = 'approved'
+            OR (project_image.status = 'pending' AND project_image.author_id = ${userId})
+          )
+      )`,
+    })
+    .from(projects)
+    .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
+    .where(and(sql`${projects.ownerId} = ${userId}`, sql`${projects.status} != 'approved'`));
+
+  return {
+    overlays: overlayResult.overlays,
+    projects: mergeProjectsById(overlayResult.projects, projectsData),
+  };
+}
+
 export const viewportRouter = router({
   // Session-scoped map fetch for edit mode. Returns the caller's full pending set (own pending
   // overlays + own open change-request overlays + own non-approved projects) in ONE round trip,
@@ -41,42 +79,7 @@ export const viewportRouter = router({
         });
       }
 
-      const userId = ctx.user.id;
-      const openCrIds = await getUserOverlayChangeRequestIds(db, userId);
-
-      // Own pending overlays UNION own open change-request overlays.
-      const overlayCondition =
-        openCrIds.length > 0
-          ? sql`((${overlays.authorId} = ${userId} AND ${overlays.status} = 'pending') OR ${overlays.id} = ANY(${`{${openCrIds.join(",")}}`}::uuid[]))`
-          : sql`(${overlays.authorId} = ${userId} AND ${overlays.status} = 'pending')`;
-
-      const overlayResult = await fetchOverlaysForMap(
-        [overlayCondition, buildEditModeViewportProjectJoinCondition(userId)],
-        ctx.user,
-      );
-
-      const projectsData = await db
-        .select({
-          ...PROJECT_COLUMNS,
-          importSource: importSources,
-          hasImage: sql<boolean>`EXISTS (
-            SELECT 1
-            FROM overlays AS project_image
-            WHERE project_image.project_id = ${projects.id}
-              AND (
-                project_image.status = 'approved'
-                OR (project_image.status = 'pending' AND project_image.author_id = ${userId})
-              )
-          )`,
-        })
-        .from(projects)
-        .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
-        .where(and(sql`${projects.ownerId} = ${userId}`, sql`${projects.status} != 'approved'`));
-
-      return {
-        overlays: overlayResult.overlays,
-        projects: mergeProjectsById(overlayResult.projects, projectsData),
-      };
+      return getEditSessionData(db, ctx.user);
     } catch (error) {
       if (error instanceof TRPCError) {
         throw error;

@@ -53,7 +53,7 @@ export interface SubmissionDraft {
   project?: ProjectSubmissionDraft;
   overlayModifications: PendingOverlayModification[];
   newOverlayIds: string[];
-  pendingRender?: { file: File; previewUrl: string };
+  pendingRender?: { id: string; file: File; previewUrl: string };
 }
 
 export interface SubmissionChange {

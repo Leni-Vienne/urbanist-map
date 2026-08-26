@@ -57,25 +57,28 @@ export const useOverlayStore = defineStore("overlay", () => {
     Object.assign(current, updates);
   }
 
-  function ingest(data: BackendOverlayData | TileOverlayData): OverlayObject {
+  function ingest(
+    data: BackendOverlayData | TileOverlayData,
+    preserveCurrent: boolean,
+  ): OverlayObject {
     const current = liveOverlays.value[data.id];
     const next = createOverlayObject(data);
     next.caption = defaultCaption(next);
-    if (current) preserveLocalState(current, next);
+    if (current && preserveCurrent) preserveLocalState(current, next);
     if (current) Object.assign(current, next);
     else addOverlay(data.id, next);
     return current ?? next;
   }
 
-  function ingestBackendOverlay(data: BackendOverlayData): OverlayObject {
-    return ingest(data);
+  function ingestBackendOverlay(data: BackendOverlayData, preserveCurrent = true): OverlayObject {
+    return ingest(data, preserveCurrent);
   }
 
   function ingestTileOverlay(data: TileOverlayData): OverlayObject {
     const overlay = liveOverlays.value[data.id];
-    if (!overlay) return ingest(data);
+    if (!overlay) return ingest(data, true);
     if (overlay.source === "backend" || overlay.status === null) return overlay;
-    return ingest(data);
+    return ingest(data, true);
   }
 
   // Replace an overlay's edit history wholesale. Callers compute the new history array

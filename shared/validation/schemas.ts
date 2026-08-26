@@ -9,7 +9,7 @@ const safeUrl = z.url({ protocol: /^https?$/, message: "validation.invalidUrl" }
 // The upload endpoint names stored images `${timestamp}-${random}.${ext}`. A persisted
 // filename is later interpolated into filesystem paths (unlink, readdir) and served, so it
 // must match that shape exactly: bare name, no path separators or `..`, single extension.
-export const uploadedFilenameSchema = z
+const uploadedFilenameSchema = z
   .string()
   .min(1, "validation.filenameRequired")
   .max(255, "validation.filenameTooLong")
@@ -77,7 +77,8 @@ const overlayBaseSchema = z.object({
     .string()
     .max(500, "validation.captionTooLong")
     .or(z.literal(""))
-    .transform((val) => (val === "" ? undefined : val))
+    .nullable()
+    .transform((val) => (val === "" ? null : val))
     .optional(),
   projectId: z.uuid({ message: "validation.projectRequired" }),
   replacesOverlayId: z.uuid().optional(),
@@ -113,7 +114,7 @@ function withOverlaySizeCheck<
 }
 
 // Full payload sent to the backend: the uploaded image's filename is required.
-export const overlaySchema = withOverlaySizeCheck(overlayBaseSchema);
+const overlaySchema = withOverlaySizeCheck(overlayBaseSchema);
 
 // Client-side pre-upload check. A brand-new overlay has no filename yet
 export const overlayClientSchema = withOverlaySizeCheck(overlayBaseSchema.omit({ filename: true }));
@@ -174,24 +175,22 @@ const FIELD_VALIDATORS_BY_ENTITY = {
   overlay: new Map<string, z.ZodTypeAny>(Object.entries(OVERLAY_FIELD_VALIDATORS)),
 };
 
-export const submitChangeRequestSchema = z
+const fieldChangeSchema = z.object({
+  fieldName: z.string().min(1, "validation.fieldNameRequired"),
+  oldValue: z.any().optional(),
+  newValue: z.any(),
+  changeReason: z
+    .string()
+    .or(z.literal(""))
+    .transform((val) => (val === "" ? undefined : val))
+    .optional(),
+});
+
+const submitChangeRequestSchema = z
   .object({
     entityType: z.enum(["project", "overlay"]),
     entityId: z.uuid(),
-    changes: z
-      .array(
-        z.object({
-          fieldName: z.string().min(1, "validation.fieldNameRequired"),
-          oldValue: z.any().optional(),
-          newValue: z.any(),
-          changeReason: z
-            .string()
-            .or(z.literal(""))
-            .transform((val) => (val === "" ? undefined : val))
-            .optional(),
-        }),
-      )
-      .min(1, "validation.changesRequired"),
+    changes: z.array(fieldChangeSchema).min(1, "validation.changesRequired"),
   })
   .superRefine((data, ctx) => {
     const validators = FIELD_VALIDATORS_BY_ENTITY[data.entityType];
@@ -216,6 +215,46 @@ export const submitChangeRequestSchema = z
             path: ["changes", i, "newValue", ...issue.path],
           });
         }
+      }
+    });
+  });
+
+export const submissionBatchSchema = z
+  .object({
+    projectId: z.uuid(),
+    project: projectSchema.and(z.object({ id: z.uuid() })).optional(),
+    overlays: z.array(overlaySchema),
+    changeRequests: z.array(submitChangeRequestSchema),
+    render: z.object({ id: z.uuid(), filename: uploadedFilenameSchema }).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (
+      !data.project &&
+      data.overlays.length === 0 &&
+      data.changeRequests.length === 0 &&
+      !data.render
+    ) {
+      ctx.addIssue({ code: "custom", message: "validation.changesRequired", path: [] });
+    }
+    if (data.project && data.project.id !== data.projectId) {
+      ctx.addIssue({ code: "custom", message: "validation.projectRequired", path: ["project"] });
+    }
+    data.overlays.forEach((overlay, index) => {
+      if (overlay.projectId !== data.projectId) {
+        ctx.addIssue({
+          code: "custom",
+          message: "validation.projectRequired",
+          path: ["overlays", index, "projectId"],
+        });
+      }
+    });
+    data.changeRequests.forEach((request, index) => {
+      if (request.entityType === "project" && request.entityId !== data.projectId) {
+        ctx.addIssue({
+          code: "custom",
+          message: "validation.projectRequired",
+          path: ["changeRequests", index, "entityId"],
+        });
       }
     });
   });
@@ -272,3 +311,4 @@ export function getValidationErrors(error: z.ZodError): ValidationError[] {
 
 type SubmitChangeRequestInput = z.infer<typeof submitChangeRequestSchema>;
 export type FieldChange = SubmitChangeRequestInput["changes"][number];
+export type SubmissionBatchInput = z.infer<typeof submissionBatchSchema>;

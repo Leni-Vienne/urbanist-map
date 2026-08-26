@@ -219,6 +219,7 @@ export function prepareSubmission(project: Project | null, overlay?: OverlayObje
   const submissionProject = useProjectStore().projects[projectId] ?? project;
   const projectChanges =
     projectHasChanges && submissionProject ? detectProjectChanges(submissionProject) : [];
+  const stagedRender = getStagedRender(projectId);
 
   pendingSubmissionDraft.value = {
     projectId,
@@ -226,7 +227,7 @@ export function prepareSubmission(project: Project | null, overlay?: OverlayObje
     project: buildProjectDraft(submissionProject, projectChanges),
     overlayModifications: getStagedOverlayModifications(projectId),
     newOverlayIds: getNewOverlaysForProject(projectId).map((o) => o.id),
-    pendingRender: getStagedRender(projectId),
+    pendingRender: stagedRender ? { ...stagedRender, id: crypto.randomUUID() } : undefined,
   };
 
   showSubmissionDialog.value = true;

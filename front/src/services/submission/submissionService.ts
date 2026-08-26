@@ -1,8 +1,8 @@
 import { useProjectStore } from "@/stores/projectStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
-import { trpc } from "@/client";
-import { getApiUrl } from "@/utils/apiUrl";
+import { useChangeRequestStore } from "@/stores/changeRequestStore";
+import { trpc, type RouterOutput } from "@/client";
 import { parseShapeCollection } from "@/utils/geojson";
 import { uploadImageFile } from "@/services/submission/uploadImageFile";
 import { clearStagedRender } from "@/services/submission/stagedRenderState";
@@ -14,19 +14,19 @@ import {
   getValidationErrors,
   type FieldChange,
   type OverlayCorners,
+  type SubmissionBatchInput,
 } from "@shared/validation/schemas";
 import { t } from "@/locales";
-import { refreshPendingChangeRequests } from "@/services/changes/changeRequests";
 import {
   getProjectValidationErrors,
   prepareOverlayValidationData,
 } from "@/utils/validationHelpers";
 import { resolveOverlayCorners } from "@/services/overlay/data";
-import { refreshEditSessionData } from "@/services/map/viewportTriggers";
+import { applyMapSessionRows } from "@/services/map/viewportTriggers";
+import { overlayWireToData } from "@/utils/typeFactories";
 import {
   PROJECT_CHANGE_FIELDS,
   type ProjectFieldChange,
-  type ProjectSubmissionDraft,
   type SubmissionChangeType,
   type SubmissionDraft,
 } from "./submissionTypes";
@@ -39,7 +39,6 @@ interface ProposedOverlayValues {
 type UpdateChangeType = Exclude<SubmissionChangeType, "create">;
 
 interface OverlayUpdate {
-  overlayId: string;
   changeType: UpdateChangeType;
   proposed: ProposedOverlayValues;
   changedFields: FieldChange[];
@@ -184,47 +183,6 @@ function validateChangedFields(
   return errors;
 }
 
-function applyOptimisticPublishedProject(project: Project, changeType: SubmissionChangeType): void {
-  const projectStore = useProjectStore();
-  projectStore.updateProject(project.id, {
-    isModified: false,
-    status: "pending",
-    ...(changeType === "update_pending" && {
-      name: project.name,
-      description: project.description,
-      sourceUrl: project.sourceUrl,
-      updatedAt: new Date(),
-    }),
-  });
-  projectStore.cacheProjectBackendState(project.id);
-
-  const updated = projectStore.projects[project.id];
-  if (!updated) return;
-
-  if (changeType === "create") projectStore.addProjectToUserContributions(updated);
-}
-
-async function submitProject(
-  project: Project,
-  draft: ProjectSubmissionDraft,
-  reason: string,
-): Promise<void> {
-  if (draft.changeType === "update_approved") {
-    await trpc.changes.submitChangeRequest.mutate({
-      entityType: "project",
-      entityId: project.id,
-      changes: draft.changes.map((change) => ({ ...change, changeReason: reason })),
-    });
-    useProjectStore().updateProject(project.id, { isModified: false });
-    return;
-  }
-
-  await trpc.project.publishProject.mutate(projectSchema.parse(project));
-  applyOptimisticPublishedProject(project, draft.changeType);
-}
-
-// Resolve the stored filename for the overlay's image: upload a local data-URL image (local
-// storage first, R2 after moderator approval), or reuse the filename from an existing server URL.
 async function prepareImageForServer(overlay: OverlayObject): Promise<string> {
   if (overlay.imageUrl.startsWith("data:")) {
     const response = await fetch(overlay.imageUrl);
@@ -252,27 +210,9 @@ async function prepareImageForServer(overlay: OverlayObject): Promise<string> {
   return filename;
 }
 
-function handlePostPublishUpdates(
+async function buildDirectOverlay(
   overlay: OverlayObject,
-  project: Project | null,
-  filename: string,
-): void {
-  if (!project) return;
-
-  const projectStore = useProjectStore();
-  const existingOverlays = Object.values(useOverlayStore().liveOverlays).filter(
-    (o) => o.projectId === project.id && o.id !== overlay.id,
-  );
-  projectStore.addOverlayToUserContributions(
-    overlay,
-    project,
-    filename,
-    useAuthStore().user?.username ?? null,
-    existingOverlays,
-  );
-}
-
-async function publishOverlay(overlay: OverlayObject, project: Project | null): Promise<void> {
+): Promise<SubmissionBatchInput["overlays"][number]> {
   if (!overlay.projectId) {
     throw new Error(t("overlay.publishErrorNoProjectId"));
   }
@@ -283,74 +223,17 @@ async function publishOverlay(overlay: OverlayObject, project: Project | null): 
   }
 
   const filename = await prepareImageForServer(overlay);
-
-  const payload = {
+  return {
     id: overlay.id,
     filename,
-    caption: overlay.caption ?? undefined,
+    caption: overlay.caption,
     projectId: overlay.projectId,
     replacesOverlayId: overlay.replacesOverlayId ?? undefined,
     corners: corners.map((c) => ({ lat: c.lat, lng: c.lng })),
   };
-
-  const publishResult = await trpc.overlay.publishOverlay.mutate(payload);
-
-  useOverlayStore().updateOverlay(overlay.id, {
-    status: publishResult.status,
-    authorId: publishResult.authorId ?? null,
-    // Point to the server URL so the image isn't re-uploaded on the next save.
-    // The backend serves uploads under /uploads/ (no /api/images endpoint exists).
-    imageUrl: `${getApiUrl()}/uploads/${filename}`,
-    filename,
-  });
-
-  handlePostPublishUpdates(overlay, project, filename);
-}
-
-async function submitOverlay(
-  overlayId: string,
-  changeType: UpdateChangeType,
-  changes: FieldChange[],
-): Promise<void> {
-  if (changeType === "update_approved") {
-    if (changes.length === 0) throw new Error(t("errors.noChangesDetected"));
-    await trpc.changes.submitChangeRequest.mutate({
-      entityType: "overlay",
-      entityId: overlayId,
-      changes,
-    });
-
-    return;
-  }
-
-  // changeType === "update_pending"
-  const hasCornersChange = changes.some((c) => c.fieldName === "corners");
-  if (hasCornersChange) {
-    // Pass the live store entry so publishOverlay's status/imageUrl mutations land in the store.
-    const liveOverlay = getOverlayOrThrow(overlayId);
-
-    const project = liveOverlay.projectId
-      ? useProjectStore().getProjectById(liveOverlay.projectId)
-      : null;
-    await publishOverlay(liveOverlay, project);
-    return;
-  }
-
-  // Caption-only update on a pending overlay.
-  const captionChange = changes.find((c) => c.fieldName === "caption");
-  const caption = captionChange ? String(captionChange.newValue ?? "") : undefined;
-  await trpc.overlay.updateOverlay.mutate({ id: overlayId, caption });
-
-  if (caption !== undefined) {
-    const projectId = getOverlayOrThrow(overlayId).projectId;
-    if (projectId) {
-      useProjectStore().updateOverlayInUserContributions(projectId, overlayId, { caption });
-    }
-  }
 }
 
 function buildOverlayUpdate(
-  overlayId: string,
   mod: Pick<PendingOverlayModification, "caption" | "corners">,
   overlayObj: OverlayObject,
   reason?: string,
@@ -376,82 +259,10 @@ function buildOverlayUpdate(
     proposed.corners = mod.corners.current;
   }
   return {
-    overlayId,
     changeType: getOverlayUpdateType(overlayObj),
     changedFields,
     proposed,
   };
-}
-
-// Submit a single overlay modification.
-async function submitOverlayModification(
-  overlayId: string,
-  mod: Pick<PendingOverlayModification, "caption" | "corners">,
-  reason: string,
-): Promise<boolean> {
-  const overlayStore = useOverlayStore();
-  const overlayObj = getOverlayOrThrow(overlayId);
-
-  const isChangeRequest = overlayObj.status === "approved";
-  const update = buildOverlayUpdate(overlayId, mod, overlayObj, reason);
-  await submitOverlay(update.overlayId, update.changeType, update.changedFields);
-
-  // Collapse history to the submitted position. Direct updates also move baselineCorners; a change
-  // request's baseline stays the approved corners and the submitted position becomes the
-  // suggestedCorners default (set by submitOverlay's update_approved branch).
-  const submittedCorners = mod.corners?.current;
-  if (submittedCorners) {
-    if (!isChangeRequest) {
-      overlayStore.updateOverlay(overlayId, { baselineCorners: submittedCorners });
-    }
-    overlayStore.resetHistoryBaseline(overlayId, submittedCorners);
-  }
-
-  // Move baselineCaption to the submitted value on a direct update so the staged test goes false.
-  // A change request's baseline stays the approved caption; suggestedCaption is the new default.
-  const submittedCaption = mod.caption?.current;
-  if (submittedCaption !== undefined && !isChangeRequest) {
-    overlayStore.updateOverlay(overlayId, { baselineCaption: submittedCaption });
-  }
-
-  return isChangeRequest;
-}
-
-async function publishNewOverlay(overlayId: string, project: Project | null): Promise<void> {
-  const overlayStore = useOverlayStore();
-  const overlayObj = getOverlayOrThrow(overlayId);
-
-  await publishOverlay(overlayObj, project);
-
-  // Collapse history so the just-published state is the new baseline, and snapshot the published
-  // caption as the baseline so the just-published overlay reads as clean.
-  const publishedState = overlayObj.history.at(-1);
-  if (publishedState) {
-    overlayStore.updateOverlay(overlayId, {
-      baselineCorners: publishedState.corners,
-      baselineCaption: overlayObj.caption,
-    });
-    overlayStore.resetHistoryBaseline(overlayId, publishedState.corners);
-  }
-}
-
-// Publish a render staged in the project form. Its own moderated entity, attached to an
-// existing project row, so callers must ensure the project is published first.
-async function publishStagedRender(projectId: string, file: File): Promise<void> {
-  const projectStore = useProjectStore();
-  const filename = await uploadImageFile(file);
-  const created = await trpc.overlay.publishRender.mutate({ projectId, filename });
-  // Optimistically attach the pending render so the detail panel shows it immediately in edit mode.
-  projectStore.updateProject(projectId, {
-    render: { filename, caption: null, status: "pending" },
-  });
-  // Mirror it into My Contributions, where renders show as render-kind overlays in the list.
-  projectStore.addRenderToUserContributions(
-    projectId,
-    { id: created.id, filename, status: created.status, authorId: created.authorId },
-    useAuthStore().user?.username ?? null,
-  );
-  clearStagedRender(projectId);
 }
 
 function getOverlayOrThrow(overlayId: string): OverlayObject {
@@ -467,8 +278,8 @@ function validateSubmission(draft: SubmissionDraft, project: Project | null): vo
 
   for (const mod of draft.overlayModifications) {
     const overlay = getOverlayOrThrow(mod.overlayId);
-    const update = buildOverlayUpdate(mod.overlayId, mod, overlay);
-    for (const error of validateOverlay(update.overlayId, update.proposed)) errors.add(error);
+    const update = buildOverlayUpdate(mod, overlay);
+    for (const error of validateOverlay(mod.overlayId, update.proposed)) errors.add(error);
     for (const error of validateChangedFields(update.changeType, update.changedFields)) {
       errors.add(error);
     }
@@ -497,60 +308,125 @@ function validateSubmission(draft: SubmissionDraft, project: Project | null): vo
   if (errors.size > 0) throw new Error([...errors].join(", "));
 }
 
-export async function submitDraft(draft: SubmissionDraft, reason: string): Promise<void> {
-  const project = useProjectStore().getProjectById(draft.projectId);
-  const projectDraft = draft.project;
-  const overlayModifications = [...draft.overlayModifications];
-  const newOverlayIds = [...draft.newOverlayIds];
+async function buildSubmissionBatch(
+  draft: SubmissionDraft,
+  project: Project | null,
+  reason: string,
+): Promise<SubmissionBatchInput> {
+  const directOverlayIds = new Set(draft.newOverlayIds);
+  const changeRequests: SubmissionBatchInput["changeRequests"] = [];
 
-  validateSubmission(draft, project);
-
-  let shouldRefreshChangeRequests = false;
-  let shouldRefreshMapSession = false;
-
-  try {
-    // A new project is the foreign-key prerequisite for its overlays and render.
-    if (projectDraft?.changeType === "create" && project) {
-      await submitProject(project, projectDraft, reason);
-      draft.project = undefined;
-    }
-
-    // Each completed entity is dropped from the draft. After a later failure, a retry starts at
-    // the remaining work. A lost response can still leave the server ahead of this local draft.
-    for (const mod of overlayModifications) {
-      const submittedChangeRequest = await submitOverlayModification(mod.overlayId, mod, reason);
-      if (submittedChangeRequest) {
-        shouldRefreshChangeRequests = true;
-        shouldRefreshMapSession = true;
-      }
-      draft.overlayModifications = draft.overlayModifications.filter(
-        (pending) => pending.overlayId !== mod.overlayId,
-      );
-    }
-
-    for (const overlayId of newOverlayIds) {
-      await publishNewOverlay(overlayId, project);
-      draft.newOverlayIds = draft.newOverlayIds.filter((id) => id !== overlayId);
-    }
-
-    if (projectDraft && projectDraft.changeType !== "create" && project) {
-      await submitProject(project, projectDraft, reason);
-      if (projectDraft.changeType === "update_approved") {
-        shouldRefreshChangeRequests = true;
-      }
-      draft.project = undefined;
-    }
-
-    if (draft.pendingRender) {
-      await publishStagedRender(draft.projectId, draft.pendingRender.file);
-      draft.pendingRender = undefined;
-    }
-  } finally {
-    if (shouldRefreshChangeRequests) {
-      await refreshPendingChangeRequests({ force: true });
-    }
-    if (shouldRefreshMapSession) {
-      await refreshEditSessionData();
+  for (const mod of draft.overlayModifications) {
+    const overlay = getOverlayOrThrow(mod.overlayId);
+    const update = buildOverlayUpdate(mod, overlay, reason);
+    if (update.changeType === "update_approved") {
+      changeRequests.push({
+        entityType: "overlay",
+        entityId: mod.overlayId,
+        changes: update.changedFields,
+      });
+    } else {
+      directOverlayIds.add(mod.overlayId);
     }
   }
+
+  let directProject: SubmissionBatchInput["project"] = undefined;
+  if (draft.project && project) {
+    if (draft.project.changeType === "update_approved") {
+      changeRequests.push({
+        entityType: "project",
+        entityId: project.id,
+        changes: draft.project.changes.map((change) => ({ ...change, changeReason: reason })),
+      });
+    } else {
+      directProject = { ...projectSchema.parse(project), id: project.id };
+    }
+  }
+
+  const [overlays, renderFilename] = await Promise.all([
+    Promise.all([...directOverlayIds].map(async (id) => buildDirectOverlay(getOverlayOrThrow(id)))),
+    draft.pendingRender ? uploadImageFile(draft.pendingRender.file) : undefined,
+  ]);
+  return {
+    projectId: draft.projectId,
+    project: directProject,
+    overlays,
+    changeRequests,
+    render:
+      draft.pendingRender && renderFilename
+        ? { id: draft.pendingRender.id, filename: renderFilename }
+        : undefined,
+  };
+}
+
+function applySubmissionResult(
+  draft: SubmissionDraft,
+  result: RouterOutput["submission"]["submit"],
+): void {
+  const projectStore = useProjectStore();
+  if (draft.project?.changeType === "update_approved") {
+    for (const change of draft.project.changes) {
+      projectStore.resetProjectField(draft.projectId, change.fieldName);
+    }
+  }
+  if (draft.project) projectStore.updateProject(draft.projectId, { isModified: false });
+
+  const submittedOverlayIds = new Set([
+    ...draft.newOverlayIds,
+    ...draft.overlayModifications.map((mod) => mod.overlayId),
+  ]);
+  applyMapSessionRows(
+    "edit",
+    result.editSession.projects,
+    result.editSession.overlays.map(overlayWireToData),
+    submittedOverlayIds,
+  );
+  useChangeRequestStore().setPendingChangeRequests(result.changeRequests);
+
+  const submittedProject = projectStore.getProjectById(draft.projectId);
+  if (submittedProject) {
+    if (draft.project?.changeType === "create") {
+      projectStore.addProjectToUserContributions(submittedProject);
+    }
+    const existingProjectOverlays = Object.values(useOverlayStore().liveOverlays).filter(
+      (overlay) => overlay.projectId === draft.projectId,
+    );
+    for (const overlayId of draft.newOverlayIds) {
+      const overlay = getOverlayOrThrow(overlayId);
+      projectStore.addOverlayToUserContributions(
+        overlay,
+        submittedProject,
+        overlay.filename,
+        useAuthStore().user?.username ?? null,
+        existingProjectOverlays.filter((existing) => existing.id !== overlayId),
+      );
+    }
+    for (const mod of draft.overlayModifications) {
+      if (mod.overlayStatus === "approved") continue;
+      const overlay = getOverlayOrThrow(mod.overlayId);
+      projectStore.updateOverlayInUserContributions(draft.projectId, mod.overlayId, {
+        caption: overlay.caption,
+      });
+    }
+  }
+
+  if (result.render) {
+    projectStore.updateProject(draft.projectId, {
+      render: { filename: result.render.filename, caption: null, status: result.render.status },
+    });
+    projectStore.addRenderToUserContributions(
+      draft.projectId,
+      result.render,
+      useAuthStore().user?.username ?? null,
+    );
+    clearStagedRender(draft.projectId);
+  }
+}
+
+export async function submitDraft(draft: SubmissionDraft, reason: string): Promise<void> {
+  const project = useProjectStore().getProjectById(draft.projectId);
+  validateSubmission(draft, project);
+  const batch = await buildSubmissionBatch(draft, project, reason);
+  const result = await trpc.submission.submit.mutate(batch);
+  applySubmissionResult(draft, result);
 }

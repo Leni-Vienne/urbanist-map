@@ -12,15 +12,10 @@ import {
 } from "../db/schema";
 import { eq, and, inArray, sql, or, isNull, isNotNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { db } from "../database";
-import { isUserBlocked } from "../db/helpers";
+import { db, type DatabaseExecutor } from "../database";
 import { scalarGeometrySizeMSql } from "../db/geometrySize";
-import { submitChangeRequestSchema } from "@shared/validation/schemas";
-import * as rateLimit from "../lib/rateLimit";
-import { getClientIp } from "../utils/ip";
 import { invalidateProjectTiles, invalidateOverlayTiles } from "./tiles";
 import { invalidateLatestContributionsCache } from "./feed";
-import { notifyNewSubmission } from "../services/discordNotifier";
 
 const approveChangeRequestSchema = z.object({
   changeRequestIds: z.array(z.uuid()),
@@ -140,7 +135,7 @@ function buildUpdateData(change: { entityType: string; fieldName: string; newVal
       return { geometry: null, geometrySizeM: null };
     }
     const collection = parseGeometryCollection(change.newValue);
-    // ST_MakeValid normalizes the client-drawn shape (same as the publishProject write path) so a
+    // ST_MakeValid normalizes the client-drawn shape (same as the submission write path) so a
     // self-intersecting or malformed collection is stored valid rather than as-drawn.
     const geometryExpr = sql`ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(collection)}), 4326))`;
     // geometry_size_m is derived from the shape, so it moves with it in the same UPDATE.
@@ -263,154 +258,25 @@ const changeRequestSelectFields = {
   createdAt: changeRequests.createdAt,
 } as const;
 
+export async function getMyChangeRequests(database: DatabaseExecutor, userId: string) {
+  const rows = await database
+    .select(changeRequestSelectFields)
+    .from(changeRequests)
+    .leftJoin(users, eq(changeRequests.requestedBy, users.id))
+    .where(
+      and(
+        eq(changeRequests.requestedBy, userId),
+        or(eq(changeRequests.status, "pending"), eq(changeRequests.status, "conflicted")),
+      ),
+    )
+    .orderBy(changeRequests.createdAt);
+
+  return rows.map((change) =>
+    Object.assign({}, change, { hasConflict: change.status === "conflicted" }),
+  );
+}
+
 export const changesRouter = router({
-  submitChangeRequest: loggedInProcedure
-    .input(submitChangeRequestSchema)
-    .mutation(async ({ input, ctx }) => {
-      try {
-        const userId = ctx.user.id;
-
-        // Spam prevention - block banned or heavily reported users
-        if (await isUserBlocked(userId)) {
-          throw new TRPCError({
-            code: "FORBIDDEN",
-            message: "Your account has been flagged for review. Please contact support.",
-          });
-        }
-
-        // Rate limit: 20 change requests per IP per hour
-        const ip = getClientIp(ctx.hono);
-        if (!rateLimit.check(ip, 20, 60 * 60 * 1000)) {
-          throw new TRPCError({
-            code: "TOO_MANY_REQUESTS",
-            message: "Too many change requests. Please try again later.",
-          });
-        }
-
-        // Verify that the entity exists and is approved
-        // Users can only submit change requests for approved content
-        let entityLat: number | null = null;
-        let entityLng: number | null = null;
-        if (input.entityType === "overlay") {
-          const overlayResult = await db
-            .select({
-              status: overlays.status,
-              lat: sql<number>`ST_Y(${overlays.centroid})`,
-              lng: sql<number>`ST_X(${overlays.centroid})`,
-            })
-            .from(overlays)
-            .where(eq(overlays.id, input.entityId))
-            .limit(1);
-
-          if (!overlayResult[0]) {
-            throw new TRPCError({
-              code: "NOT_FOUND",
-              message: "Overlay not found",
-            });
-          }
-
-          if (overlayResult[0].status !== "approved") {
-            throw new TRPCError({
-              code: "BAD_REQUEST",
-              message: "Change requests can only be submitted for approved overlays",
-            });
-          }
-
-          entityLat = overlayResult[0].lat;
-          entityLng = overlayResult[0].lng;
-        } else {
-          const projectResult = await db
-            .select({ status: projects.status, lat: projects.lat, lng: projects.lng })
-            .from(projects)
-            .where(eq(projects.id, input.entityId))
-            .limit(1);
-
-          if (!projectResult[0]) {
-            throw new TRPCError({
-              code: "NOT_FOUND",
-              message: "Project not found",
-            });
-          }
-
-          if (projectResult[0].status !== "approved") {
-            throw new TRPCError({
-              code: "BAD_REQUEST",
-              message: "Change requests can only be submitted for approved projects",
-            });
-          }
-
-          entityLat = projectResult[0].lat;
-          entityLng = projectResult[0].lng;
-        }
-
-        // Validate field values before writing to the DB
-        for (const change of input.changes) {
-          if (input.entityType === "project" && change.fieldName === "geometry") {
-            if (change.newValue !== null && change.newValue !== undefined) {
-              parseGeometryCollection(change.newValue);
-            }
-          }
-        }
-
-        // Process each change request - replace existing ones for the same field from the same user
-        await db.transaction(async (tx) => {
-          for (const change of input.changes) {
-            // Delete any existing pending/conflicted change request for the same field from the same user
-            // This allows users to update their suggestions without creating duplicates
-            await tx
-              .delete(changeRequests)
-              .where(
-                and(
-                  eq(changeRequests.entityType, input.entityType),
-                  eq(changeRequests.entityId, input.entityId),
-                  eq(changeRequests.fieldName, change.fieldName),
-                  eq(changeRequests.requestedBy, userId),
-                  sql`${changeRequests.status} IN ('pending', 'conflicted')`,
-                ),
-              );
-
-            // Insert the new change request with 'pending' status
-            // Multiple users can have pending changes for the same field
-            // 'conflicted' status is only set by moderators as a soft rejection when approving a competing change
-            await tx.insert(changeRequests).values({
-              entityType: input.entityType,
-              entityId: input.entityId,
-              fieldName: change.fieldName,
-              oldValue: change.oldValue,
-              newValue: change.newValue,
-              changeReason: change.changeReason,
-              requestedBy: userId,
-              status: "pending",
-            });
-          }
-        });
-
-        void notifyNewSubmission({
-          kind: "change_request",
-          author: { email: ctx.user.email, username: ctx.user.username },
-          entityType: input.entityType,
-          entityId: input.entityId,
-          changes: input.changes.map((change) => ({
-            fieldName: change.fieldName,
-            oldValue: change.oldValue,
-            newValue: change.newValue,
-            changeReason: change.changeReason,
-          })),
-          lat: entityLat,
-          lng: entityLng,
-        });
-      } catch (error) {
-        if (error instanceof TRPCError) {
-          throw error;
-        }
-        console.error("Error submitting change request:", error);
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to submit change request",
-        });
-      }
-    }),
-
   deleteChangeRequest: loggedInProcedure
     .input(z.object({ id: z.uuid() }))
     .mutation(async ({ input, ctx }) => {
@@ -462,29 +328,7 @@ export const changesRouter = router({
 
   getMyChangeRequests: loggedInProcedure.query(async ({ ctx }) => {
     try {
-      const userId = ctx.user.id;
-
-      // Only show pending/conflicted change requests (not approved/rejected)
-      const myChanges = await db
-        .select(changeRequestSelectFields)
-        .from(changeRequests)
-        .leftJoin(users, eq(changeRequests.requestedBy, users.id))
-        .where(
-          and(
-            eq(changeRequests.requestedBy, userId),
-            or(eq(changeRequests.status, "pending"), eq(changeRequests.status, "conflicted")),
-          ),
-        )
-        .orderBy(changeRequests.createdAt);
-
-      // 'conflicted' status surfaces in the UI as a hasConflict flag.
-      const changesWithConflictInfo = myChanges.map((change) => {
-        return Object.assign({}, change, {
-          hasConflict: change.status === "conflicted",
-        });
-      });
-
-      return changesWithConflictInfo;
+      return getMyChangeRequests(db, ctx.user.id);
     } catch (error) {
       console.error("Error fetching my change requests:", error);
       throw new TRPCError({

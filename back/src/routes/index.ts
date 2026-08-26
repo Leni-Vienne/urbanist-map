@@ -9,6 +9,7 @@ import { accountRouter } from "./account";
 import { adminRouter } from "./admin";
 import { viewportRouter } from "./viewport";
 import { feedRouter } from "./feed";
+import { submissionRouter } from "./submission";
 
 export const appRouter = router({
   account: accountRouter,
@@ -21,6 +22,7 @@ export const appRouter = router({
   admin: adminRouter,
   viewport: viewportRouter,
   feed: feedRouter,
+  submission: submissionRouter,
 });
 
 export type AppRouter = typeof appRouter;
