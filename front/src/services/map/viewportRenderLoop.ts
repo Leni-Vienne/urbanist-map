@@ -89,21 +89,20 @@ function queueForDestruction(id: string): void {
   destructionQueue.enqueue(id, null);
 }
 
-// Whether an overlay's source data intersects the viewport at the position its image has, or would
-// be created at ("marker" resolution: live corners, then the suggested/history position, then the
-// approved baseline). Keying membership on the resolved position keeps an open change request's
+// Whether an overlay's source data intersects the viewport at its store-derived display position.
+// Keying membership on the resolved position keeps an open change request's
 // image alive at its suggested position even when the approved footprint sits off-screen.
 function resolvedCornersInBounds(
   source: OverlayObject | OverlayData,
   bounds: ViewportBounds,
 ): boolean {
-  const corners = resolveOverlayCorners(source, "marker");
+  const corners = resolveOverlayCorners(source);
   return corners !== null && cornersIntersectBounds(corners, bounds);
 }
 
 // Converge an existing overlay's image + marker to its desired store-derived display. The desired
-// image bytes are the canonical imageUrl and the desired corners are resolveOverlayCorners(_,
-// "image"); both are compared against what was last applied (never a GL read-back). Returns true
+// image bytes are the canonical imageUrl and the desired corners come from store state. Both are
+// compared against what was last applied (never a GL read-back). Returns true
 // when it moved something, so the caller can refresh the active edit session's handles once.
 // Runs in edit and moderation: resolveOverlayCorners resolves the edit-session position or the
 // moderation change-request preview position from store state. Gesture-owned entries never reach here.
@@ -112,7 +111,7 @@ function convergeOverlayDisplay(overlayObject: OverlayObject): boolean {
   const handle = registry.getImageHandle(id);
   if (!handle) return false;
 
-  const desiredCorners = resolveOverlayCorners(overlayObject, "image");
+  const desiredCorners = resolveOverlayCorners(overlayObject);
   if (!isValidQuad(desiredCorners)) return false;
 
   // Image bytes changed (crop apply, undo/redo across a crop): rebuild the source at the desired
@@ -200,7 +199,7 @@ function reconcileOverlayExistence(bounds: ViewportBounds): void {
       if (shouldDisplayOverlay(liveObject, mode, userId)) {
         destructionQueue.delete(id);
         if (!hasImage) {
-          registry.createOverlayImage(liveObject, resolveOverlayCorners(liveObject, "image"));
+          registry.createOverlayImage(liveObject, resolveOverlayCorners(liveObject));
         } else if (isSessionMode && convergeOverlayDisplay(liveObject)) handlesNeedSync = true;
         if (!hasMarker) createOverlayMarker(liveObject);
       } else if (hasImage || hasMarker) {
@@ -232,7 +231,7 @@ function reconcileOverlayExistence(bounds: ViewportBounds): void {
         createOverlayMarker(overlayObject);
       }
       if (!hasImage) {
-        registry.createOverlayImage(overlayObject, resolveOverlayCorners(overlayObject, "image"));
+        registry.createOverlayImage(overlayObject, resolveOverlayCorners(overlayObject));
       } else if (isSessionMode && convergeOverlayDisplay(overlayObject)) {
         handlesNeedSync = true;
       }

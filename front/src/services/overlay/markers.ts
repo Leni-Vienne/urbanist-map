@@ -8,7 +8,7 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
 import { isOverlayVisible } from "@/services/overlay/visibility";
-import type { OverlayObject, OverlayData, MarkerColor } from "@/types/index";
+import type { OverlayObject, OverlayData, MarkerColor, LatLng } from "@/types/index";
 import type { ApprovalStatus } from "@shared/types";
 import { t } from "@/locales";
 import * as registry from "@/services/overlay/mapLayers";
@@ -34,7 +34,7 @@ export function createOverlayMarker(overlay: OverlayObject): void {
   const authStore = useAuthStore();
   if (!isOverlayVisible(overlay, mode, authStore.user?.id)) return;
 
-  const corners = resolveOverlayCorners(overlay, "marker");
+  const corners = resolveOverlayCorners(overlay);
   if (!corners) return;
 
   const centroid = calculateCentroidFromCorners(corners);
@@ -90,7 +90,7 @@ function onMarkerClick(overlayId: string): void {
  * geometry so callers skip navigation instead of feeding NaN bounds to the camera.
  */
 export function getOverlayBounds(overlay: OverlayData): LngLatBounds | null {
-  const corners = resolveOverlayCorners(overlay, "marker");
+  const corners = resolveOverlayCorners(overlay);
   return corners ? buildLngLatBounds(corners) : null;
 }
 
@@ -209,12 +209,15 @@ function getApprovalStatusColor(
 /**
  * Update the marker position based on the overlay's current center
  */
-export function updateMarkerPosition(overlayObject: OverlayObject): void {
+export function updateMarkerPosition(
+  overlayObject: OverlayObject,
+  transientCorners?: LatLng[],
+): void {
   const marker = registry.getMarker(overlayObject.id);
   if (!marker) return;
 
   // Centroid from the resolved marker position so the pin tracks the overlay during edits.
-  const corners = resolveOverlayCorners(overlayObject, "marker");
+  const corners = transientCorners ?? resolveOverlayCorners(overlayObject);
   if (corners) {
     const centroid = calculateCentroidFromCorners(corners);
     if (centroid) marker.setLngLat([centroid.lng, centroid.lat]);

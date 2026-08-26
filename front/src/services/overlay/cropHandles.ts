@@ -2,13 +2,13 @@ import * as maplibregl from "maplibre-gl";
 import { getMap } from "@/services/core/map";
 import {
   getImageHandle,
-  getCurrentTransform,
   replaceOverlayImageSource,
   takeGestureOwnership,
   releaseGestureOwnership,
 } from "@/services/overlay/mapLayers";
 import {
   transformToCorners,
+  cornersToTransform,
   normToLngLat,
   lngLatToNorm,
   type OverlayTransform,
@@ -20,6 +20,7 @@ import { imageRequiresCredentials } from "@/utils/imageUrl";
 import { createSvgCanvasLayer, createSvgPath } from "@/utils/svgCanvasLayer";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import type { OverlayObject } from "@/types/index";
+import { resolveOverlayCorners } from "@/services/overlay/data";
 
 type Edge = "top" | "bottom" | "left" | "right";
 
@@ -173,8 +174,9 @@ export function showCropHandles(overlayObject: OverlayObject): void {
 
   hideCropHandles();
 
-  const baseTransform = getCurrentTransform(overlayObject.id);
-  if (!baseTransform) return;
+  const corners = resolveOverlayCorners(overlayObject);
+  if (!corners) return;
+  const baseTransform = cornersToTransform(corners);
 
   const bounds: CropBounds = { u0: 0, u1: 1, v0: 0, v1: 1 };
 
@@ -230,7 +232,7 @@ export function showCropHandles(overlayObject: OverlayObject): void {
   // Own the overlay for the whole crop session: the image sits still while the crop window is
   // dragged, and applyCrop swaps it (via replaceOverlayImageSource) before hideCropHandles releases,
   // so the reconciler must not touch it in between.
-  takeGestureOwnership(overlayObject.id);
+  takeGestureOwnership(overlayObject.id, baseTransform);
   syncCrop();
 }
 
@@ -325,8 +327,8 @@ export async function applyCrop(): Promise<boolean> {
   // The new imageUrl makes the step distinct from the pre-crop one, so undo restores both the
   // original pixels and the original footprint.
   replaceOverlayImageSource(overlay.id, dataUrl, newCorners);
-  commitOverlayEdit(overlay.id, originalRect);
-  updateMarkerPosition(overlay);
+  commitOverlayEdit(overlay.id, newCorners, originalRect);
+  updateMarkerPosition(overlay, newCorners);
 
   return true;
 }

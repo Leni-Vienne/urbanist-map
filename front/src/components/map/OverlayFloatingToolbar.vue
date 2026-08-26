@@ -136,10 +136,11 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useUiStore } from "@/stores/uiStore";
-import type { OverlayObject } from "@/types";
+import type { LatLng, OverlayObject } from "@/types";
 import { onMapReady } from "@/services/core/map";
 import {
-  getOverlayImageCorners,
+  getGestureTransform,
+  getImageHandle,
   setOverlayImageOpacity,
   setOverlayInFront,
   isOverlayInFront,
@@ -147,6 +148,8 @@ import {
   getOverlayOpacity,
   whenImageReady,
 } from "@/services/overlay/mapLayers";
+import { resolveOverlayCorners } from "@/services/overlay/data";
+import { transformToCorners } from "@/services/overlay/transform";
 import {
   navigateOverlaySequence,
   getProjectSiblingOverlayIds,
@@ -183,11 +186,19 @@ let cancelImageWait: (() => void) | null = null;
 // instance. Null until it becomes ready (the toolbar can mount while MapView is still wiring up).
 let toolbarMap: maplibregl.Map | null = null;
 
-// Top-center of the overlay ([lng, lat]) where the toolbar anchors.
-function getAnchorLngLat(): [number, number] | null {
+function getSelectedCorners(): LatLng[] | null {
   const id = selectedId.value;
   if (!id) return null;
-  const corners = getOverlayImageCorners(id);
+  if (!getImageHandle(id)) return null;
+  const overlay = overlayStore.liveOverlays[id];
+  if (!overlay) return null;
+  const transient = getGestureTransform(id);
+  return transient ? transformToCorners(transient) : resolveOverlayCorners(overlay);
+}
+
+// Top-center of the overlay ([lng, lat]) where the toolbar anchors.
+function getAnchorLngLat(): [number, number] | null {
+  const corners = getSelectedCorners();
   if (!corners?.length) return null;
   const lats = corners.map((c) => c.lat);
   const lngs = corners.map((c) => c.lng);
@@ -208,8 +219,8 @@ function destroyMarker() {
 // The front/back button only matters when the image sits over a project shape (otherwise toggling
 // has no visible effect). Re-evaluated on selection, map move, and while the overlay is dragged.
 function refreshCanStack() {
-  const id = selectedId.value;
-  canStack.value = id ? overlayOverlapsProjectShape(id) : false;
+  const corners = getSelectedCorners();
+  canStack.value = corners ? overlayOverlapsProjectShape(corners) : false;
 }
 
 function createMarker(lngLat: [number, number]) {

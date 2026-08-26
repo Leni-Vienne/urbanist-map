@@ -2,7 +2,6 @@ import type { NormalizedRect, OverlayHistoryState, LatLng } from "@/types/index"
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useFocusStore } from "@/stores/focusStore";
 import {
-  getOverlayImageCorners,
   getImageHandle,
   deriveOverlayFilename,
   isGestureOwned,
@@ -22,16 +21,19 @@ export function makeHistoryState(
   return { corners: corners.map((c) => ({ lat: c.lat, lng: c.lng })), imageUrl, cropRect };
 }
 
-// Commit one overlay edit (move / resize / crop): push a history step for the live image position.
+// Commit one completed overlay edit (move / resize / crop) as a history step.
 // Seeds an empty history with the overlay's resting position first. Returns early without
 // committing when the position matches the last step.
-export function commitOverlayEdit(id: string, cropRect?: NormalizedRect): void {
+export function commitOverlayEdit(
+  id: string,
+  currentCorners: LatLng[],
+  cropRect?: NormalizedRect,
+): void {
   const overlayStore = useOverlayStore();
   const overlay = overlayStore.liveOverlays[id];
   if (!overlay) return;
 
-  const currentCorners = getOverlayImageCorners(id);
-  if (!currentCorners) return;
+  if (!isValidQuad(currentCorners)) return;
   // A move/resize keeps the same image, so carry the prior step's crop window forward; a crop
   // passes its new window explicitly so the next crop composes onto the right region.
   const effectiveRect = cropRect ?? overlay.history.at(-1)?.cropRect;

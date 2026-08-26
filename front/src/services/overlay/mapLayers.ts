@@ -7,7 +7,6 @@ import type {
 } from "maplibre-gl";
 import { getMap, getMapOrNull, onStyleSwitch, type StyleSwitchPhase } from "@/services/core/map";
 import {
-  cornersToTransform,
   isValidQuad,
   transformToCorners,
   type OverlayTransform,
@@ -22,7 +21,6 @@ import type { OverlayObject, LatLng } from "@/types/index";
 interface OverlayImageHandle {
   sourceId: string;
   rasterLayerId: string;
-  transform: OverlayTransform;
   // The imageUrl the source was created from. The reconciler swaps the source (crop / undo across a
   // crop) when the canonical store imageUrl no longer matches this.
   imageUrl: string;
@@ -43,18 +41,30 @@ const entries = new Map<string, RegistryEntry>();
 // image is deliberately ahead of the store mid-gesture, so the reconciler must neither move nor
 // destroy them until the gesture commits and releases. mapLayers is the shared leaf both the editor
 // and the reconciler import, so ownership lives here rather than in editing.ts.
-const gestureOwned = new Set<string>();
+const gestureTransforms = new Map<string, OverlayTransform>();
 
-export function takeGestureOwnership(id: string): void {
-  gestureOwned.add(id);
+export function takeGestureOwnership(id: string, transform: OverlayTransform): void {
+  gestureTransforms.set(id, transform);
 }
 
 export function releaseGestureOwnership(id: string): void {
-  gestureOwned.delete(id);
+  gestureTransforms.delete(id);
 }
 
 export function isGestureOwned(id: string): boolean {
-  return gestureOwned.has(id);
+  return gestureTransforms.has(id);
+}
+
+export function getGestureTransform(id: string): OverlayTransform | null {
+  return gestureTransforms.get(id) ?? null;
+}
+
+// Gesture completion makes the transient image position store-derived. Record those committed
+// corners as the reconciler cache, then discard the transient owner.
+export function finishGestureOwnership(id: string, corners: LatLng[]): void {
+  const entry = entries.get(id);
+  if (entry) entry.lastAppliedCorners = corners;
+  gestureTransforms.delete(id);
 }
 
 // The reconciler moves an overlay's image, then the edit-handle outline/corner markers must follow.
@@ -276,6 +286,7 @@ export function clearEntry(id: string): void {
   entry.marker?.remove();
 
   entries.delete(id);
+  gestureTransforms.delete(id);
 }
 
 /** Clear every image layer, marker and registry entry. */
@@ -299,7 +310,7 @@ export function clearOverlayDisplayPrefs(): void {
  */
 export function clearMapObjectRegistry(): void {
   clearAll();
-  gestureOwned.clear();
+  gestureTransforms.clear();
   cancelImageReadyWaiters();
 }
 
@@ -384,10 +395,8 @@ const PROJECT_SHAPE_QUERY_LAYERS = [
 // True when the overlay's footprint overlaps a rendered project shape, so the front/back toggle
 // would produce a visible change. Queries the screen-space bounding box of the (possibly rotated)
 // footprint, which slightly over-covers, fine for gating a toolbar button.
-export function overlayOverlapsProjectShape(id: string): boolean {
+export function overlayOverlapsProjectShape(corners: LatLng[]): boolean {
   const mlMap = getMap();
-  const corners = getOverlayImageCorners(id);
-  if (!corners) return false;
 
   const layers = PROJECT_SHAPE_QUERY_LAYERS.filter((layer) => mlMap.getLayer(layer));
   if (layers.length === 0) return false;
@@ -452,7 +461,6 @@ export function createOverlayImage(overlayObject: OverlayObject, corners: LatLng
       {
         sourceId,
         rasterLayerId,
-        transform: cornersToTransform(corners),
         imageUrl: overlayObject.imageUrl,
       },
       corners,
@@ -468,13 +476,11 @@ export function getLastAppliedCorners(id: string): LatLng[] | null {
   return entries.get(id)?.lastAppliedCorners ?? null;
 }
 
-// Re-render the image at exactly these corners (display / non-edit, e.g. restoring a saved
-// position). Also refreshes the stored rigid transform so the next edit starts from here.
+// Re-render the image at exactly these store-derived corners and refresh the reconciliation cache.
 export function setOverlayImageCorners(id: string, corners: LatLng[]): void {
   const handle = getImageHandle(id);
   if (!handle || !isValidQuad(corners)) return;
   getImageSource(handle.sourceId)?.setCoordinates(cornersToImageCoordinates(corners));
-  handle.transform = cornersToTransform(corners);
   const entry = entries.get(id);
   if (entry) entry.lastAppliedCorners = corners;
 }
@@ -483,8 +489,8 @@ export function setOverlayImageCorners(id: string, corners: LatLng[]): void {
 // the corner handles).
 export function setOverlayImageTransform(id: string, transform: OverlayTransform): void {
   const handle = getImageHandle(id);
-  if (!handle) return;
-  handle.transform = transform;
+  if (!handle || !gestureTransforms.has(id)) return;
+  gestureTransforms.set(id, transform);
   getImageSource(handle.sourceId)?.setCoordinates(
     cornersToImageCoordinates(transformToCorners(transform)),
   );
@@ -515,35 +521,6 @@ export function replaceOverlayImageSource(id: string, imageUrl: string, corners:
   store.updateOverlay(id, { imageUrl, filename });
 
   createOverlayImage(overlay, corners);
-}
-
-// Last edited corner set from history, or null. Fallback for when the image handle is
-// temporarily null (e.g. zoomed out past the overlay threshold) but the overlay is modified.
-function lastHistoryCorners(id: string): LatLng[] | null {
-  const overlay = useOverlayStore().liveOverlays[id];
-  const lastCorners = overlay?.history.at(-1)?.corners;
-  return lastCorners ?? null;
-}
-
-// Live rigid transform of the overlay: from the image handle when rendered, else rebuilt from
-// the last history entry.
-export function getCurrentTransform(id: string): OverlayTransform | null {
-  const handle = getImageHandle(id);
-  if (handle) return handle.transform;
-  const corners = lastHistoryCorners(id);
-  return corners ? cornersToTransform(corners) : null;
-}
-
-// Corners of the rendered GL image, or null when the overlay's raster is not on the map.
-export function getRenderedOverlayCorners(id: string): LatLng[] | null {
-  const handle = getImageHandle(id);
-  return handle ? transformToCorners(handle.transform) : null;
-}
-
-// Live corners of the overlay's current rigid transform: from the rendered image when present,
-// else the last history entry. The edited position during editing.
-export function getOverlayImageCorners(id: string): LatLng[] | null {
-  return getRenderedOverlayCorners(id) ?? lastHistoryCorners(id);
 }
 
 // Set raster opacity (0..1) for one overlay.

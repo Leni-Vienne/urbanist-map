@@ -1,15 +1,13 @@
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useModerationStore } from "@/stores/moderationStore";
 import { useUiStore } from "@/stores/uiStore";
-import type { OverlayData, OverlayHistoryState, OverlayPositionState, LatLng } from "@/types/index";
+import type { OverlayHistoryState, OverlayPositionState, LatLng } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import { isValidQuad, parseQuadValue } from "@/services/overlay/transform";
-import { getOverlayImageCorners, getRenderedOverlayCorners } from "@/services/overlay/mapLayers";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 
 type OverlayPositionInput = {
   id: string;
-  status: OverlayData["status"];
   baselineCorners: LatLng[] | null;
   suggestedCorners?: LatLng[];
   history?: OverlayHistoryState[];
@@ -51,55 +49,26 @@ function getSuggestedDisplayCorners(overlay: OverlayPositionInput, mode: AppMode
   return null;
 }
 
-// Single resolver for an overlay's on-map geometry. There is no single canonical position source;
-// `purpose` picks the priority order:
-//   "image"   (re)creates the raster, so it prefers the remembered/intended position:
-//             suggested (open CR default) > history > backend corners > live image.
-//   "marker"  tracks where the image actually sits, so it prefers the live position:
-//             live image > suggested > history > backend corners.
-//   "publish" is the geometry sent to the backend: history > backend corners. It reads neither the
-//             map mode, the live image, nor the suggested position.
-// History is used for the image and marker only while editing. The live read falls back to the last
-// history entry when the raster is not rendered in edit mode. The suggested position is the edit-mode
-// default for an overlay with an open change request, and the moderation display while an explicit
-// suggested-position preview targets it. `history` is read off the passed object when
-// present (the image path resolves a freshly-built object before it is committed to the store) and
-// otherwise looked up by id. Returns null when no source yields a valid 4-corner quad, e.g. a
-// render (kind='render'), whose corners are null.
-export function resolveOverlayCorners(
-  overlay: OverlayPositionInput,
-  purpose: "image" | "marker" | "publish",
-): LatLng[] | null {
+// Resolve the geometry displayed in the current mode entirely from application state. During an
+// active pointer gesture the editor owns a separate transient transform and commits it to history
+// when the gesture ends.
+export function resolveOverlayCorners(overlay: OverlayPositionInput): LatLng[] | null {
   const history = overlay.history ?? useOverlayStore().liveOverlays[overlay.id]?.history ?? [];
   const historyCorners = history.at(-1)?.corners;
   const stored = overlay.baselineCorners;
-
-  if (purpose === "publish") {
-    if (isValidQuad(historyCorners)) return historyCorners;
-    return isValidQuad(stored) ? stored : null;
-  }
-
   const mode = useUiStore().mode;
-  const viewApproved = mode === "view" && overlay.status === "approved";
-  const liveCorners = viewApproved
-    ? getRenderedOverlayCorners(overlay.id)
-    : getOverlayImageCorners(overlay.id);
-
-  const historyAllowed = mode === "edit";
-  const fromHistory = historyAllowed && isValidQuad(historyCorners) ? historyCorners : null;
-
   const fromSuggested = getSuggestedDisplayCorners(overlay, mode);
-
-  if (purpose === "marker") {
-    if (isValidQuad(liveCorners)) return liveCorners;
-    if (fromSuggested) return fromSuggested;
-    if (fromHistory) return fromHistory;
-    if (isValidQuad(stored)) return stored;
-    return null;
-  }
-
   if (fromSuggested) return fromSuggested;
-  if (fromHistory) return fromHistory;
+  if (mode === "edit" && isValidQuad(historyCorners)) return historyCorners;
   if (isValidQuad(stored)) return stored;
-  return liveCorners;
+  return null;
+}
+
+// Geometry submitted to the backend is the staged history position when present, otherwise the
+// backend baseline. Suggested change-request previews are display state, not a new submission.
+export function resolveOverlaySubmissionCorners(overlay: OverlayPositionInput): LatLng[] | null {
+  const history = overlay.history ?? useOverlayStore().liveOverlays[overlay.id]?.history ?? [];
+  const historyCorners = history.at(-1)?.corners;
+  if (isValidQuad(historyCorners)) return historyCorners;
+  return isValidQuad(overlay.baselineCorners) ? overlay.baselineCorners : null;
 }

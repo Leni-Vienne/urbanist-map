@@ -5,7 +5,6 @@ import { trpc, type RouterOutput } from "@/client";
 import { parseShapeCollection } from "@/utils/geojson";
 import { uploadImageFile } from "@/services/submission/uploadImageFile";
 import { clearStagedRender } from "@/services/submission/stagedRenderState";
-import { getOverlayImageCorners } from "@/services/overlay/mapLayers";
 import type { Project, OverlayObject, PendingOverlayModification } from "@/types/index";
 import {
   projectSchema,
@@ -20,7 +19,7 @@ import {
   getProjectValidationErrors,
   prepareOverlayValidationData,
 } from "@/utils/validationHelpers";
-import { resolveOverlayCorners } from "@/services/overlay/data";
+import { resolveOverlaySubmissionCorners } from "@/services/overlay/data";
 import { applyMapSessionRows } from "@/services/map/viewportTriggers";
 import { refreshUserContributions } from "@/services/project/userContributions";
 import { overlayWireToData } from "@/utils/typeFactories";
@@ -159,7 +158,7 @@ export function detectProjectChanges(project: Project): ProjectFieldChange[] {
 function validateOverlay(overlayId: string, proposed: ProposedOverlayValues): string[] {
   const liveOverlay = useOverlayStore().liveOverlays[overlayId];
   const corners =
-    proposed.corners ?? getOverlayImageCorners(overlayId) ?? liveOverlay?.baselineCorners ?? [];
+    proposed.corners ?? (liveOverlay ? resolveOverlaySubmissionCorners(liveOverlay) : null) ?? [];
 
   // filename is validated server-side only (the client may not have it yet), so it's omitted here.
   const validationData = prepareOverlayValidationData({
@@ -217,7 +216,7 @@ async function buildDirectOverlay(
     throw new Error(t("overlay.publishErrorNoProjectId"));
   }
 
-  const corners = resolveOverlayCorners(overlay, "publish");
+  const corners = resolveOverlaySubmissionCorners(overlay);
   if (!corners) {
     throw new Error(t("overlay.publishErrorNoCorners"));
   }
@@ -287,7 +286,7 @@ function validateSubmission(draft: SubmissionDraft, project: Project | null): vo
 
   for (const overlayId of draft.newOverlayIds) {
     const overlay = getOverlayOrThrow(overlayId);
-    const proposed = { corners: resolveOverlayCorners(overlay, "publish") ?? undefined };
+    const proposed = { corners: resolveOverlaySubmissionCorners(overlay) ?? undefined };
     for (const error of validateOverlay(overlayId, proposed)) errors.add(error);
   }
 

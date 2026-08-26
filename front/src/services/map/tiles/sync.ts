@@ -127,7 +127,7 @@ export function syncOverlaysFromTiles(): void {
       // Membership follows the position the image has (or would be created at), resolved from the
       // store object when one exists: its change-request/edit state can place the image away from
       // the tile footprint's baseline corners.
-      const effectiveCorners = resolveOverlayCorners(liveOverlays[overlay.id] ?? overlay, "marker");
+      const effectiveCorners = resolveOverlayCorners(liveOverlays[overlay.id] ?? overlay);
       if (effectiveCorners && cornersIntersectBounds(effectiveCorners, viewportBounds)) {
         featureMap.set(overlay.id, overlay);
       }

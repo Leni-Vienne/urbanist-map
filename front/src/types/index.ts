@@ -140,8 +140,7 @@ export type OverlayData = Omit<
   status: ApprovalStatus | null;
   // The immutable backend/approved corners, or null when the overlay has no placed footprint
   // (an un-placed local upload before its corners are computed, or a render with null corners).
-  // The live edited position lives on the GL image (getOverlayImageCorners) and undo steps in
-  // history[]; this is only the server baseline.
+  // Staged edits live in history[]; this is only the server baseline.
   baselineCorners: LatLng[] | null;
   // The immutable backend/approved caption, copied from the wire `caption` at ingest and never
   // overwritten by edits (the mirror of baselineCorners). The live edited caption stays on `caption`.

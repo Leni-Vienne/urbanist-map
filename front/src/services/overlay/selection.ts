@@ -160,8 +160,8 @@ export function handleBackgroundClick(lngLat: { lng: number; lat: number }): voi
     // open change request shown at its suggested position (the tile footprint stays at baseline).
     const showsSuggested = hasOpenChangeRequest(overlay) && showsSuggestedState(overlay);
     if (overlay.status === "approved" && !isOverlayUnsaved(overlay) && !showsSuggested) continue;
-    // "marker" purpose resolves the live image position, which is where a click must hit.
-    const corners = resolveOverlayCorners(overlay, "marker");
+    // Outside a gesture the store-derived display position is where the image and click target sit.
+    const corners = resolveOverlayCorners(overlay);
     if (corners && isPointInCorners(lngLat, corners)) {
       openOverlayDetail(id);
       return;
