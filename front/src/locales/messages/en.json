@@ -147,7 +147,8 @@
   "timelineStatus": {
     "proposed": "Proposed",
     "planned": "Planned",
-    "under_construction": "Under Construction"
+    "under_construction": "Under Construction",
+    "completed": "Completed"
   },
   "contribute": {
     "noProjectsMatchFilter": "No projects match the current filter.",

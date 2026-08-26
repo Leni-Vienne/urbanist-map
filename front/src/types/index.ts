@@ -65,6 +65,7 @@ interface ProjectFields extends Omit<
   importSource?: DBImportSource | null;
   // UI state for tracking local modifications
   isModified?: boolean;
+  hasImage?: boolean;
 
   // Denormalized country name, populated by location-aware queries (resolved from admin boundaries).
   countryName?: string | null;

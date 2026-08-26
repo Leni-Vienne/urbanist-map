@@ -1,12 +1,3 @@
-/**
- * pendingSources.ts - builds the GeoJSON sources for pending content.
- *
- * In edit/moderation modes, this module collects pending/user-owned projects and
- * overlay footprints from the session/country fetch and updates both the
- * pending-project-points source and the pending-project-shapes source. The full
- * pending set is fed once per fetch; maplibre clusters it client-side at every zoom.
- */
-
 import { watch } from "vue";
 import {
   updatePendingProjectPointsSource,
@@ -18,31 +9,34 @@ import { useProjectStore } from "@/stores/projectStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useMapStore } from "@/stores/mapStore";
 import { getMapSessionSnapshot, type MapSessionMode } from "@/services/map/mapSessionState";
+import { activeFilters, matchesProjectFilters } from "@/services/core/filters";
 
-type PendingProjectInput = {
-  id: string;
-  lat: number | null;
-  lng: number | null;
-  name: string | null;
-  tags: string[] | null;
-  status: string | null;
-};
-
-type ProjectShapeInput = PendingProjectInput & {
-  status: string | null;
-  timelineStatus?: string | null;
-  geometry?: GeoJSON.GeometryCollection | null;
-};
+function matchesPendingProjectFilters(project: Project, imageProjectIds: Set<string>): boolean {
+  const lastModified = project.externalLastModified ?? project.updatedAt;
+  return matchesProjectFilters({
+    tags: project.tags,
+    timelineStatus: project.timelineStatus,
+    name: project.name,
+    geometrySizeM: project.geometrySizeM,
+    lastModifiedMs: lastModified.getTime(),
+    hasImage:
+      project.hasImage === true ||
+      imageProjectIds.has(project.id) ||
+      (project.render !== null && project.render !== undefined),
+  });
+}
 
 function collectLocalProjectShapes(
   mode: MapSessionMode,
   standaloneShapeProjectIds: Set<string>,
   shapes: GeoJSON.Feature[],
+  imageProjectIds: Set<string>,
 ): void {
   if (mode !== "edit") return;
   const projectStore = useProjectStore();
   for (const project of Object.values(projectStore.projects)) {
     if (!project.isModified && project.status !== null) continue;
+    if (!matchesPendingProjectFilters(project, imageProjectIds)) continue;
     const originalGeometry = project.isModified
       ? projectStore.getOriginalProject(project.id)?.geometry
       : null;
@@ -64,10 +58,14 @@ function collectLocalProjectPoints(
   mode: MapSessionMode,
   standaloneShapeProjectIds: Set<string>,
   pendingProjects: Map<string, GeoJSON.Feature>,
+  imageProjectIds: Set<string>,
 ): void {
   if (mode !== "edit") return;
   for (const project of Object.values(useProjectStore().projects)) {
-    if (project.isModified || project.status === null) {
+    if (
+      (project.isModified || project.status === null) &&
+      matchesPendingProjectFilters(project, imageProjectIds)
+    ) {
       addProjectToMap(project, true, standaloneShapeProjectIds, pendingProjects);
     }
   }
@@ -76,9 +74,7 @@ function collectLocalProjectPoints(
 /**
  * Create a GeoJSON Feature for a project point
  */
-function createProjectFeature(
-  project: PendingProjectInput & { lat: number; lng: number },
-): GeoJSON.Feature {
+function createProjectFeature(project: Project & { lat: number; lng: number }): GeoJSON.Feature {
   return {
     type: "Feature",
     geometry: {
@@ -88,8 +84,8 @@ function createProjectFeature(
     properties: {
       id: project.id,
       name: project.name,
-      tags: project.tags ? JSON.stringify(project.tags) : null,
-      first_tag: project.tags?.[0] ?? null,
+      tags: JSON.stringify(project.tags),
+      first_tag: project.tags[0] ?? null,
       status: project.status,
       cell_count: 1,
     },
@@ -101,7 +97,7 @@ function createProjectFeature(
  * already added, or already represented by a standalone shape.
  */
 function addProjectToMap(
-  project: PendingProjectInput,
+  project: Project,
   isPending: boolean,
   standaloneShapeProjectIds: Set<string>,
   pendingProjects: Map<string, GeoJSON.Feature>,
@@ -121,20 +117,22 @@ function addProjectToMap(
  */
 function collectPendingShapes(
   overlaysData: OverlayData[],
-  projectsData: ProjectShapeInput[],
+  projectsData: Project[],
   standaloneShapeProjectIds: Set<string>,
   mode: MapSessionMode,
+  imageProjectIds: Set<string>,
 ): GeoJSON.Feature[] {
   const shapes: GeoJSON.Feature[] = [];
 
   const projectStore = useProjectStore();
-  collectLocalProjectShapes(mode, standaloneShapeProjectIds, shapes);
+  collectLocalProjectShapes(mode, standaloneShapeProjectIds, shapes, imageProjectIds);
 
   for (const overlay of overlaysData) {
     const project = overlay.projectId
       ? projectStore.getMapProjectById(overlay.projectId, mode)
       : null;
     if (!project || typeof project.lat !== "number" || typeof project.lng !== "number") continue;
+    if (!matchesPendingProjectFilters(project, imageProjectIds)) continue;
     if (project.geometry) standaloneShapeProjectIds.add(project.id);
 
     const isPending = project.status !== "approved" || overlay.status !== "approved";
@@ -167,6 +165,7 @@ function collectPendingShapes(
 
   for (const project of projectsData) {
     if (project.status === "approved") continue;
+    if (!matchesPendingProjectFilters(project, imageProjectIds)) continue;
     addProjectShape(project, standaloneShapeProjectIds, shapes);
   }
 
@@ -174,7 +173,7 @@ function collectPendingShapes(
 }
 
 function addProjectShape(
-  project: ProjectShapeInput,
+  project: Project,
   standaloneShapeProjectIds: Set<string>,
   shapes: GeoJSON.Feature[],
 ): void {
@@ -185,7 +184,7 @@ function addProjectShape(
 }
 
 function createProjectShapeFeature(
-  project: ProjectShapeInput,
+  project: Project,
   geometry: GeoJSON.GeometryCollection,
   style: Record<string, string | number> = {},
 ): GeoJSON.Feature {
@@ -198,8 +197,8 @@ function createProjectShapeFeature(
       status: project.status,
       name: project.name,
       timeline_status: project.timelineStatus,
-      tags: project.tags ? JSON.stringify(project.tags) : null,
-      first_tag: project.tags?.[0] ?? null,
+      tags: JSON.stringify(project.tags),
+      first_tag: project.tags[0] ?? null,
       ...style,
     },
   };
@@ -207,8 +206,9 @@ function createProjectShapeFeature(
 
 function renderPendingProjectSources(
   overlaysData: OverlayData[],
-  projectsData: ProjectShapeInput[],
+  projectsData: Project[],
   mode: MapSessionMode,
+  imageProjectIds: Set<string>,
 ): void {
   const standaloneShapeProjectIds = new Set<string>();
   const pendingShapes = collectPendingShapes(
@@ -216,12 +216,14 @@ function renderPendingProjectSources(
     projectsData,
     standaloneShapeProjectIds,
     mode,
+    imageProjectIds,
   );
   const pendingPoints = collectPendingPoints(
     overlaysData,
     projectsData,
     standaloneShapeProjectIds,
     mode,
+    imageProjectIds,
   );
 
   updatePendingProjectPointsSource({
@@ -238,25 +240,28 @@ function renderPendingProjectSources(
  */
 function collectPendingPoints(
   overlaysData: OverlayData[],
-  projectsData: ProjectShapeInput[],
+  projectsData: Project[],
   standaloneShapeProjectIds: Set<string>,
   mode: MapSessionMode,
+  imageProjectIds: Set<string>,
 ): Map<string, GeoJSON.Feature> {
   const pendingProjects = new Map<string, GeoJSON.Feature>();
 
   const projectStore = useProjectStore();
-  collectLocalProjectPoints(mode, standaloneShapeProjectIds, pendingProjects);
+  collectLocalProjectPoints(mode, standaloneShapeProjectIds, pendingProjects, imageProjectIds);
 
   for (const overlay of overlaysData) {
     const project = overlay.projectId
       ? projectStore.getMapProjectById(overlay.projectId, mode)
       : null;
     if (!project) continue;
+    if (!matchesPendingProjectFilters(project, imageProjectIds)) continue;
     const isPending = project.status !== "approved" || overlay.status !== "approved";
     addProjectToMap(project, isPending, standaloneShapeProjectIds, pendingProjects);
   }
 
   for (const project of projectsData) {
+    if (!matchesPendingProjectFilters(project, imageProjectIds)) continue;
     addProjectToMap(
       project,
       project.status !== "approved",
@@ -268,11 +273,6 @@ function collectPendingPoints(
   return pendingProjects;
 }
 
-/**
- * Build the pending points/shapes sources from the full session/country pending set.
- * Called once per fetch in edit/moderation modes (not on moveend); the cluster source
- * then persists across pans and zooms.
- */
 export function renderMapSessionPendingSources(): void {
   const session = getMapSessionSnapshot();
   if (!session || session.mode !== useMapStore().mode) {
@@ -283,16 +283,22 @@ export function renderMapSessionPendingSources(): void {
   const projectStore = useProjectStore();
   const overlayStore = useOverlayStore();
   const overlays: OverlayData[] = [];
+  const imageProjectIds = new Set<string>();
   for (const id of session.overlayIds) {
     const overlay = overlayStore.liveOverlays[id];
-    if (overlay) overlays.push(overlay);
+    if (!overlay) continue;
+    overlays.push(overlay);
+    if (overlay.projectId) imageProjectIds.add(overlay.projectId);
+  }
+  for (const overlay of Object.values(overlayStore.liveOverlays)) {
+    if (overlay.status === null && overlay.projectId) imageProjectIds.add(overlay.projectId);
   }
   const projects: Project[] = [];
   for (const id of session.projectIds) {
     const project = projectStore.getMapProjectById(id, session.mode);
     if (project) projects.push(project);
   }
-  renderPendingProjectSources(overlays, projects, session.mode);
+  renderPendingProjectSources(overlays, projects, session.mode, imageProjectIds);
 }
 
 function localProjectSourceKey(project: Project): string {
@@ -302,21 +308,40 @@ function localProjectSourceKey(project: Project): string {
     name: project.name,
     tags: project.tags,
     timelineStatus: project.timelineStatus,
+    hasImage: project.hasImage,
+    render: project.render,
+    geometrySizeM: project.geometrySizeM,
+    externalLastModified: project.externalLastModified,
+    updatedAt: project.updatedAt,
     geometry: project.geometry,
     lat: project.lat,
     lng: project.lng,
   });
 }
 
+function localProjectSourcesKey(): string {
+  const keys: string[] = [];
+  for (const project of Object.values(useProjectStore().projects)) {
+    if (project.isModified || project.status === null) keys.push(localProjectSourceKey(project));
+  }
+  return keys.toSorted().join("\u0000");
+}
+
+function localOverlayImageKey(): string {
+  const keys: string[] = [];
+  for (const overlay of Object.values(useOverlayStore().liveOverlays)) {
+    if (overlay.status === null) keys.push(`${overlay.id}:${overlay.projectId ?? ""}`);
+  }
+  return keys.toSorted().join("\u0000");
+}
+
+function appliedFilters() {
+  return activeFilters.value;
+}
+
 export function watchPendingProjectSources(): () => void {
-  const projectStore = useProjectStore();
   return watch(
-    () =>
-      Object.values(projectStore.projects)
-        .filter((project) => project.isModified || project.status === null)
-        .map(localProjectSourceKey)
-        .toSorted()
-        .join("\u0000"),
+    [localProjectSourcesKey, localOverlayImageKey, appliedFilters],
     renderMapSessionPendingSources,
   );
 }

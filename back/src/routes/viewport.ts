@@ -59,6 +59,15 @@ export const viewportRouter = router({
         .select({
           ...PROJECT_COLUMNS,
           importSource: importSources,
+          hasImage: sql<boolean>`EXISTS (
+            SELECT 1
+            FROM overlays AS project_image
+            WHERE project_image.project_id = ${projects.id}
+              AND (
+                project_image.status = 'approved'
+                OR (project_image.status = 'pending' AND project_image.author_id = ${userId})
+              )
+          )`,
         })
         .from(projects)
         .leftJoin(importSources, eq(importSources.id, projects.importSourceId))

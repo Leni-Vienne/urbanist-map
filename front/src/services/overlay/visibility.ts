@@ -1,6 +1,6 @@
 import type { OverlayData } from "@/types/index";
 import type { AppMode } from "@shared/types";
-import { matchesSelectedTags, matchesTimelineStatusFilter } from "@/services/core/filters";
+import { activeFilterCount, matchesProjectFilters } from "@/services/core/filters";
 import { useProjectStore } from "@/stores/projectStore";
 
 type OverlayVisibilityInput = {
@@ -49,16 +49,20 @@ export function isOverlayVisible(
   return false;
 }
 
-/**
- * User-driven map filters: project tags in all modes, the project's timeline status in view mode.
- */
 export function matchesMapFilters(overlay: OverlayVisibilityInput, mode: AppMode): boolean {
   const project = overlay.projectId
     ? useProjectStore().getMapProjectById(overlay.projectId, mode)
     : null;
-  if (!matchesSelectedTags(project?.tags)) return false;
-  if (mode !== "view") return true;
-  return matchesTimelineStatusFilter(project?.timelineStatus);
+  if (!project) return activeFilterCount.value === 0;
+  const lastModified = project.externalLastModified ?? project.updatedAt;
+  return matchesProjectFilters({
+    tags: project.tags,
+    timelineStatus: project.timelineStatus,
+    name: project.name,
+    geometrySizeM: project.geometrySizeM,
+    lastModifiedMs: lastModified.getTime(),
+    hasImage: true,
+  });
 }
 
 /**

@@ -109,7 +109,7 @@
       class="flex items-center gap-2 cursor-pointer text-sm text-color"
     >
       <Checkbox
-        :model-value="selectedNameFilters.includes(nameVal)"
+        :model-value="selectedNameFilter === nameVal"
         :binary="true"
         @update:model-value="toggleNameFilter(nameVal)"
       />
@@ -187,7 +187,7 @@ import {
   clearProjectTagFilters,
   UNTAGGED_PROJECT_FILTER,
   sizeFilterRange,
-  selectedNameFilters,
+  selectedNameFilter,
   toggleNameFilter,
   showOnlyWithImages,
   toggleShowOnlyWithImages,
@@ -269,6 +269,7 @@ const filters: {
   { timelineStatus: "proposed", labelKey: "timelineStatus.proposed" },
   { timelineStatus: "planned", labelKey: "timelineStatus.planned" },
   { timelineStatus: "under_construction", labelKey: "timelineStatus.under_construction" },
+  { timelineStatus: "completed", labelKey: "timelineStatus.completed" },
 ];
 
 // Use the active tag color for line previews when exactly one tag is selected.

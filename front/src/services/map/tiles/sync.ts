@@ -1,7 +1,7 @@
 /**
  * sync.ts, overlay sync for approved overlays.
  *
- * Reads the rendered overlay-footprints features, applies the client-side filters, and maintains
+ * Reads overlay-footprint tile features, applies project filters, and maintains
  * the approved-overlay cache (approvedOverlayCache.ts) with the approved overlays that should be on
  * the map for the current viewport. Creation and eviction of image layers is owned by the viewport
  * reconciler; this module only writes the cache and schedules a reconcile.
@@ -21,35 +21,11 @@ import { cornersIntersectBounds } from "@/utils/cornersBounds";
 import { resolveOverlayCorners } from "@/services/overlay/data";
 import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 import { replaceApprovedOverlayDataCache } from "@/services/map/tiles/approvedOverlayCache";
-import {
-  lastModifiedDateRange,
-  matchesTimelineStatusFilter,
-  matchesSelectedTags,
-  matchesNameFilter,
-} from "@/services/core/filters";
+import { matchesProjectFilters, type FilterableProject } from "@/services/core/filters";
 
-// lastModifiedS is Unix seconds (tile units). querySourceFeatures bypasses MapLibre layer
-// filters, so images must be date-checked here rather than relying on setFilter.
-function matchesDateFilter(lastModifiedS: number): boolean {
-  const [minMs, maxMs] = lastModifiedDateRange.value;
-  if (minMs === 0 && maxMs === Infinity) return true;
-  if (!Number.isFinite(lastModifiedS)) return true;
-  const ms = lastModifiedS * 1000;
-  if (ms < minMs) return false;
-  if (maxMs !== Infinity && ms > maxMs) return false;
-  return true;
-}
-
-// A decoded overlay-footprint MVT feature: the tile overlay it maps to (null when the
-// feature is not a renderable overlay), plus the transport-only fields the client-side
-// filters need. lastModifiedS/timelineStatus are not overlay data, so they ride alongside
-// the render payload.
 interface DecodedFootprint {
   overlay: TileOverlayData | null;
-  lastModifiedS: number;
-  timelineStatus: string | null;
-  tags: string[];
-  name: string | null;
+  project: FilterableProject;
 }
 
 function readString(value: unknown): string | null {
@@ -58,27 +34,26 @@ function readString(value: unknown): string | null {
   return null;
 }
 
-// Tiles carry `tags` as a JSON array string.
-function readStringArray(value: unknown): string[] {
-  if (typeof value !== "string" || value.length === 0) return [];
-  try {
-    const parsed: unknown = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed.filter((t): t is string => typeof t === "string") : [];
-  } catch {
-    return [];
-  }
+function isString(value: unknown): value is string {
+  return typeof value === "string";
+}
+
+function hasInvalidCorner(corner: { lat: number; lng: number }): boolean {
+  return Number.isNaN(corner.lat) || Number.isNaN(corner.lng);
 }
 
 // MapLibre types tile properties as an untyped `{ [name: string]: any }` bag, so values
 // are normalized through `unknown` here rather than accessed ad hoc.
 function decodeFootprint(feat: maplibregl.GeoJSONFeature): DecodedFootprint {
   const props: TileProperties = feat.properties;
-  const lastModifiedS = Number(props.last_modified_s);
-  const timelineStatus = readString(props.timeline_status);
-  const tags = readStringArray(props.tags);
-  const name = readString(props.name);
-
-  // promoteId means the id may live on feat.id rather than properties.id.
+  const project: FilterableProject = {
+    tags: readStringArray(props.tags),
+    timelineStatus: readString(props.timeline_status),
+    name: readString(props.name),
+    geometrySizeM: props.geometry_size_m === null ? null : Number(props.geometry_size_m),
+    lastModifiedMs: Number(props.last_modified_s) * 1000,
+    hasImage: true,
+  };
   const id = String(feat.id ?? props.id ?? "");
   const filename = readString(props.filename);
   const corners = [
@@ -88,26 +63,37 @@ function decodeFootprint(feat: maplibregl.GeoJSONFeature): DecodedFootprint {
     { lat: Number(props.c3_lat), lng: Number(props.c3_lng) },
   ];
 
-  if (!id || !filename || corners.some((c) => Number.isNaN(c.lat) || Number.isNaN(c.lng))) {
-    return { overlay: null, lastModifiedS, timelineStatus, tags, name };
+  if (!id || !filename || corners.some(hasInvalidCorner)) {
+    return { overlay: null, project };
   }
 
   /* oxlint-disable-next-line no-non-null-assertion */
   const centroid = calculateCentroidFromCorners(corners)!;
-
   const caption = readString(props.caption);
-  const overlay: TileOverlayData = {
-    id,
-    filename,
-    caption,
-    status: "approved",
-    projectId: readString(props.project_id),
-    centroid,
-    baselineCorners: corners,
-    baselineCaption: caption,
-    source: "tile",
+  return {
+    project,
+    overlay: {
+      id,
+      filename,
+      caption,
+      status: "approved",
+      projectId: readString(props.project_id),
+      centroid,
+      baselineCorners: corners,
+      baselineCaption: caption,
+      source: "tile",
+    },
   };
-  return { overlay, lastModifiedS, timelineStatus, tags, name };
+}
+
+function readStringArray(value: unknown): string[] {
+  if (typeof value !== "string" || value.length === 0) return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter(isString) : [];
+  } catch {
+    return [];
+  }
 }
 
 export function syncOverlaysFromTiles(): void {
@@ -134,35 +120,20 @@ export function syncOverlaysFromTiles(): void {
 
     // Approved overlays that should be on the map for this viewport. Deduplicated by id.
     const featureMap = new Map<string, TileOverlayData>();
-    // Ids seen this pass and dropped by a client-side filter. Deduplicates the filter test across
-    // duplicate features for one overlay, and is published so the reconciler cannot revive a
-    // rejected overlay from store data.
-    const filtered = new Set<string>();
     for (const feat of allFeatures) {
-      const { overlay, lastModifiedS, timelineStatus, tags, name } = decodeFootprint(feat);
-      if (!overlay || featureMap.has(overlay.id) || filtered.has(overlay.id)) continue;
-      const id = overlay.id;
-
-      if (
-        !matchesDateFilter(lastModifiedS) ||
-        !matchesTimelineStatusFilter(timelineStatus) ||
-        !matchesSelectedTags(tags) ||
-        !matchesNameFilter(name)
-      ) {
-        filtered.add(id);
-        continue;
-      }
+      const { overlay, project } = decodeFootprint(feat);
+      if (!overlay || featureMap.has(overlay.id) || !matchesProjectFilters(project)) continue;
 
       // Membership follows the position the image has (or would be created at), resolved from the
       // store object when one exists: its change-request/edit state can place the image away from
       // the tile footprint's baseline corners.
-      const effectiveCorners = resolveOverlayCorners(liveOverlays[id] ?? overlay, "marker");
+      const effectiveCorners = resolveOverlayCorners(liveOverlays[overlay.id] ?? overlay, "marker");
       if (effectiveCorners && cornersIntersectBounds(effectiveCorners, viewportBounds)) {
-        featureMap.set(id, overlay);
+        featureMap.set(overlay.id, overlay);
       }
     }
 
-    replaceApprovedOverlayDataCache(featureMap, filtered);
+    replaceApprovedOverlayDataCache(featureMap);
 
     // Creation and eviction from the cache is owned by the reconciler; just schedule it.
     runViewportRenderLoop();

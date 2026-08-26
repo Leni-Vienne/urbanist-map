@@ -21,28 +21,6 @@ export function parseTimelineStatus(value: string | null | undefined): TimelineS
 // Empty array = show all statuses.
 export const selectedStatusFilters = ref<TimelineStatus[]>([]);
 
-function isStatusVisible(status: TimelineStatus): boolean {
-  const selected = selectedStatusFilters.value;
-  return selected.length === 0 || selected.includes(status);
-}
-
-// Visibility per timeline status. When selection is empty, all are true.
-export const visibleStates = computed(() => ({
-  proposed: isStatusVisible("proposed"),
-  planned: isStatusVisible("planned"),
-  under_construction: isStatusVisible("under_construction"),
-  completed: isStatusVisible("completed"),
-  canceled: isStatusVisible("canceled"),
-}));
-
-// Visibility of one timeline status under the current filter selection.
-// Missing or unknown status reads as proposed.
-export function matchesTimelineStatusFilter(timelineStatus: string | null | undefined): boolean {
-  const states = visibleStates.value;
-  const status = parseTimelineStatus(timelineStatus);
-  return status ? states[status] : states.proposed;
-}
-
 // Empty array = show all tags.
 export const selectedProjectTags = ref<string[]>([]);
 export const UNTAGGED_PROJECT_FILTER = "__untagged__";
@@ -50,8 +28,7 @@ export const UNTAGGED_PROJECT_FILTER = "__untagged__";
 // [minMeters, maxMeters]. Infinity = no upper bound.
 export const sizeFilterRange = ref<[number, number]>([0, Infinity]);
 
-// Empty array = show all. "named" / "unnamed" filter by name presence.
-export const selectedNameFilters = ref<("named" | "unnamed")[]>([]);
+export const selectedNameFilter = ref<"named" | "unnamed" | null>(null);
 
 // [minTimestampMs, maxTimestampMs]. Uses externalLastModified when set, otherwise updated_at.
 export const lastModifiedDateRange = ref([0, Infinity] as [number, number]);
@@ -63,11 +40,7 @@ export function toggleShowOnlyWithImages(): void {
 }
 
 export function toggleNameFilter(value: "named" | "unnamed"): void {
-  if (selectedNameFilters.value.includes(value)) {
-    selectedNameFilters.value = selectedNameFilters.value.filter((v) => v !== value);
-  } else {
-    selectedNameFilters.value = [...selectedNameFilters.value, value];
-  }
+  selectedNameFilter.value = selectedNameFilter.value === value ? null : value;
 }
 
 export function clearProjectTagFilters(): void {
@@ -92,28 +65,48 @@ export function splitTagSelection() {
 }
 
 export function getNameFilterMode(): "all" | "named" | "unnamed" {
-  const selected = selectedNameFilters.value;
-  if (selected.length === 0) return "all";
-  const named = selected.includes("named");
-  const unnamed = selected.includes("unnamed");
-  if (named && unnamed) return "all";
-  return named ? "named" : "unnamed";
+  return selectedNameFilter.value ?? "all";
 }
 
-export function matchesNameFilter(name: string | null | undefined): boolean {
-  const mode = getNameFilterMode();
-  if (mode === "all") return true;
-  const isNamed = name !== null && name !== undefined && name !== "";
-  return mode === "named" ? isNamed : !isNamed;
-}
+export type FilterableProject = {
+  tags?: readonly string[] | null;
+  timelineStatus?: string | null;
+  name?: string | null;
+  geometrySizeM?: number | null;
+  lastModifiedMs?: number | null;
+  hasImage: boolean;
+};
 
-export function matchesSelectedTags(tags: string[] | null | undefined): boolean {
-  if (selectedProjectTags.value.length === 0) return true;
-
+function matchesTags(tags: readonly string[] | null | undefined): boolean {
   const { includeUntagged, knownTags } = splitTagSelection();
-  if (!tags || tags.length === 0) return includeUntagged;
-  if (knownTags.length === 0) return false;
-  return tags.some((tag) => knownTags.includes(tag));
+  if (knownTags.length === 0 && !includeUntagged) return true;
+  const values = tags ?? [];
+  return (values.length === 0 && includeUntagged) || values.some((tag) => knownTags.includes(tag));
+}
+
+function matchesRange(value: number | null | undefined, range: [number, number]): boolean {
+  const [min, max] = range;
+  if (min === 0 && !Number.isFinite(max)) return true;
+  if (value === null || value === undefined || !Number.isFinite(value)) return false;
+  return value >= min && value <= max;
+}
+
+export function matchesProjectFilters(project: FilterableProject): boolean {
+  if (!matchesTags(project.tags)) return false;
+
+  const statuses = selectedStatusFilters.value;
+  if (statuses.length > 0 && !statuses.some((status) => status === project.timelineStatus)) {
+    return false;
+  }
+
+  const nameMode = getNameFilterMode();
+  const isNamed = Boolean(project.name?.trim());
+  if (nameMode !== "all" && isNamed !== (nameMode === "named")) return false;
+
+  if (!matchesRange(project.geometrySizeM, sizeFilterRange.value)) return false;
+  if (!matchesRange(project.lastModifiedMs, lastModifiedDateRange.value)) return false;
+
+  return !showOnlyWithImages.value || project.hasImage;
 }
 
 // Empty selection = all statuses visible.
@@ -252,9 +245,7 @@ export const activeFilters = computed<ActiveFilter[]>(() => {
   for (const status of selectedStatusFilters.value) {
     out.push({ kind: "status", status });
   }
-  for (const value of selectedNameFilters.value) {
-    out.push({ kind: "name", value });
-  }
+  if (selectedNameFilter.value) out.push({ kind: "name", value: selectedNameFilter.value });
   const [minSize, maxSize] = sizeFilterRange.value;
   if (minSize > 0 || Number.isFinite(maxSize)) {
     out.push({ kind: "size", min: minSize, max: maxSize });

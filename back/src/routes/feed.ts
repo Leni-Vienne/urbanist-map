@@ -68,9 +68,7 @@ type FeedInput = z.infer<typeof feedQuerySchema>;
 type FeedPageInput = z.infer<typeof getLatestContributionsSchema>;
 type MapArea = z.infer<typeof mapAreaSchema>;
 
-// Project-level predicates shared by every feed query. `nameColumn` differs per query because an
-// overlay falls back to its caption when its project is unnamed.
-function projectFilterConditions(input: FeedInput, nameColumn: SQL | typeof projects.name): SQL[] {
+function projectFilterConditions(input: FeedInput): SQL[] {
   const conditions: SQL[] = [];
 
   const tagMatches: SQL[] = [];
@@ -96,9 +94,9 @@ function projectFilterConditions(input: FeedInput, nameColumn: SQL | typeof proj
     conditions.push(sql`${projects.geometrySizeM} <= ${input.maxSizeM}`);
   }
   if (input.named === "named") {
-    conditions.push(sql`${nameColumn} IS NOT NULL`);
+    conditions.push(sql`NULLIF(BTRIM(${projects.name}), '') IS NOT NULL`);
   } else if (input.named === "unnamed") {
-    conditions.push(sql`${nameColumn} IS NULL`);
+    conditions.push(sql`NULLIF(BTRIM(${projects.name}), '') IS NULL`);
   }
 
   return conditions;
@@ -190,8 +188,11 @@ function standaloneConditions(
       AND ${overlays.kind} = 'map'
     )`,
     standaloneImportFilter(stream),
-    ...projectFilterConditions(input, projects.name),
-    ...dateRangeConditions(input, contributionDate),
+    ...projectFilterConditions(input),
+    ...dateRangeConditions(
+      input,
+      sql`COALESCE(${projects.externalLastModified}, ${projects.updatedAt})`,
+    ),
     ...standaloneMapAreaConditions(input),
     ...keysetCondition(contributionDate, projects.id, cursor),
   ];
@@ -331,8 +332,11 @@ function overlayConditions(input: FeedInput): SQL[] {
     eq(overlays.status, "approved"),
     eq(projects.status, "approved"),
     eq(overlays.kind, "map"),
-    ...projectFilterConditions(input, overlayProjectName()),
-    ...dateRangeConditions(input, overlayContributionDate()),
+    ...projectFilterConditions(input),
+    ...dateRangeConditions(
+      input,
+      sql`COALESCE(${projects.externalLastModified}, ${projects.updatedAt})`,
+    ),
     ...overlayMapAreaConditions(input),
   ];
 }

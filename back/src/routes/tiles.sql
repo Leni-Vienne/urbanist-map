@@ -42,12 +42,10 @@ shapes AS (
       COALESCE(p.tags[1], '') AS first_tag,
       p.timeline_status,
       ROUND(p.geometry_size_m)::int AS geometry_size_m,
-      CASE WHEN p.name IS NOT NULL AND p.name != '' THEN 1 ELSE 0 END AS is_named,
+      CASE WHEN NULLIF(BTRIM(p.name), '') IS NOT NULL THEN 1 ELSE 0 END AS is_named,
       EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s,
-      -- Whether this project has at least one approved georeferenced overlay image, so the client
-      -- can filter the map down to projects that carry imagery. Renders are excluded: they are not
-      -- placed on the map, so they must not flag a project as having map imagery.
-      EXISTS (SELECT 1 FROM overlays o WHERE o.project_id = p.id AND o.status = 'approved' AND o.kind = 'map') AS has_image
+      -- Any approved image satisfies the project filter, including non-georeferenced renders.
+      EXISTS (SELECT 1 FROM overlays image WHERE image.project_id = p.id AND image.status = 'approved') AS has_image
     FROM projects p, tile_env te
     WHERE $1 >= 4
       AND p.status = 'approved'
@@ -59,7 +57,7 @@ shapes AS (
       -- level, so notable structures (stadiums, hospitals, airports) are discoverable at city zooms.
       AND NOT ($1 <= 12 AND 'building' = ANY(p.tags)
                AND (p.geometry_size_m IS NULL OR p.geometry_size_m < 1000)
-               AND (p.name IS NULL OR p.name = ''))
+               AND NULLIF(BTRIM(p.name), '') IS NULL)
   ) q
   WHERE q.mvt_geom IS NOT NULL
 ),
@@ -80,10 +78,11 @@ footprints AS (
       o.filename,
       o.caption,
       o.project_id,
-      p.name,
+      NULLIF(BTRIM(p.name), '') AS name,
       array_to_json(COALESCE(p.tags, ARRAY[]::text[]))::text AS tags,
       COALESCE(p.tags[1], '') AS first_tag,
       p.timeline_status,
+      ROUND(p.geometry_size_m)::int AS geometry_size_m,
       -- Used to filter footprints (and their rendered images) by last modified date.
       EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s,
       -- Extract the four individual corner latitude and longitude coordinates for rendering the overlay map image on the client
@@ -101,6 +100,7 @@ footprints AS (
     WHERE $1 >= 12
       AND o.status = 'approved'
       AND o.kind = 'map'
+      AND p.status = 'approved'
       AND o.corners && te.bounds_4326
   ) q
   WHERE q.mvt_geom IS NOT NULL
@@ -118,6 +118,7 @@ points AS (
         raw_q.first_tag,
         raw_q.timeline_status,
         raw_q.has_image,
+        raw_q.has_map_image,
         raw_q.is_named,
         raw_q.last_modified_s,
         raw_q.geometry_size_m,
@@ -140,9 +141,10 @@ points AS (
           COALESCE(p.tags, ARRAY[]::text[]) AS tags,
           COALESCE(p.tags[1], '') AS first_tag,
           p.timeline_status,
-          EXISTS (SELECT 1 FROM overlays o WHERE o.project_id = p.id AND o.status = 'approved' AND o.kind = 'map') AS has_image,
+          EXISTS (SELECT 1 FROM overlays image WHERE image.project_id = p.id AND image.status = 'approved') AS has_image,
+          EXISTS (SELECT 1 FROM overlays image WHERE image.project_id = p.id AND image.status = 'approved' AND image.kind = 'map') AS has_map_image,
           ROUND(p.geometry_size_m)::int AS geometry_size_m,
-          CASE WHEN p.name IS NOT NULL AND p.name != '' THEN 1 ELSE 0 END AS is_named,
+          CASE WHEN NULLIF(BTRIM(p.name), '') IS NOT NULL THEN 1 ELSE 0 END AS is_named,
           EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s,
           floor(
             ((ST_X(p.center_coordinate) + 180.0) / 360.0) * te.grid_scale + 1.0 / 2048.0
@@ -166,7 +168,7 @@ points AS (
             AND ($4::float8 IS NULL OR p.geometry_size_m >= $4::float8)
             AND NOT ($1 <= 12 AND 'building' = ANY(p.tags)
                      AND (p.geometry_size_m IS NULL OR p.geometry_size_m < 1000)
-                     AND (p.name IS NULL OR p.name = ''))
+                     AND NULLIF(BTRIM(p.name), '') IS NULL)
           )
         OFFSET 0
       ) raw_q
@@ -210,6 +212,9 @@ points AS (
       SELECT
         f.*,
         BOOL_OR(f.has_image) OVER w_cluster AS cluster_has_image,
+        BOOL_OR(cardinality(f.tags) = 0) OVER w_cluster AS cluster_has_untagged,
+        BOOL_OR(f.is_named = 1) OVER w_cluster AS cluster_has_named,
+        BOOL_OR(f.is_named = 0) OVER w_cluster AS cluster_has_unnamed,
         MIN(f.last_modified_s) OVER w_cluster AS min_last_modified_s,
         MAX(f.last_modified_s) OVER w_cluster AS max_last_modified_s,
         MIN(f.geometry_size_m) OVER w_cluster AS min_size_m,
@@ -239,7 +244,11 @@ points AS (
       f.first_tag,
       f.timeline_status,
       f.cluster_has_image AS has_image,
+      f.has_map_image,
       f.is_named,
+      f.cluster_has_untagged,
+      f.cluster_has_named,
+      f.cluster_has_unnamed,
       f.min_last_modified_s,
       f.max_last_modified_s,
       ca.cluster_tags,

@@ -11,13 +11,10 @@ import {
   shouldDisplayOverlay,
 } from "@/services/overlay/visibility";
 import type { OverlayObject, OverlayData } from "@/types/index";
-import { visibleStates, selectedProjectTags } from "@/services/core/filters";
+import { activeFilters } from "@/services/core/filters";
 import { createOverlayMarker, updateMarkerPosition } from "@/services/overlay/markers";
 import { resolveOverlayCorners } from "@/services/overlay/data";
-import {
-  getApprovedOverlayDataFromTiles,
-  getFilterRejectedOverlayIds,
-} from "@/services/map/tiles/approvedOverlayCache";
+import { getApprovedOverlayDataFromTiles } from "@/services/map/tiles/approvedOverlayCache";
 import { isValidQuad, sameCorners } from "@/services/overlay/transform";
 import * as registry from "@/services/overlay/mapLayers";
 import { createRafBatchQueue } from "@/utils/rafBatchQueue";
@@ -176,7 +173,6 @@ function reconcileOverlayExistence(bounds: ViewportBounds): void {
   }
 
   const tileManaged = getApprovedOverlayDataFromTiles();
-  const filterRejected = getFilterRejectedOverlayIds();
   const mapSession = getMapSessionSnapshot();
   const sessionOverlayIds = isSessionMode && mapSession?.mode === mode ? mapSession.overlayIds : [];
 
@@ -218,16 +214,11 @@ function reconcileOverlayExistence(bounds: ViewportBounds): void {
     const isTileManaged = tileData !== undefined;
     let desired = isTileManaged;
     if (!isTileManaged) {
-      // Fall back to the canonical store object as the data source (edit-mode CR overlays absent
-      // from the tile cache, a moderation preview whose approved footprint left the viewport, a
-      // staged overlay dragged away from its footprint): membership then keys on the resolved
-      // "marker" position, so an overlay whose image sits away from its tile footprint stays alive
-      // while that position is in view. Absence from the cache does not separate "a filter rejected
-      // it" from "its position left the viewport", so the rejected set is consulted first.
+      // Fall back to the canonical store object when its resolved display position differs from the
+      // approved tile footprint.
       const data = liveObject ?? null;
       desired =
         data !== null &&
-        !filterRejected.has(id) &&
         isOverlayVisible(liveObject ?? data, mode, userId) &&
         matchesMapFilters(liveObject ?? data, mode) &&
         resolvedCornersInBounds(liveObject ?? data, bounds);
@@ -259,13 +250,7 @@ export function installViewportRenderLoop(): () => void {
 }
 
 export function watchOverlayReconciliation(): () => void {
-  const stopFilterWatch = watch(
-    () => ({ status: visibleStates.value, tags: selectedProjectTags.value }),
-    () => {
-      runViewportRenderLoop();
-    },
-    { deep: true },
-  );
+  const stopFilterWatch = watch(activeFilters, runViewportRenderLoop);
 
   // A moderation change-request preview resolves position from previewState; a change to it (set,
   // toggle, clear) must re-run convergence so the previewed overlay follows or returns to baseline.

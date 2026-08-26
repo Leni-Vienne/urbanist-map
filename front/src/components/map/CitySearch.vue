@@ -16,7 +16,7 @@
         @complete="onSearch"
         @item-select="onSelect"
         class="w-full"
-        :min-length="3"
+        :min-length="0"
         :loading="isLoading"
         :dropdown="false"
         name="city-search"
@@ -36,44 +36,33 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, onUnmounted, ref, shallowRef } from "vue";
 import { useI18n } from "vue-i18n";
-import { trpc } from "@/client";
+import { trpc, type RouterOutput } from "@/client";
 import { getMap } from "@/services/core/map";
-import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
+import { mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
 import { useMapStore } from "@/stores/mapStore";
 import { LngLatBounds } from "maplibre-gl";
 import { loadOrNull } from "@/services/core/errorHandling";
+import { countAlphanumeric, MIN_LOCATION_SEARCH_ALNUM } from "@shared/locationSearch";
 
-type LocalizedBoundaryName = {
-  name: string;
-  nameEn: string | null;
-  names: Record<string, string> | null;
-};
-
-type BoundarySearchResult = LocalizedBoundaryName & {
-  osmId: string;
-  countryCode: string | null;
-  adminLevel: number;
-  minLng: number;
-  minLat: number;
-  maxLng: number;
-  maxLat: number;
-  city: LocalizedBoundaryName | null;
-  state: LocalizedBoundaryName | null;
-  country: LocalizedBoundaryName | null;
-  // Derived client-side for display.
-  primary?: string;
-  secondary?: string;
-  displayName?: string;
+type BoundarySearchResult = RouterOutput["boundaries"]["searchBoundariesNearLocation"][number];
+type LocalizedBoundaryName = Pick<BoundarySearchResult, "name" | "nameEn" | "names">;
+type BoundarySuggestion = BoundarySearchResult & {
+  primary: string;
+  secondary: string;
+  displayName: string;
 };
 
 const { locale } = useI18n();
-const selectedCity = ref<BoundarySearchResult | null>(null);
-const suggestions = ref<BoundarySearchResult[]>([]);
+const selectedCity = ref<BoundarySuggestion | null>(null);
+const results = shallowRef<BoundarySearchResult[]>([]);
+const suggestions = computed(() => results.value.map(buildDisplay));
 const isLoading = ref(false);
 let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 let latestSearchId = 0;
+
+onUnmounted(cancelSearch);
 
 // Prefer the name in the current UI locale, falling back to English, then the boundary's local name.
 function localizedName(level: LocalizedBoundaryName | null): string | null {
@@ -86,7 +75,7 @@ function localizedName(level: LocalizedBoundaryName | null): string | null {
 // Build "City, State, Country (CODE)" from the matched boundary and its ancestors, skipping missing
 // levels and collapsing duplicate names (city-states repeat the same name across levels). `primary`
 // is the matched boundary, `secondary` is the path above it shown muted in the option list.
-function buildDisplay(boundary: BoundarySearchResult): BoundarySearchResult {
+function buildDisplay(boundary: BoundarySearchResult): BoundarySuggestion {
   const parts: string[] = [];
   for (const level of [boundary, boundary.city, boundary.state, boundary.country]) {
     const name = localizedName(level);
@@ -94,95 +83,63 @@ function buildDisplay(boundary: BoundarySearchResult): BoundarySearchResult {
       parts.push(name);
     }
   }
-  const primary = parts[0] ?? localizedName(boundary) ?? "";
+  const primary = parts[0] ?? boundary.name;
   const code = boundary.countryCode ? `(${boundary.countryCode})` : "";
   const secondary = [parts.slice(1).join(", "), code].filter(Boolean).join(" ");
   const displayName = [parts.join(", "), code].filter(Boolean).join(" ");
-  return Object.assign({}, boundary, { primary, secondary, displayName });
+  return { ...boundary, primary, secondary, displayName };
 }
 
-async function onSearch(event: { query: string }) {
+function onSearch(event: { query: string }): void {
   const query = event.query?.trim();
-
-  if (searchTimeout) clearTimeout(searchTimeout);
-
-  if (!query || query.length === 0) {
-    suggestions.value = [];
+  cancelSearch();
+  const searchId = latestSearchId;
+  if (!query || countAlphanumeric(query) < MIN_LOCATION_SEARCH_ALNUM) {
+    results.value = [];
     return;
   }
 
-  searchTimeout = setTimeout(async () => {
-    latestSearchId += 1;
-    const searchId = latestSearchId;
-    isLoading.value = true;
-    try {
-      const center = getMap().getCenter();
-      if (!center) {
-        console.warn("Map center not available for boundary search");
-        suggestions.value = [];
-        return;
-      }
-
-      const results = await loadOrNull(async () =>
-        trpc.boundaries.searchBoundariesNearLocation.query({
-          lat: center.lat,
-          lng: center.lng,
-          search: query,
-          limit: 25,
-        }),
-      );
-
-      // A slower earlier request must not overwrite the newest query's results.
-      if (searchId !== latestSearchId) {
-        return;
-      }
-
-      suggestions.value = results ? results.map((boundary) => buildDisplay(boundary)) : [];
-    } finally {
-      if (searchId === latestSearchId) {
-        isLoading.value = false;
-      }
-    }
-  }, 300);
+  searchTimeout = setTimeout(() => void search(query, searchId), 300);
 }
 
-function onSelect(event: { value: BoundarySearchResult }) {
+async function search(query: string, searchId: number): Promise<void> {
+  isLoading.value = true;
+  const center = getMap().getCenter();
+  const matches = await loadOrNull(async () =>
+    trpc.boundaries.searchBoundariesNearLocation.query({
+      lat: center.lat,
+      lng: center.lng,
+      search: query,
+      limit: 25,
+    }),
+  );
+  if (searchId !== latestSearchId) return;
+  results.value = matches ?? [];
+  isLoading.value = false;
+}
+
+function cancelSearch(): void {
+  latestSearchId += 1;
+  if (searchTimeout) clearTimeout(searchTimeout);
+  searchTimeout = null;
+  isLoading.value = false;
+}
+
+function onSelect(event: { value: BoundarySuggestion }): void {
   const boundary = event.value;
-  if (boundary && boundary.countryCode) {
-    navigateToCity(boundary.countryCode, {
-      bbox: {
-        minLng: boundary.minLng,
-        minLat: boundary.minLat,
-        maxLng: boundary.maxLng,
-        maxLat: boundary.maxLat,
-      },
-    });
-    selectedCity.value = null;
-    suggestions.value = [];
-  }
+  cancelSearch();
+  if (boundary.countryCode) useMapStore().setSelectedCountryCode(boundary.countryCode);
+  mobileAwareFlyToBounds(
+    new LngLatBounds([boundary.minLng, boundary.minLat], [boundary.maxLng, boundary.maxLat]),
+    { maxZoom: MAX_BOUNDARY_ZOOM },
+  );
+  selectedCity.value = null;
+  results.value = [];
 }
-
-type BoundaryBbox = { minLng: number; minLat: number; maxLng: number; maxLat: number };
 
 // Cap how far fitting a boundary's bounds can zoom in, so a tiny neighborhood doesn't slam the
 // camera to street level; large boundaries (countries, states) fit well under this anyway.
 const MAX_BOUNDARY_ZOOM = 16;
-
-function navigateToCity(
-  countryCode: string,
-  target?: { bbox?: BoundaryBbox; coords?: { lat: number; lng: number } },
-): void {
-  const mapStore = useMapStore();
-  mapStore.setSelectedCountryCode(countryCode);
-
-  if (target?.bbox) {
-    const { minLng, minLat, maxLng, maxLat } = target.bbox;
-    const bounds = new LngLatBounds([minLng, minLat], [maxLng, maxLat]);
-    mobileAwareFlyToBounds(bounds, { maxZoom: MAX_BOUNDARY_ZOOM });
-  } else if (target?.coords) {
-    mobileAwareFlyTo([target.coords.lat, target.coords.lng], 14);
-  }
-}
 </script>
 
 <style scoped>

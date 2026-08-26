@@ -35,7 +35,7 @@ import {
   selectedProjectTags,
   selectedStatusFilters,
   sizeFilterRange,
-  selectedNameFilters,
+  selectedNameFilter,
   lastModifiedDateRange,
   showOnlyWithImages,
 } from "@/services/core/filters";
@@ -353,24 +353,24 @@ function onFirstStyleReady(mlMap: MaplibreMap): void {
   }
 }
 
-// Watch for tag and status filter changes and update MVT layers on the map
+function refreshProjectFilters(): void {
+  const mlMap = getMapOrNull();
+  if (!mlMap) return;
+  applyTagFiltersToVectorLayers(mlMap);
+  // querySourceFeatures bypasses setFilter, so resync overlay images explicitly.
+  syncOverlaysFromTiles();
+}
+
 watch(
   [
     selectedProjectTags,
     selectedStatusFilters,
     sizeFilterRange,
-    selectedNameFilters,
+    selectedNameFilter,
     lastModifiedDateRange,
     showOnlyWithImages,
   ],
-  () => {
-    const mlMap = getMapOrNull();
-    if (!mlMap) return;
-    applyTagFiltersToVectorLayers(mlMap);
-    // setFilter handles the vector layers; this evicts overlay images filtered out by the
-    // tag/status/name/date filters (querySourceFeatures bypasses setFilter).
-    syncOverlaysFromTiles();
-  },
+  refreshProjectFilters,
 );
 
 watch(show3DBuildings, (extruded) => {

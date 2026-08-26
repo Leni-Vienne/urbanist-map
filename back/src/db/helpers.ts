@@ -247,6 +247,12 @@ export function buildProjectModerationQuery(database: Database) {
   return database
     .select({
       ...PROJECT_COLUMNS,
+      hasImage: sql<boolean>`EXISTS (
+        SELECT 1
+        FROM overlays AS project_image
+        WHERE project_image.project_id = ${projects.id}
+          AND project_image.status IN ('approved', 'pending')
+      )`,
       ownerUsername: users.username,
       ownerApprovedCount: users.approvedCount,
       ownerRejectedCount: users.rejectedCount,

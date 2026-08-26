@@ -3,6 +3,7 @@ import { publicProcedure, router, TRPCError } from "../trpc";
 import { adminBoundaries } from "../db/schema";
 import { sql } from "drizzle-orm";
 import { db } from "../database";
+import { countAlphanumeric, MIN_LOCATION_SEARCH_ALNUM } from "@shared/locationSearch";
 
 const searchBoundariesNearLocationSchema = z.object({
   lat: z.number().min(-90).max(90),
@@ -84,18 +85,6 @@ async function resolveAncestors(osmIds: string[]): Promise<Map<string, Ancestors
   return byRoot;
 }
 
-// Number of alphanumeric characters a query must have before it hits the DB. Below this,
-// pg_trgm can't extract a trigram from the `%term%` pattern, so the search would fall back to a
-// full table scan (~739k rows) and time out. Matches the old system's 3-character minimum.
-const MIN_SEARCH_ALNUM = 3;
-
-// Count the alphanumeric characters in a query, mirroring immutable_search_text's normalization
-// (which strips everything non-alphanumeric). Apostrophes, dashes and spaces don't count, so
-// "val-de" and "d'o" are measured by their letters only.
-function countSearchAlnum(value: string): number {
-  return value.replace(/[^\p{L}\p{N}]/gu, "").length;
-}
-
 export const boundariesRouter = router({
   // Search admin boundaries by name (local name, English name, or any `name:*` variant),
   // ranked exact > prefix > contains, then by distance from the given location. Powers the
@@ -116,7 +105,7 @@ export const boundariesRouter = router({
 
         // Stripped of punctuation, too-short queries can't use the trigram index. Return early
         // rather than triggering a full table scan.
-        if (countSearchAlnum(searchTrimmed) < MIN_SEARCH_ALNUM) return [];
+        if (countAlphanumeric(searchTrimmed) < MIN_LOCATION_SEARCH_ALNUM) return [];
 
         const point = sql`ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)`;
         const normTerm = sql`immutable_search_text(${searchTrimmed})`;

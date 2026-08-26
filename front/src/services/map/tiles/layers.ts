@@ -360,15 +360,19 @@ function getTagFilterExpression(): FilterSpecification | null {
     ]);
   }
 
-  // Match untagged (empty first_tag)
+  // Match untagged projects represented anywhere in a cluster, or this lone feature.
   if (includeUntagged) {
-    conditions.push(["==", ["to-string", ["get", "first_tag"]], ""]);
+    conditions.push([
+      "case",
+      ["has", "cluster_has_untagged"],
+      ["==", ["get", "cluster_has_untagged"], true],
+      ["==", ["to-string", ["get", "first_tag"]], ""],
+    ]);
   }
 
   if (conditions.length === 1) {
     return conditions[0] as FilterSpecification;
   }
-
   return ["any", ...conditions] as FilterSpecification;
 }
 
@@ -434,10 +438,8 @@ function getStatusFilterExpression(): FilterSpecification | null {
 }
 
 /**
- * Build a size filter expression matching features whose [minProperty, maxProperty] size range
- * overlaps the active filter range. Features with a null maxProperty pass through, otherwise the
- * default min size would hide every standalone/overlay-only project.
- * Returns null if the size filter is at its default (no filtering needed).
+ * Match features whose size range overlaps the active filter range. Missing sizes do not match an
+ * explicit range.
  */
 function getSizeFilterExpression(
   minProperty: string,
@@ -450,8 +452,7 @@ function getSizeFilterExpression(
   if (maxSize !== Infinity) {
     conditions.push(["<=", ["get", minProperty], maxSize]);
   }
-  const rangeFilter = allOf(conditions);
-  return ["any", ["==", ["get", maxProperty], null], rangeFilter] as FilterSpecification;
+  return allOf(conditions);
 }
 
 // The points layer carries a grid cell's min/max, which spans more than its representative project.
@@ -478,8 +479,7 @@ function getImageFilterExpression(): FilterSpecification | null {
  * Retires the center marker of a project whose approved overlay image renders in its place, from
  * getEffectiveThreshold(MIN_ZOOM_FOR_OVERLAYS) up.
  *
- * has_image is aggregated over the whole grid cell on a cluster feature, so it can only retire a
- * lone marker (cell_count == 1).
+ * has_map_image is project-specific, so it can only retire a lone marker.
  */
 function getOverlayCoveredPointFilter(): FilterSpecification | null {
   if (useMapStore().mode !== "view") return null;
@@ -488,25 +488,25 @@ function getOverlayCoveredPointFilter(): FilterSpecification | null {
     [
       "all",
       ["==", ["get", "cell_count"], 1],
-      ["==", ["get", "has_image"], true],
+      ["==", ["get", "has_map_image"], true],
       [">=", ["zoom"], getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS)],
     ],
   ] as FilterSpecification;
 }
 
-/**
- * Build a name filter expression. Returns null if no name filter is active.
- */
+/** Build a name filter expression using cluster aggregates when available. */
 function getNameFilterExpression(): FilterSpecification | null {
   const mode = getNameFilterMode();
   if (mode === "all") return null;
-  return ["==", ["get", "is_named"], mode === "named" ? 1 : 0] as FilterSpecification;
+  return [
+    "case",
+    ["has", "cluster_has_named"],
+    ["==", ["get", mode === "named" ? "cluster_has_named" : "cluster_has_unnamed"], true],
+    ["==", ["get", "is_named"], mode === "named" ? 1 : 0],
+  ] as FilterSpecification;
 }
 
-/**
- * Name filter for the overlay-footprints layers, which carry `name` rather than the
- * precomputed `is_named` flag the points/shapes layers use.
- */
+/** Name filter for overlay footprints, which carry name instead of is_named. */
 function getFootprintNameFilterExpression(): FilterSpecification | null {
   const mode = getNameFilterMode();
   if (mode === "all") return null;
@@ -514,13 +514,6 @@ function getFootprintNameFilterExpression(): FilterSpecification | null {
   return (mode === "named" ? isNamed : ["!", isNamed]) as FilterSpecification;
 }
 
-/**
- * Build a last modified date filter expression for the project-points layer.
- * Checks against min_last_modified_s/max_last_modified_s which reflect the full grid cell,
- * not just the representative, so clusters are only hidden when no project in the cell matches.
- * Returns null if filter is at its default.
- * The tile properties are in Unix seconds.
- */
 function getLastModifiedDateFilterExpression(): FilterSpecification | null {
   const [minMs, maxMs] = lastModifiedDateRange.value;
   if (minMs === 0 && maxMs === Infinity) return null;
@@ -603,10 +596,7 @@ function setLayerLayoutProperty(
   mlMap.setLayoutProperty(layerId, name as keyof AllLayoutProperties, value);
 }
 
-/**
- * Apply current tag, status, and size filters to all project vector layers.
- * Called when any filter selection changes.
- */
+/** Apply current project filters to all project vector layers. */
 export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
   const tagFilter = getTagFilterExpression();
   const statusFilter = getStatusFilterExpression();
@@ -620,6 +610,7 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
 
   const shapesBaseFilter = combineFilters(hiddenFilter, baseFilter);
   const pointsFilter = combineFilters(
+    hiddenFilter,
     baseFilter,
     getSizeFilterExpressionForPoints(),
     getOverlayCoveredPointFilter(),
@@ -627,20 +618,18 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
 
   const pointColor = getProjectPointColorExpression();
 
-  // project-points: tag + status + point size
+  // project-points: filters and tag-driven color
   if (mlMap.getLayer("project-points")) {
     setLayerFilter(mlMap, "project-points", pointsFilter);
     setLayerPaintProperty(mlMap, "project-points", "circle-color", pointColor);
   }
 
-  // pending-project-points shares the tag-driven color; refresh it here so a tag change recolors
-  // pending markers too, not just the approved layer.
+  // Pending points share the tag-driven color.
   if (mlMap.getLayer("pending-project-points")) {
     setLayerPaintProperty(mlMap, "pending-project-points", "circle-color", pointColor);
   }
 
-  // Cluster counts ride the same filters as the points, gated to cluster markers (cell_count > 1)
-  // so a count never lingers when its dot is filtered out or the points layer is toggled off.
+  // Cluster counts ride the same filters as the points.
   if (mlMap.getLayer("project-points-count")) {
     const countFilter = combineFilters(
       [">", ["get", "cell_count"], 1] as FilterSpecification,
@@ -763,24 +752,23 @@ function getHiddenOverlayIds(): string[] {
   return hiddenOverlayIdsCache;
 }
 
-// Footprint border/fill filter: locally hidden/edited overlays + the tag, status, name, and date
-// filters. The same filters are applied to the overlay images separately, and must stay in sync
-// with these. Size and image filters don't apply: footprints carry no geometry size and always
-// have an image.
+// Footprint borders use the same project filters as their raster images. The image filter is
+// implicit because every footprint is itself a map image.
 function applyFootprintLayerFilters(mlMap: MaplibreMap): void {
   const hiddenIds = getHiddenOverlayIds();
   const hiddenFilter = hiddenIds.length > 0 ? buildHiddenIdExclusionFilter(hiddenIds) : null;
-  const merged = combineFilters(
+  const filter = combineFilters(
     hiddenFilter,
     getTagFilterExpression(),
     getStatusFilterExpression(),
     getFootprintNameFilterExpression(),
     getLastModifiedDateFilterExpression(),
+    getSizeFilterExpressionForShapes(),
   );
 
   for (const layerId of ["overlay-footprints-outline", "overlay-footprints-fill"]) {
     if (mlMap.getLayer(layerId)) {
-      setLayerFilter(mlMap, layerId, merged ?? undefined);
+      setLayerFilter(mlMap, layerId, filter ?? undefined);
     }
   }
 }
