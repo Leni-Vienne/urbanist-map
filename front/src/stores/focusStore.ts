@@ -1,7 +1,7 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { computed, ref } from "vue";
 import { useProjectStore } from "@/stores/projectStore";
-import { useMapStore } from "@/stores/mapStore";
+import { useUiStore } from "@/stores/uiStore";
 import type { Project } from "@/types/index";
 
 // What is currently emphasized on the map and in the docked detail panel. A project target is a
@@ -40,7 +40,7 @@ export const useFocusStore = defineStore("focus", () => {
     if (!target) return null;
     const projectStore = useProjectStore();
     return target.projectId
-      ? projectStore.getMapProjectById(target.projectId, useMapStore().mode)
+      ? projectStore.getMapProjectById(target.projectId, useUiStore().mode)
       : null;
   });
   // A docked detail panel is open whenever something is pinned.

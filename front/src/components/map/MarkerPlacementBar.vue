@@ -40,7 +40,7 @@
 
 <script setup lang="ts">
 import { ref, watch, onUnmounted } from "vue";
-import { useMapStore } from "@/stores/mapStore";
+import { useUiStore } from "@/stores/uiStore";
 import { getMap } from "@/services/core/map";
 import { getMarkerSvg } from "@/services/core/markersSvg";
 
@@ -104,9 +104,9 @@ function resetState() {
   markerCoordinates.value = null;
 }
 
-const mapStore = useMapStore();
+const uiStore = useUiStore();
 watch(
-  () => mapStore.mode,
+  () => uiStore.mode,
   () => {
     if (visible.value) {
       onCancel();

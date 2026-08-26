@@ -1,7 +1,7 @@
 import { watch } from "vue";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
-import { useMapStore } from "@/stores/mapStore";
+import { useUiStore } from "@/stores/uiStore";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { getMap, getMapOrNull } from "@/services/core/map";
@@ -153,9 +153,9 @@ function convergeOverlayDisplay(overlayObject: OverlayObject): boolean {
 // oxlint-disable-next-line complexity
 function reconcileOverlayExistence(bounds: ViewportBounds): void {
   const overlayStore = useOverlayStore();
-  const mapStore = useMapStore();
+  const uiStore = useUiStore();
   const authStore = useAuthStore();
-  const mode = mapStore.mode;
+  const mode = uiStore.mode;
   const userId = authStore.user?.id;
   // Edit/moderation show a clickable status pin per overlay, and converge each image onto its
   // store-derived position. View mode relies on the overlay-footprints MVT layer for clicks (so

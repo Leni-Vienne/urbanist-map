@@ -1,7 +1,7 @@
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useProjectStore } from "@/stores/projectStore";
-import { useMapStore } from "@/stores/mapStore";
+import { useUiStore } from "@/stores/uiStore";
 import { ensureProjectSummary } from "@/services/core/projectSelection";
 import {
   getMarker,
@@ -45,7 +45,7 @@ export function openOverlayDetail(overlayId: string): void {
 
   // In moderation mode, switch the panel to this overlay's country so its pending submissions load.
   const project = newlySelected.projectId
-    ? useProjectStore().getMapProjectById(newlySelected.projectId, useMapStore().mode)
+    ? useProjectStore().getMapProjectById(newlySelected.projectId, useUiStore().mode)
     : null;
   syncModerationCountryFromMapClick(project?.countryCode);
 

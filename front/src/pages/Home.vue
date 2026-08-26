@@ -37,7 +37,7 @@
       </div>
 
       <!-- Overlay caption editor, opened from the docked project detail (store-driven). -->
-      <OverlayEditor v-if="mapStore.mode === 'edit' && uiStore.overlayEditTargetId" />
+      <OverlayEditor v-if="uiStore.mode === 'edit' && uiStore.overlayEditTargetId" />
 
       <!-- Hover preview card, always mounted so it can show before any detail panel is opened -->
       <HoverPreviewCard />
@@ -75,7 +75,6 @@ import { onMounted, ref, onUnmounted, computed, defineAsyncComponent, watch } fr
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useProjectStore } from "@/stores/projectStore";
-import { useMapStore } from "@/stores/mapStore";
 
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
@@ -113,7 +112,6 @@ let maintenanceTickInterval: ReturnType<typeof globalThis.setInterval> | undefin
 
 const authStore = useAuthStore();
 const uiStore = useUiStore();
-const mapStore = useMapStore();
 const projectStore = useProjectStore();
 
 const route = useRoute();
@@ -153,7 +151,7 @@ watch(maintenanceBannerText, (value) => {
 
 // Discard in-progress shape edits when leaving edit mode.
 watch(
-  () => mapStore.mode,
+  () => uiStore.mode,
   async (newMode, oldMode) => {
     if (oldMode === "edit" && newMode !== "edit" && uiStore.shapeEditorProjectId) {
       await stopShapeEditing();

@@ -1,9 +1,9 @@
 import { ref, computed, onMounted, watch } from "vue";
+import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 import { trpc } from "@/client";
 import { mobileAwareFlyTo } from "@/services/core/mapNavigation";
 import { useAuthStore } from "@/stores/authStore";
-import { useMapStore } from "@/stores/mapStore";
 import { useModerationStore } from "@/stores/moderationStore";
 import { loadOrNull } from "@/services/core/errorHandling";
 
@@ -15,19 +15,11 @@ interface Options {
 export function useModerationCountrySelector({ onCountryDataNeeded }: Options) {
   const { t } = useI18n();
   const authStore = useAuthStore();
-  const mapStore = useMapStore();
   const moderationStore = useModerationStore();
 
   const countriesLoading = ref(false);
 
-  // Single source of truth lives in mapStore. The computed lets the template
-  // continue to use v-model="selectedCountryCode".
-  const selectedCountryCode = computed({
-    get: () => mapStore.selectedCountryCode,
-    set: (code) => {
-      mapStore.setSelectedCountryCode(code);
-    },
-  });
+  const { selectedCountryCode } = storeToRefs(moderationStore);
 
   const availableCountries = computed(() => {
     const userCountries = authStore.user?.moderatedCountries;
@@ -61,8 +53,8 @@ export function useModerationCountrySelector({ onCountryDataNeeded }: Options) {
 
   // The dropdown's v-model already wrote the new value; this handler only flies to the country.
   function handleCountryChange() {
-    if (mapStore.selectedCountryCode) {
-      flyToCountry(mapStore.selectedCountryCode);
+    if (moderationStore.selectedCountryCode) {
+      flyToCountry(moderationStore.selectedCountryCode);
     }
   }
 
@@ -81,7 +73,7 @@ export function useModerationCountrySelector({ onCountryDataNeeded }: Options) {
   }
 
   watch(
-    () => mapStore.selectedCountryCode,
+    () => moderationStore.selectedCountryCode,
     (newCode) => {
       if (newCode) {
         void onCountryDataNeeded();
@@ -110,14 +102,14 @@ export function useModerationCountrySelector({ onCountryDataNeeded }: Options) {
   }
 
   function autoSelectSingleCountry() {
-    if (mapStore.selectedCountryCode) return;
+    if (moderationStore.selectedCountryCode) return;
     if (authStore.user?.role === "admin") return;
     if (availableCountries.value.length !== 1) return;
 
     const country = availableCountries.value[0];
     if (!country) throw new Error("No country found");
 
-    mapStore.setSelectedCountryCode(country.code);
+    moderationStore.selectedCountryCode = country.code;
     flyToCountry(country.code);
   }
 

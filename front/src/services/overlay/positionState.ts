@@ -1,7 +1,7 @@
 import type { LatLng, OverlayPositionState } from "@/types/index";
 import { isValidQuad } from "@/services/overlay/transform";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
-import { useMapStore } from "@/stores/mapStore";
+import { useUiStore } from "@/stores/uiStore";
 import { useModerationStore } from "@/stores/moderationStore";
 
 // Whether the overlay has an open change request as the current mode defines it: any requester's in
@@ -10,7 +10,7 @@ export function hasOpenChangeRequest(overlay: {
   id: string;
   hasPendingChanges?: boolean;
 }): boolean {
-  if (useMapStore().mode === "moderation") {
+  if (useUiStore().mode === "moderation") {
     return useModerationStore().changeRequests.some(
       (cr) => cr.entityType === "overlay" && cr.entityId === overlay.id,
     );
@@ -52,7 +52,7 @@ export function showsSuggestedState(overlay: {
   id: string;
   positionState?: OverlayPositionState;
 }): boolean {
-  if (useMapStore().mode === "edit") {
+  if (useUiStore().mode === "edit") {
     return overlay.positionState !== "approved-toggled";
   }
   const preview = useChangeRequestStore().previewState;

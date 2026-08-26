@@ -2,10 +2,10 @@
   <div class="absolute inset-0 overflow-hidden">
     <!-- Mode border overlay - separate from map container to avoid map rendering issues -->
     <div
-      v-if="mapStore.mode !== 'view'"
+      v-if="uiStore.mode !== 'view'"
       :class="[
         'absolute inset-0 border-4 pointer-events-none z-900 animate-[borderFadeIn_0.3s_ease-in-out]',
-        mapStore.mode === 'edit' ? 'border-amber-500' : 'border-blue-500',
+        uiStore.mode === 'edit' ? 'border-amber-500' : 'border-blue-500',
       ]"
     ></div>
 
@@ -70,7 +70,7 @@ import {
 import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 
 import { useI18n } from "vue-i18n";
-import { useMapStore } from "@/stores/mapStore";
+import { useUiStore } from "@/stores/uiStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -87,7 +87,7 @@ const UserMenu = defineAsyncComponent(() => mapUIBundle.then((m) => m.UserMenu))
 const CitySearch = defineAsyncComponent(() => mapUIBundle.then((m) => m.CitySearch));
 const SettingsButton = defineAsyncComponent(() => mapUIBundle.then((m) => m.SettingsButton));
 
-const mapStore = useMapStore();
+const uiStore = useUiStore();
 const focusStore = useFocusStore();
 const authStore = useAuthStore();
 

@@ -41,7 +41,7 @@ import { useI18n } from "vue-i18n";
 import { trpc, type RouterOutput } from "@/client";
 import { getMap } from "@/services/core/map";
 import { mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
-import { useMapStore } from "@/stores/mapStore";
+import { useModerationStore } from "@/stores/moderationStore";
 import { LngLatBounds } from "maplibre-gl";
 import { loadOrNull } from "@/services/core/errorHandling";
 import { countAlphanumeric, MIN_LOCATION_SEARCH_ALNUM } from "@shared/locationSearch";
@@ -128,7 +128,7 @@ function cancelSearch(): void {
 function onSelect(event: { value: BoundarySuggestion }): void {
   const boundary = event.value;
   cancelSearch();
-  if (boundary.countryCode) useMapStore().setSelectedCountryCode(boundary.countryCode);
+  if (boundary.countryCode) useModerationStore().selectedCountryCode = boundary.countryCode;
   mobileAwareFlyToBounds(
     new LngLatBounds([boundary.minLng, boundary.minLat], [boundary.maxLng, boundary.maxLat]),
     { maxZoom: MAX_BOUNDARY_ZOOM },

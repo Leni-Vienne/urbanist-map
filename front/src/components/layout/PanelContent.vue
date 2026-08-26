@@ -33,7 +33,7 @@ const ContributeGuestPanel = defineAsyncComponent(() => import("./ContributeGues
 const authStore = useAuthStore();
 const uiStore = useUiStore();
 
-// Tab is read straight from the store (single source of truth, see mapStore.mode).
+// Tab and its derived map mode share this single source of truth.
 const activeTab = computed(() => uiStore.activeTab);
 
 defineProps<{

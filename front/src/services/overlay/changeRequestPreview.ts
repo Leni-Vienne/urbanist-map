@@ -3,7 +3,8 @@ import { LngLat, LngLatBounds } from "maplibre-gl";
 import { t } from "@/locales";
 
 import { useOverlayStore } from "@/stores/overlayStore";
-import { useMapStore } from "@/stores/mapStore";
+import { useUiStore } from "@/stores/uiStore";
+import { useModerationStore } from "@/stores/moderationStore";
 import { getOverlayBounds } from "@/services/overlay/markers";
 import * as registry from "@/services/overlay/mapLayers";
 import { isValidQuad, parsePointValue, parseQuadValue } from "@/services/overlay/transform";
@@ -67,7 +68,8 @@ async function ensureOverlayLoaded(
   targetCorners: LngLat[],
 ): Promise<boolean> {
   const overlayStore = useOverlayStore();
-  const mapStore = useMapStore();
+  const uiStore = useUiStore();
+  const moderationStore = useModerationStore();
 
   let overlayObject = overlayStore.liveOverlays[overlayForModeration.id];
 
@@ -81,16 +83,16 @@ async function ensureOverlayLoaded(
   }
 
   // Pending overlays are only visible in edit mode
-  const needsEditMode = mapStore.mode === "view" && overlayForModeration.status === "pending";
+  const needsEditMode = uiStore.mode === "view" && overlayForModeration.status === "pending";
   if (needsEditMode) {
-    mapStore.setMode("edit");
+    uiStore.setMode("edit");
     // Let the tab switch and derived mode settle; the poll below waits for the overlay to load.
     await nextTick();
   }
 
   // Clear map and navigate to the overlay's country
   clearAllMapContent();
-  mapStore.setSelectedCountryCode(overlayForModeration.countryCode);
+  moderationStore.selectedCountryCode = overlayForModeration.countryCode;
 
   // Step 4: Navigate to overlay position
   const targetBounds = new LngLatBounds();
@@ -141,7 +143,7 @@ function applyPositionPreview(
   // previewed request's own corners), so it never mutates the overlay object. Either way the
   // reconciler converges the image, marker and (in edit mode) the edit handles to the resolved
   // position.
-  if (useMapStore().mode === "edit") {
+  if (useUiStore().mode === "edit") {
     const isUnedited =
       overlayObject.positionState !== "staged" && overlayObject.redoStack.length === 0;
     if (isUnedited) {
@@ -206,7 +208,7 @@ export async function previewOverlayGeometry(options: PreviewGeometryOptions): P
 
 export async function previewShapes(options: PreviewShapesOptions): Promise<void> {
   const { change, project, geometryValue, type } = options;
-  const mapStore = useMapStore();
+  const moderationStore = useModerationStore();
 
   const geometry = parseShapeCollection(geometryValue);
   if (!geometry) {
@@ -217,9 +219,9 @@ export async function previewShapes(options: PreviewShapesOptions): Promise<void
   const bounds = buildShapeBounds(geometry);
   if (!bounds) return;
 
-  if (project.countryCode && mapStore.selectedCountryCode !== project.countryCode) {
+  if (project.countryCode && moderationStore.selectedCountryCode !== project.countryCode) {
     clearAllMapContent();
-    mapStore.setSelectedCountryCode(project.countryCode);
+    moderationStore.selectedCountryCode = project.countryCode;
     await nextTick();
   }
 

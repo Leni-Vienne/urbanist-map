@@ -1,6 +1,6 @@
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useModerationStore } from "@/stores/moderationStore";
-import { useMapStore } from "@/stores/mapStore";
+import { useUiStore } from "@/stores/uiStore";
 import type { OverlayData, OverlayHistoryState, OverlayPositionState, LatLng } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import { isValidQuad, parseQuadValue } from "@/services/overlay/transform";
@@ -79,16 +79,16 @@ export function resolveOverlayCorners(
     return isValidQuad(stored) ? stored : null;
   }
 
-  const mapStore = useMapStore();
-  const viewApproved = mapStore.mode === "view" && overlay.status === "approved";
+  const mode = useUiStore().mode;
+  const viewApproved = mode === "view" && overlay.status === "approved";
   const liveCorners = viewApproved
     ? getRenderedOverlayCorners(overlay.id)
     : getOverlayImageCorners(overlay.id);
 
-  const historyAllowed = mapStore.mode === "edit";
+  const historyAllowed = mode === "edit";
   const fromHistory = historyAllowed && isValidQuad(historyCorners) ? historyCorners : null;
 
-  const fromSuggested = getSuggestedDisplayCorners(overlay, mapStore.mode);
+  const fromSuggested = getSuggestedDisplayCorners(overlay, mode);
 
   if (purpose === "marker") {
     if (isValidQuad(liveCorners)) return liveCorners;

@@ -18,7 +18,6 @@ import { handleProjectClickFromTile } from "@/services/core/projectSelection";
 import { handleBackgroundClick, openOverlayDetail } from "@/services/overlay/selection";
 import { VECTOR_QUERY_LAYERS } from "@/services/map/tiles/queryLayers";
 import { useOverlayStore } from "@/stores/overlayStore";
-import { useMapStore } from "@/stores/mapStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 import { isOverlayUnsaved } from "@/services/overlay/unsavedState";
@@ -36,7 +35,6 @@ import {
   type ClusterTagCount,
 } from "@/services/map/hoverPreviewState";
 import { mobileAwareFlyTo } from "@/services/core/mapNavigation";
-import { onModeTransition } from "@/services/map/modeTransition";
 import { getApiUrl } from "@/utils/apiUrl";
 import { PROJECT_TAGS } from "@/constants/projectTags";
 import {
@@ -482,7 +480,7 @@ function getImageFilterExpression(): FilterSpecification | null {
  * has_map_image is project-specific, so it can only retire a lone marker.
  */
 function getOverlayCoveredPointFilter(): FilterSpecification | null {
-  if (useMapStore().mode !== "view") return null;
+  if (useUiStore().mode !== "view") return null;
   return [
     "!",
     [
@@ -702,12 +700,11 @@ let hiddenProjectIdsCache: string[] = [];
 function computeHiddenProjectIds(): string[] {
   const store = useProjectStore();
   const uiStore = useUiStore();
-  const mapStore = useMapStore();
   const hidden = new Set<string>();
-  if (uiStore.shapeEditorProjectId && mapStore.mode === "edit") {
+  if (uiStore.shapeEditorProjectId && uiStore.mode === "edit") {
     hidden.add(uiStore.shapeEditorProjectId);
   }
-  if (mapStore.mode === "edit") {
+  if (uiStore.mode === "edit") {
     for (const project of Object.values(store.projects)) {
       if (project.isModified) hidden.add(project.id);
     }
@@ -739,7 +736,7 @@ function computeHiddenOverlayIds(): string[] {
   // edit handles, so keeping the outline is what gives the image its permanent border (otherwise it
   // vanishes once the cursor leaves and the hover border clears).
   const selectedOverlayId = useFocusStore().selectedOverlayId;
-  if (selectedOverlayId && useMapStore().mode === "edit") {
+  if (selectedOverlayId && useUiStore().mode === "edit") {
     hidden.add(selectedOverlayId);
   }
   for (const [id, o] of Object.entries(store.liveOverlays)) {
@@ -961,20 +958,13 @@ function watchSelectedHoverState(): () => void {
 
 // The vector filters read the map mode (see getOverlayCoveredPointFilter), so a mode change has to
 // re-apply them.
-function watchModeVectorFilters(): () => void {
-  return onModeTransition("vectorLayerFilters", () => {
-    const mlMap = getMapOrNull();
-    if (mlMap) applyTagFiltersToVectorLayers(mlMap);
-  });
+export function syncModeVectorFilters(): void {
+  const mlMap = getMapOrNull();
+  if (mlMap) applyTagFiltersToVectorLayers(mlMap);
 }
 
 export function watchTileLayerState(): () => void {
-  const stops = [
-    watchHiddenProjects(),
-    watchHiddenOverlays(),
-    watchSelectedHoverState(),
-    watchModeVectorFilters(),
-  ];
+  const stops = [watchHiddenProjects(), watchHiddenOverlays(), watchSelectedHoverState()];
 
   return function stopTileLayerStateWatchers(): void {
     for (const stop of stops.toReversed()) stop();

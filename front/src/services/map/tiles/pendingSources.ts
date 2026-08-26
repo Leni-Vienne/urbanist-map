@@ -7,7 +7,7 @@ import type { OverlayData, Project } from "@/types/index";
 import { isValidQuad } from "@/services/overlay/transform";
 import { useProjectStore } from "@/stores/projectStore";
 import { useOverlayStore } from "@/stores/overlayStore";
-import { useMapStore } from "@/stores/mapStore";
+import { useUiStore } from "@/stores/uiStore";
 import { getMapSessionSnapshot, type MapSessionMode } from "@/services/map/mapSessionState";
 import { activeFilters, matchesProjectFilters } from "@/services/core/filters";
 
@@ -275,7 +275,7 @@ function collectPendingPoints(
 
 export function renderMapSessionPendingSources(): void {
   const session = getMapSessionSnapshot();
-  if (!session || session.mode !== useMapStore().mode) {
+  if (!session || session.mode !== useUiStore().mode) {
     updatePendingProjectPointsSource({ type: "FeatureCollection", features: [] });
     updatePendingProjectShapesSource({ type: "FeatureCollection", features: [] });
     return;

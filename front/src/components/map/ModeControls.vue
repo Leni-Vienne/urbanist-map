@@ -8,9 +8,9 @@
       type="button"
       class="group appearance-none flex items-center gap-2 px-4 py-2 backdrop-blur-sm rounded-3xl font-semibold text-[0.9rem] border-2 transition-all duration-200 pointer-events-auto cursor-pointer select-none hover:scale-105 active:scale-[0.98]"
       :class="[
-        mapStore.mode === 'edit'
+        uiStore.mode === 'edit'
           ? 'bg-amber-500/95 border-amber-600 text-white shadow-[0_4px_12px_rgba(245,158,11,0.4)] hover:shadow-[0_6px_16px_rgba(245,158,11,0.5)]'
-          : mapStore.mode === 'moderation'
+          : uiStore.mode === 'moderation'
             ? 'bg-blue-500/95 border-blue-600 text-white shadow-[0_4px_12px_rgba(59,130,246,0.4)] hover:shadow-[0_6px_16px_rgba(59,130,246,0.5)]'
             : 'bg-content-background/95 border-surface text-color shadow-[0_2px_8px_rgba(0,0,0,0.15)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.25)]',
       ]"
@@ -29,7 +29,7 @@
 <script setup lang="ts">
 import { toastInfo } from "@/services/core/toast";
 
-import { useMapStore } from "@/stores/mapStore";
+import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
 
 import { useI18n } from "vue-i18n";
@@ -39,7 +39,7 @@ defineProps<{
   isMobile?: boolean;
 }>();
 
-const mapStore = useMapStore();
+const uiStore = useUiStore();
 const authStore = useAuthStore();
 
 const { t } = useI18n();
@@ -48,7 +48,7 @@ let lastToastTime = 0;
 const TOAST_THROTTLE_MS = 1000;
 
 function getModeIcon(): string {
-  switch (mapStore.mode) {
+  switch (uiStore.mode) {
     case "view":
       return "pi-eye";
     case "edit":
@@ -61,7 +61,7 @@ function getModeIcon(): string {
 }
 
 function getModeLabel(): string {
-  switch (mapStore.mode) {
+  switch (uiStore.mode) {
     case "view":
       return t("map.viewMode");
     case "edit":
@@ -74,7 +74,7 @@ function getModeLabel(): string {
 }
 
 function getModeTooltip(): string {
-  switch (mapStore.mode) {
+  switch (uiStore.mode) {
     case "view":
       return t("map.viewModeTooltip");
     case "edit":
@@ -94,7 +94,7 @@ const MODE_SUMMARY_KEYS = {
 
 // Cycle through modes: view → edit → moderation for moderators, view ↔ edit for regular users.
 function handleModeSwitch() {
-  const currentMode = mapStore.mode;
+  const currentMode = uiStore.mode;
 
   let newMode: AppMode = "view";
 
@@ -115,7 +115,7 @@ function handleModeSwitch() {
     newMode = currentMode === "edit" ? "view" : "edit";
   }
 
-  mapStore.setMode(newMode);
+  uiStore.setMode(newMode);
 
   const now = Date.now();
   if (now - lastToastTime >= TOAST_THROTTLE_MS) {

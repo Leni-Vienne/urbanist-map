@@ -1,9 +1,10 @@
-import { watchModeTransitions } from "@/services/map/modeTransition";
+import { watch } from "vue";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { getMapOrNull } from "@/services/core/map";
 import {
   installEditHandleSync,
   watchEditHandles,
+  syncEditHandlesForMode,
   syncEditHandlesForCurrentState,
 } from "@/services/overlay/editing";
 import { watchMarkerColors } from "@/services/overlay/markers";
@@ -12,9 +13,31 @@ import {
   stopViewportRenderLoop,
   watchOverlayReconciliation,
 } from "@/services/map/viewportRenderLoop";
-import { watchViewportModeData, refreshEditSessionData } from "@/services/map/viewportTriggers";
-import { watchTileLayerState, syncTileLayerState } from "@/services/map/tiles/layers";
+import {
+  watchViewportModeData,
+  refreshEditSessionData,
+  syncSessionDataForMode,
+} from "@/services/map/viewportTriggers";
+import {
+  watchTileLayerState,
+  syncTileLayerState,
+  syncModeVectorFilters,
+} from "@/services/map/tiles/layers";
 import { watchMapAreaOutline, syncMapAreaOutline } from "@/services/map/mapAreaOutline";
+import { useUiStore } from "@/stores/uiStore";
+
+function watchModeTransitions(): () => void {
+  const uiStore = useUiStore();
+  return watch(
+    () => uiStore.mode,
+    (newMode, oldMode) => {
+      syncEditHandlesForMode(newMode);
+      void syncSessionDataForMode(newMode, oldMode)
+        .catch((error: unknown) => console.error("Mode session sync failed", error))
+        .then(syncModeVectorFilters);
+    },
+  );
+}
 
 /**
  * Install the watchers and callback registrations owned by one MapView mount.

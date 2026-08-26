@@ -1,7 +1,7 @@
 import type { Project, HydratedProject } from "@/types/index";
 import { useProjectStore } from "@/stores/projectStore";
 import { useFocusStore } from "@/stores/focusStore";
-import { useMapStore } from "@/stores/mapStore";
+import { useUiStore } from "@/stores/uiStore";
 import { trpc } from "@/client";
 import { hydratedProjectFromWire } from "@/utils/typeFactories";
 import { syncModerationCountryFromMapClick } from "@/services/moderation/moderationCountrySync";
@@ -36,7 +36,7 @@ export function openProjectDetail(project: Project): void {
  * Enter edit mode with `project` pinned, so the contribute panel opens on it.
  */
 export function openProjectForEditing(project: Project): void {
-  useMapStore().setMode("edit");
+  useUiStore().setMode("edit");
   openProjectDetail(project);
 }
 

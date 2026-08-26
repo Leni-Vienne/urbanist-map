@@ -1,5 +1,4 @@
 import { useAuthStore } from "@/stores/authStore";
-import { useMapStore } from "@/stores/mapStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useFocusStore } from "@/stores/focusStore";
@@ -21,7 +20,6 @@ export async function signOut() {
   const signOutRequest = authStore.signOut();
 
   useUiStore().clearAllState();
-  useMapStore().clearAllState();
   useProjectStore().clearAllState();
   useOverlayStore().clearAllState();
   useModerationStore().clearAllState();

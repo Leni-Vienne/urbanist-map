@@ -8,6 +8,7 @@ type CountryItem = RouterOutput["country"]["getAllCountries"][0];
 type ModerationLoadStatus = "idle" | "loading" | "loaded";
 
 export const useModerationStore = defineStore("moderation", () => {
+  const selectedCountryCode = ref<string | null>(null);
   const projectIds = ref<string[]>([]);
   const projectOverlays = ref<Record<string, Overlay[]>>({});
   const changeRequests = ref<PendingChangeRequest[]>([]);
@@ -76,6 +77,7 @@ export const useModerationStore = defineStore("moderation", () => {
 
   // Clear all state on logout or account switch.
   function clearAllState() {
+    selectedCountryCode.value = null;
     projectIds.value = [];
     projectOverlays.value = {};
     changeRequests.value = [];
@@ -87,6 +89,7 @@ export const useModerationStore = defineStore("moderation", () => {
   }
 
   return {
+    selectedCountryCode,
     projects,
     changeRequests,
     moderationLoadStatus,

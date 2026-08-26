@@ -9,7 +9,7 @@ import { watch } from "vue";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
-import { useMapStore } from "@/stores/mapStore";
+import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useModerationStore } from "@/stores/moderationStore";
 import { debounce } from "@/utils/debounce";
@@ -25,7 +25,6 @@ import {
   watchPendingProjectSources,
 } from "@/services/map/tiles/pendingSources";
 import { clearMapSessionSnapshot, replaceMapSessionSnapshot } from "@/services/map/mapSessionState";
-import { onModeTransition } from "@/services/map/modeTransition";
 import type { BackendOverlayData } from "@/types/index";
 import type { AppMode } from "@shared/types";
 
@@ -121,9 +120,9 @@ export function clearMapSessionData(): void {
  */
 export async function refreshEditSessionData(): Promise<void> {
   const authStore = useAuthStore();
-  const mapStore = useMapStore();
+  const uiStore = useUiStore();
 
-  if (!authStore.user || mapStore.mode !== "edit") {
+  if (!authStore.user || uiStore.mode !== "edit") {
     clearMapSessionSnapshot("edit");
     return;
   }
@@ -171,7 +170,7 @@ export function resetMapSessionState(): void {
   runViewportRenderLoop();
 }
 
-async function syncSessionDataForMode(newMode: AppMode, oldMode: AppMode): Promise<void> {
+export async function syncSessionDataForMode(newMode: AppMode, oldMode: AppMode): Promise<void> {
   // Switching TO view mode: tile rendering takes over.
   if (newMode === "view") {
     resetMapSessionState();
@@ -199,17 +198,17 @@ async function syncSessionDataForMode(newMode: AppMode, oldMode: AppMode): Promi
 }
 
 export function watchViewportModeData(): () => void {
-  const mapStore = useMapStore();
+  const uiStore = useUiStore();
+  const moderationStore = useModerationStore();
 
-  const unregisterModeTransition = onModeTransition("viewportSessionData", syncSessionDataForMode);
   const stopPendingProjectWatch = watchPendingProjectSources();
 
   // Invalidate all country-scoped moderation state synchronously.
   const stopCountryWatch = watch(
-    () => mapStore.selectedCountryCode,
+    () => moderationStore.selectedCountryCode,
     () => {
-      useModerationStore().invalidateModerationData();
-      if (mapStore.mode === "moderation") {
+      moderationStore.invalidateModerationData();
+      if (uiStore.mode === "moderation") {
         clearMapSessionData();
         renderMapSessionPendingSources();
         runViewportRenderLoop();
@@ -220,6 +219,5 @@ export function watchViewportModeData(): () => void {
   return function stopViewportModeDataWatchers(): void {
     stopCountryWatch();
     stopPendingProjectWatch();
-    unregisterModeTransition();
   };
 }

@@ -11,7 +11,7 @@ import {
 import { isValidQuad } from "@/services/overlay/transform";
 import { getEditModeRestingCorners } from "@/services/overlay/positionState";
 import { isTypingTarget } from "@/utils/keyboard";
-import { useMapStore } from "@/stores/mapStore";
+import { useUiStore } from "@/stores/uiStore";
 
 // Build a history step, cloning corners so later mutations don't alias a stored step.
 export function makeHistoryState(
@@ -65,7 +65,7 @@ export function redo() {
 }
 
 function applyHistoryAction(action: "undo" | "redo") {
-  if (useMapStore().mode !== "edit") return;
+  if (useUiStore().mode !== "edit") return;
 
   const overlayStore = useOverlayStore();
 

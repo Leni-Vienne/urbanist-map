@@ -184,7 +184,7 @@ export default defineConfig(({ mode }) => {
               {
                 name: "app-core",
                 test: (id: string) =>
-                  /\/front\/src\/stores\/(?:authStore|uiStore|projectStore|overlayStore|mapStore|focusStore|moderationStore|changeRequestStore)\.ts/.test(
+                  /\/front\/src\/stores\/(?:authStore|uiStore|projectStore|overlayStore|focusStore|moderationStore|changeRequestStore)\.ts/.test(
                     id,
                   ) ||
                   /\/front\/src\/services\/core\/(?:toast|errorHandling|map|viewport|filters|settings|mapNavigation|projectSelection|markersSvg)\.ts/.test(

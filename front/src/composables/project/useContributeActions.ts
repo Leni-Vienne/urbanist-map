@@ -10,7 +10,6 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
-import { useMapStore } from "@/stores/mapStore";
 import { isOverlayUnsaved, isProjectUnsaved } from "@/services/overlay/unsavedState";
 import { startShapeEditing } from "@/services/shape/shapeEditorLazy";
 import { openProjectDetail } from "@/services/core/projectSelection";
@@ -46,7 +45,7 @@ function handleNewProjectClick(): void {
   closeDetail();
 
   // Always switch to edit mode when contributing (no-op if already in edit mode)
-  useMapStore().setMode("edit");
+  uiStore.setMode("edit");
   uiStore.markerPlacementBarVisible = true;
 }
 

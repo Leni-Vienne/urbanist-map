@@ -15,12 +15,11 @@ import {
 import { transformToCorners, SIGN, type OverlayTransform } from "@/services/overlay/transform";
 import { updateMarkerPosition } from "@/services/overlay/markers";
 import { useOverlayStore } from "@/stores/overlayStore";
-import { useMapStore } from "@/stores/mapStore";
+import { useUiStore } from "@/stores/uiStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { validateOverlaySize } from "@shared/overlayValidation";
-import { onModeTransition } from "@/services/map/modeTransition";
 import type { AppMode } from "@shared/types";
 
 import { t } from "@/locales";
@@ -509,13 +508,17 @@ function syncEditHandles(selectedId: string | null, mode: AppMode): void {
   if (!overlay) return;
 
   whenImageReadyIfSelected(selectedId, () => {
-    if (useMapStore().mode === "edit") showEditHandles(overlay);
+    if (useUiStore().mode === "edit") showEditHandles(overlay);
   });
 }
 
 /** Project the retained selection onto a map once its style and project layers are ready. */
 export function syncEditHandlesForCurrentState(): void {
-  syncEditHandles(useFocusStore().selectedOverlayId, useMapStore().mode);
+  syncEditHandles(useFocusStore().selectedOverlayId, useUiStore().mode);
+}
+
+export function syncEditHandlesForMode(mode: AppMode): void {
+  syncEditHandles(useFocusStore().selectedOverlayId, mode);
 }
 
 /** Install the map-instance callback the reconciler uses after moving an overlay image. */
@@ -524,22 +527,13 @@ export function installEditHandleSync(): () => void {
 }
 
 export function watchEditHandles(): () => void {
-  const mapStore = useMapStore();
+  const uiStore = useUiStore();
   const focus = useFocusStore();
 
-  const stopSelectionWatch = watch(
+  return watch(
     () => focus.selectedOverlayId,
     (selectedId) => {
-      syncEditHandles(selectedId, mapStore.mode);
+      syncEditHandles(selectedId, uiStore.mode);
     },
   );
-
-  const unregisterModeTransition = onModeTransition("editHandles", (newMode) => {
-    syncEditHandles(focus.selectedOverlayId, newMode);
-  });
-
-  return function stopEditHandleWatchers(): void {
-    unregisterModeTransition();
-    stopSelectionWatch();
-  };
 }

@@ -5,7 +5,7 @@ import { getMap } from "@/services/core/map";
 import { createOverlayMarkerElement, updateOverlayMarkerColor } from "@/services/core/markersSvg";
 import { mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
 import { useOverlayStore } from "@/stores/overlayStore";
-import { useMapStore } from "@/stores/mapStore";
+import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
 import { isOverlayVisible } from "@/services/overlay/visibility";
 import type { OverlayObject, OverlayData, MarkerColor } from "@/types/index";
@@ -24,7 +24,7 @@ import { buildLngLatBounds } from "@/utils/cornersBounds";
  * Create the marker for an overlay. Overlay markers exist only in edit and moderation modes.
  */
 export function createOverlayMarker(overlay: OverlayObject): void {
-  const mode = useMapStore().mode;
+  const mode = useUiStore().mode;
   if (mode === "view") return;
   const mlMap = getMap();
   // The replacement sits at the same spot, so a marker for the replaced one would confuse.
@@ -222,11 +222,11 @@ export function updateMarkerPosition(overlayObject: OverlayObject): void {
 }
 
 export function watchMarkerColors(): () => void {
-  const mapStore = useMapStore();
+  const uiStore = useUiStore();
   const overlayStore = useOverlayStore();
 
   return watchEffect(() => {
-    const mode = mapStore.mode;
+    const mode = uiStore.mode;
     // On the switch to view mode every overlay marker is torn down, so there is nothing to recolor.
     if (mode === "view") return;
     for (const overlayObject of Object.values(overlayStore.liveOverlays)) {

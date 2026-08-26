@@ -2,7 +2,7 @@ import { defineStore, acceptHMRUpdate } from "pinia";
 import { computed, ref } from "vue";
 import type { RouterOutput } from "@/client";
 import { useFocusStore } from "@/stores/focusStore";
-import { useMapStore } from "@/stores/mapStore";
+import { useUiStore } from "@/stores/uiStore";
 import { useModerationStore } from "@/stores/moderationStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import type { PendingChangeRequest } from "@/types/index";
@@ -44,7 +44,7 @@ export const useChangeRequestStore = defineStore("changeRequest", () => {
   // The change requests previews can target in the current mode: the country's pending
   // submissions in moderation mode, the user's own change requests otherwise.
   function relevantChangeRequests(): PendingChangeRequest[] {
-    if (useMapStore().mode === "moderation") {
+    if (useUiStore().mode === "moderation") {
       return useModerationStore().changeRequests;
     }
     return pendingChangeRequests.value;
@@ -67,7 +67,7 @@ export const useChangeRequestStore = defineStore("changeRequest", () => {
           : requests.find((cr) => isOverlayGeometryChange(cr, overlayId));
       if (!geometryChange) return { type: "none" };
 
-      if (useMapStore().mode === "edit") {
+      if (useUiStore().mode === "edit") {
         const positionState = useOverlayStore().liveOverlays[overlayId]?.positionState;
         const side = positionState === "approved-toggled" ? "current" : "suggested";
         // The suggested position can't be shown without corners, so no preview is active.

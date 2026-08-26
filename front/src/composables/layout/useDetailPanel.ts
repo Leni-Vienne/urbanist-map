@@ -1,8 +1,7 @@
 import { computed } from "vue";
+import { storeToRefs } from "pinia";
 import { useUiStore } from "@/stores/uiStore";
-import { useMapStore } from "@/stores/mapStore";
 import { useFocusStore } from "@/stores/focusStore";
-import type { PanelTab } from "@/types";
 
 /**
  * Shared panel state for the desktop SideMenu and the mobile MobileDrawer so the two can never
@@ -13,20 +12,16 @@ import type { PanelTab } from "@/types";
  * selection inline in their own panel, so the dock would only repeat it. Selecting still drives map
  * navigation, accordion scroll and marker highlight in those modes; only the dock is suppressed.
  *
- * `activeTab` is a writable proxy onto the single source of truth in uiStore (mapStore.mode derives
- * from it), kept here so both menus bind the same v-model.
+ * `activeTab` is a writable proxy onto the single source of truth in uiStore, kept here so both
+ * menus bind the same v-model. The map mode is derived from the same tab.
  */
 export function useDetailPanel() {
   const uiStore = useUiStore();
-  const mapStore = useMapStore();
   const focusStore = useFocusStore();
 
-  const detailVisible = computed(() => mapStore.mode === "view" && focusStore.detailVisible);
+  const detailVisible = computed(() => uiStore.mode === "view" && focusStore.detailVisible);
 
-  const activeTab = computed<PanelTab>({
-    get: () => uiStore.activeTab,
-    set: (value) => (uiStore.activeTab = value),
-  });
+  const { activeTab } = storeToRefs(uiStore);
 
   return { detailVisible, activeTab };
 }

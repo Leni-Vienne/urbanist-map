@@ -3,7 +3,7 @@ import { trpc } from "@/client";
 
 import { useModerationStore } from "@/stores/moderationStore";
 import { useOverlayStore } from "@/stores/overlayStore";
-import { useMapStore } from "@/stores/mapStore";
+import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
 import { removeOverlayFromMapAndStore } from "@/services/entity/entityRemoval";
 import { applyMapSessionRows } from "@/services/map/viewportTriggers";
@@ -31,7 +31,7 @@ let moderationFetchToken = 0;
 
 export function useModeration() {
   const moderationStore = useModerationStore();
-  const mapStore = useMapStore();
+  const uiStore = useUiStore();
   const authStore = useAuthStore();
 
   const projects = computed(() => moderationStore.projects);
@@ -39,7 +39,7 @@ export function useModeration() {
   const changeRequests = computed(() => moderationStore.changeRequests);
 
   async function fetchPendingSubmissions(options?: { force?: boolean }) {
-    const countryCode = mapStore.selectedCountryCode;
+    const countryCode = moderationStore.selectedCountryCode;
     if (!countryCode) return;
     if (!options?.force && moderationStore.moderationLoadStatus !== "idle") {
       return;
@@ -53,8 +53,8 @@ export function useModeration() {
     function isCurrentRequest(): boolean {
       return (
         requestToken === moderationFetchToken &&
-        mapStore.mode === "moderation" &&
-        mapStore.selectedCountryCode === countryCode &&
+        uiStore.mode === "moderation" &&
+        moderationStore.selectedCountryCode === countryCode &&
         authStore.user?.id === userId
       );
     }
@@ -252,7 +252,7 @@ export function useModeration() {
     if (!user) return;
 
     const isAdmin = user.role === "admin";
-    const mapCountryCode = mapStore.selectedCountryCode;
+    const mapCountryCode = moderationStore.selectedCountryCode;
     const canAccessMapCountry =
       !user.moderatedCountries ||
       (mapCountryCode !== null && user.moderatedCountries.includes(mapCountryCode));

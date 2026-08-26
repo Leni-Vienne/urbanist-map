@@ -135,7 +135,6 @@ import { Crop } from "@lucide/vue";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useFocusStore } from "@/stores/focusStore";
-import { useMapStore } from "@/stores/mapStore";
 import { useUiStore } from "@/stores/uiStore";
 import type { OverlayObject } from "@/types";
 import { onMapReady } from "@/services/core/map";
@@ -165,9 +164,8 @@ const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
 const focusStore = useFocusStore();
 const uiStore = useUiStore();
-const mapStore = useMapStore();
 const { selectedOverlayId } = storeToRefs(focusStore);
-const { mode } = storeToRefs(mapStore);
+const { mode } = storeToRefs(uiStore);
 const selectedId = selectedOverlayId;
 const isEditMode = computed(() => mode.value === "edit");
 

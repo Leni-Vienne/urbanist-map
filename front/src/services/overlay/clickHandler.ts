@@ -2,7 +2,8 @@ import { navigateToProject } from "@/services/navigation/projectNavigation";
 import { mobileAwareFlyTo } from "@/services/core/mapNavigation";
 import { navigateToOverlay } from "@/services/overlay/navigation";
 import { useOverlayStore } from "@/stores/overlayStore";
-import { useMapStore } from "@/stores/mapStore";
+import { useUiStore } from "@/stores/uiStore";
+import { useModerationStore } from "@/stores/moderationStore";
 
 import { t } from "@/locales";
 import { trpc } from "@/client";
@@ -19,7 +20,7 @@ type NavigableOverlay = Overlay | LatestContribution;
 export async function handleOverlayClickNavigation(overlay: NavigableOverlay): Promise<boolean> {
   try {
     const overlayStore = useOverlayStore();
-    const mapStore = useMapStore();
+    const uiStore = useUiStore();
 
     // For rejected or replaced overlays, navigate to overlay's centroid if available
     // Otherwise fall back to project center
@@ -29,13 +30,13 @@ export async function handleOverlayClickNavigation(overlay: NavigableOverlay): P
 
     // In moderation mode, auto-select the contribution's country for the moderation panel
     // If moderator doesn't have access to this country, block navigation with a toast
-    if (mapStore.mode === "moderation" && overlay.countryCode) {
+    if (uiStore.mode === "moderation" && overlay.countryCode) {
       if (!canModerateCountry(overlay.countryCode)) {
         toastWarn(t("moderation.noAccessToThisCountry"), t("moderation.title"));
         return false;
       }
       // Auto-select the country so ModerationPanel loads its pending submissions
-      mapStore.setSelectedCountryCode(overlay.countryCode);
+      useModerationStore().selectedCountryCode = overlay.countryCode;
     }
 
     return navigateToOverlay(overlay.id);

@@ -1,5 +1,6 @@
 import { useAuthStore } from "@/stores/authStore";
-import { useMapStore } from "@/stores/mapStore";
+import { useUiStore } from "@/stores/uiStore";
+import { useModerationStore } from "@/stores/moderationStore";
 
 /**
  * Check if the current user can moderate a given country.
@@ -23,8 +24,7 @@ export function canModerateCountry(countryCode: string): boolean {
  */
 export function syncModerationCountryFromMapClick(countryCode: string | null | undefined): void {
   if (!countryCode) return;
-  const mapStore = useMapStore();
-  if (mapStore.mode !== "moderation") return;
+  if (useUiStore().mode !== "moderation") return;
   if (!canModerateCountry(countryCode)) return;
-  mapStore.setSelectedCountryCode(countryCode);
+  useModerationStore().selectedCountryCode = countryCode;
 }

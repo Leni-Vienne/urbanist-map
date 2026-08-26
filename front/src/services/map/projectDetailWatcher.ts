@@ -2,7 +2,6 @@ import { watch } from "vue";
 import { hydrateProjectDetail } from "@/services/core/projectSelection";
 import { closeDetail } from "@/services/overlay/selection";
 import { useUiStore } from "@/stores/uiStore";
-import { useMapStore } from "@/stores/mapStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useFocusStore } from "@/stores/focusStore";
 
@@ -89,9 +88,9 @@ function watchSelectedPanelCleanup(): void {
 // in either direction drops the selection so neither side inherits the other's context; view and
 // edit share a world, so a selection carries between them.
 function watchModerationSelectionIsolation(): void {
-  const mapStore = useMapStore();
+  const uiStore = useUiStore();
 
-  watch(() => mapStore.mode === "moderation", closeDetail);
+  watch(() => uiStore.mode === "moderation", closeDetail);
 }
 
 /**
