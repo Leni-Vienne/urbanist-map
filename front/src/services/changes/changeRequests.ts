@@ -2,6 +2,7 @@ import { trpc } from "@/client";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { loadOrNull } from "@/services/core/errorHandling";
 import { refreshEditSessionData } from "@/services/map/viewportTriggers";
+import { refreshUserContributions } from "@/services/project/userContributions";
 import { useAuthStore } from "@/stores/authStore";
 
 let changeRequestLoadVersion = 0;
@@ -69,11 +70,11 @@ export async function deleteChangeRequest(changeRequestId: string): Promise<bool
 
     if (changeRequest) {
       store.removeChangeRequest(changeRequestId);
-      // Reconcile the session map set: a withdrawn overlay CR drops out of the session list.
-      if (changeRequest.entityType === "overlay") {
-        await refreshEditSessionData();
-      }
     }
+
+    const sessionRefresh =
+      changeRequest?.entityType === "overlay" ? refreshEditSessionData() : Promise.resolve();
+    await Promise.all([refreshUserContributions(), sessionRefresh]);
 
     return true;
   } catch (error) {

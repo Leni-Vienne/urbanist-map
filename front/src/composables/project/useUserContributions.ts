@@ -4,9 +4,8 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
-import { trpc } from "@/client";
-import { loadOrNull } from "@/services/core/errorHandling";
 import { t } from "@/locales";
+import { fetchUserContributions } from "@/services/project/userContributions";
 import { createLocalOverlayContribution, createStagedRenderOverlay } from "@/utils/typeFactories";
 import { getStagedRender } from "@/services/submission/stagedRenderState";
 import type { Project, Overlay, ContributionProject } from "@/types/index";
@@ -46,12 +45,11 @@ export function useUserContributions() {
     if (!user) return [];
 
     const contributionsMap = new Map<string, ContributionProject>();
-    for (const [projectId, overlays] of Object.entries(projectStore.userContributionOverlays)) {
-      const project = projectStore.projects[projectId];
-      if (!project) continue;
-      contributionsMap.set(projectId, {
+    for (const contribution of projectStore.userContributions) {
+      const project = projectStore.projects[contribution.id] ?? contribution;
+      contributionsMap.set(contribution.id, {
+        ...contribution,
         ...project,
-        overlays,
       });
     }
 
@@ -196,28 +194,6 @@ export function useUserContributions() {
     }
     return allContributions.value.filter((project) => !isContributionPending(project));
   });
-
-  async function fetchUserContributions(): Promise<void> {
-    const userId = authStore.user?.id;
-    if (!userId) return;
-    if (projectStore.userContributionsLoaded || projectStore.userContributionsLoading) return;
-
-    const epoch = authStore.getSessionEpoch();
-    projectStore.setUserContributionsLoading(true);
-    try {
-      const result = await loadOrNull(async () => trpc.project.getUsersContributions.query(), {
-        errorMessage: t("contribute.loadContributionsError"),
-      });
-
-      if (result && epoch === authStore.getSessionEpoch() && authStore.user?.id === userId) {
-        projectStore.setUserContributions(result.projects);
-      }
-    } finally {
-      if (epoch === authStore.getSessionEpoch() && authStore.user?.id === userId) {
-        projectStore.setUserContributionsLoading(false);
-      }
-    }
-  }
 
   return {
     isLoading,

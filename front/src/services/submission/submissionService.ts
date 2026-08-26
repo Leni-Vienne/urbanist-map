@@ -1,6 +1,5 @@
 import { useProjectStore } from "@/stores/projectStore";
 import { useOverlayStore } from "@/stores/overlayStore";
-import { useAuthStore } from "@/stores/authStore";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { trpc, type RouterOutput } from "@/client";
 import { parseShapeCollection } from "@/utils/geojson";
@@ -23,6 +22,7 @@ import {
 } from "@/utils/validationHelpers";
 import { resolveOverlayCorners } from "@/services/overlay/data";
 import { applyMapSessionRows } from "@/services/map/viewportTriggers";
+import { refreshUserContributions } from "@/services/project/userContributions";
 import { overlayWireToData } from "@/utils/typeFactories";
 import {
   PROJECT_CHANGE_FIELDS,
@@ -383,42 +383,10 @@ function applySubmissionResult(
   );
   useChangeRequestStore().setPendingChangeRequests(result.changeRequests);
 
-  const submittedProject = projectStore.getProjectById(draft.projectId);
-  if (submittedProject) {
-    if (draft.project?.changeType === "create") {
-      projectStore.addProjectToUserContributions(submittedProject);
-    }
-    const existingProjectOverlays = Object.values(useOverlayStore().liveOverlays).filter(
-      (overlay) => overlay.projectId === draft.projectId,
-    );
-    for (const overlayId of draft.newOverlayIds) {
-      const overlay = getOverlayOrThrow(overlayId);
-      projectStore.addOverlayToUserContributions(
-        overlay,
-        submittedProject,
-        overlay.filename,
-        useAuthStore().user?.username ?? null,
-        existingProjectOverlays.filter((existing) => existing.id !== overlayId),
-      );
-    }
-    for (const mod of draft.overlayModifications) {
-      if (mod.overlayStatus === "approved") continue;
-      const overlay = getOverlayOrThrow(mod.overlayId);
-      projectStore.updateOverlayInUserContributions(draft.projectId, mod.overlayId, {
-        caption: overlay.caption,
-      });
-    }
-  }
-
   if (result.render) {
     projectStore.updateProject(draft.projectId, {
       render: { filename: result.render.filename, caption: null, status: result.render.status },
     });
-    projectStore.addRenderToUserContributions(
-      draft.projectId,
-      result.render,
-      useAuthStore().user?.username ?? null,
-    );
     clearStagedRender(draft.projectId);
   }
 }
@@ -429,4 +397,5 @@ export async function submitDraft(draft: SubmissionDraft, reason: string): Promi
   const batch = await buildSubmissionBatch(draft, project, reason);
   const result = await trpc.submission.submit.mutate(batch);
   applySubmissionResult(draft, result);
+  await refreshUserContributions();
 }

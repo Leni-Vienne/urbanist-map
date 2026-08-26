@@ -1,21 +1,14 @@
-// Removes projects and overlays from stores, map layers, and caches
-
 import { useProjectStore } from "@/stores/projectStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useFocusStore } from "@/stores/focusStore";
-import { useAuthStore } from "@/stores/authStore";
 import { clearEntry as clearRegistryEntry } from "@/services/overlay/mapLayers";
 import { closeDetail } from "@/services/overlay/selection";
 import { trpc } from "@/client";
 import { removeMapSessionOverlay } from "@/services/map/mapSessionState";
+import { refreshUserContributions } from "@/services/project/userContributions";
 
 import { t } from "@/locales";
 import { toastSuccess, toastError } from "@/services/core/toast";
-
-interface DeleteOverlayOptions {
-  showToast?: boolean;
-  updateUserContributions?: boolean;
-}
 
 export function removeOverlayFromMapAndStore(overlayId: string) {
   const overlayStore = useOverlayStore();
@@ -35,28 +28,7 @@ export function removeOverlayFromMapAndStore(overlayId: string) {
   removeMapSessionOverlay(overlayId);
 }
 
-function removeOverlay(
-  overlayId: string,
-  options: {
-    updateUserContributions?: boolean;
-  } = {},
-) {
-  const projectStore = useProjectStore();
-  const authStore = useAuthStore();
-
-  removeOverlayFromMapAndStore(overlayId);
-
-  if (options.updateUserContributions) {
-    projectStore.removeOverlayFromUserContributions(overlayId, authStore.user?.id);
-  }
-}
-
-function removeProject(
-  projectId: string,
-  options: {
-    updateUserContributions?: boolean;
-  } = {},
-) {
+function removeProject(projectId: string) {
   const projectStore = useProjectStore();
   const overlayStore = useOverlayStore();
 
@@ -65,10 +37,6 @@ function removeProject(
   }
 
   projectStore.removeProject(projectId);
-
-  if (options.updateUserContributions) {
-    projectStore.removeProjectFromUserContributions(projectId);
-  }
 }
 
 /**
@@ -77,9 +45,9 @@ function removeProject(
  */
 export async function deleteOverlayDirect(
   overlayId: string,
-  options: DeleteOverlayOptions = {},
+  options: { showToast?: boolean } = {},
 ): Promise<boolean> {
-  const { showToast = false, updateUserContributions = false } = options;
+  const { showToast = false } = options;
 
   const overlayStore = useOverlayStore();
   const overlayObject = overlayStore.liveOverlays[overlayId];
@@ -94,7 +62,8 @@ export async function deleteOverlayDirect(
       await trpc.overlay.deleteOverlay.mutate({ id: overlayId });
     }
 
-    removeOverlay(overlayId, { updateUserContributions });
+    removeOverlayFromMapAndStore(overlayId);
+    if (existsInBackend) await refreshUserContributions();
 
     if (showToast) {
       toastSuccess(t("contribute.overlayDeleted"));
@@ -121,8 +90,7 @@ async function deleteProjectDirect(
 
   const projectStore = useProjectStore();
   const project = projectStore.projects[projectId];
-  // Local-only projects (status null) were never submitted, so there is nothing to delete in the
-  // backend and no user-contribution entry to update.
+  // Local-only projects were never submitted, so there is nothing to delete in the backend.
   const isLocalOnly = project?.status === null;
 
   try {
@@ -130,7 +98,8 @@ async function deleteProjectDirect(
       await trpc.project.deleteProject.mutate({ id: projectId });
     }
 
-    removeProject(projectId, { updateUserContributions: !isLocalOnly });
+    removeProject(projectId);
+    if (!isLocalOnly) await refreshUserContributions();
 
     if (showToast) {
       toastSuccess(t("contribute.projectDeleted"));
@@ -154,7 +123,7 @@ export async function confirmAndDeleteOverlay(
   });
   if (!confirm(confirmMessage)) return false;
 
-  return deleteOverlayDirect(overlayId, { showToast: true, updateUserContributions: true });
+  return deleteOverlayDirect(overlayId, { showToast: true });
 }
 
 export async function confirmAndDeleteProject(

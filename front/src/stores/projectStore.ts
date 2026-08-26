@@ -1,14 +1,8 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref } from "vue";
-import type {
-  Project,
-  HydratedProject,
-  ContributionProject,
-  OverlayObject,
-  Overlay,
-} from "@/types/index";
-import type { AppMode, ApprovalStatus } from "@shared/types";
-import { createLocalOverlayContribution, hasProjectDetailFields } from "@/utils/typeFactories";
+import type { Project, HydratedProject, ContributionProject } from "@/types/index";
+import type { AppMode } from "@shared/types";
+import { hasProjectDetailFields } from "@/utils/typeFactories";
 
 // Strips the inline overlay list off a contribution so only Project data lands in the project map.
 function toProject(contribution: ContributionProject): Project {
@@ -30,9 +24,7 @@ function preserveProjectDetail(project: Project, current: HydratedProject): Proj
 export const useProjectStore = defineStore("project", () => {
   // Single source of truth for project summaries, including projects listed in contributions.
   const projects = ref<Record<string, Project>>({});
-  // Backend and optimistic list metadata grouped exactly as the contribution UI consumes it.
-  // Project summaries remain in projects, while this record owns list membership and inline overlays.
-  const userContributionOverlays = ref<Record<string, Overlay[]>>({});
+  const userContributions = ref<ContributionProject[]>([]);
   const userContributionsLoading = ref(false);
   const userContributionsLoaded = ref(false);
 
@@ -122,178 +114,18 @@ export const useProjectStore = defineStore("project", () => {
   }
 
   function setUserContributions(contributions: ContributionProject[]) {
-    const nextOverlays: Record<string, Overlay[]> = {};
     for (const contribution of contributions) {
       const incoming = toProject(contribution);
-      // Keep locally edited projects; otherwise adopt the fresher backend payload.
       const existing = projects.value[contribution.id];
       const stored = existing?.isModified ? existing : upsertProjectSummary(incoming);
       snapshotOriginal(stored);
-      nextOverlays[contribution.id] = contribution.overlays;
     }
-    userContributionOverlays.value = nextOverlays;
+    userContributions.value = contributions;
     userContributionsLoaded.value = true;
   }
 
   function setUserContributionsLoading(loading: boolean) {
     userContributionsLoading.value = loading;
-  }
-
-  // Optimistically add new overlay to user contributions without a backend fetch.
-  function addOverlayToUserContributions(
-    overlay: OverlayObject,
-    project: Project,
-    filename: string,
-    authorUsername: string | null,
-    existingProjectOverlays: OverlayObject[] = [],
-  ) {
-    if (!userContributionsLoaded.value) {
-      return;
-    }
-
-    const overlayMetadata = createLocalOverlayContribution(
-      { ...overlay, filename, projectId: project.id, status: "pending" as const, version: 1 },
-      project,
-      authorUsername,
-    );
-
-    const currentOverlays = userContributionOverlays.value[project.id];
-    if (currentOverlays) {
-      if (!currentOverlays.some((current) => current.id === overlayMetadata.id)) {
-        userContributionOverlays.value[project.id] = [...currentOverlays, overlayMetadata];
-      }
-      return;
-    }
-
-    // Project not yet a contribution. Local (unsubmitted) projects are surfaced by the live merge,
-    // not this map, so skip them here.
-    if (project.status === null) {
-      return;
-    }
-
-    let stored = projects.value[project.id];
-    if (!stored) {
-      stored = project;
-      projects.value[project.id] = stored;
-    }
-    const existingMetadata = existingProjectOverlays.map((existing) =>
-      createLocalOverlayContribution(existing, project, null),
-    );
-    userContributionOverlays.value[project.id] = [...existingMetadata, overlayMetadata];
-    snapshotOriginal(stored);
-  }
-
-  // Optimistically attach a just-published render to its project in My Contributions, so the
-  // overlay list updates without a refetch. Renders skip the local overlayStore flow that map
-  // overlays use, so they need their own insertion. No-op only when the list isn't loaded; the
-  // next fetch reconciles regardless.
-  function addRenderToUserContributions(
-    projectId: string,
-    render: {
-      id: string;
-      filename: string;
-      status: ApprovalStatus | null;
-      authorId: string | null;
-    },
-    authorUsername: string | null,
-  ) {
-    if (!userContributionsLoaded.value) return;
-    const parent = projects.value[projectId];
-    if (!parent) return;
-
-    const overlay = createLocalOverlayContribution(
-      {
-        id: render.id,
-        caption: null,
-        filename: render.filename,
-        projectId,
-        authorId: render.authorId,
-        replacesOverlayId: null,
-        status: render.status,
-        version: 1,
-      },
-      parent,
-      authorUsername,
-      "render",
-    );
-
-    const currentOverlays = userContributionOverlays.value[projectId];
-    if (currentOverlays) {
-      if (!currentOverlays.some((current) => current.id === overlay.id)) {
-        userContributionOverlays.value[projectId] = [...currentOverlays, overlay];
-      }
-      return;
-    }
-
-    // Render added to a project not yet in My Contributions (e.g. an imported project the user
-    // didn't own). The backend lists it as a contribution once authored, so mirror that here.
-    if (parent.status === null) return;
-    userContributionOverlays.value[projectId] = [overlay];
-  }
-
-  // Optimistically add new project to user contributions without a backend fetch.
-  function addProjectToUserContributions(project: Project) {
-    if (!userContributionsLoaded.value) {
-      return;
-    }
-
-    if (project.status === null) {
-      return;
-    }
-
-    if (userContributionOverlays.value[project.id]) {
-      return;
-    }
-
-    userContributionOverlays.value[project.id] = [];
-    let stored = projects.value[project.id];
-    if (!stored) {
-      stored = project;
-      projects.value[project.id] = stored;
-    }
-    snapshotOriginal(stored);
-  }
-
-  // Update pending overlay in user contributions (for caption/field updates)
-  function updateOverlayInUserContributions(
-    projectId: string,
-    overlayId: string,
-    updates: Partial<Overlay>,
-  ) {
-    if (!userContributionsLoaded.value) return;
-    const overlay = userContributionOverlays.value[projectId]?.find(
-      (item) => item.id === overlayId,
-    );
-    if (overlay) Object.assign(overlay, updates);
-  }
-
-  function removeOverlayFromUserContributions(overlayId: string, currentUserId?: string) {
-    if (!userContributionsLoaded.value) {
-      return;
-    }
-
-    const entry = Object.entries(userContributionOverlays.value).find(([, overlays]) =>
-      overlays.some((overlay) => overlay.id === overlayId),
-    );
-    if (!entry) return;
-    const [projectId, overlays] = entry;
-    const remainingOverlays = overlays.filter((overlay) => overlay.id !== overlayId);
-    userContributionOverlays.value[projectId] = remainingOverlays;
-
-    const project = projects.value[projectId];
-    if (remainingOverlays.length === 0 && project && project.ownerId !== currentUserId) {
-      // oxlint-disable-next-line no-dynamic-delete
-      delete userContributionOverlays.value[projectId];
-    }
-  }
-
-  function removeProjectFromUserContributions(projectId: string) {
-    if (!userContributionsLoaded.value) {
-      return;
-    }
-
-    // oxlint-disable-next-line no-dynamic-delete
-    delete userContributionOverlays.value[projectId];
   }
 
   // Inserts a project into the store, snapshotting backend-sourced ones (status !== null) as the
@@ -347,7 +179,7 @@ export const useProjectStore = defineStore("project", () => {
   // Clear user-specific state on logout or account switch.
   function clearAllState(): void {
     projects.value = {};
-    userContributionOverlays.value = {};
+    userContributions.value = [];
     userContributionsLoading.value = false;
     userContributionsLoaded.value = false;
     originalProjects.value = {};
@@ -355,7 +187,7 @@ export const useProjectStore = defineStore("project", () => {
 
   return {
     projects,
-    userContributionOverlays,
+    userContributions,
     userContributionsLoading,
     userContributionsLoaded,
 
@@ -376,12 +208,6 @@ export const useProjectStore = defineStore("project", () => {
     // User contributions actions
     setUserContributions,
     setUserContributionsLoading,
-    addOverlayToUserContributions,
-    addRenderToUserContributions,
-    addProjectToUserContributions,
-    updateOverlayInUserContributions,
-    removeOverlayFromUserContributions,
-    removeProjectFromUserContributions,
 
     clearAllState,
   };
