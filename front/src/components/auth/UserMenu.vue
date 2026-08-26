@@ -28,7 +28,7 @@
         @dblclick.stop
       >
         <span
-          class="relative w-6 h-6 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 text-xs"
+          class="relative w-6 h-6 rounded-full bg-primary-color/10 flex items-center justify-center text-primary-color text-xs"
         >
           <i class="pi pi-user"></i>
           <!-- Red dot on avatar if there are unread notifications -->
@@ -64,7 +64,7 @@
     <!-- User menu popover -->
     <Popover ref="userPopover">
       <div class="flex flex-col w-48">
-        <div class="px-2 py-1.5 bg-content-hover-background border-round mb-1">
+        <div class="px-2 py-1.5 bg-(--p-content-hover-background) rounded-border mb-1">
           <div class="font-medium text-sm text-ellipsis overflow-hidden">
             {{ isOsmAccount ? authStore.user?.username : authStore.user?.email }}
           </div>

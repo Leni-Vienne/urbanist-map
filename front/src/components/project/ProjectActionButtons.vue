@@ -11,7 +11,7 @@
 
     <!-- Add image button -->
     <button
-      class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-(--p-text-color-secondary) hover:text-color hover:bg-content-hover-background hover:border-surface"
+      class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-(--p-text-color-secondary) hover:text-color hover:bg-(--p-content-hover-background) hover:border-surface"
       @click.stop="$emit('add-image', project)"
       v-tooltip.top="$t('project.addImages')"
     >
@@ -20,7 +20,7 @@
 
     <!-- Draw shapes button -->
     <button
-      class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-(--p-text-color-secondary) hover:text-color hover:bg-content-hover-background hover:border-surface"
+      class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-(--p-text-color-secondary) hover:text-color hover:bg-(--p-content-hover-background) hover:border-surface"
       @click.stop="$emit('draw', project)"
       v-tooltip.top="$t('shapes.drawShapes')"
     >
@@ -32,7 +32,7 @@
       class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center transition-all duration-150 text-sm text-green-500"
       :class="
         isModified
-          ? 'cursor-pointer hover:text-green-600 hover:bg-green-50 hover:border-green-200'
+          ? 'cursor-pointer hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-400/12 hover:border-green-200 dark:hover:border-green-400/40'
           : 'opacity-40 cursor-not-allowed pointer-events-none'
       "
       :disabled="!isModified"
@@ -48,7 +48,7 @@
         showDelete &&
         (!project.status || project.status === 'pending' || project.status === 'rejected')
       "
-      class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-red-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200"
+      class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-red-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-400/12 hover:border-red-200 dark:hover:border-red-400/40"
       @click.stop="$emit('delete', project)"
       v-tooltip.top="$t('contribute.deleteProject')"
     >

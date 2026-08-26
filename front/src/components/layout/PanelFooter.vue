@@ -1,6 +1,6 @@
 <template>
   <div
-    class="shrink-0 bg-content-hover-background border-t border-surface flex justify-center items-center gap-2"
+    class="shrink-0 bg-content-background border-t border-surface flex justify-center items-center gap-2"
     :class="
       compact
         ? 'pt-[0.2rem] pb-[calc(0.2rem+env(safe-area-inset-bottom))] px-4'

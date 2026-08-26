@@ -137,7 +137,10 @@
             </Column>
           </DataTable>
 
-          <div v-if="slotProps.data.banned" class="bg-content-hover-background p-4 rounded-md mt-4">
+          <div
+            v-if="slotProps.data.banned"
+            class="bg-(--p-content-hover-background) p-4 rounded-md mt-4"
+          >
             <h3 class="mt-0 mb-4 text-lg font-semibold">
               {{ t("admin.reports.details.banInfo") }}
             </h3>

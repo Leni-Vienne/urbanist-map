@@ -40,7 +40,7 @@
     <!-- Country Selector for Moderation -->
     <div
       v-if="showCountrySelector"
-      class="flex items-center gap-3 px-3 py-2 bg-content-hover-background border border-surface rounded-md"
+      class="flex items-center gap-3 px-3 py-2 bg-(--p-content-hover-background) border border-surface rounded-md"
     >
       <label
         for="country-select"

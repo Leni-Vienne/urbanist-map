@@ -1,6 +1,6 @@
 ﻿<template>
   <div
-    class="flex justify-center items-start h-full bg-linear-to-br from-primary-50 to-primary-100 p-10 overflow-y-auto"
+    class="flex justify-center items-start h-full bg-linear-to-br from-primary-color/5 to-primary-color/10 p-10 overflow-y-auto"
   >
     <div
       class="bg-content-background p-8 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.1)] max-w-150 w-full text-center"
@@ -24,7 +24,7 @@
       <div class="mt-4">
         <a
           href="mailto:contact@urbanistmap.org"
-          class="inline-flex items-center gap-2 no-underline text-lg px-6 py-3 rounded-lg bg-primary-50 hover:bg-primary-100 transition-colors text-primary-color"
+          class="inline-flex items-center gap-2 no-underline text-lg px-6 py-3 rounded-lg bg-primary-color/5 hover:bg-primary-color/10 transition-colors text-primary-color"
         >
           <i class="pi pi-envelope"></i>
           contact@urbanistmap.org
@@ -41,13 +41,13 @@
           {{ t("pages.contact.basemapDescription") }}
         </p>
         <div
-          class="relative overflow-hidden mt-4 p-5 bg-zinc-900 rounded-lg border border-zinc-700 break-all before:content-[''] before:absolute before:top-0 before:left-0 before:w-1 before:h-full before:bg-primary-500"
+          class="relative overflow-hidden mt-4 p-5 bg-zinc-900 rounded-lg border border-zinc-700 break-all before:content-['']"
         >
           <span class="block font-semibold mb-3 text-white text-[0.85rem] uppercase">{{
             t("pages.contact.basemapExample")
           }}</span>
           <code
-            class="font-mono text-[0.8rem] text-primary-300 px-[0.6rem] py-[0.4rem] rounded leading-relaxed block"
+            class="font-mono text-[0.8rem] text-primary-300 px-[0.6rem] py-[0.4rem] rounded block"
             >https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage-product/default/2025/3857/{z}/{x}/{y}.png</code
           >
         </div>

@@ -202,11 +202,11 @@
           v-if="registrationSuccess && !isLoginMode"
           class="flex flex-col gap-2 p-3 bg-blue-50 border border-blue-200 rounded dark:bg-blue-900/30 dark:border-blue-700 dark:text-blue-200"
         >
-          <div class="flex items-center gap-2 font-semibold text-blue-700">
+          <div class="flex items-center gap-2 font-semibold text-blue-700 dark:text-blue-200">
             <i class="pi pi-info-circle"></i>
             {{ $t("auth.verifyEmailTitle") }}
           </div>
-          <p class="text-sm text-blue-600 m-0">
+          <p class="text-sm text-blue-600 dark:text-blue-200 m-0">
             {{ $t("auth.verifyEmailMessage") }}
           </p>
         </div>
@@ -540,6 +540,6 @@ async function handleForgotPassword() {
 .last-used-method,
 .last-used-input {
   border: 1px solid var(--p-primary-color) !important;
-  box-shadow: 0 0 0 2px var(--p-primary-50) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--p-primary-color) 20%, transparent) !important;
 }
 </style>

@@ -6,7 +6,7 @@
 
       <span
         v-if="clickable"
-        class="text-primary-700 cursor-pointer underline decoration-solid hover:text-primary-500"
+        class="text-primary-color cursor-pointer underline decoration-solid hover:text-primary-hover-color"
         @click.stop="handleClick"
         >{{ contributorUsername }}</span
       >

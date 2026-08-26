@@ -4,6 +4,7 @@
 /* usages drop the "color-" prefix for convenience, e.g. "primary-color" instead of "color-primary-color" */
 @theme inline {
   --color-content-background: var(--p-content-background);
+  --color-content-border-color: var(--p-content-border-color);
   --color-primary-color: var(--p-primary-color);
   --color-primary-hover-color: var(--p-primary-hover-color);
   --color-tag-warn-color: var(--p-tag-warn-color);

@@ -12,7 +12,7 @@
     <div id="mapDiv" class="absolute inset-0 w-full h-full">
       <div
         v-if="isLoading"
-        class="absolute inset-0 flex justify-center items-center bg-content-hover-background"
+        class="absolute inset-0 flex justify-center items-center bg-content-background"
       >
         <div class="text-center">
           <i class="pi pi-spin pi-spinner text-4xl"></i>

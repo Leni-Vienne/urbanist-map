@@ -18,7 +18,7 @@
           class="appearance-none border-0 text-left flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded w-full transition-colors duration-150"
           :class="
             mapLabelLanguageRef === option.code
-              ? 'bg-primary-50 text-primary-700'
+              ? 'bg-primary-color/10 text-primary-color'
               : 'bg-transparent hover:bg-black/5 dark:hover:bg-white/10'
           "
           @click="selectLanguage(option.code)"

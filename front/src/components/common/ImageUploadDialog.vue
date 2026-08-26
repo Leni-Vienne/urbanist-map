@@ -18,10 +18,10 @@
 
       <button
         type="button"
-        class="flex items-start gap-3 text-left p-3 rounded-lg border border-surface bg-content-background cursor-pointer transition-all duration-150 hover:border-primary-400 hover:bg-content-hover-background"
+        class="flex items-start gap-3 text-left p-3 rounded-lg border border-surface bg-content-background cursor-pointer transition-all duration-150 hover:border-primary-color hover:bg-(--p-content-hover-background)"
         @click="selectMode('overlay')"
       >
-        <i class="pi pi-map text-xl text-primary-500 mt-0.5 shrink-0"></i>
+        <i class="pi pi-map text-xl text-primary-color mt-0.5 shrink-0"></i>
         <span class="flex flex-col gap-0.5">
           <span class="text-sm font-semibold text-color">
             {{ $t("imageUpload.overlayOption.title") }}
@@ -34,10 +34,10 @@
 
       <button
         type="button"
-        class="flex items-start gap-3 text-left p-3 rounded-lg border border-surface bg-content-background cursor-pointer transition-all duration-150 hover:border-primary-400 hover:bg-content-hover-background"
+        class="flex items-start gap-3 text-left p-3 rounded-lg border border-surface bg-content-background cursor-pointer transition-all duration-150 hover:border-primary-color hover:bg-(--p-content-hover-background)"
         @click="selectMode('render')"
       >
-        <i class="pi pi-image text-xl text-primary-500 mt-0.5 shrink-0"></i>
+        <i class="pi pi-image text-xl text-primary-color mt-0.5 shrink-0"></i>
         <span class="flex flex-col gap-0.5">
           <span class="text-sm font-semibold text-color">
             {{ $t("imageUpload.renderOption.title") }}
@@ -75,7 +75,7 @@
               href="https://www.rptools.net/toolbox/token-tool/"
               target="_blank"
               rel="noopener noreferrer"
-              class="text-primary-500 no-underline font-medium transition-colors duration-200 hover:text-primary-600 hover:underline"
+              class="text-primary-color no-underline font-medium transition-colors duration-200 hover:text-primary-hover-color hover:underline"
             >
               {{ $t("imageUpload.tokenToolLink") }}
             </a>
@@ -89,7 +89,7 @@
         :class="
           selectedFile
             ? 'border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-950 cursor-default'
-            : 'border-surface bg-content-hover-background cursor-pointer hover:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950'
+            : 'border-surface bg-(--p-content-hover-background) cursor-pointer hover:border-primary-color hover:bg-primary-color/5'
         "
         @drop.prevent="handleDrop"
         @dragover.prevent="handleDragOver"
@@ -133,7 +133,7 @@
           class="flex flex-col items-center gap-2 text-center w-full"
           @click="triggerFileInput"
         >
-          <i class="pi pi-cloud-upload text-[2rem] text-primary-500"></i>
+          <i class="pi pi-cloud-upload text-[2rem] text-primary-color"></i>
           <p class="text-sm font-medium text-color m-0">
             {{ $t("imageUpload.dragDrop") }}
           </p>

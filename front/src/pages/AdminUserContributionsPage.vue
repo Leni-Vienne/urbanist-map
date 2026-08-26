@@ -26,7 +26,7 @@
     <template v-else-if="data">
       <!-- User header card -->
       <div
-        class="flex items-center gap-8 p-6 bg-content-hover-background rounded-lg mb-8 flex-wrap"
+        class="flex items-center gap-8 p-6 bg-(--p-content-hover-background) rounded-lg mb-8 flex-wrap"
       >
         <div class="flex items-center gap-4">
           <i
@@ -88,7 +88,7 @@
               <div
                 v-for="project in countryDetails[country.countryCode]?.projects"
                 :key="project.id"
-                class="bg-content-hover-background rounded-lg p-4"
+                class="bg-(--p-content-hover-background) rounded-lg p-4"
               >
                 <div class="flex justify-between items-center mb-4 pb-3 border-b border-surface">
                   <div class="flex items-center gap-3">
@@ -113,7 +113,7 @@
                   <div
                     v-for="overlay in getOverlaysForProject(country.countryCode, project.id)"
                     :key="overlay.id"
-                    class="relative bg-content-hover-background rounded-lg overflow-hidden"
+                    class="relative bg-(--p-content-hover-background) rounded-lg overflow-hidden"
                   >
                     <img
                       :src="getThumbnailUrl(overlay.filename)"

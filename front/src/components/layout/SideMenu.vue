@@ -1,13 +1,13 @@
 <template>
   <div
-    class="relative z-10 shrink-0 w-95 bg-content-hover-background shadow-[2px_0_8px_rgba(0,0,0,0.1),6px_0_24px_-6px_rgba(0,0,0,0.12)] flex flex-col overflow-hidden h-screen max-h-screen"
+    class="relative z-10 shrink-0 w-95 bg-content-background shadow-[2px_0_8px_rgba(0,0,0,0.1),6px_0_24px_-6px_rgba(0,0,0,0.12)] flex flex-col overflow-hidden h-screen max-h-screen"
     style="
       --p-accordion-header-hover-background: var(--p-content-hover-background);
       --p-accordion-header-active-hover-background: var(--p-content-hover-background);
     "
   >
     <!-- Fixed header containing title and navigation tabs -->
-    <div class="sticky top-0 z-10 shrink-0 bg-content-hover-background border-b border-surface">
+    <div class="sticky top-0 z-10 shrink-0 bg-content-background border-b border-surface">
       <div class="py-2 px-4 flex items-center justify-between">
         <div>
           <h2

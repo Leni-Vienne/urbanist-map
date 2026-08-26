@@ -55,7 +55,7 @@
                 :class="
                   change.oldValue
                     ? 'border-rose-200 bg-rose-50 text-rose-700 line-through dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300'
-                    : 'border-surface bg-content-hover-background text-muted-color italic'
+                    : 'border-surface bg-(--p-content-hover-background) text-muted-color italic'
                 "
                 >{{ change.oldValue || $t("common.noValue") }}</span
               >

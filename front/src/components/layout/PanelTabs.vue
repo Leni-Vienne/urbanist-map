@@ -1,6 +1,6 @@
 <template>
   <!-- Tab navigation -->
-  <div class="flex bg-content-hover-background border-b border-surface shrink-0">
+  <div class="flex bg-content-background border-b border-surface shrink-0">
     <template v-for="tab in TABS" :key="tab.key">
       <button
         v-if="
@@ -8,7 +8,7 @@
           (!tab.requiresModerator || authStore.isModerator)
         "
         :class="[
-          'flex-1 py-2 px-0 text-sm border-b-2 bg-transparent font-medium cursor-pointer transition-all duration-150 text-center hover:bg-content-hover-background',
+          'flex-1 py-2 px-0 text-sm border-b-2 bg-transparent font-medium cursor-pointer transition-all duration-150 text-center hover:bg-(--p-content-hover-background)',
           activeTab === tab.key
             ? 'font-semibold text-primary-color border-primary-color hover:text-primary-hover-color'
             : 'text-(--p-text-color-secondary) border-transparent hover:text-color',

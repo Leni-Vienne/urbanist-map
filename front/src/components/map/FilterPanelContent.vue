@@ -3,7 +3,9 @@
     {{ $t("map.controls.filterByStatusAndTags") }}
   </h3>
 
-  <p class="m-0 mb-1.5 text-xs font-semibold text-color-secondary uppercase tracking-wide">
+  <p
+    class="m-0 mb-1.5 text-xs font-semibold text-(--p-text-color-secondary) uppercase tracking-wide"
+  >
     {{ $t("map.controls.filterByArea") }}
   </p>
   <div class="flex flex-col gap-1 mb-4">
@@ -19,19 +21,19 @@
       />
       {{ $t("map.controls.onlyVisibleArea") }}
     </label>
-    <p v-if="!canPickArea" class="m-0 text-[0.7rem] italic text-color-secondary">
+    <p v-if="!canPickArea" class="m-0 text-[0.7rem] italic text-(--p-text-color-secondary)">
       {{ $t("map.controls.zoomInToFilterArea") }}
     </p>
   </div>
 
   <div class="flex items-center justify-between mb-1.5">
-    <p class="m-0 text-xs font-semibold text-color-secondary uppercase tracking-wide">
+    <p class="m-0 text-xs font-semibold text-(--p-text-color-secondary) uppercase tracking-wide">
       {{ $t("map.controls.filterByTags") }}
     </p>
     <button
       v-if="selectedProjectTags.filter((slug) => slug !== untaggedFilter).length > 0"
       type="button"
-      class="text-xs text-color-secondary underline cursor-pointer bg-transparent border-0 p-0"
+      class="text-xs text-(--p-text-color-secondary) underline cursor-pointer bg-transparent border-0 p-0"
       @click="clearProjectTagFilters"
       @dblclick.stop
     >
@@ -39,7 +41,7 @@
     </button>
   </div>
   <template v-for="group in tagGroups" :key="group.key">
-    <p v-if="group.hintKey" class="m-0 mb-1.5 text-[0.7rem] italic text-color-secondary">
+    <p v-if="group.hintKey" class="m-0 mb-1.5 text-[0.7rem] italic text-(--p-text-color-secondary)">
       {{ $t(group.hintKey) }}
     </p>
     <div class="flex flex-wrap gap-2 mb-4">
@@ -58,7 +60,9 @@
     </div>
   </template>
 
-  <p class="m-0 mb-1.5 text-xs font-semibold text-color-secondary uppercase tracking-wide">
+  <p
+    class="m-0 mb-1.5 text-xs font-semibold text-(--p-text-color-secondary) uppercase tracking-wide"
+  >
     {{ $t("map.controls.filterByImages") }}
   </p>
   <div class="flex flex-col gap-1 mb-4">
@@ -72,7 +76,9 @@
     </label>
   </div>
 
-  <p class="m-0 mb-1.5 text-xs font-semibold text-color-secondary uppercase tracking-wide">
+  <p
+    class="m-0 mb-1.5 text-xs font-semibold text-(--p-text-color-secondary) uppercase tracking-wide"
+  >
     {{ $t("map.controls.filterByStatus") }}
   </p>
   <div class="flex flex-col gap-1 mb-4">
@@ -91,7 +97,9 @@
     </label>
   </div>
 
-  <p class="m-0 mb-1.5 text-xs font-semibold text-color-secondary uppercase tracking-wide">
+  <p
+    class="m-0 mb-1.5 text-xs font-semibold text-(--p-text-color-secondary) uppercase tracking-wide"
+  >
     {{ $t("map.controls.filterByName") }}
   </p>
   <div class="flex flex-col gap-1 mb-4">
@@ -118,14 +126,16 @@
   </div>
 
   <div class="mb-4">
-    <p class="m-0 mb-2 text-xs font-semibold text-color-secondary uppercase tracking-wide">
+    <p
+      class="m-0 mb-2 text-xs font-semibold text-(--p-text-color-secondary) uppercase tracking-wide"
+    >
       {{ $t("map.controls.filterBySize") }}
     </p>
     <!-- The horizontal padding holds the handles, which overhang the track ends by half their width -->
     <div class="px-2.5">
       <!-- @vue-expect-error PrimeVue v-model type mismatch -->
       <Slider v-model="sizeSliderPositions" :min="0" :max="100" :step="1" range class="w-full" />
-      <div class="flex justify-between mt-2 text-xs text-color-secondary">
+      <div class="flex justify-between mt-2 text-xs text-(--p-text-color-secondary)">
         <span>{{ formatSizeM(sizeFilterRange[0]) }}</span>
         <span>{{ formatSizeM(sizeFilterRange[1]) }}</span>
       </div>
@@ -133,7 +143,9 @@
   </div>
 
   <div>
-    <p class="m-0 mb-2 text-xs font-semibold text-color-secondary uppercase tracking-wide">
+    <p
+      class="m-0 mb-2 text-xs font-semibold text-(--p-text-color-secondary) uppercase tracking-wide"
+    >
       {{ $t("map.controls.filterByLastModified") }}
     </p>
     <div class="px-2.5">
@@ -146,7 +158,7 @@
         range
         class="w-full"
       />
-      <div class="flex justify-between mt-2 text-xs text-color-secondary">
+      <div class="flex justify-between mt-2 text-xs text-(--p-text-color-secondary)">
         <span
           >{{ $t("map.controls.lastModifiedFrom") }}:
           {{ formatDateSlider(dateSliderPositions[0]) }}</span

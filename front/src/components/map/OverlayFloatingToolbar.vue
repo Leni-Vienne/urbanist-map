@@ -442,6 +442,6 @@ function btnCls(opts?: { danger?: boolean }): string {
   const base =
     "min-w-[26px] h-[26px] border-0 rounded-md cursor-pointer flex items-center justify-center text-sm px-1 disabled:opacity-35 disabled:cursor-not-allowed disabled:hover:bg-transparent";
   if (opts?.danger) return `${base} bg-transparent text-red-600 hover:bg-red-100`;
-  return `${base} bg-transparent text-muted-color hover:bg-content-hover-background`;
+  return `${base} bg-transparent text-muted-color hover:bg-(--p-content-hover-background)`;
 }
 </script>

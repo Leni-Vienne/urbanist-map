@@ -54,9 +54,7 @@
          independent of the active tab (matching the desktop SideMenu). Its own close button hides
          it again, revealing the tab content below. -->
     <div class="relative flex-1 flex flex-col min-h-0">
-      <PanelContent
-        content-container-class="flex-1 flex flex-col min-h-0 bg-content-hover-background"
-      />
+      <PanelContent content-container-class="flex-1 flex flex-col min-h-0" />
       <Transition name="detail-slide-over">
         <div v-if="detailVisible" class="absolute inset-0 z-20 bg-content-background">
           <ProjectDetailPanel />

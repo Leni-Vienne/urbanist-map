@@ -51,7 +51,7 @@
         <button
           v-if="mapArea"
           type="button"
-          class="inline-flex items-center gap-1 pl-2 pr-1.5 py-0.5 rounded-full text-[0.7rem] font-medium bg-content-hover-background text-color border border-surface cursor-pointer transition-colors duration-150 hover:bg-black/5 dark:hover:bg-white/10"
+          class="inline-flex items-center gap-1 pl-2 pr-1.5 py-0.5 rounded-full text-[0.7rem] font-medium bg-(--p-content-hover-background) text-color border border-surface cursor-pointer transition-colors duration-150 hover:bg-black/5 dark:hover:bg-white/10"
           @click="clearMapArea"
         >
           {{ t("contribution.mapArea") }}
@@ -61,7 +61,7 @@
           v-for="filter in activeFilters"
           :key="filterKey(filter)"
           type="button"
-          class="inline-flex items-center gap-1 pl-2 pr-1.5 py-0.5 rounded-full text-[0.7rem] font-medium bg-content-hover-background text-color border border-surface cursor-pointer transition-colors duration-150 hover:bg-black/5 dark:hover:bg-white/10"
+          class="inline-flex items-center gap-1 pl-2 pr-1.5 py-0.5 rounded-full text-[0.7rem] font-medium bg-(--p-content-hover-background) text-color border border-surface cursor-pointer transition-colors duration-150 hover:bg-black/5 dark:hover:bg-white/10"
           @click="clearActiveFilter(filter)"
         >
           {{ filterLabel(filter) }}

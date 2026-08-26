@@ -12,15 +12,11 @@
         :class="{ 'cursor-pointer hover:bg-black/5 dark:hover:bg-white/10': canRecenter }"
         @click="handleRecenter"
       >
-        <!-- Project header. On desktop it's a neutral block that anchors the panel; on mobile it's
-             plain (the drawer frames it). Doubles as the drawer drag handle on mobile. -->
+        <!-- Project header. Desktop adds a divider and symmetrical padding; on mobile the drawer
+             already frames it. Doubles as the drawer drag handle on mobile. -->
         <div
           class="drawer-drag-handle shrink-0"
-          :class="
-            showHeaderBand
-              ? 'px-4 py-3 bg-content-hover-background border-b border-surface'
-              : 'px-4 pt-3 pb-2'
-          "
+          :class="isMobile ? 'px-4 pt-3 pb-2' : 'px-4 py-3 border-b border-surface'"
         >
           <div class="flex gap-2 items-center">
             <!-- Left: project name (recenters via the surrounding region) -->
@@ -239,9 +235,6 @@ watch(
     if (id && previousId && id !== previousId) replayContentRefresh();
   },
 );
-
-// A neutral header block anchors the panel on desktop; on mobile the drawer already frames it.
-const showHeaderBand = computed(() => !isMobile.value);
 
 // Recenter is only possible when the project carries a map location.
 const canRecenter = computed(

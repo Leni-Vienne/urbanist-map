@@ -5,7 +5,7 @@
   >
     <button
       type="button"
-      class="w-9 h-9 flex items-center justify-center text-color cursor-pointer transition-colors hover:bg-content-hover-background disabled:opacity-40 disabled:cursor-default disabled:hover:bg-transparent"
+      class="w-9 h-9 flex items-center justify-center text-color cursor-pointer transition-colors hover:bg-(--p-content-hover-background) disabled:opacity-40 disabled:cursor-default disabled:hover:bg-transparent"
       :disabled="atMaxZoom"
       :aria-label="t('map.zoomIn')"
       :title="t('map.zoomIn')"
@@ -14,11 +14,11 @@
       <i class="pi pi-plus text-sm"></i>
     </button>
 
-    <div class="h-px bg-surface"></div>
+    <div class="h-px bg-content-border-color"></div>
 
     <button
       type="button"
-      class="w-9 h-9 flex items-center justify-center text-color cursor-pointer transition-colors hover:bg-content-hover-background disabled:opacity-40 disabled:cursor-default disabled:hover:bg-transparent"
+      class="w-9 h-9 flex items-center justify-center text-color cursor-pointer transition-colors hover:bg-(--p-content-hover-background) disabled:opacity-40 disabled:cursor-default disabled:hover:bg-transparent"
       :disabled="atMinZoom"
       :aria-label="t('map.zoomOut')"
       :title="t('map.zoomOut')"

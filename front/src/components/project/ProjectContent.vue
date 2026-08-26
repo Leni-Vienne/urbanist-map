@@ -4,7 +4,7 @@
     :class="plain ? 'project-content-plain' : undefined"
   >
     <div
-      class="cursor-pointer transition-all duration-150 hover:bg-content-hover-background active:scale-[0.99] rounded-lg"
+      class="cursor-pointer transition-all duration-150 hover:bg-(--p-content-hover-background) active:scale-[0.99] rounded-lg"
       @click="handleCardClick"
       @mouseenter="$emit('highlight-project', project)"
       @mouseleave="$emit('remove-project-highlight', project)"
@@ -93,7 +93,7 @@
         >
           <!-- Overlay thumbnail (click to view the full image, e.g. renders that have no map view) -->
           <div
-            class="w-15 h-15 rounded-xl overflow-hidden bg-content-hover-background flex items-center justify-center shrink-0"
+            class="w-15 h-15 rounded-xl overflow-hidden bg-(--p-content-hover-background) flex items-center justify-center shrink-0"
             :class="!imageErrors[overlay.id] ? 'cursor-zoom-in' : ''"
             @click.stop="!imageErrors[overlay.id] && openLightbox(overlay)"
             v-tooltip.top="!imageErrors[overlay.id] ? $t('overlay.viewFullImage') : undefined"
@@ -153,7 +153,7 @@
                 @click.stop="viewOriginalOverlay(overlay.replacesOverlayId)"
                 v-tooltip.top="$t('overlay.viewOriginalOverlay')"
               >
-                <i class="pi pi-arrow-up-left text-2.5"></i>
+                <i class="pi pi-arrow-up-left text-[0.625rem]"></i>
                 {{ $t("overlay.replaces") }}
               </button>
             </div>

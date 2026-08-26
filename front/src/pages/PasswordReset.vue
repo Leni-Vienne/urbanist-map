@@ -1,6 +1,6 @@
 ﻿<template>
   <div
-    class="flex justify-center items-center min-h-screen bg-linear-to-br from-primary-50 to-primary-100 p-5"
+    class="flex justify-center items-center min-h-screen bg-linear-to-br from-primary-color/5 to-primary-color/10 p-5"
   >
     <div
       class="bg-content-background p-12 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.1)] text-center max-w-100 w-full"

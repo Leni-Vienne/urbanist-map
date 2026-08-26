@@ -1,6 +1,6 @@
 ﻿<template>
   <div
-    class="flex justify-center items-start h-full bg-linear-to-br from-primary-50 to-primary-100 p-10 overflow-y-auto"
+    class="flex justify-center items-start h-full bg-linear-to-br from-primary-color/5 to-primary-color/10 p-10 overflow-y-auto"
   >
     <div
       class="bg-content-background p-8 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.1)] max-w-175 w-full"

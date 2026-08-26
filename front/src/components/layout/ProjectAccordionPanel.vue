@@ -2,7 +2,7 @@
   <div :class="['relative h-full flex flex-col', panelClass]">
     <div
       v-if="title || $slots['header-actions']"
-      class="sticky top-0 bg-content-hover-background flex items-center justify-between mb-2 px-4 pt-4 pb-3 z-10"
+      class="sticky top-0 bg-content-background flex items-center justify-between mb-2 px-4 pt-4 pb-3 z-10"
     >
       <h2 class="m-0 text-[1.1rem] font-semibold text-color tracking-tight whitespace-nowrap">
         {{ title }}

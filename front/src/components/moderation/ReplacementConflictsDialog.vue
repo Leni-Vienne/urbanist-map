@@ -10,7 +10,7 @@
       <!-- Image Comparison -->
       <div
         v-if="conflicts.originalOverlayFilename && conflicts.newOverlayFilename"
-        class="flex items-center justify-center gap-8 p-6 bg-content-hover-background rounded-lg border border-surface"
+        class="flex items-center justify-center gap-8 p-6 bg-(--p-content-hover-background) rounded-lg border border-surface"
       >
         <div class="flex flex-col items-center gap-2 flex-1 max-w-62">
           <div class="text-sm font-semibold text-color uppercase tracking-wider">
@@ -25,7 +25,7 @@
             {{ conflicts.originalOverlayCaption || $t("overlay.untitled") }}
           </div>
         </div>
-        <div class="text-4xl text-primary-500 shrink-0">
+        <div class="text-4xl text-primary-color shrink-0">
           <i class="pi pi-arrow-right"></i>
         </div>
         <div class="flex flex-col items-center gap-2 flex-1 max-w-62">
@@ -57,24 +57,24 @@
           <div
             v-for="change in conflicts.pendingChangeRequests"
             :key="change.id"
-            class="p-4 bg-content-hover-background border border-surface rounded-lg"
+            class="p-4 bg-(--p-content-hover-background) border border-surface rounded-lg"
           >
             <div class="flex justify-between items-center mb-2">
               <strong>{{ $t(`fields.${change.fieldName}`) }}</strong>
               <Tag severity="warning" :value="$t('approvalStatus.pending')" />
             </div>
             <div class="flex items-center gap-3 mt-2 p-2 bg-content-background rounded-md">
-              <span class="px-2 py-1 bg-content-hover-background rounded text-sm font-mono">{{
+              <span class="px-2 py-1 bg-(--p-content-hover-background) rounded text-sm font-mono">{{
                 formatValue(change.oldValue)
               }}</span>
               <i class="pi pi-arrow-right"></i>
-              <span class="px-2 py-1 bg-content-hover-background rounded text-sm font-mono">{{
+              <span class="px-2 py-1 bg-(--p-content-hover-background) rounded text-sm font-mono">{{
                 formatValue(change.newValue)
               }}</span>
             </div>
             <div
               v-if="change.changeReason"
-              class="mt-2 p-2 text-sm text-color bg-content-hover-background rounded italic"
+              class="mt-2 p-2 text-sm text-color bg-(--p-content-hover-background) rounded italic"
             >
               {{ change.changeReason }}
             </div>
@@ -101,7 +101,7 @@
           <div
             v-for="competing in conflicts.competingReplacements"
             :key="competing.id"
-            class="p-4 bg-content-hover-background border border-surface rounded-lg"
+            class="p-4 bg-(--p-content-hover-background) border border-surface rounded-lg"
           >
             <div class="flex gap-4 items-center">
               <img

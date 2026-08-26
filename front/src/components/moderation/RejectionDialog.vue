@@ -30,7 +30,7 @@
     <!-- Reject all pending overlays checkbox (only for projects) -->
     <div
       v-if="pendingOverlayCount > 0"
-      class="flex flex-col gap-2 mb-4 p-3 bg-content-hover-background rounded-md border border-surface"
+      class="flex flex-col gap-2 mb-4 p-3 bg-(--p-content-hover-background) rounded-md border border-surface"
     >
       <div class="flex items-center gap-2">
         <Checkbox v-model="rejectAllOverlays" input-id="reject-overlays" :binary="true" />
@@ -47,7 +47,7 @@
     <!-- Report user checkbox (only show if userId is provided) -->
     <div
       v-if="userId"
-      class="flex flex-col gap-3 p-4 bg-content-hover-background rounded-md border border-surface"
+      class="flex flex-col gap-3 p-4 bg-(--p-content-hover-background) rounded-md border border-surface"
     >
       <div class="flex items-center gap-2">
         <Checkbox v-model="reportUser" input-id="report-user" :binary="true" />

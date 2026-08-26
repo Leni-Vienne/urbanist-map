@@ -9,13 +9,10 @@
     <div class="flex flex-col gap-4 py-2">
       <!-- Submitter header card -->
       <div
-        class="flex items-center gap-4 p-4 rounded-lg border-2 border-primary-200"
-        style="
-          background: linear-gradient(135deg, var(--p-primary-50) 0%, var(--p-primary-100) 100%);
-        "
+        class="flex items-center gap-4 p-4 rounded-lg border-2 border-primary-color/30 bg-linear-to-br from-primary-color/5 to-primary-color/15"
       >
         <i
-          class="pi pi-user text-4xl text-primary-600 bg-content-background p-3 rounded-full shadow-sm"
+          class="pi pi-user text-4xl text-primary-color bg-content-background p-3 rounded-full shadow-sm"
         ></i>
         <div class="flex-1">
           <div class="text-xs font-semibold uppercase tracking-wider text-primary-color mb-1">
@@ -30,34 +27,38 @@
       <div class="h-px bg-content-border-color"></div>
 
       <!-- Approved stat -->
-      <div class="flex justify-between items-center p-2 bg-content-hover-background rounded">
+      <div class="flex justify-between items-center p-2">
         <span class="font-semibold text-color">{{ $t("moderation.userStats.approved") }}:</span>
-        <span class="font-bold text-lg text-green-600">{{ approvedCount }}</span>
+        <span class="font-bold text-lg text-green-600 dark:text-green-400">{{
+          approvedCount
+        }}</span>
       </div>
 
       <!-- Rejected stat -->
-      <div class="flex justify-between items-center p-2 bg-content-hover-background rounded">
+      <div class="flex justify-between items-center p-2">
         <span class="font-semibold text-color">{{ $t("moderation.userStats.rejected") }}:</span>
-        <span class="font-bold text-lg text-red-600">{{ rejectedCount }}</span>
+        <span class="font-bold text-lg text-red-600 dark:text-red-400">{{ rejectedCount }}</span>
       </div>
 
       <!-- Reports stat -->
       <div
         v-if="reportCount > 0"
-        class="flex justify-between items-center p-2 bg-orange-50 border border-orange-200 rounded"
+        class="flex justify-between items-center p-2 bg-orange-50 dark:bg-orange-400/12 border border-orange-200 dark:border-orange-400/40 rounded"
       >
         <span class="font-semibold text-color flex items-center gap-2">
           <i class="pi pi-exclamation-triangle"></i>
           {{ $t("moderation.userStats.reports") }}:
         </span>
-        <span class="font-bold text-lg text-orange-600">{{ reportCount }}</span>
+        <span class="font-bold text-lg text-orange-600 dark:text-orange-400">{{
+          reportCount
+        }}</span>
       </div>
 
       <!-- High rejection warning -->
       <InlineBanner
         v-if="hasHighRejectionRate"
         severity="error"
-        class="text-red-700 font-semibold text-sm"
+        class="text-red-700 dark:text-red-300 font-semibold text-sm"
       >
         {{ $t("moderation.userStats.highRejectionRate") }}
       </InlineBanner>

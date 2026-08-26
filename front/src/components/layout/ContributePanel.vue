@@ -118,7 +118,7 @@
               'flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm cursor-pointer transition-colors duration-150',
               activeFilter === tab.key
                 ? 'bg-[color-mix(in_srgb,var(--p-primary-color)_12%,transparent)] border-primary-color text-primary-color font-semibold'
-                : 'bg-transparent border-surface text-muted-color hover:text-color hover:bg-content-hover-background',
+                : 'bg-transparent border-surface text-muted-color hover:text-color hover:bg-(--p-content-hover-background)',
             ]"
           >
             <span>{{ tab.label }}</span>

@@ -2,7 +2,7 @@
   <button
     v-if="isVisible"
     type="button"
-    class="w-9 h-9 flex items-center justify-center rounded-lg border border-surface bg-content-background/95 backdrop-blur-sm shadow-[0_2px_8px_rgba(0,0,0,0.2)] text-color cursor-pointer transition-colors hover:bg-content-hover-background pointer-events-auto"
+    class="w-9 h-9 flex items-center justify-center rounded-lg border border-surface bg-content-background/95 backdrop-blur-sm shadow-[0_2px_8px_rgba(0,0,0,0.2)] text-color cursor-pointer transition-colors hover:bg-(--p-content-hover-background) pointer-events-auto"
     :aria-label="t('map.resetNorth')"
     :title="t('map.resetNorth')"
     @click.stop="resetNorth"
