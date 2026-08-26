@@ -416,7 +416,8 @@
         "password": "Mot de passe (stocké chiffré)",
         "ipAddresses": "Adresses IP (dans les journaux serveur pour la sécurité et la prévention du spam, conservées 90 jours)",
         "oauthData": "Identifiants de fournisseur OAuth (si vous utilisez Google Sign-In)",
-        "legalBasis": "Bases légales : Exécution du contrat (fourniture du service), Intérêt légitime (sécurité, prévention de la fraude)."
+        "analytics": "Statistiques d'audience anonymes (pages consultées, référents, navigateur, système d'exploitation, type d'appareil et pays)",
+        "legalBasis": "Bases légales : Exécution du contrat (fourniture du service), Intérêt légitime (sécurité, prévention de la fraude et mesure d'audience anonyme)."
       },
       "rights": {
         "title": "Vos droits (RGPD)",
@@ -435,6 +436,8 @@
         "googleLink": "Politique de confidentialité Google",
         "cloudflare": "Hébergement et CDN. Peut traiter les adresses IP.",
         "cloudflareLink": "Politique de confidentialité Cloudflare",
+        "umami": "Mesure d'audience sans cookies. Les données statistiques sont anonymisées et ne servent pas à identifier les utilisateurs ni à les suivre entre plusieurs sites.",
+        "umamiLink": "Politique de confidentialité Umami",
         "aws": "Envoi d'emails. Traite les adresses email pour les emails de compte.",
         "awsLink": "Politique de confidentialité AWS"
       },
@@ -445,6 +448,7 @@
         "logs": "Journaux serveur (adresses IP) : Supprimés automatiquement après 90 jours",
         "sessions": "Cookies de session : Expirent après 30 jours d'inactivité",
         "contributions": "Contributions (projets, images) : Anonymisées lorsque vous supprimez votre compte, mais peuvent rester publiquement visibles",
+        "analytics": "Statistiques d'audience anonymes : Supprimées automatiquement selon la durée de conservation de l'offre Umami Cloud",
         "deletion": "Lorsque vous supprimez votre compte, toutes vos données personnelles sont définitivement supprimées sous 30 jours."
       },
       "cookies": {

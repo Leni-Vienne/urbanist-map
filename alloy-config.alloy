@@ -39,14 +39,12 @@ loki.process "json" {
   // emits a two-letter code (plus XX for unknown and T1 for Tor), which keeps this bounded at a few
   // hundred streams. Never promote ip or path: both are unbounded and would wreck the index.
   //
-  // botClass is the request-time verdict from back/src/services/botClassifier.ts: 5 fixed values
-  // (official-range, scanner, declared-bot, human-likely, unknown). botKind collapses those to
+  // botClass is the request-time verdict from back/src/services/botClassifier.ts: 4 fixed values
+  // (scanner, declared-bot, human-likely, unknown). botKind collapses those to
   // bot/human/unknown for the stacked bot-vs-human panel. Because botKind is determined by
   // botClass, it creates no stream beyond the ones botClass already creates, so the convenience is
-  // free at the index. botOperator and visitorId are NOT promoted. For declared bots, botOperator
-  // comes from the User-Agent, so a client picks its value and the cardinality is unbounded.
-  // visitorId is a keyed, anonymous identifier for a single client IP in unique-visitor queries.
-  // Read both fields with | json.
+  // free at the index. visitorId is a keyed, anonymous identifier for a single client IP in
+  // unique-visitor queries. Read it with | json.
   //
   // Only requests through the middleware carry these, which is what excludes health checks from
   // every panel: /api/health is served before requestLogger and logs no verdict, so a

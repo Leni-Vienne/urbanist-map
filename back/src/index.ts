@@ -17,7 +17,6 @@ import { generateMissingThumbnails } from "./lib/startup";
 import { sessionStore, startSessionCleanup } from "./lib/drizzleSessionStore";
 import { resolveSessionUser } from "./lib/currentUser";
 import { requestLogger } from "./middleware/requestLogger";
-import { startBotClassifier } from "./services/botClassifier";
 import { logger } from "./services/logger";
 import { startCleanupJob } from "./services/cleanupService";
 import { startR2MigrationService } from "./services/r2MigrationService";
@@ -156,7 +155,6 @@ if (process.env.NODE_ENV !== "development" || process.env.WARM_TILE_CACHE === "t
   });
 }
 
-startBotClassifier();
 startCleanupJob();
 startR2MigrationService();
 startSessionCleanup();

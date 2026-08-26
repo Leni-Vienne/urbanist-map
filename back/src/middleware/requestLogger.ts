@@ -96,13 +96,6 @@ export async function requestLogger(c: Context, next: Next) {
       userId,
       botClass: verdict.botClass,
       botKind: verdict.botKind,
-      // botOperator is derived from the User-Agent for declared bots, so a client controls its
-      // value. It stays a field: promoting it to a Loki label would hand the index unbounded
-      // cardinality.
-      botOperator: verdict.botOperator,
-      // undefined fields are dropped from the serialized line, so these two only cost bytes when
-      // they carry signal
-      impostor: verdict.impostor ? true : undefined,
       // userAgent is wide and low-signal on success; keep it only on failures
       userAgent: status >= 400 ? userAgent : undefined,
     });
@@ -125,8 +118,6 @@ export async function requestLogger(c: Context, next: Next) {
       userAgent,
       botClass: verdict.botClass,
       botKind: verdict.botKind,
-      botOperator: verdict.botOperator,
-      impostor: verdict.impostor ? true : undefined,
       error: error instanceof Error ? error.message : String(error),
     });
 

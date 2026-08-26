@@ -416,7 +416,8 @@
         "password": "Password (stored encrypted)",
         "ipAddresses": "IP addresses (in server logs for security and spam prevention, retained for 90 days)",
         "oauthData": "OAuth provider IDs (if you use Google Sign-In)",
-        "legalBasis": "Legal bases: Contract performance (providing the service), Legitimate interest (security, fraud prevention)."
+        "analytics": "Anonymous audience statistics (page views, referrers, browser, operating system, device type, and country)",
+        "legalBasis": "Legal bases: Contract performance (providing the service), Legitimate interest (security, fraud prevention, and anonymous audience measurement)."
       },
       "rights": {
         "title": "Your Rights (GDPR)",
@@ -435,6 +436,8 @@
         "googleLink": "Google Privacy Policy",
         "cloudflare": "Hosting and CDN. May process IP addresses.",
         "cloudflareLink": "Cloudflare Privacy Policy",
+        "umami": "Cookieless audience analytics. Analytics data is anonymized and is not used to identify users or track them across websites.",
+        "umamiLink": "Umami Privacy Policy",
         "aws": "Email delivery. Processes email addresses for account emails.",
         "awsLink": "AWS Privacy Policy"
       },
@@ -445,6 +448,7 @@
         "logs": "Server logs (IP addresses): Automatically deleted after 90 days",
         "sessions": "Session cookies: Expire after 30 days of inactivity",
         "contributions": "Contributions (projects, images): Anonymized when you delete your account, but may remain publicly visible",
+        "analytics": "Anonymous audience statistics: Automatically removed according to the Umami Cloud plan's retention period",
         "deletion": "When you delete your account, all personal data is permanently removed within 30 days."
       },
       "cookies": {

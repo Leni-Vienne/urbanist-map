@@ -41,6 +41,9 @@
           <li class="mb-1 text-muted-color leading-relaxed">
             {{ t("pages.legal.dataCollection.oauthData") }}
           </li>
+          <li class="mb-1 text-muted-color leading-relaxed">
+            {{ t("pages.legal.dataCollection.analytics") }}
+          </li>
         </ul>
         <p class="mt-2 italic m-0 text-muted-color leading-relaxed">
           {{ t("pages.legal.dataCollection.legalBasis") }}
@@ -117,6 +120,17 @@
             >
           </li>
           <li class="mb-1 text-muted-color leading-relaxed">
+            <strong>Umami:</strong>
+            {{ t("pages.legal.thirdParty.umami") }}
+            <a
+              href="https://umami.is/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-primary-color"
+              >{{ t("pages.legal.thirdParty.umamiLink") }}</a
+            >
+          </li>
+          <li class="mb-1 text-muted-color leading-relaxed">
             <strong>AWS:</strong>
             {{ t("pages.legal.thirdParty.aws") }}
             <a
@@ -150,6 +164,9 @@
           </li>
           <li class="mb-1 text-muted-color leading-relaxed">
             {{ t("pages.legal.retention.contributions") }}
+          </li>
+          <li class="mb-1 text-muted-color leading-relaxed">
+            {{ t("pages.legal.retention.analytics") }}
           </li>
         </ul>
         <p class="mt-2 italic m-0 text-muted-color leading-relaxed">
@@ -203,7 +220,7 @@
       </section>
 
       <p class="mt-8 text-[0.9rem] text-center text-muted-color m-0 leading-relaxed">
-        {{ t("pages.legal.lastUpdated") }}: 22/11/2025
+        {{ t("pages.legal.lastUpdated") }}: 26/08/2026
       </p>
     </div>
   </div>

@@ -37,6 +37,7 @@
     "google-auth-library": "^10.9.1",
     "hono": "^4.13.3",
     "hono-sessions": "^0.8.1",
+    "isbot": "^5.2.1",
     "maplibre-gl": "^6.5.0",
     "nodemailer": "^9.0.5",
     "pinia": "^4.0.3",
