@@ -162,15 +162,15 @@ watch(
 
 const moderatedContributionsStore = useModeratedContributionsStore();
 
-watch(readAuthenticatedUser, preloadModeratedContributions, { immediate: true });
+watch(readAuthenticatedUser, openModeratedContributionsAutomatically, { immediate: true });
 
 function readAuthenticatedUser() {
   return authStore.user;
 }
 
-async function preloadModeratedContributions(user: typeof authStore.user) {
+async function openModeratedContributionsAutomatically(user: typeof authStore.user) {
   if (!user) return;
-  const loaded = await moderatedContributionsStore.preloadModeratedContributions();
+  const loaded = await moderatedContributionsStore.fetchModeratedContributions();
   if (!loaded || authStore.user?.id !== user.id) return;
   if (moderatedContributionsStore.moderatedContributions.length > 0) {
     uiStore.moderatedContributionsDialogVisible = true;

@@ -223,9 +223,7 @@
 import {
   computed,
   nextTick,
-  onActivated,
   onBeforeUnmount,
-  onDeactivated,
   onMounted,
   ref,
   watch,
@@ -392,7 +390,10 @@ const rows = computed(() =>
   }),
 );
 
-const filterPopover = ref<{ toggle: (event: Event) => void } | null>(null);
+const filterPopover = ref<{
+  toggle: (event: Event) => void;
+  hide: () => void;
+} | null>(null);
 
 function openFilters(event: Event) {
   if (isMobile.value) {
@@ -555,10 +556,6 @@ function handleLoadMoreIntersect(entries: IntersectionObserverEntry[]): void {
   void loadMoreLatestContributions();
 }
 
-function stopObservingLoadMore(): void {
-  loadMoreObserver?.disconnect();
-}
-
 watch(
   () => [loadMoreSentinel.value, hasMore.value, isLoading.value, isLoadingMore.value],
   () => {
@@ -569,18 +566,27 @@ watch(
 
 watch(isLoading, resetScrollForRefresh);
 
-onMounted(observeLoadMore);
-onActivated(observeLoadMore);
-onDeactivated(() => {
-  stopObservingLoadMore();
-  clearContributionHover();
-});
-onBeforeUnmount(() => {
-  stopObservingLoadMore();
-  clearContributionHover();
-});
+function readActiveTab() {
+  return uiStore.activeTab;
+}
 
-onActivated(activateLatestContributions);
+function handleActiveTabChange(activeTab: typeof uiStore.activeTab): void {
+  if (activeTab === "explore") {
+    activateLatestContributions();
+  } else {
+    filterPopover.value?.hide();
+    clearContributionHover();
+  }
+}
+
+function teardownExplorePanel(): void {
+  loadMoreObserver?.disconnect();
+  clearContributionHover();
+}
+
+watch(readActiveTab, handleActiveTabChange, { immediate: true });
+onMounted(observeLoadMore);
+onBeforeUnmount(teardownExplorePanel);
 </script>
 
 <style scoped>

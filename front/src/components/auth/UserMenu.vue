@@ -189,8 +189,12 @@ async function handleSignOut() {
 }
 
 // Handle opening moderation results (closes menu)
-function openModerationResults() {
-  uiStore.moderatedContributionsDialogVisible = true;
+async function openModerationResults() {
+  const userId = authStore.user?.id;
+  if (!userId) return;
   userPopover.value?.hide();
+  const loaded = await moderatedContributionsStore.fetchModeratedContributions();
+  if (!loaded || authStore.user?.id !== userId) return;
+  uiStore.moderatedContributionsDialogVisible = true;
 }
 </script>

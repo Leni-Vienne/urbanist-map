@@ -5,40 +5,18 @@ import { loadOrNull } from "@/services/core/errorHandling";
 
 export const useModeratedContributionsStore = defineStore("moderatedContributions", () => {
   const moderatedContributions = ref<RouterOutput["overlay"]["getModeratedContributions"]>([]);
-  const isLoading = ref(false);
-  const hasPreloaded = ref(false);
   let requestVersion = 0;
 
   async function fetchModeratedContributions(): Promise<boolean> {
     requestVersion += 1;
     const version = requestVersion;
-    isLoading.value = true;
-    try {
-      const result = await loadOrNull(trpc.overlay.getModeratedContributions.query, {
-        errorMessage: "Failed to load moderated contributions",
-      });
+    const result = await loadOrNull(trpc.overlay.getModeratedContributions.query, {
+      errorMessage: "Failed to load moderated contributions",
+    });
 
-      if (version !== requestVersion || result === null) return false;
-      moderatedContributions.value = result;
-      return true;
-    } finally {
-      if (version === requestVersion) isLoading.value = false;
-    }
-  }
-
-  async function preloadModeratedContributions(): Promise<boolean> {
-    hasPreloaded.value = false;
-    const loaded = await fetchModeratedContributions();
-    if (loaded) hasPreloaded.value = true;
-    return loaded;
-  }
-
-  async function ensureModeratedContributions() {
-    if (hasPreloaded.value) {
-      hasPreloaded.value = false;
-      return;
-    }
-    await fetchModeratedContributions();
+    if (version !== requestVersion || result === null) return false;
+    moderatedContributions.value = result;
+    return true;
   }
 
   // Acknowledge and clear specific moderated items. Deletes thumbnails and DB
@@ -71,15 +49,11 @@ export const useModeratedContributionsStore = defineStore("moderatedContribution
   function clearAllState() {
     requestVersion += 1;
     moderatedContributions.value = [];
-    isLoading.value = false;
-    hasPreloaded.value = false;
   }
 
   return {
     moderatedContributions,
-    isLoading,
-    preloadModeratedContributions,
-    ensureModeratedContributions,
+    fetchModeratedContributions,
     acknowledgeAll,
     clearAllState,
   };

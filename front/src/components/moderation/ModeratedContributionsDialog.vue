@@ -6,13 +6,8 @@
     :style="{ width: '90vw', maxWidth: '600px' }"
     :closable="true"
   >
-    <!-- Loading state -->
-    <div v-if="isLoading" class="flex justify-center items-center py-8">
-      <ProgressSpinner style="width: 50px; height: 50px" strokeWidth="4" />
-    </div>
-
     <!-- Empty state -->
-    <div v-else-if="moderatedContributions.length === 0" class="text-center py-8">
+    <div v-if="moderatedContributions.length === 0" class="text-center py-8">
       <i class="pi pi-check-circle text-6xl text-green-500 mb-4"></i>
       <p class="text-lg">
         {{ $t("moderation.moderatedContributions.noItems") }}
@@ -123,7 +118,7 @@
 <script setup lang="ts">
 import { toastError, toastSuccess } from "@/services/core/toast";
 
-import { computed, ref, onMounted } from "vue";
+import { computed, ref } from "vue";
 
 import { storeToRefs } from "pinia";
 import { useModeratedContributionsStore } from "@/stores/moderatedContributionsStore";
@@ -140,18 +135,14 @@ const isVisible = defineModel<boolean>("visible", { default: false });
 const { t, locale } = useI18n();
 
 const moderatedContributionsStore = useModeratedContributionsStore();
-const { moderatedContributions, isLoading } = storeToRefs(moderatedContributionsStore);
-const { ensureModeratedContributions, acknowledgeAll } = moderatedContributionsStore;
+const { moderatedContributions } = storeToRefs(moderatedContributionsStore);
+const { acknowledgeAll } = moderatedContributionsStore;
 
 const isAcknowledging = ref(false);
 
 const hasApprovedItem = computed(() =>
   moderatedContributions.value.some((item) => item.status === "approved"),
 );
-
-onMounted(() => {
-  ensureModeratedContributions();
-});
 
 function getLocationDisplay(item: BoundaryLevels): string {
   return formatBoundaryLocation(item, locale.value);

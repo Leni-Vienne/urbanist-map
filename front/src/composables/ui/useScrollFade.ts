@@ -1,4 +1,4 @@
-import { ref, watch, onActivated, onBeforeUnmount, useTemplateRef } from "vue";
+import { ref, watch, onBeforeUnmount, useTemplateRef } from "vue";
 
 // Sub-pixel slack so fractional scroll metrics still resolve as "at the bottom".
 const BOTTOM_EPSILON = 1;
@@ -51,7 +51,6 @@ export function useScrollFade() {
   watch(scrollAreaRef, bindScrollArea, { immediate: true });
   watch(contentRef, bindContent);
 
-  onActivated(updateScrollFade);
   onBeforeUnmount(releaseScrollArea);
 
   return { scrollAreaRef, contentRef, showScrollFade };
