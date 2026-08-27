@@ -8,7 +8,6 @@ import { useAuthStore } from "@/stores/authStore";
 import { removeOverlayFromMapAndStore } from "@/services/entity/entityRemoval";
 import { applyMapSessionRows } from "@/services/map/viewportTriggers";
 import { t } from "@/locales";
-import type { Overlay } from "@/types/index";
 import { toastError } from "@/services/core/toast";
 import { overlayWireToData } from "@/utils/typeFactories";
 
@@ -35,7 +34,7 @@ export function useModeration() {
   const authStore = useAuthStore();
 
   const projects = computed(() => moderationStore.projects);
-  const overlays = computed(() => projects.value.flatMap((project) => project.overlays));
+  const overlays = computed(() => Object.values(moderationStore.overlaysById));
   const changeRequests = computed(() => moderationStore.changeRequests);
 
   async function fetchPendingSubmissions(options?: { force?: boolean }) {
@@ -67,11 +66,8 @@ export function useModeration() {
       if (!isCurrentRequest()) return;
 
       const mapProjects = [];
-      const projectOverlays: Record<string, Overlay[]> = {};
-      for (const project of response.projects) {
-        const { overlays: inlineOverlays, ...summary } = project;
-        mapProjects.push({ ...summary, tags: summary.tags ?? [] });
-        projectOverlays[project.id] = inlineOverlays;
+      for (const project of Object.values(response.projectsById)) {
+        mapProjects.push({ ...project, tags: project.tags ?? [] });
       }
 
       const projectIds = applyMapSessionRows(
@@ -82,7 +78,8 @@ export function useModeration() {
 
       moderationStore.setModerationData({
         projectIds,
-        projectOverlays,
+        overlaysById: response.overlaysById,
+        projectOverlayIds: response.projectOverlayIds,
         changeRequests: response.changeRequests,
       });
     } catch (error) {

@@ -2,23 +2,31 @@ import { trpc } from "@/client";
 import { t } from "@/locales";
 import { loadOrNull } from "@/services/core/errorHandling";
 import { useAuthStore } from "@/stores/authStore";
+import { useChangeRequestStore } from "@/stores/changeRequestStore";
+import { useContributionStore } from "@/stores/contributionStore";
 import { useProjectStore } from "@/stores/projectStore";
+import { projectFromWire } from "@/utils/typeFactories";
 
 let loadToken = 0;
 
 async function loadUserContributions(force: boolean): Promise<void> {
   const authStore = useAuthStore();
+  const changeRequestStore = useChangeRequestStore();
+  const contributionStore = useContributionStore();
   const projectStore = useProjectStore();
   const userId = authStore.user?.id;
   if (!userId) return;
-  if (!force && (projectStore.userContributionsLoaded || projectStore.userContributionsLoading)) {
+  if (
+    !force &&
+    (contributionStore.loading || (contributionStore.loaded && changeRequestStore.loaded))
+  ) {
     return;
   }
 
   loadToken += 1;
   const token = loadToken;
   const epoch = authStore.getSessionEpoch();
-  projectStore.setUserContributionsLoading(true);
+  contributionStore.setLoading(true);
   try {
     const result = await loadOrNull(async () => trpc.project.getUsersContributions.query(), {
       errorMessage: t("contribute.loadContributionsError"),
@@ -29,7 +37,15 @@ async function loadUserContributions(force: boolean): Promise<void> {
       epoch === authStore.getSessionEpoch() &&
       authStore.user?.id === userId
     ) {
-      projectStore.setUserContributions(result.projects);
+      for (const project of Object.values(result.projectsById)) {
+        projectStore.upsertProjectSummary(projectFromWire(project));
+      }
+      contributionStore.setData({
+        projectIds: Object.keys(result.projectsById),
+        overlaysById: result.overlaysById,
+        projectOverlayIds: result.projectOverlayIds,
+      });
+      changeRequestStore.setPendingChangeRequests(result.changeRequests);
     }
   } finally {
     if (
@@ -37,7 +53,7 @@ async function loadUserContributions(force: boolean): Promise<void> {
       epoch === authStore.getSessionEpoch() &&
       authStore.user?.id === userId
     ) {
-      projectStore.setUserContributionsLoading(false);
+      contributionStore.setLoading(false);
     }
   }
 }

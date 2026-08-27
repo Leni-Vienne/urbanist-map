@@ -7,14 +7,14 @@ import { useModerationStore } from "@/stores/moderationStore";
 
 import { t } from "@/locales";
 import { trpc } from "@/client";
-import type { Overlay, LatestContribution } from "@/types/index";
+import type { LatestContribution, ProjectPanelOverlay } from "@/types/index";
 import { canModerateCountry } from "@/services/moderation/moderationCountrySync";
 import { loadOrNull } from "@/services/core/errorHandling";
 import { isValidQuad } from "@/services/overlay/transform";
 import { toastWarn, toastError } from "@/services/core/toast";
 
 // Union type to accept overlays from moderation and contributions panels
-type NavigableOverlay = Overlay | LatestContribution;
+type NavigableOverlay = LatestContribution | ProjectPanelOverlay;
 
 /** Navigate to an overlay, including rejected/replaced fallback and moderation access checks. */
 export async function handleOverlayClickNavigation(overlay: NavigableOverlay): Promise<boolean> {
@@ -30,13 +30,14 @@ export async function handleOverlayClickNavigation(overlay: NavigableOverlay): P
 
     // In moderation mode, auto-select the contribution's country for the moderation panel
     // If moderator doesn't have access to this country, block navigation with a toast
-    if (uiStore.mode === "moderation" && overlay.countryCode) {
-      if (!canModerateCountry(overlay.countryCode)) {
+    const countryCode = "countryCode" in overlay ? overlay.countryCode : null;
+    if (uiStore.mode === "moderation" && countryCode) {
+      if (!canModerateCountry(countryCode)) {
         toastWarn(t("moderation.noAccessToThisCountry"), t("moderation.title"));
         return false;
       }
       // Auto-select the country so ModerationPanel loads its pending submissions
-      useModerationStore().selectedCountryCode = overlay.countryCode;
+      useModerationStore().selectedCountryCode = countryCode;
     }
 
     return navigateToOverlay(overlay.id);

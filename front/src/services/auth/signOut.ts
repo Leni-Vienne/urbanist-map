@@ -4,6 +4,7 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useModerationStore } from "@/stores/moderationStore";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
+import { useContributionStore } from "@/stores/contributionStore";
 import { useModeratedContributionsStore } from "@/stores/moderatedContributionsStore";
 import { useUiStore } from "@/stores/uiStore";
 import { clearOverlayDisplayPrefs } from "@/services/overlay/mapLayers";
@@ -23,6 +24,7 @@ export async function signOut() {
   useProjectStore().clearAllState();
   useOverlayStore().clearAllState();
   useModerationStore().clearAllState();
+  useContributionStore().clearAllState();
   useChangeRequestStore().clearAllState();
   useModeratedContributionsStore().clearAllState();
   useFocusStore().clearAllState();

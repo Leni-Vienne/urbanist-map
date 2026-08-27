@@ -6,10 +6,8 @@ import type {
   LocalProject,
   HydratedProject,
   OverlayObject,
-  Overlay,
   LatLng,
 } from "@/types/index";
-import type { ApprovalStatus } from "@shared/types";
 import { v4 as uuidv4 } from "uuid";
 import { buildImageUrl } from "@/utils/imageUrl";
 
@@ -140,77 +138,4 @@ export function createOverlayObject(data: Partial<OverlayObject>): OverlayObject
     isTooBig: data.isTooBig ?? undefined,
     positionState: data.positionState ?? (data.hasPendingChanges ? "suggested" : "baseline"),
   };
-}
-
-/**
- * Build the list-metadata Overlay shape for a local (unsubmitted) overlay or staged render, from a
- * loose overlay literal plus its parent project's country.
- */
-export function createLocalOverlayContribution(
-  overlay: {
-    id: string;
-    caption: string | null;
-    filename: string;
-    projectId: string | null;
-    authorId: string | null;
-    replacesOverlayId: string | null;
-    replacedByOverlayId?: string | null;
-    imageUrl?: string;
-    status?: ApprovalStatus | null;
-    version?: number;
-    updatedAt?: Date;
-  },
-  parentProject: {
-    countryCode: string | null;
-    countryName?: string | null;
-  },
-  username: string | null,
-  kind: Overlay["kind"] = "map",
-): Overlay {
-  return {
-    id: overlay.id,
-    caption: overlay.caption,
-    filename: overlay.filename,
-    kind,
-    status: overlay.status !== undefined ? overlay.status : null,
-    version: overlay.version ?? 1,
-    projectId: overlay.projectId ?? "",
-    authorId: overlay.authorId ?? null,
-    authorUsername: username,
-    authorApprovedCount: null,
-    authorRejectedCount: null,
-    replacesOverlayId: overlay.replacesOverlayId ?? null,
-    replacedByOverlayId: overlay.replacedByOverlayId ?? null,
-    updatedAt: overlay.updatedAt ?? new Date(),
-    countryCode: parentProject.countryCode,
-    countryName: parentProject.countryName ?? null,
-    imageUrl: overlay.imageUrl,
-  };
-}
-
-// A staged render (still only in stagedRenderState) as a pending render overlay entry, so it appears
-// on its parent contribution in My Contributions the same way a submitted render does.
-export function createStagedRenderOverlay(
-  projectId: string,
-  previewUrl: string,
-  parentProject: { countryCode: string | null; countryName?: string | null },
-  username: string | null,
-  authorId: string | null,
-): Overlay {
-  const renderId = `staged-render-${projectId}`;
-  return createLocalOverlayContribution(
-    {
-      id: renderId,
-      caption: null,
-      filename: `${renderId}.webp`,
-      projectId,
-      authorId,
-      replacesOverlayId: null,
-      status: null,
-      imageUrl: previewUrl,
-    },
-    parentProject,
-    username,
-    "render",
-  );
 }

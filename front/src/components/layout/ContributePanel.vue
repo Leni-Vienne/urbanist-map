@@ -2,6 +2,9 @@
   <!-- Full panel for authenticated users -->
   <ProjectAccordionPanel
     :projects="filteredProjects"
+    :overlays-by-id="overlaysById"
+    :project-overlay-ids="projectOverlayIds"
+    :local-render-preview-urls-by-project-id="localRenderPreviewUrlsByProjectId"
     :is-loading="isLoading"
     :change-requests="changeRequestStore.pendingChangeRequests"
     :selected-project-id="selectedProjectId"
@@ -37,10 +40,7 @@
     <template #overlay-actions="{ overlay }">
       <button
         v-if="
-          (overlay.status === null ||
-            overlay.status === 'pending' ||
-            overlay.status === 'approved') &&
-          !isStagedRenderOverlay(overlay)
+          overlay.status === null || overlay.status === 'pending' || overlay.status === 'approved'
         "
         class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-color hover:text-primary-hover-color hover:bg-[color-mix(in_srgb,var(--p-primary-color)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--p-primary-color)_40%,transparent)]"
         @click.stop="handleEditOverlayClick(overlay)"
@@ -53,6 +53,16 @@
         v-if="!overlay.status || overlay.status === 'pending' || overlay.status === 'rejected'"
         class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-red-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-400/12 hover:border-red-200 dark:hover:border-red-400/40"
         @click.stop="handleDeleteOverlayClick(overlay)"
+        v-tooltip.top="$t('contribute.deleteOverlay')"
+      >
+        <i class="pi pi-trash"></i>
+      </button>
+    </template>
+
+    <template #staged-render-actions="{ project }">
+      <button
+        class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-red-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-400/12 hover:border-red-200 dark:hover:border-red-400/40"
+        @click.stop="handleDeleteStagedRender(project.id)"
         v-tooltip.top="$t('contribute.deleteOverlay')"
       >
         <i class="pi pi-trash"></i>
@@ -139,7 +149,6 @@
 
 <script setup lang="ts">
 import { computed, onMounted } from "vue";
-import { refreshPendingChangeRequests } from "@/services/changes/changeRequests";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useUserContributions } from "@/composables/project/useUserContributions";
 import { useContributeActions } from "@/composables/project/useContributeActions";
@@ -154,6 +163,9 @@ const {
   isLoading,
   fetchUserContributions,
   allContributions,
+  overlaysById,
+  projectOverlayIds,
+  localRenderPreviewUrlsByProjectId,
   pinnedExternalProject,
   activeFilter,
   filterTabs,
@@ -163,10 +175,10 @@ const {
 const changeRequestStore = useChangeRequestStore();
 
 const {
-  isStagedRenderOverlay,
   isProjectModified,
   handleNewProjectClick,
   handleDeleteOverlayClick,
+  handleDeleteStagedRender,
   handleDeleteProjectClick,
   handleDeleteChangeRequestClick,
   handleEditOverlayClick,
@@ -175,12 +187,11 @@ const {
   handleDrawShapesClick,
   handleExternalProjectClick,
   handleEditProjectClick,
-} = useContributeActions(allContributions);
+} = useContributeActions(allContributions, projectOverlayIds);
 
 const selectedProjectId = computed(() => focusStore.selectedProject?.id ?? null);
 
 onMounted(() => {
   fetchUserContributions();
-  refreshPendingChangeRequests();
 });
 </script>

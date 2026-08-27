@@ -64,10 +64,10 @@ import { useI18n } from "vue-i18n";
 import { storeToRefs } from "pinia";
 
 import { useAuthStore } from "@/stores/authStore";
-import type { ContributionProject } from "@/types/index";
+import type { Project } from "@/types/index";
 
 interface Props {
-  project: ContributionProject;
+  project: Project;
   showDelete?: boolean;
   isModified?: boolean;
 }
@@ -92,10 +92,10 @@ const editTooltip = computed(() =>
 );
 
 defineEmits<{
-  edit: [project: ContributionProject];
-  "add-image": [project: ContributionProject];
-  draw: [project: ContributionProject];
-  save: [project: ContributionProject];
-  delete: [project: ContributionProject];
+  edit: [project: Project];
+  "add-image": [project: Project];
+  draw: [project: Project];
+  save: [project: Project];
+  delete: [project: Project];
 }>();
 </script>

@@ -1,6 +1,6 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { computed, ref } from "vue";
-import type { Overlay, ContributionProject, PendingChangeRequest } from "@/types/index";
+import type { Overlay, Project, PendingChangeRequest } from "@/types/index";
 import type { RouterOutput } from "@/client";
 import { useProjectStore } from "@/stores/projectStore";
 
@@ -10,17 +10,17 @@ type ModerationLoadStatus = "idle" | "loading" | "loaded";
 export const useModerationStore = defineStore("moderation", () => {
   const selectedCountryCode = ref<string | null>(null);
   const projectIds = ref<string[]>([]);
-  const projectOverlays = ref<Record<string, Overlay[]>>({});
+  const overlaysById = ref<Record<string, Overlay>>({});
+  const projectOverlayIds = ref<Record<string, string[]>>({});
   const changeRequests = ref<PendingChangeRequest[]>([]);
 
-  const projects = computed<ContributionProject[]>(() => {
+  const projects = computed<Project[]>(() => {
     const projectStore = useProjectStore();
-    const result: ContributionProject[] = [];
+    const result: Project[] = [];
     for (const id of projectIds.value) {
       const project = projectStore.getMapProjectById(id, "moderation");
       if (!project) continue;
-      const inlineOverlays = projectOverlays.value[id] ?? [];
-      result.push({ ...project, overlays: inlineOverlays });
+      result.push(project);
     }
     return result;
   });
@@ -35,11 +35,13 @@ export const useModerationStore = defineStore("moderation", () => {
 
   function setModerationData(data: {
     projectIds: string[];
-    projectOverlays: Record<string, Overlay[]>;
+    overlaysById: Record<string, Overlay>;
+    projectOverlayIds: Record<string, string[]>;
     changeRequests: PendingChangeRequest[];
   }) {
     projectIds.value = data.projectIds;
-    projectOverlays.value = data.projectOverlays;
+    overlaysById.value = data.overlaysById;
+    projectOverlayIds.value = data.projectOverlayIds;
     changeRequests.value = data.changeRequests;
     moderationLoadStatus.value = "loaded";
   }
@@ -57,7 +59,8 @@ export const useModerationStore = defineStore("moderation", () => {
   function invalidateModerationData() {
     moderationLoadStatus.value = "idle";
     projectIds.value = [];
-    projectOverlays.value = {};
+    overlaysById.value = {};
+    projectOverlayIds.value = {};
     changeRequests.value = [];
   }
 
@@ -79,7 +82,8 @@ export const useModerationStore = defineStore("moderation", () => {
   function clearAllState() {
     selectedCountryCode.value = null;
     projectIds.value = [];
-    projectOverlays.value = {};
+    overlaysById.value = {};
+    projectOverlayIds.value = {};
     changeRequests.value = [];
     moderationLoadStatus.value = "idle";
     allCountries.value = [];
@@ -91,6 +95,8 @@ export const useModerationStore = defineStore("moderation", () => {
   return {
     selectedCountryCode,
     projects,
+    overlaysById,
+    projectOverlayIds,
     changeRequests,
     moderationLoadStatus,
     allCountries,

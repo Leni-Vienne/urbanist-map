@@ -30,7 +30,6 @@
           </div>
         </div>
 
-        <!-- Actions column - navigation chevron (inline action buttons render at card bottom) -->
         <div class="flex flex-col gap-1.5 shrink-0 self-center" @click.stop>
           <i
             v-if="!hideChevron"
@@ -39,7 +38,6 @@
         </div>
       </div>
 
-      <!-- Inline action buttons row, aligned to the bottom of the card -->
       <div
         v-if="$slots['project-actions']"
         class="flex flex-row flex-wrap gap-1.5 mt-3 py-1"
@@ -65,17 +63,15 @@
       </div>
     </div>
 
-    <!-- Separator between project info and overlays -->
-    <div v-if="shouldShowOverlays" class="border-t border-surface mx-2 mb-1"></div>
+    <div v-if="shouldShowImages" class="border-t border-surface mx-2 mb-1"></div>
 
-    <!-- Project overlays -->
-    <div v-if="shouldShowOverlays" class="flex flex-col">
+    <div v-if="shouldShowImages" class="flex flex-col">
       <div
-        v-for="overlay in project.overlays"
+        v-for="overlay in overlays"
         :key="overlay.id"
         class="flex flex-col transition-all duration-150"
         :class="
-          getOverlayChangeRequestsForOverlay(overlay.id).length > 0
+          getOverlayChangeRequests(overlay.id).length > 0
             ? 'bg-orange-50 dark:bg-orange-400/12 rounded-xl my-1'
             : ''
         "
@@ -83,7 +79,7 @@
         <div
           class="group flex items-center gap-3 pt-1 pr-2 pb-2 pl-4 cursor-pointer transition-all duration-150 active:scale-[0.98] rounded-xl"
           :class="
-            getOverlayChangeRequestsForOverlay(overlay.id).length > 0
+            getOverlayChangeRequests(overlay.id).length > 0
               ? 'hover:bg-orange-100 active:bg-orange-100 dark:hover:bg-orange-400/20 dark:active:bg-orange-400/20'
               : 'hover:bg-white dark:hover:bg-white/10 active:bg-white dark:active:bg-white/10'
           "
@@ -95,7 +91,7 @@
           <div
             class="w-15 h-15 rounded-xl overflow-hidden bg-(--p-content-hover-background) flex items-center justify-center shrink-0"
             :class="!imageErrors[overlay.id] ? 'cursor-zoom-in' : ''"
-            @click.stop="!imageErrors[overlay.id] && openLightbox(overlay)"
+            @click.stop="!imageErrors[overlay.id] && openOverlayImage(overlay)"
             v-tooltip.top="!imageErrors[overlay.id] ? $t('overlay.viewFullImage') : undefined"
           >
             <img
@@ -115,7 +111,6 @@
             <i v-if="imageErrors[overlay.id]" class="pi pi-image text-2xl text-muted-color"></i>
           </div>
 
-          <!-- Overlay info -->
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 mb-1">
               <p
@@ -126,7 +121,9 @@
               >
                 {{
                   overlay.caption ||
-                  (overlay.kind === "render" ? $t("render.label") : $t("overlay.untitled"))
+                  ((overlay.kind ?? "map") === "render"
+                    ? $t("render.label")
+                    : $t("overlay.untitled"))
                 }}
               </p>
             </div>
@@ -134,7 +131,10 @@
               <ContributorInfo
                 :date="overlay.updatedAt"
                 :contributor-id="overlay.authorId"
-                :contributor-username="overlay.authorUsername"
+                :contributor-username="
+                  overlay.authorUsername ??
+                  (isContributePanel ? (authStore.user?.username ?? null) : null)
+                "
                 :report-count="overlay.authorReportCount ?? 0"
                 :clickable="showUserStatsLink && Boolean(overlay.authorId)"
                 @click-contributor="handleOverlayContributorClick(overlay, $event)"
@@ -159,7 +159,6 @@
             </div>
           </div>
 
-          <!-- Overlay action buttons slot -->
           <div class="flex flex-col gap-2" @click.stop>
             <slot name="overlay-actions" :overlay="overlay" :project="project"></slot>
           </div>
@@ -167,9 +166,9 @@
 
         <div class="cursor-default" @click.stop>
           <ChangeRequestSection
-            v-if="getOverlayChangeRequestsForOverlay(overlay.id).length > 0"
-            :changes="getOverlayChangeRequestsForOverlay(overlay.id)"
-            :overlay="overlay"
+            v-if="getOverlayChangeRequests(overlay.id).length > 0"
+            :changes="getOverlayChangeRequests(overlay.id)"
+            :overlay="getChangeRequestOverlay(overlay)"
             :is-my-contributions="isContributePanel"
             :is-overlay-changes="true"
             :entity-name="overlay.caption || $t('overlay.untitled')"
@@ -183,9 +182,27 @@
           </ChangeRequestSection>
         </div>
       </div>
+
+      <div
+        v-if="localRenderPreviewUrl"
+        class="flex items-center gap-3 pt-1 pr-2 pb-2 pl-4 cursor-pointer rounded-xl transition-all duration-150 active:scale-[0.98] hover:bg-white dark:hover:bg-white/10"
+        @click="openLocalRenderPreview"
+      >
+        <img
+          :src="localRenderPreviewUrl"
+          :alt="$t('render.label')"
+          class="w-15 h-15 rounded-xl object-cover shrink-0"
+        />
+        <div class="flex-1 min-w-0">
+          <p class="text-[15px] font-bold m-0 mb-2 leading-tight text-color truncate">
+            {{ $t("render.label") }}
+          </p>
+          <Tag :value="$t('approvalStatus.draft')" :severity="getStatusSeverity(null)" rounded />
+        </div>
+        <slot name="staged-render-actions" :project="project"></slot>
+      </div>
     </div>
 
-    <!-- Full-image lightbox, opened from an overlay thumbnail -->
     <ImageLightbox ref="lightbox" />
   </component>
 </template>
@@ -198,12 +215,14 @@ import { viewOriginalOverlay } from "@/services/overlay/navigation";
 import { buildImageUrl, buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
 import type {
-  ContributionProject,
+  Project,
   Overlay,
+  ProjectPanelOverlay,
   PendingChangeRequest,
   UserStatsPayload,
 } from "@/types/index";
 import { getStatusSeverity } from "@/utils/statusHelpers";
+import { useAuthStore } from "@/stores/authStore";
 
 import ContributorInfo from "@/components/common/ContributorInfo.vue";
 import ChangeRequestSection from "@/components/layout/ChangeRequestSection.vue";
@@ -211,9 +230,12 @@ import ImageLightbox from "@/components/common/ImageLightbox.vue";
 import ProjectMetadataCard from "@/components/map/popups/ProjectMetadataCard.vue";
 
 const { t } = useI18n();
+const authStore = useAuthStore();
 
 interface Props {
-  project: ContributionProject;
+  project: Project;
+  overlays: ProjectPanelOverlay[];
+  localRenderPreviewUrl?: string;
   projectChanges: PendingChangeRequest[];
   overlayChangesMap: Map<string, PendingChangeRequest[]>;
   isContributePanel: boolean;
@@ -222,16 +244,16 @@ interface Props {
   hideChevron?: boolean;
   // Render as a plain card (a <div>) instead of an AccordionContent, for use outside an Accordion.
   plain?: boolean;
-  onOverlayClick: (overlay: Overlay) => Promise<void>;
+  onOverlayClick: (overlay: ProjectPanelOverlay) => Promise<void>;
 }
 
 const props = defineProps<Props>();
 
 const emit = defineEmits<{
   "show-user-stats": [data: UserStatsPayload];
-  "project-click": [project: ContributionProject];
-  "highlight-project": [project: ContributionProject];
-  "remove-project-highlight": [project: ContributionProject];
+  "project-click": [project: Project];
+  "highlight-project": [project: Project];
+  "remove-project-highlight": [project: Project];
   "highlight-overlay": [overlayId: string];
   "remove-highlight": [overlayId: string];
 }>();
@@ -244,14 +266,13 @@ const contributorDate = computed(() =>
   props.project.importSource?.type === "osm" ? null : props.project.updatedAt,
 );
 
-const shouldShowOverlays = computed(() => props.project.overlays.length > 0);
-
-// Handle card click - emit event for parent to handle navigation logic
+const shouldShowImages = computed(
+  () => props.overlays.length > 0 || Boolean(props.localRenderPreviewUrl),
+);
 function handleCardClick() {
   emit("project-click", props.project);
 }
 
-// Unified contributor click handler
 function handleContributorClick(
   data: { userId: string; username: string | null; reportCount: number },
   approvedCount: number | null | undefined,
@@ -275,24 +296,27 @@ function handleProjectContributorClick(data: {
 }
 
 function handleOverlayContributorClick(
-  overlay: Overlay,
+  overlay: ProjectPanelOverlay,
   data: { userId: string; username: string | null; reportCount: number },
 ) {
   handleContributorClick(data, overlay.authorApprovedCount, overlay.authorRejectedCount);
 }
 
-async function handleOverlayCardClick(overlay: Overlay) {
-  // Renders aren't georeferenced, so they open in the lightbox instead of navigating on the map.
+function getChangeRequestOverlay(overlay: ProjectPanelOverlay): Overlay | null {
+  return overlay.kind ? (overlay as Overlay) : null;
+}
+
+async function handleOverlayCardClick(overlay: ProjectPanelOverlay) {
   if (overlay.kind === "render") {
-    openLightbox(overlay);
+    openOverlayImage(overlay);
     return;
   }
 
   await props.onOverlayClick(overlay);
 }
 
-function getOverlayChangeRequestsForOverlay(overlayId: string): PendingChangeRequest[] {
-  return props.overlayChangesMap.get(overlayId) || [];
+function getOverlayChangeRequests(overlayId: string): PendingChangeRequest[] {
+  return props.overlayChangesMap.get(overlayId) ?? [];
 }
 
 function getOverlayImageUrl(filename: string, status?: string | null): string {
@@ -300,19 +324,23 @@ function getOverlayImageUrl(filename: string, status?: string | null): string {
   return buildThumbnailUrl(filename, forceBackendUrl);
 }
 
-// Full-image lightbox for inspecting an overlay/render beyond its sidebar thumbnail.
 const lightbox = useTemplateRef<InstanceType<typeof ImageLightbox>>("lightbox");
 
-function openLightbox(overlay: Overlay): void {
-  if (!overlay.filename && !overlay.imageUrl) return;
-  const forceBackendUrl = overlay.status === "pending" || overlay.status === null;
-  const url = overlay.imageUrl || buildImageUrl(overlay.filename, forceBackendUrl);
+function openOverlayImage(overlay: ProjectPanelOverlay): void {
+  const fullImageUrl =
+    overlay.imageUrl ||
+    buildImageUrl(overlay.filename, overlay.status === "pending" || overlay.status === null);
   lightbox.value?.open({
-    url,
+    url: fullImageUrl,
     header:
       overlay.caption || (overlay.kind === "render" ? t("render.label") : t("overlay.untitled")),
-    crossorigin: imageRequiresCredentials(url) ? "use-credentials" : undefined,
+    crossorigin: imageRequiresCredentials(fullImageUrl) ? "use-credentials" : undefined,
   });
+}
+
+function openLocalRenderPreview(): void {
+  if (!props.localRenderPreviewUrl) return;
+  lightbox.value?.open({ url: props.localRenderPreviewUrl, header: t("render.label") });
 }
 </script>
 

@@ -90,6 +90,8 @@
     <div v-else class="flex-1 min-h-0">
       <ProjectAccordionPanel
         :projects="projects"
+        :overlays-by-id="moderationStore.overlaysById"
+        :project-overlay-ids="moderationStore.projectOverlayIds"
         :change-requests="changeRequests"
         :is-loading="isLoading"
         :title="$t('moderation.pendingProjects')"
@@ -168,7 +170,7 @@ import { useModerationCountrySelector } from "@/composables/moderation/useModera
 import { approveChangeRequests, rejectChangeRequests } from "@/services/changes/changeRequests";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useModerationStore } from "@/stores/moderationStore";
-import type { Overlay, PendingChangeRequest, UserStatsPayload } from "@/types/index";
+import type { ProjectPanelOverlay, PendingChangeRequest, UserStatsPayload } from "@/types/index";
 import { trpc } from "@/client";
 import { handleOverlayClickNavigation } from "@/services/overlay/clickHandler";
 import { useFocusStore } from "@/stores/focusStore";
@@ -291,7 +293,9 @@ const pendingOverlayCount = computed(() => {
   const project = projects.value.find((p) => p.id === pendingRejection.value?.id);
   if (!project) return 0;
 
-  return project.overlays.filter((o) => o.status === "pending").length;
+  return (moderationStore.projectOverlayIds[project.id] ?? []).filter(
+    (overlayId) => moderationStore.overlaysById[overlayId]?.status === "pending",
+  ).length;
 });
 
 // Check if a change request is for a geometry field (corners or centroid)
@@ -314,7 +318,7 @@ watch(
   },
 );
 
-async function handleViewOverlayPosition(overlay: Overlay) {
+async function handleViewOverlayPosition(overlay: ProjectPanelOverlay) {
   const navigated = await handleOverlayClickNavigation(overlay);
   if (navigated && !viewedOverlayIds.value.includes(overlay.id)) {
     viewedOverlayIds.value.push(overlay.id);
@@ -390,7 +394,7 @@ async function handleApproveOverlay(id: string) {
 
   try {
     // First check if this overlay is a replacement and if it has conflicts
-    const overlay = projects.value.flatMap((p) => p.overlays).find((o) => o.id === id);
+    const overlay = moderationStore.overlaysById[id];
 
     if (overlay?.replacesOverlayId) {
       const conflicts = await trpc.moderation.checkReplacementConflicts.query({

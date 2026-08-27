@@ -263,15 +263,17 @@ export const queueProcedures = {
           )
           .map((overlay) => overlay.id);
 
-        const [mapOverlays, { projectsWithOverlays, changeRequestsWithReports }] =
-          await Promise.all([
-            fetchModerationMapOverlays(mapOverlayIds),
-            enrichWithReportCounts(filteredProjects, filteredOverlays, filteredChangeRequests),
-          ]);
+        const [mapOverlays, collections] = await Promise.all([
+          fetchModerationMapOverlays(mapOverlayIds),
+          normalizeModerationCollections(
+            filteredProjects,
+            filteredOverlays,
+            filteredChangeRequests,
+          ),
+        ]);
 
         return {
-          projects: projectsWithOverlays,
-          changeRequests: changeRequestsWithReports,
+          ...collections,
           mapOverlays,
         };
       } catch (error) {
@@ -472,7 +474,7 @@ function filterContentByReportedUsers<
   });
 }
 
-async function enrichWithReportCounts(
+async function normalizeModerationCollections(
   filteredProjects: Awaited<ReturnType<ReturnType<typeof buildProjectModerationQuery>["execute"]>>,
   filteredOverlays: Awaited<ReturnType<ReturnType<typeof buildOverlayModerationQuery>["execute"]>>,
   filteredChangeRequests: {
@@ -517,25 +519,43 @@ async function enrichWithReportCounts(
     }
   }
 
-  const overlaysWithReports = filteredOverlays.map((overlay) =>
-    Object.assign(overlay, {
-      authorReportCount: overlay.authorId ? (reportCountMap.get(overlay.authorId) ?? 0) : 0,
-    }),
-  );
+  const projectsById: Record<
+    string,
+    (typeof filteredProjects)[number] & { ownerReportCount: number }
+  > = {};
+  const overlaysById: Record<
+    string,
+    (typeof filteredOverlays)[number] & { authorReportCount: number }
+  > = {};
+  const projectOverlayIds: Record<string, string[]> = {};
 
-  const projectsWithOverlays = filteredProjects.map((project) =>
-    Object.assign(project, {
+  for (const project of filteredProjects) {
+    projectsById[project.id] = {
+      ...project,
       ownerReportCount: project.ownerId ? (reportCountMap.get(project.ownerId) ?? 0) : 0,
-      overlays: overlaysWithReports.filter((overlay) => overlay.projectId === project.id),
-    }),
-  );
+    };
+    projectOverlayIds[project.id] = [];
+  }
+  for (const overlay of filteredOverlays) {
+    overlaysById[overlay.id] = {
+      ...overlay,
+      authorReportCount: overlay.authorId ? (reportCountMap.get(overlay.authorId) ?? 0) : 0,
+    };
+    if (overlay.projectId) projectOverlayIds[overlay.projectId]?.push(overlay.id);
+  }
 
-  const changeRequestsWithReports = filteredChangeRequests.map((change) => {
+  const changeRequestsWithReports = [];
+  for (const change of filteredChangeRequests) {
     const requestedByReportCount = change.requestedBy
       ? (reportCountMap.get(change.requestedBy) ?? 0)
       : 0;
-    return Object.assign(change, { requestedByReportCount });
-  });
+    changeRequestsWithReports.push({ ...change, requestedByReportCount });
+  }
 
-  return { projectsWithOverlays, changeRequestsWithReports };
+  return {
+    projectsById,
+    overlaysById,
+    projectOverlayIds,
+    changeRequests: changeRequestsWithReports,
+  };
 }

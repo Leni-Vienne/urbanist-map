@@ -1,16 +1,11 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { computed, ref } from "vue";
-import type { Project, HydratedProject, ContributionProject, LocalProject } from "@/types/index";
+import type { Project, HydratedProject, LocalProject } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import { hasProjectDetailFields } from "@/utils/typeFactories";
 
 type ProjectDraft = Partial<Project> & Pick<Project, "id">;
 type ProjectIndex = Record<string, Project>;
-
-function toProject(contribution: ContributionProject): Project {
-  const { overlays: _overlays, ...project } = contribution;
-  return project;
-}
 
 function mergeProject(project: Project, draft: ProjectDraft | undefined): Project {
   return draft ? { ...project, ...draft } : project;
@@ -27,10 +22,6 @@ function isLocalProjectDraft(draft: ProjectDraft): draft is LocalProject {
 export const useProjectStore = defineStore("project", () => {
   const persistedProjects = ref<ProjectIndex>({});
   const projectDrafts = ref<Record<string, ProjectDraft>>({});
-  const userContributions = ref<ContributionProject[]>([]);
-  const userContributionsLoading = ref(false);
-  const userContributionsLoaded = ref(false);
-
   function getEffectiveProjects(): ProjectIndex {
     const effective: ProjectIndex = {};
     Object.assign(effective, persistedProjects.value);
@@ -89,16 +80,6 @@ export const useProjectStore = defineStore("project", () => {
     delete projectDrafts.value[projectId];
   }
 
-  function setUserContributions(contributions: ContributionProject[]) {
-    for (const contribution of contributions) upsertProjectSummary(toProject(contribution));
-    userContributions.value = contributions;
-    userContributionsLoaded.value = true;
-  }
-
-  function setUserContributionsLoading(loading: boolean) {
-    userContributionsLoading.value = loading;
-  }
-
   function addLocalProject(project: LocalProject) {
     if (getProjectById(project.id)) return;
     projectDrafts.value[project.id] = { ...project };
@@ -140,18 +121,12 @@ export const useProjectStore = defineStore("project", () => {
   function clearAllState(): void {
     persistedProjects.value = {};
     projectDrafts.value = {};
-    userContributions.value = [];
-    userContributionsLoading.value = false;
-    userContributionsLoaded.value = false;
   }
 
   return {
     persistedProjects,
     projectDrafts,
     projects,
-    userContributions,
-    userContributionsLoading,
-    userContributionsLoaded,
     addLocalProject,
     upsertProjectSummary,
     upsertHydratedProject,
@@ -165,8 +140,6 @@ export const useProjectStore = defineStore("project", () => {
     hasProjectDraft,
     getMapProjectById,
     getHydratedProject,
-    setUserContributions,
-    setUserContributionsLoading,
     clearAllState,
   };
 });

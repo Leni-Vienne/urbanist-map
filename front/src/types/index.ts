@@ -211,7 +211,7 @@ export interface UserStatsPayload {
 
 // Wire shape of an overlay row as the contribution/moderation endpoints return it.
 type BackendOverlayMetadata =
-  RouterOutput["project"]["getUsersContributions"]["projects"][number]["overlays"][number];
+  RouterOutput["project"]["getUsersContributions"]["overlaysById"][string];
 
 // List-metadata overlay: the lightweight overlay shape used by My Contributions and Moderation
 // (OverlayObject is the heavier map/editor runtime overlay). Core fields are present in every
@@ -242,5 +242,17 @@ export type Overlay = Omit<
   countryName?: string | null;
 };
 
-// A project as surfaced in contribution and moderation lists, with its inline overlays loaded.
-export type ContributionProject = Project & { overlays: Overlay[] };
+// Fields shared by persisted overlay metadata and actual local editor overlays when shown in panels.
+export type ProjectPanelOverlay = Pick<
+  Overlay,
+  | "id"
+  | "caption"
+  | "filename"
+  | "status"
+  | "projectId"
+  | "authorId"
+  | "replacesOverlayId"
+  | "updatedAt"
+  | "imageUrl"
+> &
+  Partial<Overlay>;

@@ -20,6 +20,7 @@ import {
 } from "../db/helpers";
 import { deleteLocalImages } from "../lib/imageCleanup";
 import { resolveBoundaryPath } from "../db/boundaryAssignment";
+import { getMyChangeRequests } from "./changes";
 
 function requestLanguageCode(acceptLanguage: string | undefined): string {
   const language = acceptLanguage?.split(",")[0]?.split(";")[0]?.trim().split("-")[0];
@@ -250,35 +251,38 @@ export const projectRouter = router({
   // Get every project the user owns or has contributed to through an overlay or change request.
   getUsersContributions: loggedInProcedure.query(async ({ ctx }) => {
     try {
-      const contributionProjectRows = await union(
-        db.select({ id: projects.id }).from(projects).where(eq(projects.ownerId, ctx.user.id)),
-        db
-          .select({ id: projects.id })
-          .from(overlays)
-          .innerJoin(projects, eq(projects.id, overlays.projectId))
-          .where(eq(overlays.authorId, ctx.user.id)),
-        db
-          .select({ id: projects.id })
-          .from(changeRequests)
-          .innerJoin(projects, eq(projects.id, changeRequests.entityId))
-          .where(
-            and(
-              eq(changeRequests.requestedBy, ctx.user.id),
-              eq(changeRequests.entityType, "project"),
+      const [contributionProjectRows, myChangeRequests] = await Promise.all([
+        union(
+          db.select({ id: projects.id }).from(projects).where(eq(projects.ownerId, ctx.user.id)),
+          db
+            .select({ id: projects.id })
+            .from(overlays)
+            .innerJoin(projects, eq(projects.id, overlays.projectId))
+            .where(eq(overlays.authorId, ctx.user.id)),
+          db
+            .select({ id: projects.id })
+            .from(changeRequests)
+            .innerJoin(projects, eq(projects.id, changeRequests.entityId))
+            .where(
+              and(
+                eq(changeRequests.requestedBy, ctx.user.id),
+                eq(changeRequests.entityType, "project"),
+              ),
             ),
-          ),
-        db
-          .select({ id: projects.id })
-          .from(changeRequests)
-          .innerJoin(overlays, eq(overlays.id, changeRequests.entityId))
-          .innerJoin(projects, eq(projects.id, overlays.projectId))
-          .where(
-            and(
-              eq(changeRequests.requestedBy, ctx.user.id),
-              eq(changeRequests.entityType, "overlay"),
+          db
+            .select({ id: projects.id })
+            .from(changeRequests)
+            .innerJoin(overlays, eq(overlays.id, changeRequests.entityId))
+            .innerJoin(projects, eq(projects.id, overlays.projectId))
+            .where(
+              and(
+                eq(changeRequests.requestedBy, ctx.user.id),
+                eq(changeRequests.entityType, "overlay"),
+              ),
             ),
-          ),
-      );
+        ),
+        getMyChangeRequests(db, ctx.user.id),
+      ]);
       const candidateProjectIds = contributionProjectRows.map((row) => row.id);
       const requestLanguage = requestLanguageCode(ctx.hono.req.header("Accept-Language"));
       const allProjects =
@@ -318,23 +322,20 @@ export const projectRouter = router({
           .orderBy(overlays.updatedAt);
       }
 
-      const overlaysByProjectId = new Map<string, typeof projectOverlays>();
+      const projectsById: Record<string, (typeof allProjects)[number]> = {};
+      const overlaysById: Record<string, (typeof projectOverlays)[number]> = {};
+      const projectOverlayIds: Record<string, string[]> = {};
+      for (const project of allProjects) {
+        projectsById[project.id] = { ...project, tags: project.tags ?? [] };
+        projectOverlayIds[project.id] = [];
+      }
       for (const overlay of projectOverlays) {
         if (!overlay.projectId) continue;
-        const grouped = overlaysByProjectId.get(overlay.projectId) ?? [];
-        grouped.push(overlay);
-        overlaysByProjectId.set(overlay.projectId, grouped);
+        overlaysById[overlay.id] = overlay;
+        projectOverlayIds[overlay.projectId]?.push(overlay.id);
       }
 
-      const projectsWithOverlays = allProjects.map((project) => {
-        const projectOverlaysList = overlaysByProjectId.get(project.id) ?? [];
-        return Object.assign(project, {
-          tags: project.tags ?? [],
-          overlays: projectOverlaysList,
-        });
-      });
-
-      return { projects: projectsWithOverlays };
+      return { projectsById, overlaysById, projectOverlayIds, changeRequests: myChangeRequests };
     } catch (error) {
       console.error("Error fetching all projects:", error);
       throw new TRPCError({

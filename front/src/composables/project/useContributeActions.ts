@@ -18,18 +18,8 @@ import { ensureOverlayLoaded } from "@/services/overlay/navigation";
 import { flyToGeometry } from "@/services/core/mapNavigation";
 import { clearStagedRender, hasStagedRender } from "@/services/submission/stagedRenderState";
 import type { ChangeRequest } from "@/stores/changeRequestStore";
-import type { Project, Overlay, ContributionProject } from "@/types/index";
+import type { Project, ProjectPanelOverlay } from "@/types/index";
 import { toastError, toastSuccess, toastWarn } from "@/services/core/toast";
-
-// A render staged in the upload dialog but not yet submitted: kind 'render' with no status. Real
-// renders always carry a server status, so this uniquely identifies a still-staged one.
-function isStagedRenderOverlay(overlay: Overlay): boolean {
-  return overlay.kind === "render" && !overlay.status;
-}
-
-async function handleDeleteProjectClick(project: ContributionProject): Promise<void> {
-  await confirmAndDeleteProject(project.id, project.name, project.overlays.length);
-}
 
 // New project button click: opens the marker placement bar (after an auth gate and a clean slate).
 function handleNewProjectClick(): void {
@@ -49,7 +39,18 @@ function handleNewProjectClick(): void {
   uiStore.markerPlacementBarVisible = true;
 }
 
-export function useContributeActions(allContributions: ComputedRef<ContributionProject[]>) {
+async function handleDeleteOverlayClick(overlay: ProjectPanelOverlay): Promise<void> {
+  await confirmAndDeleteOverlay(overlay.id, overlay.caption);
+}
+
+function handleDeleteStagedRender(projectId: string): void {
+  clearStagedRender(projectId);
+}
+
+export function useContributeActions(
+  allContributions: ComputedRef<Project[]>,
+  projectOverlayIds: ComputedRef<Record<string, string[]>>,
+) {
   const { t } = useI18n();
 
   const uiStore = useUiStore();
@@ -67,18 +68,13 @@ export function useContributeActions(allContributions: ComputedRef<ContributionP
     if (projectInStore && isProjectUnsaved(projectInStore)) return true;
     if (hasStagedRender(projectId)) return true;
 
-    const project = allContributions.value.find((p) => p.id === projectId);
-    return project?.overlays.some((o) => isOverlayModified(o.id)) ?? false;
+    return projectOverlayIds.value[projectId]?.some(isOverlayModified) ?? false;
   }
 
-  async function handleDeleteOverlayClick(overlay: Overlay): Promise<void> {
-    // A staged render has no overlay row to delete: drop it from stagedRenderState.
-    if (isStagedRenderOverlay(overlay) && overlay.projectId) {
-      clearStagedRender(overlay.projectId);
-      return;
-    }
-
-    await confirmAndDeleteOverlay(overlay.id, overlay.caption);
+  async function handleDeleteProjectClick(project: Project): Promise<void> {
+    const imageCount =
+      (projectOverlayIds.value[project.id]?.length ?? 0) + Number(hasStagedRender(project.id));
+    await confirmAndDeleteProject(project.id, project.name, imageCount);
   }
 
   async function handleDeleteChangeRequestClick(change: ChangeRequest): Promise<void> {
@@ -94,7 +90,7 @@ export function useContributeActions(allContributions: ComputedRef<ContributionP
     }
   }
 
-  async function handleEditOverlayClick(overlay: Overlay): Promise<void> {
+  async function handleEditOverlayClick(overlay: ProjectPanelOverlay): Promise<void> {
     try {
       const loadedOverlay = await ensureOverlayLoaded(overlay.id);
       uiStore.openOverlayEditDialog(loadedOverlay.id);
@@ -143,10 +139,10 @@ export function useContributeActions(allContributions: ComputedRef<ContributionP
   }
 
   return {
-    isStagedRenderOverlay,
     isProjectModified,
     handleNewProjectClick,
     handleDeleteOverlayClick,
+    handleDeleteStagedRender,
     handleDeleteProjectClick,
     handleDeleteChangeRequestClick,
     handleEditOverlayClick,

@@ -49,6 +49,8 @@
               <ProjectContent
                 plain
                 :project="selectedCard"
+                :overlays="getProjectOverlays(selectedCard.id)"
+                :local-render-preview-url="localRenderPreviewUrlsByProjectId[selectedCard.id]"
                 :project-changes="getProjectChangeRequestsForProject(selectedCard)"
                 :overlay-changes-map="overlayChangesMap"
                 :is-contribute-panel="isContributePanel"
@@ -77,6 +79,9 @@
                   #overlay-actions="{ overlay, project: p }"
                 >
                   <slot name="overlay-actions" :overlay="overlay" :project="p"></slot>
+                </template>
+                <template v-if="$slots['staged-render-actions']" #staged-render-actions>
+                  <slot name="staged-render-actions" :project="selectedCard"></slot>
                 </template>
               </ProjectContent>
             </div>
@@ -117,6 +122,8 @@
             />
             <ProjectContent
               :project="project"
+              :overlays="getProjectOverlays(project.id)"
+              :local-render-preview-url="localRenderPreviewUrlsByProjectId[project.id]"
               :project-changes="getProjectChangeRequestsForProject(project)"
               :overlay-changes-map="overlayChangesMap"
               :is-contribute-panel="isContributePanel"
@@ -147,6 +154,9 @@
                   :overlay="overlay"
                   :project="p"
                 ></slot>
+              </template>
+              <template v-if="$slots['staged-render-actions']" #staged-render-actions>
+                <slot name="staged-render-actions" :project="project"></slot>
               </template>
             </ProjectContent>
           </AccordionPanel>
@@ -199,8 +209,7 @@ import PanelEmptyState from "@/components/common/PanelEmptyState.vue";
 
 import type {
   Project,
-  ContributionProject,
-  Overlay,
+  ProjectPanelOverlay,
   PendingChangeRequest,
   UserStatsPayload,
 } from "@/types/index";
@@ -217,14 +226,17 @@ import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay
 import { useScrollFade } from "@/composables/ui/useScrollFade";
 
 interface Props {
-  projects: ContributionProject[];
+  projects: Project[];
+  overlaysById?: Record<string, ProjectPanelOverlay>;
+  projectOverlayIds?: Record<string, string[]>;
+  localRenderPreviewUrlsByProjectId?: Record<string, string>;
   isLoading: boolean;
   title?: string;
   panelClass?: string;
   emptyMessage?: string;
   emptySubMessage?: string;
   changeRequests?: PendingChangeRequest[];
-  onOverlayClick?: (overlay: Overlay) => Promise<void>;
+  onOverlayClick?: (overlay: ProjectPanelOverlay) => Promise<void>;
   // Enables "my contributions" behavior in change request sections (e.g. own-change wording).
   isContributePanel?: boolean;
   showUserStatsLink?: boolean;
@@ -233,7 +245,7 @@ interface Props {
   selectedProjectId?: string | null;
   // A selected project that is NOT in `projects` (e.g. someone else's project, or an approved project
   // outside the pending list). Shown in the same "Selected project" card as a read-only context entry.
-  pinnedExternalProject?: ContributionProject | null;
+  pinnedExternalProject?: Project | null;
   // Keep the content area mounted even when the (filtered) project list is empty, so a consumer
   // rendering its own filter controls via #contributions-header does not lose them on empty results.
   keepContentVisible?: boolean;
@@ -244,6 +256,9 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   title: "",
+  overlaysById: () => ({}),
+  projectOverlayIds: () => ({}),
+  localRenderPreviewUrlsByProjectId: () => ({}),
   panelClass: "",
   emptyMessage: "",
   emptySubMessage: "",
@@ -279,7 +294,7 @@ const selectedInListProject = computed(() =>
 
 // The project shown in the "Selected project" card: the in-list match, or the external one supplied
 // by the caller for selections that are not in `projects`.
-const selectedCard = computed<ContributionProject | null>(
+const selectedCard = computed<Project | null>(
   () => selectedInListProject.value ?? props.pinnedExternalProject,
 );
 
@@ -322,15 +337,24 @@ function getProjectChangeRequestsForProject(project: Project): PendingChangeRequ
   return projectChangesMap.value.get(project.id) || [];
 }
 
-function getPendingChangeCount(project: ContributionProject): number {
+function getProjectOverlays(projectId: string): ProjectPanelOverlay[] {
+  const overlays: ProjectPanelOverlay[] = [];
+  for (const overlayId of props.projectOverlayIds[projectId] ?? []) {
+    const overlay = props.overlaysById[overlayId];
+    if (overlay) overlays.push(overlay);
+  }
+  return overlays;
+}
+
+function getPendingChangeCount(project: Project): number {
   let count = getProjectChangeRequestsForProject(project).length;
-  for (const overlay of project.overlays) {
+  for (const overlay of getProjectOverlays(project.id)) {
     count += overlayChangesMap.value.get(overlay.id)?.length ?? 0;
   }
   return count;
 }
 
-async function handleCardClick(project: ContributionProject) {
+async function handleCardClick(project: Project) {
   const originalGeometry = projectStore.hasProjectDraft(project.id)
     ? projectStore.getPersistedProject(project.id)?.geometry
     : null;
@@ -339,7 +363,7 @@ async function handleCardClick(project: ContributionProject) {
     mobileAwareFlyToBounds(bounds);
     return;
   }
-  const firstOverlay = project.overlays[0];
+  const firstOverlay = getProjectOverlays(project.id)[0];
   if (firstOverlay) {
     await handleOverlayCardClick(firstOverlay);
   } else {
@@ -355,7 +379,7 @@ function handleProjectUnhighlight() {
   focusStore.setHoverTarget(null);
 }
 
-async function handleOverlayCardClick(overlay: Overlay) {
+async function handleOverlayCardClick(overlay: ProjectPanelOverlay) {
   if (props.onOverlayClick) {
     await props.onOverlayClick(overlay);
   } else {
