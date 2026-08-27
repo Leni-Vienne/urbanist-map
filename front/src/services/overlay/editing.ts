@@ -113,7 +113,7 @@ export async function createLocalOverlay(
   overlay.baselineCorners = corners;
   overlay.history = [makeHistoryState(corners, overlay.imageUrl)];
 
-  overlayStore.addOverlay(id, overlay);
+  overlayStore.addLocalOverlay(id, overlay);
   openOverlayDetail(id);
 }
 
@@ -128,7 +128,6 @@ interface CornerDragState {
 
 interface EditSession {
   id: string;
-  overlayObject: OverlayObject;
   cornerMarkers: maplibregl.Marker[];
   fillSourceId: string;
   fillLayerId: string;
@@ -142,6 +141,10 @@ interface EditSession {
   // Set while a surface drag is mid-flight so teardown can detach its transient map listeners
   // and re-enable dragPan immediately instead of waiting for the next mouseup.
   activeSurfaceDrag?: { onMove: (e: MapMouseEvent) => void; onUp: () => void };
+}
+
+function getSessionOverlay(editSession: EditSession): OverlayObject | null {
+  return useOverlayStore().getOverlayById(editSession.id);
 }
 
 // Only one overlay is edited at a time (the selected one).
@@ -181,7 +184,9 @@ function cornerHandleElement(): HTMLElement {
 function syncSvgOutline(): void {
   if (!session?.svgPath) return;
   const mlMap = getMap();
-  const transform = getEditingTransform(session.overlayObject);
+  const overlay = getSessionOverlay(session);
+  if (!overlay) return;
+  const transform = getEditingTransform(overlay);
   // eslint-disable-next-line no-unnecessary-condition
   if (!transform) return;
 
@@ -214,7 +219,9 @@ function syncSvgOutline(): void {
 function refreshEditHandlesGeometry(skipCorner = -1): void {
   if (!session) return;
   const mlMap = getMap();
-  const transform = getEditingTransform(session.overlayObject);
+  const overlay = getSessionOverlay(session);
+  if (!overlay) return;
+  const transform = getEditingTransform(overlay);
   // eslint-disable-next-line no-unnecessary-condition
   if (!transform) return;
 
@@ -233,14 +240,16 @@ function refreshEditHandlesGeometry(skipCorner = -1): void {
 function flagSize(overlayObject: OverlayObject, transform: OverlayTransform): void {
   const valid = validateOverlaySize(transformToCorners(transform)).isValid;
   if (overlayObject.isTooBig !== !valid) {
-    useOverlayStore().updateOverlay(overlayObject.id, { isTooBig: !valid });
+    useOverlayStore().updateOverlayDraft(overlayObject.id, { isTooBig: !valid });
   }
   if (!valid) {
     toastWarn(t("upload.maximumSizeOnMap"), t("upload.overlayTooLarge"));
   }
 }
 
-function commitGesture(overlayObject: OverlayObject, transform: OverlayTransform): void {
+function commitGesture(overlayId: string, transform: OverlayTransform): void {
+  const overlayObject = useOverlayStore().getOverlayById(overlayId);
+  if (!overlayObject) return;
   const corners = transformToCorners(transform);
   flagSize(overlayObject, transform);
   commitOverlayEdit(overlayObject.id, corners);
@@ -249,10 +258,10 @@ function commitGesture(overlayObject: OverlayObject, transform: OverlayTransform
 }
 
 function wireCornerDrag(s: EditSession): void {
-  const overlayObject = s.overlayObject;
-
   s.cornerMarkers.forEach((marker, i) => {
     marker.on("dragstart", () => {
+      const overlayObject = getSessionOverlay(s);
+      if (!overlayObject) return;
       const transform = getEditingTransform(overlayObject);
       if (!transform) return;
       registry.takeGestureOwnership(overlayObject.id, transform);
@@ -273,6 +282,8 @@ function wireCornerDrag(s: EditSession): void {
     });
 
     marker.on("drag", () => {
+      const overlayObject = getSessionOverlay(s);
+      if (!overlayObject) return;
       const drag = s.cornerDrag;
       if (!drag) return;
       const ll = marker.getLngLat();
@@ -307,19 +318,18 @@ function wireCornerDrag(s: EditSession): void {
       const didMove = s.cornerDrag?.didMove === true;
       s.cornerDrag = null;
       refreshEditHandlesGeometry();
-      const transform = registry.getGestureTransform(overlayObject.id);
+      const transform = registry.getGestureTransform(s.id);
       if (!transform || !didMove) {
-        registry.releaseGestureOwnership(overlayObject.id);
+        registry.releaseGestureOwnership(s.id);
         return;
       }
-      commitGesture(overlayObject, transform);
+      commitGesture(s.id, transform);
     });
   });
 }
 
 function wireSurfaceDrag(s: EditSession): void {
   const mlMap = getMap();
-  const overlayObject = s.overlayObject;
 
   s.onEnter = () => {
     mlMap.getCanvas().style.cursor = "move";
@@ -333,6 +343,9 @@ function wireSurfaceDrag(s: EditSession): void {
 
     // Raise above any sibling images that streamed in since selection, so the image being moved
     // stays on top of others it slides over during the drag.
+    const overlayObject = getSessionOverlay(s);
+    if (!overlayObject) return;
+    const overlayId = overlayObject.id;
     const transform = getEditingTransform(overlayObject);
     if (!transform) return;
     registry.takeGestureOwnership(overlayObject.id, transform);
@@ -352,7 +365,7 @@ function wireSurfaceDrag(s: EditSession): void {
       if (Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
 
       didMove = true;
-      const currentTransform = registry.getGestureTransform(overlayObject.id);
+      const currentTransform = registry.getGestureTransform(overlayId);
       if (!currentTransform) return;
       const newTransform: OverlayTransform = {
         ...currentTransform,
@@ -361,9 +374,10 @@ function wireSurfaceDrag(s: EditSession): void {
           lng: startCenter.lng + (ev.lngLat.lng - start.lng),
         },
       };
-      setOverlayImageTransform(overlayObject.id, newTransform);
+      setOverlayImageTransform(overlayId, newTransform);
       refreshEditHandlesGeometry();
-      updateMarkerPosition(overlayObject, transformToCorners(newTransform));
+      const currentOverlay = getSessionOverlay(s);
+      if (currentOverlay) updateMarkerPosition(currentOverlay, transformToCorners(newTransform));
     }
 
     function onUp(): void {
@@ -371,14 +385,14 @@ function wireSurfaceDrag(s: EditSession): void {
       mlMap.dragPan.enable();
       s.activeSurfaceDrag = undefined;
       if (didMove) {
-        const finalTransform = registry.getGestureTransform(overlayObject.id);
+        const finalTransform = registry.getGestureTransform(overlayId);
         if (finalTransform) {
-          commitGesture(overlayObject, finalTransform);
+          commitGesture(s.id, finalTransform);
         } else {
-          registry.releaseGestureOwnership(overlayObject.id);
+          registry.releaseGestureOwnership(overlayId);
         }
       } else {
-        registry.releaseGestureOwnership(overlayObject.id);
+        registry.releaseGestureOwnership(overlayId);
       }
     }
 
@@ -445,7 +459,6 @@ export function showEditHandles(overlayObject: OverlayObject): void {
 
   session = {
     id: overlayObject.id,
-    overlayObject,
     cornerMarkers,
     fillSourceId,
     fillLayerId,
@@ -468,7 +481,9 @@ function reattachEditHandlesAfterStyleSwitch(phase: StyleSwitchPhase): void {
   if (phase !== "after") return;
   if (!session) return;
   const mlMap = getMap();
-  const transform = getEditingTransform(session.overlayObject);
+  const overlay = getSessionOverlay(session);
+  if (!overlay) return;
+  const transform = getEditingTransform(overlay);
   // eslint-disable-next-line no-unnecessary-condition
   if (!transform) return;
 
@@ -509,10 +524,11 @@ export function hideEditHandles(): void {
   }
 
   if (registry.isGestureOwned(s.id)) {
-    const corners = resolveOverlayCorners(s.overlayObject);
-    if (corners) {
+    const overlay = getSessionOverlay(s);
+    const corners = overlay ? resolveOverlayCorners(overlay) : null;
+    if (corners && overlay) {
       registry.setOverlayImageCorners(s.id, corners);
-      updateMarkerPosition(s.overlayObject, corners);
+      updateMarkerPosition(overlay, corners);
     }
     registry.releaseGestureOwnership(s.id);
   }

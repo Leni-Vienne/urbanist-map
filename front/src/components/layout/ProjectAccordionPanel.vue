@@ -331,8 +331,8 @@ function getPendingChangeCount(project: ContributionProject): number {
 }
 
 async function handleCardClick(project: ContributionProject) {
-  const originalGeometry = project.isModified
-    ? projectStore.getOriginalProject(project.id)?.geometry
+  const originalGeometry = projectStore.hasProjectDraft(project.id)
+    ? projectStore.getPersistedProject(project.id)?.geometry
     : null;
   const bounds = buildShapeBounds(project.geometry, originalGeometry);
   if (bounds) {

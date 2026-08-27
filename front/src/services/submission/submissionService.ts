@@ -119,7 +119,7 @@ function getOverlayUpdateType(overlay: OverlayObject): UpdateChangeType {
 
 export function detectProjectChanges(project: Project): ProjectFieldChange[] {
   const changes: ProjectFieldChange[] = [];
-  const originalProject = useProjectStore().getOriginalProject(project.id);
+  const originalProject = useProjectStore().getPersistedProject(project.id);
 
   if (!originalProject) return changes;
 
@@ -363,13 +363,6 @@ function applySubmissionResult(
   result: RouterOutput["submission"]["submit"],
 ): void {
   const projectStore = useProjectStore();
-  if (draft.project?.changeType === "update_approved") {
-    for (const change of draft.project.changes) {
-      projectStore.resetProjectField(draft.projectId, change.fieldName);
-    }
-  }
-  if (draft.project) projectStore.updateProject(draft.projectId, { isModified: false });
-
   const submittedOverlayIds = new Set([
     ...draft.newOverlayIds,
     ...draft.overlayModifications.map((mod) => mod.overlayId),
@@ -380,10 +373,11 @@ function applySubmissionResult(
     result.editSession.overlays.map(overlayWireToData),
     submittedOverlayIds,
   );
+  if (draft.project) projectStore.discardProjectDraft(draft.projectId);
   useChangeRequestStore().setPendingChangeRequests(result.changeRequests);
 
   if (result.render) {
-    projectStore.updateProject(draft.projectId, {
+    projectStore.updatePersistedProject(draft.projectId, {
       render: { filename: result.render.filename, caption: null, status: result.render.status },
     });
     clearStagedRender(draft.projectId);

@@ -191,8 +191,7 @@ export function useModeration() {
       const overlayObject = overlayStore.liveOverlays[id];
 
       if (overlayObject) {
-        // updateOverlay mutates the Pinia proxy, picked up by the marker color watcher.
-        overlayStore.updateOverlay(id, { status });
+        overlayStore.updatePersistedOverlay(id, { status });
       }
 
       // If a replacement overlay was approved, remove the original and any competing replacements

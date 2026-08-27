@@ -29,10 +29,7 @@ export function useDetailProject() {
     const id = focusStore.selectedProjectId;
     if (!id) return undefined;
 
-    const stored = projects.value[id];
-    if (!stored) return undefined;
-
-    return (stored.isModified ? projectStore.getOriginalProject(id) : null) ?? stored;
+    return projectStore.getPersistedProject(id) ?? projects.value[id];
   });
 
   // Summary selections render immediately; the detail-only fields land after.

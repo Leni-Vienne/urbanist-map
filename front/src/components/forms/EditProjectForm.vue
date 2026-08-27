@@ -55,14 +55,13 @@ const projectStore = useProjectStore();
 
 // Comparison baseline for the diff sent to the backend: the authoritative backend snapshot rather
 // than the project object captured when the form opened.
-const originalProject = projectStore.getOriginalProject(props.project.id) ?? props.project;
+const originalProject = projectStore.getPersistedProject(props.project.id) ?? props.project;
 const storeProject = projectStore.projects[props.project.id];
 
 const form = useEditableProjectForm({
   entityId: props.project.id,
   initialData: projectToFormData(originalProject),
-  // Displayed values: the map store version when locally modified.
-  currentData: projectToFormData(storeProject?.isModified ? storeProject : originalProject),
+  currentData: projectToFormData(storeProject ?? originalProject),
   getSourceProject: () => props.project,
   onSubmitted: () => emit("submitted"),
   onClose: () => emit("close"),

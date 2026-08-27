@@ -127,7 +127,6 @@ function handleProjectSubmitted(project: Partial<Project>) {
 
     const projectId = createProject({
       ...project,
-      isModified: true,
     });
 
     if (typeof project.lat === "number" && typeof project.lng === "number") {

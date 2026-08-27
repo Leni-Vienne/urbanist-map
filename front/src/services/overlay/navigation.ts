@@ -91,7 +91,7 @@ export async function ensureOverlayLoaded(overlayId: string): Promise<OverlayObj
   const overlayStore = useOverlayStore();
   const existing = overlayStore.liveOverlays[overlayId];
 
-  if (existing && existing.source !== "tile") return existing;
+  if (existing && overlayStore.hasFullOverlayData(overlayId)) return existing;
 
   const pendingRequest = overlayLoadRequests.get(overlayId);
   if (pendingRequest) return pendingRequest;

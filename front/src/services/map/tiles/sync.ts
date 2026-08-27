@@ -2,9 +2,8 @@
  * sync.ts, overlay sync for approved overlays.
  *
  * Reads overlay-footprint tile features, applies project filters, and maintains
- * the approved-overlay cache (approvedOverlayCache.ts) with the approved overlays that should be on
- * the map for the current viewport. Creation and eviction of image layers is owned by the viewport
- * reconciler; this module only writes the cache and schedules a reconcile.
+ * the current tile projection set with the approved overlays that should be on the map for the
+ * current viewport. Creation and eviction of image layers is owned by the viewport reconciler.
  * Triggered on camera move and on footprint tiles loading (see initVectorTileSync).
  *
  * Runs in ALL modes (view, edit, moderation). Approved overlays are always
@@ -20,7 +19,6 @@ import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { cornersIntersectBounds } from "@/utils/cornersBounds";
 import { resolveOverlayCorners } from "@/services/overlay/data";
 import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
-import { replaceApprovedOverlayDataCache } from "@/services/map/tiles/approvedOverlayCache";
 import { matchesProjectFilters, type FilterableProject } from "@/services/core/filters";
 
 interface DecodedFootprint {
@@ -81,7 +79,6 @@ function decodeFootprint(feat: maplibregl.GeoJSONFeature): DecodedFootprint {
       centroid,
       baselineCorners: corners,
       baselineCaption: caption,
-      source: "tile",
     },
   };
 }
@@ -133,7 +130,7 @@ export function syncOverlaysFromTiles(): void {
       }
     }
 
-    replaceApprovedOverlayDataCache(featureMap);
+    useOverlayStore().replaceTileOverlays(featureMap);
 
     // Creation and eviction from the cache is owned by the reconciler; just schedule it.
     runViewportRenderLoop();

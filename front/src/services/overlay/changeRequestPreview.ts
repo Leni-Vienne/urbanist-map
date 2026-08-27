@@ -147,8 +147,12 @@ function applyPositionPreview(
     const isUnedited =
       overlayObject.positionState !== "staged" && overlayObject.redoStack.length === 0;
     if (isUnedited) {
-      overlayObject.positionState = type === "new" ? "suggested" : "approved-toggled";
-      const restingCorners = getEditModeRestingCorners(overlayObject);
+      overlayStore.updateOverlayDraft(overlayId, {
+        positionState: type === "new" ? "suggested" : "approved-toggled",
+      });
+      const restingCorners = getEditModeRestingCorners(
+        overlayStore.getOverlayById(overlayId) ?? overlayObject,
+      );
       if (isValidQuad(restingCorners)) {
         overlayStore.resetHistoryBaseline(overlayId, restingCorners);
       }

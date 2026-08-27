@@ -22,8 +22,7 @@ export function removeOverlayFromMapAndStore(overlayId: string) {
 
   clearRegistryEntry(overlayId);
 
-  // eslint-disable-next-line no-dynamic-delete
-  delete overlayStore.liveOverlays[overlayId];
+  overlayStore.removeOverlay(overlayId);
 
   removeMapSessionOverlay(overlayId);
 }

@@ -706,7 +706,7 @@ function computeHiddenProjectIds(): string[] {
   }
   if (uiStore.mode === "edit") {
     for (const project of Object.values(store.projects)) {
-      if (project.isModified) hidden.add(project.id);
+      if (store.hasProjectDraft(project.id)) hidden.add(project.id);
     }
   }
   return [...hidden];

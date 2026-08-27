@@ -14,7 +14,6 @@ import type { OverlayObject, OverlayData } from "@/types/index";
 import { activeFilters } from "@/services/core/filters";
 import { createOverlayMarker, updateMarkerPosition } from "@/services/overlay/markers";
 import { resolveOverlayCorners } from "@/services/overlay/data";
-import { getApprovedOverlayDataFromTiles } from "@/services/map/tiles/approvedOverlayCache";
 import { isValidQuad, sameCorners } from "@/services/overlay/transform";
 import * as registry from "@/services/overlay/mapLayers";
 import { createRafBatchQueue } from "@/utils/rafBatchQueue";
@@ -171,12 +170,13 @@ function reconcileOverlayExistence(bounds: ViewportBounds): void {
     return;
   }
 
-  const tileManaged = getApprovedOverlayDataFromTiles();
+  const tileManaged = overlayStore.tileOverlays;
   const mapSession = getMapSessionSnapshot();
   const sessionOverlayIds = isSessionMode && mapSession?.mode === mode ? mapSession.overlayIds : [];
+  const sessionOverlayIdSet = new Set(sessionOverlayIds);
 
   const candidateIds = new Set<string>();
-  for (const id of tileManaged.keys()) candidateIds.add(id);
+  for (const id of Object.keys(tileManaged)) candidateIds.add(id);
   for (const id of sessionOverlayIds) candidateIds.add(id);
   const selectedOverlayId = useFocusStore().selectedOverlayId;
   if (selectedOverlayId) candidateIds.add(selectedOverlayId);
@@ -209,22 +209,23 @@ function reconcileOverlayExistence(bounds: ViewportBounds): void {
     }
 
     // Approved + tile-delivered: cache membership already applied filters and viewport.
-    const tileData = tileManaged.get(id);
+    const tileData = tileManaged[id];
     const isTileManaged = tileData !== undefined;
     let desired = isTileManaged;
     if (!isTileManaged) {
-      // Fall back to the canonical store object when its resolved display position differs from the
-      // approved tile footprint.
+      // Session rows and the selected overlay can render at a position other than their tile
+      // footprint. Other cached backend rows are not part of this viewport.
       const data = liveObject ?? null;
       desired =
         data !== null &&
+        (sessionOverlayIdSet.has(id) || id === selectedOverlayId) &&
         isOverlayVisible(liveObject ?? data, mode, userId) &&
         matchesMapFilters(liveObject ?? data, mode) &&
         resolvedCornersInBounds(liveObject ?? data, bounds);
     }
 
     if (desired) {
-      const overlayObject = tileData ? overlayStore.ingestTileOverlay(tileData) : liveObject;
+      const overlayObject = tileData ? overlayStore.getOverlayById(id) : liveObject;
       if (!overlayObject) continue;
       destructionQueue.delete(id);
       if (isSessionMode && !hasMarker) {

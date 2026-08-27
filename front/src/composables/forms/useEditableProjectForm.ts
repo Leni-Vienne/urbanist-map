@@ -17,8 +17,20 @@ interface EditableProjectFormOptions {
   onClose?: () => void;
 }
 
-// Local-edit form for a project: edits are written to the store with isModified, then
-// submitted to the backend later through the submission dialog (submissionService).
+const PROJECT_FORM_FIELDS = [
+  "name",
+  "description",
+  "proposalDate",
+  "proposalDatePrecision",
+  "startDate",
+  "startDatePrecision",
+  "endDate",
+  "endDatePrecision",
+  "sourceUrl",
+  "tags",
+  "timelineStatus",
+] as const satisfies readonly (keyof ProjectFormData)[];
+
 export function useEditableProjectForm(options: EditableProjectFormOptions) {
   const projectStore = useProjectStore();
 
@@ -48,14 +60,21 @@ export function useEditableProjectForm(options: EditableProjectFormOptions) {
       console.error("[useEditableProjectForm] project not found:", options.entityId);
       return;
     }
+    if (!projectStore.getProjectById(options.entityId)) {
+      if (baseProject.status === null) projectStore.addLocalProject(baseProject);
+      else projectStore.upsertProjectSummary(baseProject);
+    }
 
     const formFields = formDataToProjectFields(formData);
-
-    projectStore.updateProject(options.entityId, {
-      ...baseProject,
-      ...formFields,
-      isModified: true,
-    });
+    const changedFields: Partial<Project> = {};
+    for (const field of PROJECT_FORM_FIELDS) {
+      if (fieldDiffersFromOriginal(field)) {
+        Object.assign(changedFields, { [field]: formFields[field] });
+      } else {
+        projectStore.resetProjectField(options.entityId, field);
+      }
+    }
+    projectStore.updateProjectDraft(options.entityId, changedFields);
   }
 
   function validateFormData(): boolean {

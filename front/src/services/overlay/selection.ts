@@ -30,6 +30,7 @@ export function openOverlayDetail(overlayId: string): void {
 
   const newlySelected = overlayStore.liveOverlays[overlayId];
   if (!newlySelected) return;
+  overlayStore.retainSelectedTileOverlay(overlayId);
 
   // Pin the overlay; this replaces any open project detail (mutual exclusivity is free).
   focus.setSelectionTarget({
@@ -56,6 +57,7 @@ export function openOverlayDetail(overlayId: string): void {
 }
 
 export function closeDetail(): void {
+  useOverlayStore().clearSelectedTileOverlay();
   useFocusStore().setSelectionTarget(null);
 }
 

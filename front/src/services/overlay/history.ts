@@ -81,7 +81,7 @@ function applyHistoryAction(action: "undo" | "redo") {
   // reconciler swaps the source. Position and marker convergence follow from the moved history top.
   const overlay = overlayStore.liveOverlays[id];
   if (overlay && overlay.imageUrl !== target.imageUrl) {
-    overlayStore.updateOverlay(id, {
+    overlayStore.updateOverlayDraft(id, {
       imageUrl: target.imageUrl,
       filename: deriveOverlayFilename(id, target.imageUrl, overlay.filename),
     });

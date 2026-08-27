@@ -7,7 +7,7 @@ import { useProjectStore } from "@/stores/projectStore";
 import { hasStagedRender, hasStagedRenders } from "@/services/submission/stagedRenderState";
 
 type OverlayLike = Pick<OverlayObject, "id" | "status">;
-type ProjectLike = Pick<Project, "id" | "status" | "isModified">;
+type ProjectLike = Pick<Project, "id" | "status">;
 
 // Staged (unsubmitted) corners delta, derived from edit history: history beyond the seed step
 // means the user moved/resized the overlay since its last-submitted position.
@@ -82,7 +82,7 @@ export function isOverlayUnsaved(overlay: OverlayLike): boolean {
 
 export function isProjectUnsaved(project: ProjectLike): boolean {
   if (project.status === null) return true;
-  if (project.isModified === true) return true;
+  if (useProjectStore().hasProjectDraft(project.id)) return true;
   if (hasStagedRender(project.id)) return true;
   const overlayStore = useOverlayStore();
   return Object.values(overlayStore.liveOverlays).some(

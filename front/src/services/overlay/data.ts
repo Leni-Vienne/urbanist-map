@@ -22,7 +22,7 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
   const newCaption = info.caption ?? null;
   if (overlayObject.caption === newCaption) return;
 
-  overlayStore.updateOverlay(id, { caption: newCaption });
+  overlayStore.updateOverlayDraft(id, { caption: newCaption });
 }
 
 // The corners an active moderation suggested-position preview shows for this overlay: the

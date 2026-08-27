@@ -29,14 +29,12 @@ export function overlayWireToData<T extends { corners: LatLng[]; caption?: strin
 ): Omit<T, "corners"> & {
   baselineCorners: T["corners"];
   baselineCaption: string | null;
-  source: "backend";
 } {
   const { corners, ...rest } = wire;
   return {
     ...rest,
     baselineCorners: corners,
     baselineCaption: rest.caption ?? null,
-    source: "backend",
   };
 }
 
@@ -140,7 +138,6 @@ export function createOverlayObject(data: Partial<OverlayObject>): OverlayObject
     suggestedCaption: data.suggestedCaption ?? undefined,
     hasPendingChanges: data.hasPendingChanges ?? undefined,
     isTooBig: data.isTooBig ?? undefined,
-    source: data.source ?? "local",
     positionState: data.positionState ?? (data.hasPendingChanges ? "suggested" : "baseline"),
   };
 }

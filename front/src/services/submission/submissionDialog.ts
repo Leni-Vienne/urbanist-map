@@ -214,9 +214,9 @@ export function prepareSubmission(project: Project | null, overlay?: OverlayObje
   const projectId = project?.id ?? overlay?.projectId;
   if (!projectId) return;
 
-  const projectHasChanges =
-    useProjectStore().projects[projectId]?.isModified ?? project?.isModified ?? false;
-  const submissionProject = useProjectStore().projects[projectId] ?? project;
+  const projectStore = useProjectStore();
+  const projectHasChanges = projectStore.hasProjectDraft(projectId);
+  const submissionProject = projectStore.projects[projectId] ?? project;
   const projectChanges =
     projectHasChanges && submissionProject ? detectProjectChanges(submissionProject) : [];
   const stagedRender = getStagedRender(projectId);
@@ -289,7 +289,9 @@ async function handleRemoveOverlayChange(
 
   if (overlayObject) {
     if (field === "caption") {
-      overlayObject.caption = getEditModeDefaultCaption(overlayObject);
+      useOverlayStore().updateOverlayDraft(overlayId, {
+        caption: getEditModeDefaultCaption(overlayObject),
+      });
     } else {
       const corners = getEditModeRestingCorners(overlayObject);
       if (corners?.length === 4) useOverlayStore().resetHistoryBaseline(overlayId, corners);
@@ -306,7 +308,7 @@ function handleRemoveProjectChange(field: ProjectChangeField): void {
   useProjectStore().resetProjectField(draft.projectId, field);
   draft.project.changes = draft.project.changes.filter((change) => change.fieldName !== field);
   if (draft.project.changeType !== "create" && draft.project.changes.length === 0) {
-    useProjectStore().updateProject(draft.projectId, { isModified: false });
+    useProjectStore().discardProjectDraft(draft.projectId);
     draft.project = undefined;
   }
 

@@ -518,7 +518,7 @@ export function replaceOverlayImageSource(id: string, imageUrl: string, corners:
 
   const filename = deriveOverlayFilename(id, imageUrl, overlay.filename);
 
-  store.updateOverlay(id, { imageUrl, filename });
+  store.updateOverlayDraft(id, { imageUrl, filename });
 
   createOverlayImage(overlay, corners);
 }

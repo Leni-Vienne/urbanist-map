@@ -11,7 +11,7 @@ export function createProject(projectData: LocalProjectInput) {
     ownerId: projectData.ownerId ?? authStore.user?.id ?? null,
   });
 
-  projectStore.addProject(project);
+  projectStore.addLocalProject(project);
 
   return project.id;
 }

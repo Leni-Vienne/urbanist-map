@@ -182,7 +182,7 @@ async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
   if (!projectId) return;
   const project = projectStore.projects[projectId];
   if (!project) return;
-  projectStore.updateProject(projectId, { geometry, isModified: true });
+  projectStore.updateProjectDraft(projectId, { geometry });
   await stopShapeEditing();
   uiStore.closeShapeEditor();
   toastSuccess(t("shapes.savedLocally"));

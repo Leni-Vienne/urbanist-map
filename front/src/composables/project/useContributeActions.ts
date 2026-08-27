@@ -139,11 +139,6 @@ export function useContributeActions(allContributions: ComputedRef<ContributionP
   function handleEditProjectClick(project: Project): void {
     const latestProjectData = allContributions.value.find((p) => p.id === project.id);
     const projectToEdit = latestProjectData ?? project;
-
-    if (projectToEdit.id && projectToEdit.status !== null && !projectToEdit.isModified) {
-      projectStore.cacheProjectBackendState(projectToEdit.id);
-    }
-
     uiStore.openProjectEditForm(projectToEdit.id);
   }
 

@@ -35,10 +35,11 @@ function collectLocalProjectShapes(
   if (mode !== "edit") return;
   const projectStore = useProjectStore();
   for (const project of Object.values(projectStore.projects)) {
-    if (!project.isModified && project.status !== null) continue;
+    const hasDraft = projectStore.hasProjectDraft(project.id);
+    if (!hasDraft && project.status !== null) continue;
     if (!matchesPendingProjectFilters(project, imageProjectIds)) continue;
-    const originalGeometry = project.isModified
-      ? projectStore.getOriginalProject(project.id)?.geometry
+    const originalGeometry = hasDraft
+      ? projectStore.getPersistedProject(project.id)?.geometry
       : null;
     if (originalGeometry && JSON.stringify(originalGeometry) !== JSON.stringify(project.geometry)) {
       shapes.push(
@@ -61,9 +62,10 @@ function collectLocalProjectPoints(
   imageProjectIds: Set<string>,
 ): void {
   if (mode !== "edit") return;
-  for (const project of Object.values(useProjectStore().projects)) {
+  const projectStore = useProjectStore();
+  for (const project of Object.values(projectStore.projects)) {
     if (
-      (project.isModified || project.status === null) &&
+      (projectStore.hasProjectDraft(project.id) || project.status === null) &&
       matchesPendingProjectFilters(project, imageProjectIds)
     ) {
       addProjectToMap(project, true, standaloneShapeProjectIds, pendingProjects);
@@ -322,7 +324,9 @@ function localProjectSourceKey(project: Project): string {
 function localProjectSourcesKey(): string {
   const keys: string[] = [];
   for (const project of Object.values(useProjectStore().projects)) {
-    if (project.isModified || project.status === null) keys.push(localProjectSourceKey(project));
+    if (useProjectStore().hasProjectDraft(project.id) || project.status === null) {
+      keys.push(localProjectSourceKey(project));
+    }
   }
   return keys.toSorted().join("\u0000");
 }

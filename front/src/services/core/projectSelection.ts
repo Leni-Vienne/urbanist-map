@@ -23,7 +23,8 @@ export function openProjectDetail(project: Project): void {
   // is shown in the docked panel's "Selected project" card (not the accordion); the detail watcher
   // keeps it out of the expanded accordion set so it returns collapsed when deselected.
   const current = projectStore.getProjectById(project.id);
-  if (!current?.isModified) projectStore.upsertProjectSummary(project);
+  if (!current || !projectStore.hasProjectDraft(project.id))
+    projectStore.upsertProjectSummary(project);
   focus.setSelectionTarget({ kind: "project", projectId: project.id });
   focus.setHoverTarget(null);
 

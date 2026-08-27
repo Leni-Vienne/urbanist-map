@@ -1,15 +1,23 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { createOverlayObject } from "@/utils/typeFactories";
 import type {
   BackendOverlayData,
+  LatLng,
+  OverlayData,
   OverlayHistoryState,
   OverlayObject,
   OverlayPositionState,
   TileOverlayData,
 } from "@/types/index";
 
-// The non-staged resting state: an open change request rests on its suggested state, else baseline.
+type OverlayDraft = Partial<
+  Pick<
+    OverlayObject,
+    "caption" | "filename" | "imageUrl" | "history" | "redoStack" | "isTooBig" | "positionState"
+  >
+> & { base?: OverlayData };
+
 function restingPositionState(overlay: OverlayObject): OverlayPositionState {
   return overlay.hasPendingChanges === true ? "suggested" : "baseline";
 }
@@ -22,119 +30,208 @@ function defaultCaption(overlay: OverlayObject): string | null {
     : overlay.baselineCaption;
 }
 
-function hasLocalImage(overlay: OverlayObject): boolean {
-  return overlay.imageUrl.startsWith("data:") || overlay.imageUrl.startsWith("blob:");
+function toOverlayData(overlay: OverlayObject): OverlayData {
+  const {
+    imageUrl: _imageUrl,
+    history: _history,
+    redoStack: _redoStack,
+    isTooBig: _isTooBig,
+    positionState: _positionState,
+    ...data
+  } = overlay;
+  return data;
 }
 
-function preserveLocalState(current: OverlayObject, next: OverlayObject): void {
-  if (current.caption !== defaultCaption(current)) next.caption = current.caption;
-  if (current.positionState === "staged" || current.redoStack.length > 0) {
-    next.history = current.history;
-    next.redoStack = current.redoStack;
-    next.positionState = current.positionState;
-  } else if (current.positionState === "approved-toggled" && next.hasPendingChanges === true) {
-    next.positionState = "approved-toggled";
-  }
-  if (hasLocalImage(current)) {
-    next.filename = current.filename;
-    next.imageUrl = current.imageUrl;
-  }
-  next.isTooBig = current.isTooBig;
+function copyCorner(corner: LatLng): LatLng {
+  return { lat: corner.lat, lng: corner.lng };
 }
 
 export const useOverlayStore = defineStore("overlay", () => {
-  const liveOverlays = ref<Record<string, OverlayObject>>({});
-
+  const persistedOverlays = ref<Record<string, BackendOverlayData>>({});
+  const tileOverlays = ref<Record<string, TileOverlayData>>({});
+  const selectedTileOverlay = ref<TileOverlayData | null>(null);
+  const overlayDrafts = ref<Record<string, OverlayDraft>>({});
   const replacementOverlayId = ref<string | null>(null);
 
-  function addOverlay(overlayId: string, overlay: OverlayObject) {
-    liveOverlays.value[overlayId] = overlay;
+  function getOverlayById(overlayId: string): OverlayObject | null {
+    const data =
+      persistedOverlays.value[overlayId] ??
+      overlayDrafts.value[overlayId]?.base ??
+      tileOverlays.value[overlayId] ??
+      (selectedTileOverlay.value?.id === overlayId ? selectedTileOverlay.value : undefined);
+    if (!data) return null;
+    const overlay = createOverlayObject(data);
+    overlay.caption = defaultCaption(overlay);
+    return Object.assign(overlay, overlayDrafts.value[overlayId]);
   }
 
-  function updateOverlay(overlayId: string, updates: Partial<OverlayObject>) {
-    const current = liveOverlays.value[overlayId];
+  function getEffectiveOverlays(): Record<string, OverlayObject> {
+    const ids = new Set([
+      ...Object.keys(tileOverlays.value),
+      ...Object.keys(persistedOverlays.value),
+      ...Object.keys(overlayDrafts.value),
+    ]);
+    if (selectedTileOverlay.value) ids.add(selectedTileOverlay.value.id);
+    const overlays: Record<string, OverlayObject> = {};
+    for (const id of ids) {
+      const overlay = getOverlayById(id);
+      if (overlay) overlays[id] = overlay;
+    }
+    return overlays;
+  }
+
+  const liveOverlays = computed<Record<string, OverlayObject>>(getEffectiveOverlays);
+
+  function addLocalOverlay(overlayId: string, overlay: OverlayObject) {
+    overlayDrafts.value[overlayId] = {
+      base: toOverlayData(overlay),
+      caption: overlay.caption,
+      filename: overlay.filename,
+      imageUrl: overlay.imageUrl,
+      history: overlay.history,
+      redoStack: overlay.redoStack,
+      isTooBig: overlay.isTooBig,
+      positionState: overlay.positionState,
+    };
+  }
+
+  function updateOverlayDraft(overlayId: string, updates: OverlayDraft) {
+    const overlay = getOverlayById(overlayId);
+    if (!overlay) return;
+    let existing = overlayDrafts.value[overlayId];
+    if (!existing) {
+      existing = persistedOverlays.value[overlayId] ? {} : { base: toOverlayData(overlay) };
+    }
+    overlayDrafts.value[overlayId] = {
+      ...existing,
+      ...updates,
+    };
+  }
+
+  function hasFullOverlayData(overlayId: string): boolean {
+    return Boolean(
+      persistedOverlays.value[overlayId] || overlayDrafts.value[overlayId]?.base?.status === null,
+    );
+  }
+
+  function updatePersistedOverlay(overlayId: string, updates: Partial<BackendOverlayData>) {
+    const current = persistedOverlays.value[overlayId];
     if (!current) return;
-    Object.assign(current, updates);
+    persistedOverlays.value[overlayId] = { ...current, ...updates };
   }
 
-  function ingest(
-    data: BackendOverlayData | TileOverlayData,
-    preserveCurrent: boolean,
-  ): OverlayObject {
-    const current = liveOverlays.value[data.id];
-    const next = createOverlayObject(data);
-    next.caption = defaultCaption(next);
-    if (current && preserveCurrent) preserveLocalState(current, next);
-    if (current) Object.assign(current, next);
-    else addOverlay(data.id, next);
-    return current ?? next;
+  function ingestBackendOverlay(data: BackendOverlayData, preserveDraft = true): OverlayObject {
+    persistedOverlays.value[data.id] = data;
+    if (!preserveDraft) {
+      // oxlint-disable-next-line no-dynamic-delete
+      delete overlayDrafts.value[data.id];
+    }
+    const overlay = getOverlayById(data.id);
+    if (!overlay) throw new Error(`Failed to cache overlay ${data.id}`);
+    return overlay;
   }
 
-  function ingestBackendOverlay(data: BackendOverlayData, preserveCurrent = true): OverlayObject {
-    return ingest(data, preserveCurrent);
+  function replaceTileOverlays(overlays: ReadonlyMap<string, TileOverlayData>): void {
+    tileOverlays.value = Object.fromEntries(overlays);
   }
 
-  function ingestTileOverlay(data: TileOverlayData): OverlayObject {
-    const overlay = liveOverlays.value[data.id];
-    if (!overlay) return ingest(data, true);
-    if (overlay.source === "backend" || overlay.status === null) return overlay;
-    return ingest(data, true);
+  function retainSelectedTileOverlay(overlayId: string): void {
+    selectedTileOverlay.value = tileOverlays.value[overlayId] ?? null;
   }
 
-  // Replace an overlay's edit history wholesale. Callers compute the new history array
-  // (seeding/dedup live in commitOverlayEdit); this is the single reactive write.
+  function clearSelectedTileOverlay(): void {
+    selectedTileOverlay.value = null;
+  }
+
+  function clearPendingChangeRequest(overlayId: string): void {
+    const overlay = getOverlayById(overlayId);
+    const persisted = persistedOverlays.value[overlayId];
+    if (!overlay || !persisted) return;
+    const defaultBeforeRefresh = overlay.suggestedCaption ?? overlay.baselineCaption;
+    const captionWasUntouched = overlay.caption === defaultBeforeRefresh;
+    updatePersistedOverlay(overlayId, {
+      hasPendingChanges: false,
+      suggestedCorners: undefined,
+      suggestedCaption: undefined,
+    });
+    const nextState = overlay.positionState === "staged" ? "staged" : "baseline";
+    const draftUpdate: OverlayDraft = { positionState: nextState };
+    if (captionWasUntouched) draftUpdate.caption = overlay.baselineCaption;
+    updateOverlayDraft(overlayId, draftUpdate);
+    if (
+      overlay.history.length === 1 &&
+      overlay.redoStack.length === 0 &&
+      overlay.baselineCorners?.length === 4
+    ) {
+      resetHistoryBaseline(overlayId, overlay.baselineCorners);
+    }
+  }
+
   function commitHistory(overlayId: string, history: OverlayHistoryState[]) {
-    const overlay = liveOverlays.value[overlayId];
+    const overlay = getOverlayById(overlayId);
     if (!overlay) return;
-    overlay.history = history;
-    overlay.redoStack = [];
-    overlay.positionState = history.length > 1 ? "staged" : restingPositionState(overlay);
+    updateOverlayDraft(overlayId, {
+      history,
+      redoStack: [],
+      positionState: history.length > 1 ? "staged" : restingPositionState(overlay),
+    });
   }
 
-  // Collapse history to a single baseline step at `corners` (cloned so later edits don't alias it)
-  // and clear redo. Used when a submitted/reverted position becomes the new starting point, so
-  // re-entering edit mode doesn't restore prior in-progress edits. imageUrl is read from the live
-  // overlay; invalid (non-4) corners clear history entirely. Does not touch baselineCorners.
-  function resetHistoryBaseline(overlayId: string, corners: { lat: number; lng: number }[]) {
-    const overlay = liveOverlays.value[overlayId];
+  function resetHistoryBaseline(overlayId: string, corners: LatLng[]) {
+    const overlay = getOverlayById(overlayId);
     if (!overlay) return;
-    overlay.history =
+    const history =
       corners.length === 4
         ? [
             {
-              corners: corners.map((c) => ({ lat: c.lat, lng: c.lng })),
+              corners: corners.map(copyCorner),
               imageUrl: overlay.imageUrl,
             },
           ]
         : [];
-    overlay.redoStack = [];
-    // A collapse to a single step leaves no staged edits; a toggled/suggested state written just
-    // before this call is preserved (only a staged state is reconciled to the resting state).
-    if (overlay.positionState === "staged") overlay.positionState = restingPositionState(overlay);
+    updateOverlayDraft(overlayId, {
+      history,
+      redoStack: [],
+      positionState:
+        overlay.positionState === "staged" ? restingPositionState(overlay) : overlay.positionState,
+    });
   }
 
-  // Step back one history entry. Returns the step to restore (for the GL effect), or null on no-op.
   function undoHistory(overlayId: string): OverlayHistoryState | null {
-    const overlay = liveOverlays.value[overlayId];
+    const overlay = getOverlayById(overlayId);
     if (!overlay || overlay.history.length <= 1) return null;
-    const current = overlay.history.pop();
-    if (!current) return null;
-    overlay.redoStack.push(current);
-    const target = overlay.history.at(-1);
-    if (!target) return null;
-    if (overlay.history.length === 1) overlay.positionState = restingPositionState(overlay);
+    const history = overlay.history.slice(0, -1);
+    const current = overlay.history.at(-1);
+    const target = history.at(-1);
+    if (!current || !target) return null;
+    updateOverlayDraft(overlayId, {
+      history,
+      redoStack: [...overlay.redoStack, current],
+      positionState: history.length === 1 ? restingPositionState(overlay) : overlay.positionState,
+    });
     return target;
   }
 
-  // Step forward one history entry. Returns the step to restore, or null on no-op.
   function redoHistory(overlayId: string): OverlayHistoryState | null {
-    const overlay = liveOverlays.value[overlayId];
-    if (!overlay || overlay.redoStack.length === 0) return null;
-    const target = overlay.redoStack.pop();
-    if (!target) return null;
-    overlay.history.push(target);
-    if (overlay.history.length > 1) overlay.positionState = "staged";
+    const overlay = getOverlayById(overlayId);
+    const target = overlay?.redoStack.at(-1);
+    if (!overlay || !target) return null;
+    updateOverlayDraft(overlayId, {
+      history: [...overlay.history, target],
+      redoStack: overlay.redoStack.slice(0, -1),
+      positionState: "staged",
+    });
     return target;
+  }
+
+  function removeOverlay(overlayId: string): void {
+    // oxlint-disable-next-line no-dynamic-delete
+    delete persistedOverlays.value[overlayId];
+    // oxlint-disable-next-line no-dynamic-delete
+    delete tileOverlays.value[overlayId];
+    // oxlint-disable-next-line no-dynamic-delete
+    delete overlayDrafts.value[overlayId];
+    if (selectedTileOverlay.value?.id === overlayId) clearSelectedTileOverlay();
   }
 
   function requestOverlayReplacement(overlayId: string) {
@@ -146,37 +243,46 @@ export const useOverlayStore = defineStore("overlay", () => {
   }
 
   function clearLiveOverlays() {
-    liveOverlays.value = {};
+    persistedOverlays.value = {};
+    tileOverlays.value = {};
+    clearSelectedTileOverlay();
+    overlayDrafts.value = {};
   }
 
-  // Clear user-specific state on logout or account switch.
   function clearAllState() {
     clearLiveOverlays();
     resetReplacement();
   }
 
   return {
-    // State
+    persistedOverlays,
+    tileOverlays,
+    selectedTileOverlay,
+    overlayDrafts,
     liveOverlays,
     replacementOverlayId,
-
-    // Actions
+    getOverlayById,
+    hasFullOverlayData,
     clearLiveOverlays,
-    addOverlay,
-    updateOverlay,
+    addLocalOverlay,
+    updateOverlayDraft,
+    updatePersistedOverlay,
     ingestBackendOverlay,
-    ingestTileOverlay,
+    replaceTileOverlays,
+    retainSelectedTileOverlay,
+    clearSelectedTileOverlay,
+    clearPendingChangeRequest,
     commitHistory,
     resetHistoryBaseline,
     undoHistory,
     redoHistory,
+    removeOverlay,
     requestOverlayReplacement,
     resetReplacement,
     clearAllState,
   };
 });
 
-// Enable HMR for this store
 // oxlint-disable no-unnecessary-condition strict-void-return strict-boolean-expressions
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useOverlayStore, import.meta.hot));

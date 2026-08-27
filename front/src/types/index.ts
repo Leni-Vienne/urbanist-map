@@ -27,10 +27,6 @@ export type PendingOverlayModification = {
 // Type for marker colors used throughout the application
 export type MarkerColor = "blue" | "green" | "orange" | "red" | "yellow" | "purple" | "grey";
 
-// The strongest authority incorporated into an overlay. Tile data is only a render projection;
-// backend data is the complete persisted snapshot, and local identifies an unpublished draft.
-type OverlayDataSource = "tile" | "backend" | "local";
-
 /**
  * Where an overlay's edit-session display rests.
  * - `baseline`: no open change request; rests at approved corners.
@@ -63,8 +59,6 @@ interface ProjectFields extends Omit<
   tags: string[];
   // Joined import source details (null for user-created projects)
   importSource?: DBImportSource | null;
-  // UI state for tracking local modifications
-  isModified?: boolean;
   hasImage?: boolean;
 
   // Denormalized country name, populated by location-aware queries (resolved from admin boundaries).
@@ -150,13 +144,10 @@ export type OverlayData = Omit<
   suggestedCorners?: LatLng[];
   suggestedCaption?: string | null;
   hasPendingChanges?: boolean;
-  // Authority marker used to distinguish tile projections from full backend snapshots.
-  source: OverlayDataSource;
 };
 
 export type BackendOverlayData = OverlayData & {
   status: ApprovalStatus;
-  source: "backend";
 };
 
 // Property bag of a vector-tile feature. The MVT wire format carries scalars only, so a list value
@@ -174,7 +165,6 @@ export interface TileOverlayData {
   centroid: LatLng;
   baselineCorners: LatLng[];
   baselineCaption: string | null;
-  source: "tile";
 }
 
 // A normalized sub-rectangle of an image, u left->right, v top->bottom, each in [0, 1].
