@@ -120,7 +120,7 @@
           :label="$t('submission.confirmSubmit')"
           icon="pi pi-send"
           :loading="isSubmitting"
-          :disabled="summary?.changes.length === 0 && summary?.changeType !== 'create'"
+          :disabled="summary?.changes.length === 0 && !summary?.isCreation"
           @click="handleConfirm"
         />
       </div>

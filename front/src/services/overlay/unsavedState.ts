@@ -52,22 +52,20 @@ function getStagedCaptionDelta(
 // All staged modifications for a project's overlays: corners and caption deltas both derived from
 // the live overlay (history for corners, edit-mode default for caption), merged per overlay.
 export function getStagedOverlayModifications(projectId: string): PendingOverlayModification[] {
-  const byId = new Map<string, PendingOverlayModification>();
+  const modifications: PendingOverlayModification[] = [];
   for (const overlay of Object.values(useOverlayStore().liveOverlays)) {
     if (overlay.projectId !== projectId || overlay.status === null) continue;
     const corners = getStagedCornersDelta(overlay);
     const caption = getStagedCaptionDelta(overlay);
-    if (!corners && !caption) continue;
-    const modification: PendingOverlayModification = {
-      overlayId: overlay.id,
-      projectId,
-      overlayStatus: overlay.status,
-    };
-    if (corners) modification.corners = corners;
-    if (caption) modification.caption = caption;
-    byId.set(overlay.id, modification);
+    if (corners) {
+      const modification: PendingOverlayModification = { overlayId: overlay.id, corners };
+      if (caption) modification.caption = caption;
+      modifications.push(modification);
+    } else if (caption) {
+      modifications.push({ overlayId: overlay.id, caption });
+    }
   }
-  return [...byId.values()];
+  return modifications;
 }
 
 // Fully derived: a new overlay (status null) exists only locally, a submitted one has unsaved

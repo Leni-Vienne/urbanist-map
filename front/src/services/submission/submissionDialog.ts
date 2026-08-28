@@ -16,10 +16,8 @@ import {
   type OverlayChangeField,
   type ProjectFieldChange,
   type ProjectChangeField,
-  type ProjectSubmissionDraft,
   type RemovableChange,
   type SubmissionChange,
-  type SubmissionChangeType,
   type SubmissionDraft,
   type SubmissionSummary,
 } from "./submissionTypes";
@@ -30,14 +28,15 @@ import { buildThumbnailUrl } from "@/utils/imageUrl";
 import { deleteOverlayDirect } from "@/services/entity/entityRemoval";
 import { closeDetail } from "@/services/overlay/selection";
 import { scheduleOverlayReconcile } from "@/services/overlay/mapLayers";
-import type {
-  PendingOverlayModification,
-  OverlayObject,
-  Project,
-  ModifiableField,
-} from "@/types/index";
+import type { PendingOverlayModification, OverlayObject, Project } from "@/types/index";
 
-const pendingSubmissionDraft = ref<SubmissionDraft | null>(null);
+interface PendingSubmission {
+  projectId: string;
+  entityName: string | null;
+  renderId?: string;
+}
+
+const pendingSubmission = ref<PendingSubmission | null>(null);
 
 function buildOverlayModificationChanges(
   mods: PendingOverlayModification[],
@@ -75,28 +74,15 @@ function buildOverlayModificationChanges(
   return changes;
 }
 
-function getSuccessMessage(changeType: SubmissionChangeType): string {
-  if (changeType === "update_approved") return t("submission.changeRequestSubmitted");
-  if (changeType === "update_pending") return t("submission.changesSaved");
-  return t("submission.submissionSuccessful");
-}
-
-function removeOverlayFieldFromDraft(overlayId: string, field: ModifiableField): void {
-  const draft = pendingSubmissionDraft.value;
-  if (!draft) return;
-
-  draft.overlayModifications = draft.overlayModifications.flatMap((mod) => {
-    if (mod.overlayId !== overlayId) return [mod];
-    const next: PendingOverlayModification = { ...mod };
-    if (field === "corners") delete next.corners;
-    else delete next.caption;
-    return next.corners || next.caption ? [next] : [];
-  });
+function getSuccessMessage(outcome: { createdEntities: number; changeRequests: number }): string {
+  if (outcome.createdEntities > 0) return t("submission.submissionSuccessful");
+  if (outcome.changeRequests > 0) return t("submission.changeRequestSubmitted");
+  return t("submission.changesSaved");
 }
 
 function resetSubmissionState(): void {
   showSubmissionDialog.value = false;
-  pendingSubmissionDraft.value = null;
+  pendingSubmission.value = null;
 }
 
 // Build changes for NEW overlays (status is null, never submitted to backend)
@@ -146,28 +132,51 @@ function formatValueForDisplay(value: unknown, fieldName?: string): string {
 function buildProjectDraft(
   project: Project | null,
   changes: ProjectFieldChange[],
-): ProjectSubmissionDraft | undefined {
+): ProjectFieldChange[] | undefined {
   if (!project) return undefined;
-  if (project.status === null) return { changeType: "create", changes: [] };
+  if (project.status === null) return [];
   if (changes.length === 0) return undefined;
+  return changes;
+}
+
+function buildSubmissionDraft(): SubmissionDraft | null {
+  const pending = pendingSubmission.value;
+  if (!pending) return null;
+
+  const projectStore = useProjectStore();
+  const project = projectStore.getProjectById(pending.projectId);
+  const projectChanges =
+    project && projectStore.hasProjectDraft(pending.projectId) ? detectProjectChanges(project) : [];
+  const stagedRender = getStagedRender(pending.projectId);
   return {
-    changeType: project.status === "approved" ? "update_approved" : "update_pending",
-    changes,
+    projectId: pending.projectId,
+    entityName: pending.entityName,
+    projectChanges: buildProjectDraft(project, projectChanges),
+    overlayModifications: getStagedOverlayModifications(pending.projectId),
+    newOverlayIds: getNewOverlaysForProject(pending.projectId).map(getOverlayId),
+    pendingRender:
+      stagedRender && pending.renderId ? { ...stagedRender, id: pending.renderId } : undefined,
   };
 }
 
-function classifySubmission(draft: SubmissionDraft) {
-  const requiresModeration =
-    draft.newOverlayIds.length > 0 ||
-    draft.project?.changeType === "update_approved" ||
-    draft.overlayModifications.some((mod) => mod.overlayStatus === "approved");
-  const createsEntity = draft.project?.changeType === "create" || draft.newOverlayIds.length > 0;
-  let changeType: SubmissionChangeType = "update_pending";
-  if (createsEntity) changeType = "create";
-  else if (requiresModeration) changeType = "update_approved";
+function getOverlayId(overlay: OverlayObject): string {
+  return overlay.id;
+}
+
+function getSubmissionPresentation(draft: SubmissionDraft) {
+  const project = useProjectStore().getProjectById(draft.projectId);
+  const overlays = useOverlayStore().liveOverlays;
+  const isCreation = project?.status === null || draft.newOverlayIds.length > 0;
+  let changesApprovedEntity = Boolean(draft.projectChanges) && project?.status === "approved";
+  for (const modification of draft.overlayModifications) {
+    if (overlays[modification.overlayId]?.status === "approved") {
+      changesApprovedEntity = true;
+      break;
+    }
+  }
   return {
-    changeType,
-    requiresModeration: requiresModeration || Boolean(draft.pendingRender),
+    isCreation,
+    requiresModeration: isCreation || changesApprovedEntity || Boolean(draft.pendingRender),
   };
 }
 
@@ -176,7 +185,7 @@ function buildSubmissionSummary(draft: SubmissionDraft): SubmissionSummary {
   const changes = [
     ...buildNewOverlayChanges(draft.newOverlayIds, overlays),
     ...buildOverlayModificationChanges(draft.overlayModifications, overlays),
-    ...buildProjectChanges(draft.project?.changes ?? []),
+    ...buildProjectChanges(draft.projectChanges ?? []),
   ];
 
   if (draft.pendingRender) {
@@ -189,11 +198,11 @@ function buildSubmissionSummary(draft: SubmissionDraft): SubmissionSummary {
     });
   }
 
-  return { entityName: draft.entityName, changes, ...classifySubmission(draft) };
+  return { entityName: draft.entityName, changes, ...getSubmissionPresentation(draft) };
 }
 
 function getSubmissionSummary(): SubmissionSummary | null {
-  const draft = pendingSubmissionDraft.value;
+  const draft = buildSubmissionDraft();
   return draft ? buildSubmissionSummary(draft) : null;
 }
 
@@ -205,8 +214,7 @@ function getNewOverlaysForProject(projectId: string): OverlayObject[] {
   );
 }
 
-// Single entry point for every submission. Gathers the project's staged overlay mods, new
-// overlays, metadata changes and staged render, classifies the batch, then opens the dialog.
+// Single entry point for every submission. The dialog derives its rows from current draft stores.
 // `project` is null when an overlay is selected from the map and its project was never loaded as
 // a full entity: the submission then runs overlay-only, keyed by the overlay's projectId, with
 // `overlay` supplying the dialog's entity name.
@@ -215,19 +223,13 @@ export function prepareSubmission(project: Project | null, overlay?: OverlayObje
   if (!projectId) return;
 
   const projectStore = useProjectStore();
-  const projectHasChanges = projectStore.hasProjectDraft(projectId);
   const submissionProject = projectStore.projects[projectId] ?? project;
-  const projectChanges =
-    projectHasChanges && submissionProject ? detectProjectChanges(submissionProject) : [];
   const stagedRender = getStagedRender(projectId);
 
-  pendingSubmissionDraft.value = {
+  pendingSubmission.value = {
     projectId,
     entityName: submissionProject?.name ?? overlay?.caption ?? t("submission.newOverlay"),
-    project: buildProjectDraft(submissionProject, projectChanges),
-    overlayModifications: getStagedOverlayModifications(projectId),
-    newOverlayIds: getNewOverlaysForProject(projectId).map((o) => o.id),
-    pendingRender: stagedRender ? { ...stagedRender, id: crypto.randomUUID() } : undefined,
+    renderId: stagedRender ? crypto.randomUUID() : undefined,
   };
 
   showSubmissionDialog.value = true;
@@ -242,16 +244,14 @@ export function prepareOverlaySubmission(overlay: OverlayObject): void {
 }
 
 export async function confirmSubmission(reason: string): Promise<void> {
-  const draft = pendingSubmissionDraft.value;
+  const draft = buildSubmissionDraft();
   if (!draft || isSubmitting.value) return;
-
-  const successMessage = getSuccessMessage(classifySubmission(draft).changeType);
 
   try {
     isSubmitting.value = true;
-    await submitDraft(draft, reason);
+    const outcome = await submitDraft(draft, reason);
     closeDetail();
-    toastSuccess(successMessage);
+    toastSuccess(getSuccessMessage(outcome));
     resetSubmissionState();
   } catch (error: unknown) {
     console.error("Error submitting:", error);
@@ -280,10 +280,6 @@ async function handleRemoveOverlayChange(
       await deleteOverlayDirect(overlayId);
     }
 
-    const draft = pendingSubmissionDraft.value;
-    if (draft) {
-      draft.newOverlayIds = draft.newOverlayIds.filter((id) => id !== overlayId);
-    }
     return;
   }
 
@@ -298,19 +294,13 @@ async function handleRemoveOverlayChange(
       scheduleOverlayReconcile();
     }
   }
-  removeOverlayFieldFromDraft(overlayId, field);
 }
 
 function handleRemoveProjectChange(field: ProjectChangeField): void {
-  const draft = pendingSubmissionDraft.value;
-  if (!draft?.project) return;
+  const pending = pendingSubmission.value;
+  if (!pending) return;
 
-  useProjectStore().resetProjectField(draft.projectId, field);
-  draft.project.changes = draft.project.changes.filter((change) => change.fieldName !== field);
-  if (draft.project.changeType !== "create" && draft.project.changes.length === 0) {
-    useProjectStore().discardProjectDraft(draft.projectId);
-    draft.project = undefined;
-  }
+  useProjectStore().resetProjectField(pending.projectId, field);
 
   // Close project edit form to force fresh data on reopen
   useUiStore().closeProjectEditForm();
@@ -318,7 +308,7 @@ function handleRemoveProjectChange(field: ProjectChangeField): void {
 
 function hasSubmissionWork(draft: SubmissionDraft): boolean {
   return Boolean(
-    draft.project ||
+    draft.projectChanges ||
     draft.overlayModifications.length > 0 ||
     draft.newOverlayIds.length > 0 ||
     draft.pendingRender,
@@ -329,19 +319,19 @@ export async function handleRemoveChange(
   field: RemovableChange,
   overlayId?: string,
 ): Promise<void> {
-  const draft = pendingSubmissionDraft.value;
-  if (!draft) return;
+  const pending = pendingSubmission.value;
+  if (!pending) return;
 
   if (field === "render") {
-    clearStagedRender(draft.projectId);
-    draft.pendingRender = undefined;
+    clearStagedRender(pending.projectId);
   } else if (overlayId && isOverlayChangeField(field)) {
     await handleRemoveOverlayChange(overlayId, field);
   } else if (isProjectChangeField(field)) {
     handleRemoveProjectChange(field);
   }
 
-  if (!hasSubmissionWork(draft)) {
+  const draft = buildSubmissionDraft();
+  if (!draft || !hasSubmissionWork(draft)) {
     resetSubmissionState();
     toastInfo(t("submission.noChangesToSubmit"));
   }

@@ -1,22 +1,7 @@
-import type { Project, PendingOverlayModification } from "@/types/index";
-import type { FieldChange, ProjectFieldName, OverlayFieldName } from "@shared/validation/schemas";
+import type { PendingOverlayModification } from "@/types/index";
+import { PROJECT_CHANGE_FIELDS, type OverlayFieldName } from "@shared/validation/schemas";
 
-// The project fields compared for change detection, and the only ones a project row can name.
-// Each must also be a field a change request may carry, or submitting it would be rejected.
-export const PROJECT_CHANGE_FIELDS = [
-  "name",
-  "description",
-  "sourceUrl",
-  "timelineStatus",
-  "proposalDate",
-  "startDate",
-  "endDate",
-  "endDatePrecision",
-  "proposalDatePrecision",
-  "startDatePrecision",
-  "geometry",
-  "tags",
-] as const satisfies readonly (keyof Project & ProjectFieldName)[];
+export { PROJECT_CHANGE_FIELDS } from "@shared/validation/schemas";
 
 // "new_overlay" is a dialog row kind only: a new overlay is published, never change-requested.
 const OVERLAY_CHANGE_FIELDS = ["caption", "corners", "new_overlay"] as const satisfies readonly (
@@ -38,19 +23,16 @@ export function isProjectChangeField(field: RemovableChange): field is ProjectCh
   return (PROJECT_CHANGE_FIELDS as readonly string[]).includes(field);
 }
 
-export type SubmissionChangeType = "create" | "update_pending" | "update_approved";
-
-export type ProjectFieldChange = FieldChange & { fieldName: ProjectChangeField };
-
-export interface ProjectSubmissionDraft {
-  changeType: SubmissionChangeType;
-  changes: ProjectFieldChange[];
+export interface ProjectFieldChange {
+  fieldName: ProjectChangeField;
+  oldValue: unknown;
+  newValue: unknown;
 }
 
 export interface SubmissionDraft {
   projectId: string;
   entityName: string | null;
-  project?: ProjectSubmissionDraft;
+  projectChanges?: ProjectFieldChange[];
   overlayModifications: PendingOverlayModification[];
   newOverlayIds: string[];
   pendingRender?: { id: string; file: File; previewUrl: string };
@@ -70,5 +52,5 @@ export interface SubmissionSummary {
   entityName: string | null;
   changes: SubmissionChange[];
   requiresModeration: boolean;
-  changeType: SubmissionChangeType;
+  isCreation: boolean;
 }

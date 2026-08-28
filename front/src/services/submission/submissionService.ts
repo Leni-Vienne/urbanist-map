@@ -2,7 +2,6 @@ import { useProjectStore } from "@/stores/projectStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { trpc, type RouterOutput } from "@/client";
-import { parseShapeCollection } from "@/utils/geojson";
 import { uploadImageFile } from "@/services/submission/uploadImageFile";
 import { clearStagedRender } from "@/services/submission/stagedRenderState";
 import type { Project, OverlayObject, PendingOverlayModification } from "@/types/index";
@@ -10,7 +9,7 @@ import {
   projectSchema,
   overlayClientSchema,
   getValidationErrors,
-  type FieldChange,
+  type OverlayFieldName,
   type OverlayCorners,
   type SubmissionBatchInput,
 } from "@shared/validation/schemas";
@@ -26,7 +25,6 @@ import { overlayWireToData } from "@/utils/typeFactories";
 import {
   PROJECT_CHANGE_FIELDS,
   type ProjectFieldChange,
-  type SubmissionChangeType,
   type SubmissionDraft,
 } from "./submissionTypes";
 
@@ -35,72 +33,27 @@ interface ProposedOverlayValues {
   corners?: OverlayCorners;
 }
 
-type UpdateChangeType = Exclude<SubmissionChangeType, "create">;
-
 interface OverlayUpdate {
-  changeType: UpdateChangeType;
   proposed: ProposedOverlayValues;
-  changedFields: FieldChange[];
+  changedFields: OverlayFieldName[];
 }
 
-function normalizeFieldValue(
-  field: keyof Project,
-  value: unknown,
-  projectSource: Partial<Project>,
-): unknown {
-  if (["proposalDate", "startDate", "endDate"].includes(field)) {
-    return normalizeDate(value);
-  }
-  if (field === "geometry") {
-    const shapes = parseShapeCollection(value);
-    return shapes ? JSON.stringify(shapes) : null;
-  }
-  const precisionDateField = getPrecisionDateField(field);
-  if (precisionDateField) {
-    return normalizeDatePrecision(precisionDateField, value, projectSource);
-  }
-  if (field === "tags") {
-    return JSON.stringify(
-      // oxlint-disable-next-line no-unsafe-type-assertion
-      Array.isArray(value) ? (value as string[]).toSorted((a, b) => a.localeCompare(b)) : [],
+function compareStrings(left: string, right: string): number {
+  return left.localeCompare(right);
+}
+
+function projectValuesEqual(
+  field: ProjectFieldChange["fieldName"],
+  oldValue: unknown,
+  newValue: unknown,
+): boolean {
+  if (field === "tags" && Array.isArray(oldValue) && Array.isArray(newValue)) {
+    return (
+      JSON.stringify(oldValue.toSorted(compareStrings)) ===
+      JSON.stringify(newValue.toSorted(compareStrings))
     );
   }
-  return value === "" ? null : (value ?? null);
-}
-
-function normalizeDate(val: unknown): string | null {
-  if (!val) return null;
-  if (val instanceof Date) return val.toISOString().split("T")[0] ?? null;
-  if (typeof val === "string") return val.split("T")[0] ?? null;
-  return null;
-}
-
-function getPrecisionDateField(field: keyof Project): keyof Project | null {
-  switch (field) {
-    case "proposalDatePrecision":
-      return "proposalDate";
-    case "startDatePrecision":
-      return "startDate";
-    case "endDatePrecision":
-      return "endDate";
-    default:
-      return null;
-  }
-}
-
-// A precision only means something next to a date: with no date set, the precision stays as-is,
-// otherwise a missing precision defaults to "day".
-function normalizeDatePrecision(
-  dateField: keyof Project,
-  precisionValue: unknown,
-  projectValueSource: Partial<Project>,
-): unknown {
-  const dateValue = projectValueSource[dateField];
-  if (dateValue === null || dateValue === undefined || dateValue === "") {
-    return precisionValue ?? null;
-  }
-
-  return precisionValue === null || precisionValue === undefined ? "day" : precisionValue;
+  return JSON.stringify(oldValue) === JSON.stringify(newValue);
 }
 
 function zodErrorsToMessages(zodError: Parameters<typeof getValidationErrors>[0]): string[] {
@@ -113,73 +66,37 @@ function validateProject(project: Project): string[] {
   return errors.map((e) => t(e.key, e.params ?? {}));
 }
 
-function getOverlayUpdateType(overlay: OverlayObject): UpdateChangeType {
-  return overlay.status === "approved" ? "update_approved" : "update_pending";
-}
-
 export function detectProjectChanges(project: Project): ProjectFieldChange[] {
+  const projectStore = useProjectStore();
+  const originalProject = projectStore.getPersistedProject(project.id);
+  const draft = projectStore.projectDrafts[project.id];
+
+  if (!originalProject || !draft) return [];
+
   const changes: ProjectFieldChange[] = [];
-  const originalProject = useProjectStore().getPersistedProject(project.id);
-
-  if (!originalProject) return changes;
-
   for (const field of PROJECT_CHANGE_FIELDS) {
+    if (!(field in draft)) continue;
     const oldValue = originalProject[field];
     const newValue = project[field];
-
-    const isGeometryField = field === "geometry";
-    const isArrayField = field === "tags";
-
-    const normalizedOld = normalizeFieldValue(field, oldValue, originalProject);
-    const normalizedNew = normalizeFieldValue(field, newValue, project);
-
-    if (normalizedOld !== normalizedNew) {
-      // Store raw objects for geometry/arrays so the backend receives proper JSON, not a string
-      let pushedOldValue: unknown = normalizedOld;
-      let pushedNewValue: unknown = normalizedNew;
-      if (isGeometryField) {
-        pushedOldValue = normalizedOld !== null ? oldValue : null;
-        pushedNewValue = normalizedNew !== null ? newValue : null;
-      } else if (isArrayField) {
-        pushedOldValue = oldValue;
-        pushedNewValue = newValue;
-      }
-      changes.push({
-        fieldName: field,
-        oldValue: pushedOldValue,
-        newValue: pushedNewValue,
-      });
-    }
+    if (projectValuesEqual(field, oldValue, newValue)) continue;
+    changes.push({ fieldName: field, oldValue, newValue });
   }
 
   return changes;
 }
 
-function validateOverlay(overlayId: string, proposed: ProposedOverlayValues): string[] {
-  const liveOverlay = useOverlayStore().liveOverlays[overlayId];
-  const corners =
-    proposed.corners ?? (liveOverlay ? resolveOverlaySubmissionCorners(liveOverlay) : null) ?? [];
+function validateOverlay(overlay: OverlayObject, proposed: ProposedOverlayValues): string[] {
+  const corners = proposed.corners ?? resolveOverlaySubmissionCorners(overlay) ?? [];
 
   // filename is validated server-side only (the client may not have it yet), so it's omitted here.
   const validationData = prepareOverlayValidationData({
-    id: overlayId,
-    caption: proposed.caption ?? liveOverlay?.caption ?? null,
-    projectId: liveOverlay?.projectId ?? null,
+    id: overlay.id,
+    caption: proposed.caption === undefined ? overlay.caption : proposed.caption,
+    projectId: overlay.projectId,
     corners: corners.map((c: { lat: number; lng: number }) => ({ lat: c.lat, lng: c.lng })),
   });
   const result = overlayClientSchema.safeParse(validationData);
   return result.success ? [] : zodErrorsToMessages(result.error);
-}
-
-function validateChangedFields(
-  changeType: SubmissionChangeType,
-  changedFields: FieldChange[],
-): string[] {
-  const errors: string[] = [];
-  if (changeType !== "create" && changedFields.length === 0) {
-    errors.push(t("errors.noChangesDetected"));
-  }
-  return errors;
 }
 
 async function prepareImageForServer(overlay: OverlayObject): Promise<string> {
@@ -209,8 +126,9 @@ async function prepareImageForServer(overlay: OverlayObject): Promise<string> {
   return filename;
 }
 
-async function buildDirectOverlay(
+async function buildSubmittedOverlay(
   overlay: OverlayObject,
+  changedFields: OverlayFieldName[],
 ): Promise<SubmissionBatchInput["overlays"][number]> {
   if (!overlay.projectId) {
     throw new Error(t("overlay.publishErrorNoProjectId"));
@@ -229,39 +147,24 @@ async function buildDirectOverlay(
     projectId: overlay.projectId,
     replacesOverlayId: overlay.replacesOverlayId ?? undefined,
     corners: corners.map((c) => ({ lat: c.lat, lng: c.lng })),
+    changedFields,
   };
 }
 
 function buildOverlayUpdate(
   mod: Pick<PendingOverlayModification, "caption" | "corners">,
-  overlayObj: OverlayObject,
-  reason?: string,
 ): OverlayUpdate {
-  const changedFields: FieldChange[] = [];
+  const changedFields: OverlayFieldName[] = [];
   const proposed: ProposedOverlayValues = {};
   if (mod.caption) {
-    changedFields.push({
-      fieldName: "caption",
-      oldValue: mod.caption.original,
-      newValue: mod.caption.current,
-      changeReason: reason,
-    });
+    changedFields.push("caption");
     proposed.caption = mod.caption.current;
   }
   if (mod.corners) {
-    changedFields.push({
-      fieldName: "corners",
-      oldValue: mod.corners.original,
-      newValue: mod.corners.current,
-      changeReason: reason,
-    });
+    changedFields.push("corners");
     proposed.corners = mod.corners.current;
   }
-  return {
-    changeType: getOverlayUpdateType(overlayObj),
-    changedFields,
-    proposed,
-  };
+  return { changedFields, proposed };
 }
 
 function getOverlayOrThrow(overlayId: string): OverlayObject {
@@ -271,33 +174,26 @@ function getOverlayOrThrow(overlayId: string): OverlayObject {
 }
 
 function validateSubmission(draft: SubmissionDraft, project: Project | null): void {
-  // Validate the whole batch before any write so deterministic client errors do not cause a
-  // partial submission. Server and network failures can still interrupt the writes below.
+  // Validate the whole batch before uploading image files or opening the backend transaction.
   const errors = new Set<string>();
 
   for (const mod of draft.overlayModifications) {
     const overlay = getOverlayOrThrow(mod.overlayId);
-    const update = buildOverlayUpdate(mod, overlay);
-    for (const error of validateOverlay(mod.overlayId, update.proposed)) errors.add(error);
-    for (const error of validateChangedFields(update.changeType, update.changedFields)) {
-      errors.add(error);
-    }
+    const update = buildOverlayUpdate(mod);
+    for (const error of validateOverlay(overlay, update.proposed)) errors.add(error);
   }
 
   for (const overlayId of draft.newOverlayIds) {
     const overlay = getOverlayOrThrow(overlayId);
     const proposed = { corners: resolveOverlaySubmissionCorners(overlay) ?? undefined };
-    for (const error of validateOverlay(overlayId, proposed)) errors.add(error);
+    for (const error of validateOverlay(overlay, proposed)) errors.add(error);
   }
 
-  if (draft.project) {
+  if (draft.projectChanges) {
     if (!project) {
       errors.add(t("submission.projectUnavailable"));
     } else {
       for (const error of validateProject(project)) errors.add(error);
-      for (const error of validateChangedFields(draft.project.changeType, draft.project.changes)) {
-        errors.add(error);
-      }
     }
   }
 
@@ -312,50 +208,44 @@ async function buildSubmissionBatch(
   project: Project | null,
   reason: string,
 ): Promise<SubmissionBatchInput> {
-  const directOverlayIds = new Set(draft.newOverlayIds);
-  const changeRequests: SubmissionBatchInput["changeRequests"] = [];
+  const overlayFields = new Map<string, OverlayFieldName[]>();
+  for (const overlayId of draft.newOverlayIds) overlayFields.set(overlayId, []);
 
   for (const mod of draft.overlayModifications) {
-    const overlay = getOverlayOrThrow(mod.overlayId);
-    const update = buildOverlayUpdate(mod, overlay, reason);
-    if (update.changeType === "update_approved") {
-      changeRequests.push({
-        entityType: "overlay",
-        entityId: mod.overlayId,
-        changes: update.changedFields,
-      });
-    } else {
-      directOverlayIds.add(mod.overlayId);
-    }
+    overlayFields.set(mod.overlayId, buildOverlayUpdate(mod).changedFields);
   }
 
-  let directProject: SubmissionBatchInput["project"] = undefined;
-  if (draft.project && project) {
-    if (draft.project.changeType === "update_approved") {
-      changeRequests.push({
-        entityType: "project",
-        entityId: project.id,
-        changes: draft.project.changes.map((change) => ({ ...change, changeReason: reason })),
-      });
-    } else {
-      directProject = { ...projectSchema.parse(project), id: project.id };
-    }
+  let submittedProject: SubmissionBatchInput["project"] = undefined;
+  if (draft.projectChanges && project) {
+    submittedProject = {
+      ...projectSchema.parse(project),
+      id: project.id,
+      changedFields: draft.projectChanges.map(getProjectChangeField),
+    };
+  }
+
+  async function buildOverlayIntent(overlayId: string) {
+    return buildSubmittedOverlay(getOverlayOrThrow(overlayId), overlayFields.get(overlayId) ?? []);
   }
 
   const [overlays, renderFilename] = await Promise.all([
-    Promise.all([...directOverlayIds].map(async (id) => buildDirectOverlay(getOverlayOrThrow(id)))),
+    Promise.all([...overlayFields.keys()].map(buildOverlayIntent)),
     draft.pendingRender ? uploadImageFile(draft.pendingRender.file) : undefined,
   ]);
   return {
     projectId: draft.projectId,
-    project: directProject,
+    project: submittedProject,
     overlays,
-    changeRequests,
     render:
       draft.pendingRender && renderFilename
         ? { id: draft.pendingRender.id, filename: renderFilename }
         : undefined,
+    reason,
   };
+}
+
+function getProjectChangeField(change: ProjectFieldChange) {
+  return change.fieldName;
 }
 
 function applySubmissionResult(
@@ -373,7 +263,7 @@ function applySubmissionResult(
     result.editSession.overlays.map(overlayWireToData),
     submittedOverlayIds,
   );
-  if (draft.project) projectStore.discardProjectDraft(draft.projectId);
+  if (draft.projectChanges) projectStore.discardProjectDraft(draft.projectId);
   useChangeRequestStore().setPendingChangeRequests(result.changeRequests);
 
   if (result.render) {
@@ -384,11 +274,15 @@ function applySubmissionResult(
   }
 }
 
-export async function submitDraft(draft: SubmissionDraft, reason: string): Promise<void> {
+export async function submitDraft(
+  draft: SubmissionDraft,
+  reason: string,
+): Promise<RouterOutput["submission"]["submit"]["outcome"]> {
   const project = useProjectStore().getProjectById(draft.projectId);
   validateSubmission(draft, project);
   const batch = await buildSubmissionBatch(draft, project, reason);
   const result = await trpc.submission.submit.mutate(batch);
   applySubmissionResult(draft, result);
   await refreshUserContributions();
+  return result.outcome;
 }

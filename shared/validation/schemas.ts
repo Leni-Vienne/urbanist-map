@@ -135,23 +135,25 @@ export const resetPasswordSchema = z.object({
   password: z.string().min(8, "validation.passwordTooShort"),
 });
 
-// Allowed field names per entity type and their value validators
-const PROJECT_FIELD_VALIDATORS = {
-  name: z.string().min(1).max(35),
-  description: z.string().max(2000).or(z.literal("")).nullable(),
-  sourceUrl: safeUrl.or(z.literal("")).nullable(),
-  proposalDate: z.coerce.date().nullable(),
-  startDate: z.coerce.date().nullable(),
-  endDate: z.coerce.date().nullable(),
-  proposalDatePrecision: z.enum(["year", "month", "day"]).nullable(),
-  startDatePrecision: z.enum(["year", "month", "day"]).nullable(),
-  endDatePrecision: z.enum(["year", "month", "day"]).nullable(),
-  timelineStatus: z
-    .enum(["proposed", "planned", "under_construction", "completed", "canceled"])
-    .optional(),
-  geometry: GeoJSONGeometryCollectionSchema.nullable(),
-  tags: z.array(z.string().max(50)).max(20).nullable(),
-};
+export const PROJECT_CHANGE_FIELDS = [
+  "name",
+  "description",
+  "sourceUrl",
+  "timelineStatus",
+  "proposalDate",
+  "startDate",
+  "endDate",
+  "endDatePrecision",
+  "proposalDatePrecision",
+  "startDatePrecision",
+  "geometry",
+  "tags",
+] as const;
+
+const OVERLAY_CHANGE_FIELDS = ["caption", "corners"] as const;
+
+export type ProjectFieldName = (typeof PROJECT_CHANGE_FIELDS)[number];
+export type OverlayFieldName = (typeof OVERLAY_CHANGE_FIELDS)[number];
 
 const overlayCornersSchema = z
   .array(z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }))
@@ -159,81 +161,42 @@ const overlayCornersSchema = z
 
 export type OverlayCorners = z.infer<typeof overlayCornersSchema>;
 
-const OVERLAY_FIELD_VALIDATORS = {
-  caption: z.string().max(500).or(z.literal("")).nullable(),
-  corners: overlayCornersSchema,
-};
+function hasUniqueValues(values: readonly string[]): boolean {
+  return new Set(values).size === values.length;
+}
 
-/** The field names a change request may name, per entity type. */
-export type ProjectFieldName = keyof typeof PROJECT_FIELD_VALIDATORS;
-export type OverlayFieldName = keyof typeof OVERLAY_FIELD_VALIDATORS;
+const changedProjectFieldsSchema = z
+  .array(z.enum(PROJECT_CHANGE_FIELDS))
+  .max(PROJECT_CHANGE_FIELDS.length)
+  .refine(hasUniqueValues, "validation.fieldNameInvalid");
 
-// Lookup form of the tables above. A wire `fieldName` is an arbitrary string until it matches a
-// key here, so it is looked up rather than indexed.
-const FIELD_VALIDATORS_BY_ENTITY = {
-  project: new Map<string, z.ZodTypeAny>(Object.entries(PROJECT_FIELD_VALIDATORS)),
-  overlay: new Map<string, z.ZodTypeAny>(Object.entries(OVERLAY_FIELD_VALIDATORS)),
-};
+const changedOverlayFieldsSchema = z
+  .array(z.enum(OVERLAY_CHANGE_FIELDS))
+  .max(OVERLAY_CHANGE_FIELDS.length)
+  .refine(hasUniqueValues, "validation.fieldNameInvalid");
 
-const fieldChangeSchema = z.object({
-  fieldName: z.string().min(1, "validation.fieldNameRequired"),
-  oldValue: z.any().optional(),
-  newValue: z.any(),
-  changeReason: z
-    .string()
-    .or(z.literal(""))
-    .transform((val) => (val === "" ? undefined : val))
-    .optional(),
-});
+const submittedProjectSchema = projectSchema.and(
+  z.object({ id: z.uuid(), changedFields: changedProjectFieldsSchema }),
+);
 
-const submitChangeRequestSchema = z
-  .object({
-    entityType: z.enum(["project", "overlay"]),
-    entityId: z.uuid(),
-    changes: z.array(fieldChangeSchema).min(1, "validation.changesRequired"),
-  })
-  .superRefine((data, ctx) => {
-    const validators = FIELD_VALIDATORS_BY_ENTITY[data.entityType];
-
-    data.changes.forEach((change, i) => {
-      const validator = validators.get(change.fieldName);
-
-      if (!validator) {
-        ctx.addIssue({
-          code: "custom",
-          message: `Invalid field name "${change.fieldName}" for entity type "${data.entityType}"`,
-          path: ["changes", i, "fieldName"],
-        });
-        return;
-      }
-
-      const result = validator.safeParse(change.newValue);
-      if (!result.success) {
-        for (const issue of result.error.issues) {
-          ctx.addIssue({
-            ...issue,
-            path: ["changes", i, "newValue", ...issue.path],
-          });
-        }
-      }
-    });
-  });
+const submittedOverlaySchema = overlaySchema.and(
+  z.object({ changedFields: changedOverlayFieldsSchema }),
+);
 
 export const submissionBatchSchema = z
   .object({
     projectId: z.uuid(),
-    project: projectSchema.and(z.object({ id: z.uuid() })).optional(),
-    overlays: z.array(overlaySchema),
-    changeRequests: z.array(submitChangeRequestSchema),
+    project: submittedProjectSchema.optional(),
+    overlays: z.array(submittedOverlaySchema),
     render: z.object({ id: z.uuid(), filename: uploadedFilenameSchema }).optional(),
+    reason: z
+      .string()
+      .or(z.literal(""))
+      .transform((value) => (value === "" ? undefined : value))
+      .optional(),
   })
   .superRefine((data, ctx) => {
-    if (
-      !data.project &&
-      data.overlays.length === 0 &&
-      data.changeRequests.length === 0 &&
-      !data.render
-    ) {
+    if (!data.project && data.overlays.length === 0 && !data.render) {
       ctx.addIssue({ code: "custom", message: "validation.changesRequired", path: [] });
     }
     if (data.project && data.project.id !== data.projectId) {
@@ -245,15 +208,6 @@ export const submissionBatchSchema = z
           code: "custom",
           message: "validation.projectRequired",
           path: ["overlays", index, "projectId"],
-        });
-      }
-    });
-    data.changeRequests.forEach((request, index) => {
-      if (request.entityType === "project" && request.entityId !== data.projectId) {
-        ctx.addIssue({
-          code: "custom",
-          message: "validation.projectRequired",
-          path: ["changeRequests", index, "entityId"],
         });
       }
     });
@@ -309,6 +263,4 @@ export function getValidationErrors(error: z.ZodError): ValidationError[] {
   return errors;
 }
 
-type SubmitChangeRequestInput = z.infer<typeof submitChangeRequestSchema>;
-export type FieldChange = SubmitChangeRequestInput["changes"][number];
 export type SubmissionBatchInput = z.infer<typeof submissionBatchSchema>;

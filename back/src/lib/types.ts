@@ -1,6 +1,5 @@
 // Backend-specific types (storage, file upload)
 // For shared types (ApprovalStatus, AppMode), see @shared/types
-// For change request types (FieldChange, SubmitChangeRequestInput), see @shared/validation/schemas
 
 import type { Session } from "hono-sessions";
 

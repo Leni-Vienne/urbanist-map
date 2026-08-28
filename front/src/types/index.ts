@@ -1,9 +1,6 @@
 import type { RouterOutput } from "@/client";
 import type { DBProject, DBImportSource, ApprovalStatus } from "../../../back/src/db/schema";
 
-// Type definitions for field modifications in submission dialogs
-export type ModifiableField = "caption" | "corners";
-
 export type LatLng = { lat: number; lng: number };
 
 type CornersChange = {
@@ -16,13 +13,10 @@ type CaptionChange = {
   original: string | null;
 };
 
-export type PendingOverlayModification = {
-  overlayId: string;
-  projectId: string | null;
-  overlayStatus: ApprovalStatus;
-  corners?: CornersChange;
-  caption?: CaptionChange;
-};
+export type PendingOverlayModification = { overlayId: string } & (
+  | { corners: CornersChange; caption?: CaptionChange }
+  | { caption: CaptionChange; corners?: CornersChange }
+);
 
 // Type for marker colors used throughout the application
 export type MarkerColor = "blue" | "green" | "orange" | "red" | "yellow" | "purple" | "grey";
