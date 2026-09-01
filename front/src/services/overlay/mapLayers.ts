@@ -11,9 +11,8 @@ import {
   transformToCorners,
   type OverlayTransform,
 } from "@/services/overlay/transform";
-import { useOverlayStore } from "@/stores/overlayStore";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
-import type { OverlayObject, LatLng } from "@/types/index";
+import type { LatLng } from "@/types/index";
 
 // Centralized registry for all overlay layer references (image sources + markers).
 // Single source of truth for "is this overlay rendered on the map?".
@@ -429,21 +428,21 @@ function getImageSource(sourceId: string): ImageSource | undefined {
 
 // Add an image source + raster layer for one overlay. The raster layer's minzoom hides the image
 // below the zoom threshold natively.
-export function createOverlayImage(overlayObject: OverlayObject, corners: LatLng[] | null): void {
+export function createOverlayImage(id: string, imageUrl: string, corners: LatLng[] | null): void {
   const mlMap = getMap();
   if (!isValidQuad(corners)) return;
 
-  const sourceId = overlaySourceId(overlayObject.id);
-  const rasterLayerId = overlayRasterLayerId(overlayObject.id);
+  const sourceId = overlaySourceId(id);
+  const rasterLayerId = overlayRasterLayerId(id);
 
   if (mlMap.getSource(sourceId)) return;
 
-  const opacity = getOverlayOpacity(overlayObject.id);
+  const opacity = getOverlayOpacity(id);
 
   try {
     mlMap.addSource(sourceId, {
       type: "image",
-      url: overlayObject.imageUrl,
+      url: imageUrl,
       coordinates: cornersToImageCoordinates(corners),
     });
     mlMap.addLayer(
@@ -454,19 +453,19 @@ export function createOverlayImage(overlayObject: OverlayObject, corners: LatLng
         minzoom: getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS),
         paint: { "raster-opacity": opacity, "raster-fade-duration": 0 },
       },
-      frontOverlayIds.has(overlayObject.id) ? undefined : getVectorLayersBottomId(mlMap),
+      frontOverlayIds.has(id) ? undefined : getVectorLayersBottomId(mlMap),
     );
     registerImageHandle(
-      overlayObject.id,
+      id,
       {
         sourceId,
         rasterLayerId,
-        imageUrl: overlayObject.imageUrl,
+        imageUrl,
       },
       corners,
     );
   } catch (error) {
-    console.error("Failed to create overlay image:", overlayObject.id, error);
+    console.error("Failed to create overlay image:", id, error);
     if (mlMap.getLayer(rasterLayerId)) mlMap.removeLayer(rasterLayerId);
     if (mlMap.getSource(sourceId)) mlMap.removeSource(sourceId);
   }
@@ -512,15 +511,7 @@ export function replaceOverlayImageSource(id: string, imageUrl: string, corners:
   const handle = getImageHandle(id);
   if (handle) removeImageFromMap(handle);
 
-  const store = useOverlayStore();
-  const overlay = store.liveOverlays[id];
-  if (!overlay) return;
-
-  const filename = deriveOverlayFilename(id, imageUrl, overlay.filename);
-
-  store.updateOverlayDraft(id, { imageUrl, filename });
-
-  createOverlayImage(overlay, corners);
+  createOverlayImage(id, imageUrl, corners);
 }
 
 // Set raster opacity (0..1) for one overlay.

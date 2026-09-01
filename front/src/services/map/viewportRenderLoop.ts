@@ -199,7 +199,11 @@ function reconcileOverlayExistence(bounds: ViewportBounds): void {
       if (shouldDisplayOverlay(liveObject, mode, userId)) {
         destructionQueue.delete(id);
         if (!hasImage) {
-          registry.createOverlayImage(liveObject, resolveOverlayCorners(liveObject));
+          registry.createOverlayImage(
+            liveObject.id,
+            liveObject.imageUrl,
+            resolveOverlayCorners(liveObject),
+          );
         } else if (isSessionMode && convergeOverlayDisplay(liveObject)) handlesNeedSync = true;
         if (!hasMarker) createOverlayMarker(liveObject);
       } else if (hasImage || hasMarker) {
@@ -232,7 +236,11 @@ function reconcileOverlayExistence(bounds: ViewportBounds): void {
         createOverlayMarker(overlayObject);
       }
       if (!hasImage) {
-        registry.createOverlayImage(overlayObject, resolveOverlayCorners(overlayObject));
+        registry.createOverlayImage(
+          overlayObject.id,
+          overlayObject.imageUrl,
+          resolveOverlayCorners(overlayObject),
+        );
       } else if (isSessionMode && convergeOverlayDisplay(overlayObject)) {
         handlesNeedSync = true;
       }

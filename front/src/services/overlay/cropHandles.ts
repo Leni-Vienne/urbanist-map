@@ -2,6 +2,7 @@ import * as maplibregl from "maplibre-gl";
 import { getMap } from "@/services/core/map";
 import {
   getImageHandle,
+  deriveOverlayFilename,
   replaceOverlayImageSource,
   takeGestureOwnership,
   releaseGestureOwnership,
@@ -21,6 +22,7 @@ import { createSvgCanvasLayer, createSvgPath } from "@/utils/svgCanvasLayer";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import type { OverlayObject } from "@/types/index";
 import { resolveOverlayCorners } from "@/services/overlay/data";
+import { useOverlayStore } from "@/stores/overlayStore";
 
 type Edge = "top" | "bottom" | "left" | "right";
 
@@ -322,10 +324,17 @@ export async function applyCrop(): Promise<boolean> {
     bearing: t.bearing,
   };
   const newCorners = transformToCorners(newTransform);
+  const overlayStore = useOverlayStore();
+  const currentOverlay = overlayStore.liveOverlays[overlay.id];
+  if (!currentOverlay) return false;
 
-  // Swap in the cropped pixels at the shrunk footprint, then record it as a normal history step.
+  // Store the cropped pixels, project them at the shrunk footprint, then record a history step.
   // The new imageUrl makes the step distinct from the pre-crop one, so undo restores both the
   // original pixels and the original footprint.
+  overlayStore.updateOverlayDraft(overlay.id, {
+    imageUrl: dataUrl,
+    filename: deriveOverlayFilename(overlay.id, dataUrl, currentOverlay.filename),
+  });
   replaceOverlayImageSource(overlay.id, dataUrl, newCorners);
   commitOverlayEdit(overlay.id, newCorners, originalRect);
   updateMarkerPosition(overlay, newCorners);
