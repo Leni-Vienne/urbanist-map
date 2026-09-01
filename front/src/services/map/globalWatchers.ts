@@ -30,9 +30,9 @@ function watchModeTransitions(): () => void {
   const uiStore = useUiStore();
   return watch(
     () => uiStore.mode,
-    (newMode, oldMode) => {
+    (newMode) => {
       syncEditHandlesForMode(newMode);
-      void syncSessionDataForMode(newMode, oldMode)
+      void syncSessionDataForMode(newMode)
         .catch((error: unknown) => console.error("Mode session sync failed", error))
         .then(syncModeVectorFilters);
     },

@@ -10,7 +10,7 @@ import * as registry from "@/services/overlay/mapLayers";
 import { isValidQuad, parsePointValue, parseQuadValue } from "@/services/overlay/transform";
 import { getEditModeRestingCorners } from "@/services/overlay/positionState";
 import { openOverlayDetail } from "@/services/overlay/selection";
-import { clearAllMapContent } from "@/services/overlay/teardown";
+import { clearMapProjectionState } from "@/services/overlay/teardown";
 import { mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
 import { renderPreviewShapes } from "@/services/map/shapes/rendering";
 import { buildShapeBounds } from "@/utils/cornersBounds";
@@ -91,7 +91,7 @@ async function ensureOverlayLoaded(
   }
 
   // Clear map and navigate to the overlay's country
-  clearAllMapContent();
+  clearMapProjectionState();
   moderationStore.selectedCountryCode = overlayForModeration.countryCode;
 
   // Step 4: Navigate to overlay position
@@ -224,7 +224,7 @@ export async function previewShapes(options: PreviewShapesOptions): Promise<void
   if (!bounds) return;
 
   if (project.countryCode && moderationStore.selectedCountryCode !== project.countryCode) {
-    clearAllMapContent();
+    clearMapProjectionState();
     moderationStore.selectedCountryCode = project.countryCode;
     await nextTick();
   }

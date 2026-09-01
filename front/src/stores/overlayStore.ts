@@ -263,7 +263,6 @@ export const useOverlayStore = defineStore("overlay", () => {
     replacementOverlayId,
     getOverlayById,
     hasFullOverlayData,
-    clearLiveOverlays,
     addLocalOverlay,
     updateOverlayDraft,
     updatePersistedOverlay,

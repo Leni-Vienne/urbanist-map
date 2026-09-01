@@ -1,4 +1,3 @@
-import { useOverlayStore } from "@/stores/overlayStore";
 import * as registry from "@/services/overlay/mapLayers";
 import { closeDetail } from "@/services/overlay/selection";
 import { clearMapSessionSnapshot } from "@/services/map/mapSessionState";
@@ -24,17 +23,7 @@ export function clearOverlayRenderState(): void {
   registry.clearAll();
 }
 
-/**
- * Full wipe: deselect, tear down all image layers and markers, and drop the overlay store data.
- */
-export function clearAllOverlays(): void {
-  closeDetail();
-  registry.clearAll();
-  useOverlayStore().clearLiveOverlays();
-}
-
-// Wipe overlays and the active map session. Used to enter a focused single-submission preview.
-export function clearAllMapContent(): void {
-  clearAllOverlays();
+export function clearMapProjectionState(): void {
+  clearOverlayRenderState();
   clearMapSessionSnapshot();
 }

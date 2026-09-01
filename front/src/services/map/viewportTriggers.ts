@@ -15,7 +15,7 @@ import { useModerationStore } from "@/stores/moderationStore";
 import { debounce } from "@/utils/debounce";
 import { isOverlayVisible } from "@/services/overlay/visibility";
 import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
-import { clearAllOverlays, clearOverlayRenderState } from "@/services/overlay/teardown";
+import { clearOverlayRenderState } from "@/services/overlay/teardown";
 import * as registry from "@/services/overlay/mapLayers";
 import { projectFromWire, overlayWireToData, type ProjectWire } from "@/utils/typeFactories";
 import { loadOrNull } from "@/services/core/errorHandling";
@@ -155,7 +155,7 @@ export function resetMapSessionState(): void {
   runViewportRenderLoop();
 }
 
-export async function syncSessionDataForMode(newMode: AppMode, oldMode: AppMode): Promise<void> {
+export async function syncSessionDataForMode(newMode: AppMode): Promise<void> {
   // Switching TO view mode: tile rendering takes over.
   if (newMode === "view") {
     resetMapSessionState();
@@ -173,9 +173,6 @@ export async function syncSessionDataForMode(newMode: AppMode, oldMode: AppMode)
       registry.clearEntry(id);
     }
   }
-
-  // Moderation must not inherit view-mode overlay data.
-  if (oldMode === "view" && newMode === "moderation") clearAllOverlays();
 
   if (newMode === "edit") await refreshEditSessionData();
 
