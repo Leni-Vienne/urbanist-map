@@ -1000,6 +1000,7 @@ function registerMapInteractionListeners(mlMap: MaplibreMap): void {
   // Position updates are exempt from throttling so the card follows the cursor smoothly.
   let hoverThrottlePending = false;
   let hoverTrailingEvent: { event: MapMouseEvent; clientX: number; clientY: number } | null = null;
+  let hoverThrottleTimer: ReturnType<typeof setTimeout> | null = null;
 
   function processHover(event: MapMouseEvent, clientX: number, clientY: number): void {
     const { features, pointFeature } = queryInteractionFeatures(event, mlMap);
@@ -1039,7 +1040,8 @@ function registerMapInteractionListeners(mlMap: MaplibreMap): void {
       return;
     }
     hoverThrottlePending = true;
-    setTimeout(() => {
+    hoverThrottleTimer = setTimeout(() => {
+      hoverThrottleTimer = null;
       hoverThrottlePending = false;
       const trailing = hoverTrailingEvent;
       hoverTrailingEvent = null;
@@ -1085,16 +1087,20 @@ function registerMapInteractionListeners(mlMap: MaplibreMap): void {
 
     handleBackgroundClick(event.lngLat);
   });
+
+  function onRemove(): void {
+    if (hoverThrottleTimer !== null) clearTimeout(hoverThrottleTimer);
+    hoverTrailingEvent = null;
+    if (interactionListenersMap === mlMap) interactionListenersMap = null;
+    for (const gesture of ["drag", "rotate", "pitch"]) endHoverPreviewGesture(gesture);
+    clearHoverPreview();
+  }
+
+  void mlMap.once("remove", onRemove);
 }
 
-// The map instance whose listeners are already attached. MapLibre listeners live on the instance and
-// survive setStyle(), which re-runs this path, but a MapView remount builds a fresh instance that
-// needs its own set.
+// MapLibre listeners survive setStyle(), while a MapView remount needs a fresh registration.
 let interactionListenersMap: MaplibreMap | null = null;
-
-export function clearHybridInteractionHandlers(target: MaplibreMap): void {
-  if (interactionListenersMap === target) interactionListenersMap = null;
-}
 
 /** Hover/click handlers for the vector tile layers. */
 export function initializeHybridInteractionHandlers(): void {
