@@ -5,7 +5,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { ensureProjectSummary } from "@/services/core/projectSelection";
 import {
   getMarker,
-  getRenderedOverlayIds,
+  getRenderedOverlayIdsTopToBottom,
   hasReadyLayer,
   whenImageReady,
   raiseOverlayImage,
@@ -142,19 +142,14 @@ function isPointInCorners(point: LatLng, corners: LatLng[]): boolean {
 }
 
 /**
- * Map click fallthrough: no vector/point feature was hit. Select an unapproved overlay
- * whose footprint contains the click (approved overlays go through the vector tile path),
- * otherwise deselect.
+ * Map click fallthrough: no vector/point feature was hit. Select the highest rendered overlay whose
+ * current image requires manual footprint hit-testing, otherwise deselect.
  */
 export function handleBackgroundClick(lngLat: { lng: number; lat: number }): void {
   const overlayStore = useOverlayStore();
-  const renderedIds = getRenderedOverlayIds();
+  const renderedIds = getRenderedOverlayIdsTopToBottom();
 
-  // Later-registered overlays are checked first. Registration order only approximates the
-  // visual stacking: raiseOverlayImage reorders map layers without touching the registry.
-  for (let i = renderedIds.length - 1; i >= 0; i -= 1) {
-    const id = renderedIds[i];
-    if (!id) continue;
+  for (const id of renderedIds) {
     const overlay = overlayStore.liveOverlays[id];
     if (!overlay) continue;
     // Approved overlays at their backend position are clicked via the vector-tile path.

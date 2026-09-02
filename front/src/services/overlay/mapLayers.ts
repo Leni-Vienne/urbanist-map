@@ -229,11 +229,20 @@ export function getImageHandle(id: string): OverlayImageHandle | null {
   return entries.get(id)?.imageHandle ?? null;
 }
 
-// IDs of overlays currently rendered as MapLibre image layers.
-export function getRenderedOverlayIds(): string[] {
-  const ids: string[] = [];
+// Resolve registered overlay images against MapLibre's current layer stack, visually highest first.
+export function getRenderedOverlayIdsTopToBottom(): string[] {
+  const overlayIdByLayerId = new Map<string, string>();
   for (const [id, entry] of entries) {
-    if (entry.imageHandle !== null) ids.push(id);
+    if (entry.imageHandle) overlayIdByLayerId.set(entry.imageHandle.rasterLayerId, id);
+  }
+
+  const ids: string[] = [];
+  const styleLayers = getMap().getStyle().layers;
+  for (let i = styleLayers.length - 1; i >= 0; i -= 1) {
+    const layer = styleLayers[i];
+    if (!layer) continue;
+    const id = overlayIdByLayerId.get(layer.id);
+    if (id) ids.push(id);
   }
   return ids;
 }
