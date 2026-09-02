@@ -108,15 +108,16 @@ function resetMapReadiness(): void {
 
 // setStyle() destroys every source and layer on the map. "before" fires while the outgoing style's
 // objects are still live, "after" once the incoming style has loaded and its layers are rebuilt.
-// Listeners are not scoped to a map instance and survive a remount, so module-level owners can
-// subscribe once at load.
 export type StyleSwitchPhase = "before" | "after";
 
 const styleSwitchCallbacks = new Set<(phase: StyleSwitchPhase) => void>();
 
-/** Run `run` on both phases of every basemap style swap, for the lifetime of the page. */
-export function onStyleSwitch(run: (phase: StyleSwitchPhase) => void): void {
+/** Run `run` on both phases of every basemap style swap until the returned disposer is called. */
+export function onStyleSwitch(run: (phase: StyleSwitchPhase) => void): () => void {
   styleSwitchCallbacks.add(run);
+  return function stopStyleSwitchListener(): void {
+    styleSwitchCallbacks.delete(run);
+  };
 }
 
 /** Run every style-switch listener for `phase`. A listener that throws does not stop the others. */

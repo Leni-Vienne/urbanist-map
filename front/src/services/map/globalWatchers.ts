@@ -24,6 +24,10 @@ import {
   syncModeVectorFilters,
 } from "@/services/map/tiles/layers";
 import { watchMapAreaOutline, syncMapAreaOutline } from "@/services/map/mapAreaOutline";
+import {
+  syncProjectShapePreview,
+  watchProjectShapePreview,
+} from "@/services/map/shapes/previewCoordinator";
 import { useUiStore } from "@/stores/uiStore";
 
 function watchModeTransitions(): () => void {
@@ -54,6 +58,7 @@ export function startMapStateCoordinator(): () => void {
     watchViewportModeData(),
     watchTileLayerState(),
     watchMapAreaOutline(),
+    watchProjectShapePreview(),
   ];
 
   let stopped = false;
@@ -75,4 +80,5 @@ export async function activateMapStateCoordinator(target: MaplibreMap): Promise<
   if (getMapOrNull() !== target) return;
   syncTileLayerState();
   syncMapAreaOutline();
+  syncProjectShapePreview();
 }

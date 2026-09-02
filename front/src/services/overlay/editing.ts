@@ -505,8 +505,6 @@ function reattachEditHandlesAfterStyleSwitch(phase: StyleSwitchPhase): void {
   refreshEditHandlesGeometry();
 }
 
-onStyleSwitch(reattachEditHandlesAfterStyleSwitch);
-
 export function hideEditHandles(): void {
   if (!session) return;
   const mlMap = getMap();
@@ -583,10 +581,16 @@ export function watchEditHandles(): () => void {
   const uiStore = useUiStore();
   const focus = useFocusStore();
 
-  return watch(
+  const stopSelectionWatch = watch(
     () => focus.selectedOverlayId,
     (selectedId) => {
       syncEditHandles(selectedId, uiStore.mode);
     },
   );
+  const stopStyleSwitchWatch = onStyleSwitch(reattachEditHandlesAfterStyleSwitch);
+
+  return function stopEditHandleWatchers(): void {
+    stopStyleSwitchWatch();
+    stopSelectionWatch();
+  };
 }

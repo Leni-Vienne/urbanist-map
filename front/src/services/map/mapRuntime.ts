@@ -13,6 +13,7 @@ import { clearHoverPreview } from "@/services/map/hoverPreviewState";
 import { hideEditHandles } from "@/services/overlay/editing";
 import { hideCropHandles } from "@/services/overlay/cropHandles";
 import { clearOverlayRenderObjects } from "@/services/overlay/teardown";
+import { installOverlayStyleSwitchHandling } from "@/services/overlay/mapLayers";
 
 // Toggling the rotation setting locks/unlocks drag-rotate, pitch-with-rotate and two-finger touch
 // pitch; locking also snaps the camera back to north so the map never stays stuck at an angle.
@@ -38,7 +39,11 @@ function watchRotationSetting(target: MaplibreMap): () => void {
  * before the map is removed: it hands every map object back to the still-live instance.
  */
 export function startMapRuntime(target: MaplibreMap): () => void {
-  const stops = [watchRotationSetting(target), setupEventListeners(target)];
+  const stops = [
+    watchRotationSetting(target),
+    setupEventListeners(target),
+    installOverlayStyleSwitchHandling(),
+  ];
 
   return function stopMapRuntime(): void {
     // Active gestures own map objects and hold their own listeners, so they end first.

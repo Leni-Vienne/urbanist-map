@@ -131,7 +131,7 @@ function removeAreaLayers(mlMap: MaplibreMap): void {
  */
 export function syncMapAreaOutline(): void {
   const mlMap = getMapOrNull();
-  if (!mlMap?.isStyleLoaded()) return;
+  if (!mlMap?.getSource("project-sources")) return;
 
   const area = isAreaFilterOnScreen.value ? mapArea.value : null;
   if (!area) {
@@ -153,9 +153,13 @@ function reattachAfterStyleSwitch(phase: StyleSwitchPhase): void {
   syncMapAreaOutline();
 }
 
-onStyleSwitch(reattachAfterStyleSwitch);
-
 /** Keep the drawn bounds in step with the filter and with the tab that owns it. */
 export function watchMapAreaOutline(): () => void {
-  return watch([mapArea, isAreaFilterOnScreen], syncMapAreaOutline);
+  const stopAreaWatch = watch([mapArea, isAreaFilterOnScreen], syncMapAreaOutline);
+  const stopStyleSwitchWatch = onStyleSwitch(reattachAfterStyleSwitch);
+
+  return function stopMapAreaOutline(): void {
+    stopStyleSwitchWatch();
+    stopAreaWatch();
+  };
 }

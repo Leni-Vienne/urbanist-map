@@ -15,8 +15,8 @@ type PreviewState =
   | { type: "none" }
   | { type: "current"; changeId: string; overlayId: string }
   | { type: "suggested"; changeId: string; overlayId: string }
-  | { type: "project-current"; changeId: string }
-  | { type: "project-suggested"; changeId: string };
+  | { type: "project-current"; changeId: string; projectId: string }
+  | { type: "project-suggested"; changeId: string; projectId: string };
 
 // The side of a change request the user explicitly asked to preview. Stale intent (its change
 // request resolved, or its entity no longer selected) is inert rather than cleared: previewState
@@ -31,8 +31,18 @@ function isOverlayGeometryChange(cr: PendingChangeRequest, overlayId: string): b
   );
 }
 
-function isProjectShapesChange(cr: PendingChangeRequest): boolean {
-  return cr.entityType === "project" && cr.fieldName === "geometry";
+function isProjectShapesChange(cr: PendingChangeRequest, projectId: string): boolean {
+  return cr.entityType === "project" && cr.entityId === projectId && cr.fieldName === "geometry";
+}
+
+function findProjectShapesChange(
+  requests: PendingChangeRequest[],
+  projectId: string,
+): PendingChangeRequest | undefined {
+  for (const request of requests) {
+    if (isProjectShapesChange(request, projectId)) return request;
+  }
+  return undefined;
 }
 
 export const useChangeRequestStore = defineStore("changeRequest", () => {
@@ -80,17 +90,28 @@ export const useChangeRequestStore = defineStore("changeRequest", () => {
       return { type: side, changeId: geometryChange.id, overlayId };
     }
 
+    const projectId = useFocusStore().selectedProjectId;
+    if (!projectId) return { type: "none" };
+
     const shapesChange =
-      intentChange && isProjectShapesChange(intentChange)
+      intentChange && isProjectShapesChange(intentChange, projectId)
         ? intentChange
-        : requests.find(isProjectShapesChange);
+        : findProjectShapesChange(requests, projectId);
     if (!shapesChange) return { type: "none" };
     const side = intent && shapesChange === intentChange ? intent.side : "current";
     return {
       type: side === "suggested" ? "project-suggested" : "project-current",
       changeId: shapesChange.id,
+      projectId,
     };
   });
+
+  function getRelevantChangeRequest(changeId: string): PendingChangeRequest | undefined {
+    for (const change of relevantChangeRequests()) {
+      if (change.id === changeId) return change;
+    }
+    return undefined;
+  }
 
   function setPendingChangeRequests(items: ChangeRequest[]) {
     pendingChangeRequests.value = items;
@@ -122,6 +143,7 @@ export const useChangeRequestStore = defineStore("changeRequest", () => {
     loaded,
     previewIntent,
     previewState,
+    getRelevantChangeRequest,
     setPendingChangeRequests,
     removeChangeRequest,
     removeChangeRequests,

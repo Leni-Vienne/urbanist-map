@@ -12,7 +12,6 @@ import { getEditModeRestingCorners } from "@/services/overlay/positionState";
 import { openOverlayDetail } from "@/services/overlay/selection";
 import { clearMapProjectionState } from "@/services/overlay/teardown";
 import { mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
-import { renderPreviewShapes } from "@/services/map/shapes/rendering";
 import { buildShapeBounds } from "@/utils/cornersBounds";
 import { openProjectDetail } from "@/services/core/projectSelection";
 import type { LatLng, Overlay, PendingChangeRequest, Project } from "@/types/index";
@@ -229,17 +228,11 @@ export async function previewShapes(options: PreviewShapesOptions): Promise<void
     await nextTick();
   }
 
-  const newGeometry = type === "new" ? geometry : (project.geometry ?? null);
-  const oldGeometry = type === "new" ? (project.geometry ?? null) : null;
-
-  renderPreviewShapes(project, newGeometry, oldGeometry, () => {
-    openProjectDetail(project);
-  });
-
-  mobileAwareFlyToBounds(bounds);
-  openProjectDetail(project);
-  useChangeRequestStore().previewIntent = {
+  const changeRequestStore = useChangeRequestStore();
+  changeRequestStore.previewIntent = {
     changeId: change.id,
     side: type === "new" ? "suggested" : "current",
   };
+  openProjectDetail(project);
+  mobileAwareFlyToBounds(bounds);
 }

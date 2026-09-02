@@ -258,7 +258,9 @@ function dropImageHandlesForStyleSwitch(phase: StyleSwitchPhase): void {
   }
 }
 
-onStyleSwitch(dropImageHandlesForStyleSwitch);
+export function installOverlayStyleSwitchHandling(): () => void {
+  return onStyleSwitch(dropImageHandlesForStyleSwitch);
+}
 
 // Remove an overlay's image source + raster layer from the MapLibre map. Entries can outlive the
 // map (sign-out on a non-map route), and a removed map took its sources and layers with it.
