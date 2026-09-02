@@ -234,11 +234,6 @@
     "replacementCaption": "Replacement for {name}"
   },
   "map": {
-    "viewMode": "View Mode",
-    "editMode": "Edit Mode",
-    "viewModeTooltip": "Browse and view projects on the map",
-    "editModeTooltip": "Add and edit image positions on the map",
-    "switchMode": "Switch mode",
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",
     "resetNorth": "Reset to north",
@@ -604,7 +599,6 @@
   },
   "moderation": {
     "title": "Moderation",
-    "description": "Review pending submissions",
     "by": "by",
     "noAccessToThisCountry": "You do not have permission to moderate this country.",
     "refreshCountsFailed": "Could not refresh pending counts",
@@ -618,9 +612,6 @@
     "overlayApprovedDetail": "The image has been approved successfully",
     "overlayRejected": "Image Rejected",
     "overlayRejectedDetail": "The image has been rejected",
-    "switchedToEditMode": "Switched to Edit Mode",
-    "switchedToViewMode": "Switched to View Mode",
-    "switchedToModerationMode": "Switched to Moderation Mode",
     "changeApproved": "Change Approved",
     "changeApprovedDetail": "The change has been applied successfully",
     "changeRejected": "Change Rejected",

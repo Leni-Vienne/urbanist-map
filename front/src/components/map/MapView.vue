@@ -39,14 +39,6 @@
         <CompassControl />
       </div>
 
-      <!-- Mode controls wrapper - desktop only (mobile version is in MobileDrawer) -->
-      <div
-        v-if="authStore.isAuthenticated"
-        class="absolute bottom-5 left-0 right-0 z-900 pointer-events-none hidden md:block"
-      >
-        <ModeControls />
-      </div>
-
       <SatellitePreview />
       <OverlayFloatingToolbar v-if="focusStore.selectedOverlayId" />
     </div>
@@ -72,9 +64,7 @@ import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 import { useI18n } from "vue-i18n";
 import { useUiStore } from "@/stores/uiStore";
 import { useFocusStore } from "@/stores/focusStore";
-import { useAuthStore } from "@/stores/authStore";
 
-import ModeControls from "@/components/map/ModeControls.vue";
 import SatellitePreview from "@/components/map/SatellitePreview.vue";
 import ZoomControls from "@/components/map/ZoomControls.vue";
 import CompassControl from "@/components/map/CompassControl.vue";
@@ -89,7 +79,6 @@ const SettingsButton = defineAsyncComponent(() => mapUIBundle.then((m) => m.Sett
 
 const uiStore = useUiStore();
 const focusStore = useFocusStore();
-const authStore = useAuthStore();
 
 const { t } = useI18n();
 const isLoading = ref(true);

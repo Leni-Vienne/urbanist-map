@@ -15,7 +15,7 @@
         </div>
 
         <div
-          class="drawer-handle py-2 pb-[0.4rem] flex justify-center items-center cursor-grab active:cursor-grabbing shrink-0 bg-(--p-content-hover-background) rounded-t-2xl"
+          class="drawer-handle py-2 pb-[0.4rem] flex justify-center items-center cursor-grab active:cursor-grabbing shrink-0 rounded-t-2xl"
           @click.stop
         >
           <div
@@ -24,7 +24,7 @@
         </div>
 
         <div
-          class="drawer-header shrink-0 bg-(--p-content-hover-background) cursor-grab active:cursor-grabbing transition-[padding] duration-300 ease-in-out"
+          class="drawer-header shrink-0 cursor-grab active:cursor-grabbing transition-[padding] duration-300 ease-in-out"
           :class="{ 'py-0 px-4 pb-[0.3em] text-center': isCompact }"
         >
           <slot name="header"></slot>

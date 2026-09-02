@@ -1,6 +1,5 @@
 <template>
   <DraggableDrawer v-model:height-percent="uiStore.mobileDrawerHeightPercent">
-    <!-- Mode controls above drawer on mobile, with individual floor clamping -->
     <template #above="{ drawerHeightPx }">
       <div class="relative w-full h-0 pointer-events-none">
         <!-- Satellite Preview: Minimum floor 80px. Positioned Left. -->
@@ -12,17 +11,6 @@
           }"
         >
           <SatellitePreview :in-drawer="true" />
-        </div>
-
-        <!-- Mode Controls: Minimum floor 110px. Centered. -->
-        <div
-          class="absolute left-0 bottom-0 w-full pointer-events-none flex justify-center"
-          :style="{
-            marginBottom: `${Math.max(0, 110 - Math.max(drawerHeightPx || 0, 65))}px`,
-            zIndex: 20,
-          }"
-        >
-          <ModeControls v-if="authStore.isAuthenticated" :is-mobile="true" />
         </div>
       </div>
     </template>
@@ -71,21 +59,18 @@
 <script setup lang="ts">
 import { defineAsyncComponent } from "vue";
 import { useUiStore } from "@/stores/uiStore";
-import { useAuthStore } from "@/stores/authStore";
 import { useDetailPanel } from "@/composables/layout/useDetailPanel";
 
 import DraggableDrawer from "./DraggableDrawer.vue";
 import PanelContent from "./PanelContent.vue";
 import PanelFooter from "./PanelFooter.vue";
 import PanelTabs from "./PanelTabs.vue";
-import ModeControls from "@/components/map/ModeControls.vue";
 import SatellitePreview from "@/components/map/SatellitePreview.vue";
 
 // Lazy loaded so the detail panel shares the same async chunk scope as PanelContent's copy.
 const ProjectDetailPanel = defineAsyncComponent(() => import("./ProjectDetailPanel.vue"));
 
 const uiStore = useUiStore();
-const authStore = useAuthStore();
 
 // activeTab proxies uiStore (shared with the desktop SideMenu); detailVisible drives the detail
 // slide-over (suppressed in edit mode, where ContributePanel renders the selection inline).

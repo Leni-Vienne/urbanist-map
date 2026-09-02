@@ -234,11 +234,6 @@
     "replacementCaption": "Remplacement de {name}"
   },
   "map": {
-    "viewMode": "Mode Consultation",
-    "editMode": "Mode Édition",
-    "viewModeTooltip": "Consulter les contributions sur la carte",
-    "editModeTooltip": "Vous pouvez ajouter et modifier des contributions sur la carte",
-    "switchMode": "Changer de mode",
     "zoomIn": "Zoom avant",
     "zoomOut": "Zoom arrière",
     "resetNorth": "Réorienter au nord",
@@ -604,7 +599,6 @@
   },
   "moderation": {
     "title": "Modération",
-    "description": "Examiner les contributions en attente",
     "by": "par",
     "noAccessToThisCountry": "Vous n'avez pas la permission de modérer ce pays.",
     "refreshCountsFailed": "Impossible de rafraîchir les compteurs en attente",
@@ -618,9 +612,6 @@
     "overlayApprovedDetail": "L'image a été approuvée avec succès",
     "overlayRejected": "Image rejetée",
     "overlayRejectedDetail": "L'image a été rejetée",
-    "switchedToEditMode": "Mode édition activé",
-    "switchedToViewMode": "Mode consultation activé",
-    "switchedToModerationMode": "Mode modération activé",
     "changeApproved": "Modification approuvée",
     "changeApprovedDetail": "La modification a été appliquée avec succès",
     "changeRejected": "Modification rejetée",
