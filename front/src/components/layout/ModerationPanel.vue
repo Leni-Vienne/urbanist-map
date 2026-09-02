@@ -128,7 +128,7 @@
             "
             :loading="isProcessingItem('overlay', overlay.id)"
             @approve="handleApproveOverlay(overlay.id)"
-            @reject="handleRejectOverlay(overlay.id, overlay.authorId)"
+            @reject="handleRejectOverlay(overlay.id, overlay.authorId ?? null)"
           />
           <!-- Show locked button (padlock) when project is still pending -->
           <!-- This prevents approving overlays before their parent project is approved -->

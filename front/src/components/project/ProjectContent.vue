@@ -127,13 +127,22 @@
                 }}
               </p>
             </div>
-            <div class="text-xs text-muted-color mb-2">
+            <div
+              v-if="
+                overlay.updatedAt ||
+                overlay.authorUsername ||
+                (isContributePanel && overlay.status === null && authStore.user?.username)
+              "
+              class="text-xs text-muted-color mb-2"
+            >
               <ContributorInfo
                 :date="overlay.updatedAt"
                 :contributor-id="overlay.authorId"
                 :contributor-username="
                   overlay.authorUsername ??
-                  (isContributePanel ? (authStore.user?.username ?? null) : null)
+                  (isContributePanel && overlay.status === null
+                    ? (authStore.user?.username ?? null)
+                    : null)
                 "
                 :report-count="overlay.authorReportCount ?? 0"
                 :clickable="showUserStatsLink && Boolean(overlay.authorId)"

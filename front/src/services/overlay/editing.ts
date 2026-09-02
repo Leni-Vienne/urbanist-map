@@ -29,7 +29,6 @@ import type { AppMode } from "@shared/types";
 import { t } from "@/locales";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import type { OverlayObject, LatLng } from "@/types/index";
-import { createOverlayObject } from "@/utils/typeFactories";
 import { openOverlayDetail, whenImageReadyIfSelected } from "@/services/overlay/selection";
 import { makeHistoryState, commitOverlayEdit } from "@/services/overlay/history";
 import { watch } from "vue";
@@ -42,14 +41,24 @@ const DEFAULT_OVERLAY_WIDTH_METERS = 100;
 const NEW_OVERLAY_ZOOM = 16;
 
 function buildLocalOverlay(id: string, imageUrl: string, projectId: string): OverlayObject {
-  return createOverlayObject({
+  const now = new Date();
+  return {
     id,
     filename: deriveOverlayFilename(id, imageUrl),
+    caption: null,
+    status: null,
     projectId,
     authorId: useAuthStore().user?.id ?? null,
     imageUrl,
-    status: null,
-  });
+    replacesOverlayId: null,
+    createdAt: now,
+    updatedAt: now,
+    baselineCorners: null,
+    baselineCaption: null,
+    history: [],
+    redoStack: [],
+    positionState: "baseline",
+  };
 }
 
 async function loadImageAspect(imageUrl: string): Promise<number> {

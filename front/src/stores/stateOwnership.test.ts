@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { createPinia, setActivePinia } from "pinia";
 import { useOverlayStore } from "./overlayStore";
 import { useProjectStore } from "./projectStore";
-import { createLocalProject, createOverlayObject } from "@/utils/typeFactories";
+import { createLocalProject } from "@/utils/typeFactories";
 import type { BackendOverlayData, Project, TileOverlayData } from "@/types/index";
 
 function makePersistedProject(name: string, description: string): Project {
@@ -13,10 +13,18 @@ function makePersistedProject(name: string, description: string): Project {
 }
 
 function makeBackendOverlay(caption: string): BackendOverlayData {
-  const overlay = createOverlayObject({
+  return {
     id: "overlay-1",
+    version: 1,
     filename: "overlay.webp",
     caption,
+    authorId: "user-1",
+    projectId: "project-1",
+    replacesOverlayId: null,
+    replacedByOverlayId: null,
+    createdAt: new Date(0),
+    updatedAt: new Date(0),
+    centroid: { lat: 0.5, lng: 0.5 },
     baselineCaption: caption,
     baselineCorners: [
       { lat: 0, lng: 0 },
@@ -25,16 +33,7 @@ function makeBackendOverlay(caption: string): BackendOverlayData {
       { lat: 1, lng: 0 },
     ],
     status: "approved",
-  });
-  const {
-    imageUrl: _imageUrl,
-    history: _history,
-    redoStack: _redoStack,
-    isTooBig: _isTooBig,
-    positionState: _positionState,
-    ...data
-  } = overlay;
-  return { ...data, status: "approved" };
+  };
 }
 
 function makeTileOverlay(id: string): TileOverlayData {
@@ -78,7 +77,12 @@ function tileTest() {
   const store = useOverlayStore();
   store.replaceTileOverlays(new Map([["tile-1", makeTileOverlay("tile-1")]]));
   store.retainSelectedTileOverlay("tile-1");
-  expect(store.liveOverlays["tile-1"]?.caption).toBe("tile-1");
+  const tileOverlay = store.liveOverlays["tile-1"];
+  expect(tileOverlay?.caption).toBe("tile-1");
+  expect("updatedAt" in (tileOverlay ?? {})).toBe(false);
+  expect("authorId" in (tileOverlay ?? {})).toBe(false);
+  expect("version" in (tileOverlay ?? {})).toBe(false);
+  expect("replacesOverlayId" in (tileOverlay ?? {})).toBe(false);
   expect(store.persistedOverlays["tile-1"]).toBeUndefined();
 
   store.replaceTileOverlays(new Map([["tile-2", makeTileOverlay("tile-2")]]));

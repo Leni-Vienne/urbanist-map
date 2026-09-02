@@ -8,7 +8,7 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
 import { isOverlayVisible } from "@/services/overlay/visibility";
-import type { OverlayObject, OverlayData, MarkerColor, LatLng } from "@/types/index";
+import type { OverlayObject, RuntimeOverlayData, MarkerColor, LatLng } from "@/types/index";
 import type { ApprovalStatus } from "@shared/types";
 import { t } from "@/locales";
 import * as registry from "@/services/overlay/mapLayers";
@@ -89,13 +89,13 @@ function onMarkerClick(overlayId: string): void {
  * Bounds for an overlay, for camera navigation. Returns null when the overlay has no valid
  * geometry so callers skip navigation instead of feeding NaN bounds to the camera.
  */
-export function getOverlayBounds(overlay: OverlayData): LngLatBounds | null {
+export function getOverlayBounds(overlay: RuntimeOverlayData): LngLatBounds | null {
   const corners = resolveOverlayCorners(overlay);
   return corners ? buildLngLatBounds(corners) : null;
 }
 
 function getOverlayMarkerColor(
-  overlayData: OverlayObject | OverlayData,
+  overlayData: RuntimeOverlayData,
   mode: "edit" | "moderation",
 ): MarkerColor {
   // Extract overlay-specific properties (not present on all overlay types)
@@ -140,7 +140,7 @@ function applyMarkerColorAndTooltip(
   function getTooltipTextForOverlay(): string {
     const hasBeenModified = isOverlayUnsaved(overlayObject);
     const hasChangeRequest = hasOpenChangeRequest(overlayObject);
-    const isReplacement = overlayObject.replacesOverlayId !== null;
+    const isReplacement = Boolean(overlayObject.replacesOverlayId);
     const isApproved = overlayObject.status === "approved";
     const isPending = overlayObject.status === "pending";
     const isRejected = overlayObject.status === "rejected";

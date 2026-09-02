@@ -144,6 +144,14 @@ export type BackendOverlayData = OverlayData & {
   status: ApprovalStatus;
 };
 
+type RuntimeOverlayCore = Pick<
+  OverlayData,
+  "id" | "filename" | "caption" | "status" | "projectId" | "baselineCorners" | "baselineCaption"
+>;
+
+export type RuntimeOverlayData = RuntimeOverlayCore &
+  Partial<Omit<OverlayData, keyof RuntimeOverlayCore>>;
+
 // Property bag of a vector-tile feature. The MVT wire format carries scalars only, so a list value
 // such as `tags` arrives as a JSON string and has to be parsed by the reader.
 export type TileProperties = Record<string, string | number | boolean | null>;
@@ -181,7 +189,7 @@ export interface OverlayHistoryState {
   cropRect?: NormalizedRect;
 }
 
-export interface OverlayObject extends OverlayData {
+export type OverlayObject = RuntimeOverlayData & {
   imageUrl: string;
 
   // Editor state
@@ -189,7 +197,7 @@ export interface OverlayObject extends OverlayData {
   redoStack: OverlayHistoryState[];
   isTooBig?: boolean; // Flag for real-time size validation warning
   positionState: OverlayPositionState;
-}
+};
 
 export type PanelTab = "explore" | "filter" | "contribute" | "moderation";
 
@@ -236,17 +244,8 @@ export type Overlay = Omit<
   countryName?: string | null;
 };
 
-// Fields shared by persisted overlay metadata and actual local editor overlays when shown in panels.
 export type ProjectPanelOverlay = Pick<
   Overlay,
-  | "id"
-  | "caption"
-  | "filename"
-  | "status"
-  | "projectId"
-  | "authorId"
-  | "replacesOverlayId"
-  | "updatedAt"
-  | "imageUrl"
+  "id" | "caption" | "filename" | "status" | "projectId" | "imageUrl"
 > &
   Partial<Overlay>;

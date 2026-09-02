@@ -5,11 +5,8 @@ import type {
   ProjectSummary,
   LocalProject,
   HydratedProject,
-  OverlayObject,
   LatLng,
 } from "@/types/index";
-import { v4 as uuidv4 } from "uuid";
-import { buildImageUrl } from "@/utils/imageUrl";
 
 export type LocalProjectInput = Partial<Omit<ProjectSummary, "id" | "status">> & {
   id?: string;
@@ -53,7 +50,7 @@ export function hydratedProjectFromWire(data: HydratedProjectWire): HydratedProj
 // Create a browser-local draft. Defaults belong here because no backend row exists yet.
 // eslint-disable-next-line complexity
 export function createLocalProject(data: LocalProjectInput): LocalProject {
-  const id = data.id ?? uuidv4();
+  const id = data.id ?? crypto.randomUUID();
 
   return {
     id,
@@ -95,47 +92,4 @@ export function hasProjectDetailFields(project: Project): project is HydratedPro
     project.ownerUsername !== undefined &&
     project.boundaryPath !== undefined
   );
-}
-
-/**
- * Create a new OverlayObject instance with defaults
- */
-// eslint-disable-next-line complexity
-export function createOverlayObject(data: Partial<OverlayObject>): OverlayObject {
-  const id = data.id ?? uuidv4();
-  // Preserve null status for local overlays (not yet submitted to backend)
-  // Only default to "pending" if status is undefined, NOT if it's null
-  const status = data.status === undefined ? "pending" : data.status;
-  // Pending overlays are stored locally, not in R2 - force backend URL for them
-  // Local overlays (status === null) also use local storage
-  const isPending = status === "pending" || status === null;
-
-  const filename = data.filename ?? "";
-  const isDataUrl = filename.startsWith("data:");
-  const imageUrl = data.imageUrl ?? (isDataUrl ? filename : buildImageUrl(filename, isPending));
-
-  return {
-    id,
-    version: data.version ?? 1,
-    filename,
-    caption: data.caption ?? null,
-    status,
-    authorId: data.authorId ?? "",
-    projectId: data.projectId ?? null,
-    replacesOverlayId: data.replacesOverlayId ?? null,
-    replacedByOverlayId: data.replacedByOverlayId ?? null,
-    createdAt: data.createdAt ?? new Date(),
-    updatedAt: data.updatedAt ?? new Date(),
-    centroid: data.centroid ?? { lat: 0, lng: 0 },
-    baselineCorners: data.baselineCorners ?? null,
-    baselineCaption: data.baselineCaption ?? data.caption ?? null,
-    imageUrl,
-    history: data.history ?? [],
-    redoStack: data.redoStack ?? [],
-    suggestedCorners: data.suggestedCorners ?? undefined,
-    suggestedCaption: data.suggestedCaption ?? undefined,
-    hasPendingChanges: data.hasPendingChanges ?? undefined,
-    isTooBig: data.isTooBig ?? undefined,
-    positionState: data.positionState ?? (data.hasPendingChanges ? "suggested" : "baseline"),
-  };
 }

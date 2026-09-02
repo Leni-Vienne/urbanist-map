@@ -3,7 +3,7 @@ import {
   updatePendingProjectPointsSource,
   updatePendingProjectShapesSource,
 } from "@/services/map/tiles/basemap";
-import type { OverlayData, Project } from "@/types/index";
+import type { Project, RuntimeOverlayData } from "@/types/index";
 import { isValidQuad } from "@/services/overlay/transform";
 import { useProjectStore } from "@/stores/projectStore";
 import { useOverlayStore } from "@/stores/overlayStore";
@@ -118,7 +118,7 @@ function addProjectToMap(
  * the point pass can skip it.
  */
 function collectPendingShapes(
-  overlaysData: OverlayData[],
+  overlaysData: RuntimeOverlayData[],
   projectsData: Project[],
   standaloneShapeProjectIds: Set<string>,
   mode: MapSessionMode,
@@ -207,7 +207,7 @@ function createProjectShapeFeature(
 }
 
 function renderPendingProjectSources(
-  overlaysData: OverlayData[],
+  overlaysData: RuntimeOverlayData[],
   projectsData: Project[],
   mode: MapSessionMode,
   imageProjectIds: Set<string>,
@@ -241,7 +241,7 @@ function renderPendingProjectSources(
  * Dedup and standalone-shape skipping are handled in addProjectToMap.
  */
 function collectPendingPoints(
-  overlaysData: OverlayData[],
+  overlaysData: RuntimeOverlayData[],
   projectsData: Project[],
   standaloneShapeProjectIds: Set<string>,
   mode: MapSessionMode,
@@ -284,7 +284,7 @@ export function renderMapSessionPendingSources(): void {
   }
   const projectStore = useProjectStore();
   const overlayStore = useOverlayStore();
-  const overlays: OverlayData[] = [];
+  const overlays: RuntimeOverlayData[] = [];
   const imageProjectIds = new Set<string>();
   for (const id of session.overlayIds) {
     const overlay = overlayStore.liveOverlays[id];

@@ -7,7 +7,7 @@ import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { getMap, getMapOrNull } from "@/services/core/map";
 import { shouldDisplayOverlay } from "@/services/overlay/visibility";
-import type { OverlayObject, OverlayData } from "@/types/index";
+import type { OverlayObject } from "@/types/index";
 import { activeFilters } from "@/services/core/filters";
 import { createOverlayMarker, updateMarkerPosition } from "@/services/overlay/markers";
 import { resolveOverlayCorners } from "@/services/overlay/data";
@@ -65,10 +65,7 @@ function queueForDestruction(id: string): void {
 // Whether an overlay's source data intersects the viewport at its store-derived display position.
 // Keying membership on the resolved position keeps an open change request's
 // image alive at its suggested position even when the approved footprint sits off-screen.
-function resolvedCornersInBounds(
-  source: OverlayObject | OverlayData,
-  bounds: LngLatBounds,
-): boolean {
+function resolvedCornersInBounds(source: OverlayObject, bounds: LngLatBounds): boolean {
   const corners = resolveOverlayCorners(source);
   return isValidQuad(corners) && cornersIntersectBounds(corners, bounds);
 }

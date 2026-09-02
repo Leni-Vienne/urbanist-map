@@ -4,7 +4,7 @@ import { storeToRefs } from "pinia";
 import { useFocusStore } from "@/stores/focusStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
-import type { OverlayData, Project } from "@/types/index";
+import type { OverlayObject, Project } from "@/types/index";
 
 /**
  * The project and overlay behind the open detail, resolved for a read-only panel: a project with
@@ -18,7 +18,7 @@ export function useDetailProject() {
   const { projects } = storeToRefs(projectStore);
   const { selection } = storeToRefs(focusStore);
 
-  const overlay = computed<OverlayData | null>(() => {
+  const overlay = computed<OverlayObject | null>(() => {
     if (selection.value?.kind !== "overlay") return null;
     return liveOverlays.value[selection.value.overlayId] ?? null;
   });

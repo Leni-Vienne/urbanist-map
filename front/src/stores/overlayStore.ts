@@ -1,13 +1,13 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { computed, ref } from "vue";
-import { createOverlayObject } from "@/utils/typeFactories";
+import { buildImageUrl } from "@/utils/imageUrl";
 import type {
   BackendOverlayData,
   LatLng,
-  OverlayData,
   OverlayHistoryState,
   OverlayObject,
   OverlayPositionState,
+  RuntimeOverlayData,
   TileOverlayData,
 } from "@/types/index";
 
@@ -16,7 +16,7 @@ type OverlayDraft = Partial<
     OverlayObject,
     "caption" | "filename" | "imageUrl" | "history" | "redoStack" | "isTooBig" | "positionState"
   >
-> & { base?: OverlayData };
+> & { base?: RuntimeOverlayData };
 
 function restingPositionState(overlay: OverlayObject): OverlayPositionState {
   return overlay.hasPendingChanges === true ? "suggested" : "baseline";
@@ -30,7 +30,7 @@ function defaultCaption(overlay: OverlayObject): string | null {
     : overlay.baselineCaption;
 }
 
-function toOverlayData(overlay: OverlayObject): OverlayData {
+function toRuntimeOverlayData(overlay: OverlayObject): RuntimeOverlayData {
   const {
     imageUrl: _imageUrl,
     history: _history,
@@ -40,6 +40,20 @@ function toOverlayData(overlay: OverlayObject): OverlayData {
     ...data
   } = overlay;
   return data;
+}
+
+function materializeOverlay(data: RuntimeOverlayData): OverlayObject {
+  const forceBackendUrl = data.status === "pending" || data.status === null;
+  const imageUrl = data.filename.startsWith("data:")
+    ? data.filename
+    : buildImageUrl(data.filename, forceBackendUrl);
+  return {
+    ...data,
+    imageUrl,
+    history: [],
+    redoStack: [],
+    positionState: data.hasPendingChanges === true ? "suggested" : "baseline",
+  };
 }
 
 function copyCorner(corner: LatLng): LatLng {
@@ -54,15 +68,18 @@ export const useOverlayStore = defineStore("overlay", () => {
   const replacementOverlayId = ref<string | null>(null);
 
   function getOverlayById(overlayId: string): OverlayObject | null {
+    const draft = overlayDrafts.value[overlayId];
     const data =
       persistedOverlays.value[overlayId] ??
-      overlayDrafts.value[overlayId]?.base ??
+      draft?.base ??
       tileOverlays.value[overlayId] ??
       (selectedTileOverlay.value?.id === overlayId ? selectedTileOverlay.value : undefined);
     if (!data) return null;
-    const overlay = createOverlayObject(data);
+    const overlay = materializeOverlay(data);
     overlay.caption = defaultCaption(overlay);
-    return Object.assign(overlay, overlayDrafts.value[overlayId]);
+    if (!draft) return overlay;
+    const { base: _base, ...updates } = draft;
+    return Object.assign(overlay, updates);
   }
 
   function getEffectiveOverlays(): Record<string, OverlayObject> {
@@ -84,7 +101,7 @@ export const useOverlayStore = defineStore("overlay", () => {
 
   function addLocalOverlay(overlayId: string, overlay: OverlayObject) {
     overlayDrafts.value[overlayId] = {
-      base: toOverlayData(overlay),
+      base: toRuntimeOverlayData(overlay),
       caption: overlay.caption,
       filename: overlay.filename,
       imageUrl: overlay.imageUrl,
@@ -100,7 +117,7 @@ export const useOverlayStore = defineStore("overlay", () => {
     if (!overlay) return;
     let existing = overlayDrafts.value[overlayId];
     if (!existing) {
-      existing = persistedOverlays.value[overlayId] ? {} : { base: toOverlayData(overlay) };
+      existing = persistedOverlays.value[overlayId] ? {} : { base: toRuntimeOverlayData(overlay) };
     }
     overlayDrafts.value[overlayId] = {
       ...existing,
