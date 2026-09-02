@@ -1,6 +1,5 @@
 import * as registry from "@/services/overlay/mapLayers";
 import { closeDetail } from "@/services/overlay/selection";
-import { clearMapSessionSnapshot } from "@/services/map/mapSessionState";
 
 /**
  * Remove every overlay map object (images, markers, gesture ownership, image-ready
@@ -21,9 +20,4 @@ export function clearOverlayRenderObjects(): void {
 export function clearOverlayRenderState(): void {
   closeDetail();
   registry.clearAll();
-}
-
-export function clearMapProjectionState(): void {
-  clearOverlayRenderState();
-  clearMapSessionSnapshot();
 }

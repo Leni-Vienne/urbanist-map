@@ -218,8 +218,6 @@
     "couldNotPreviewCoordinates": "Could not preview coordinates on map",
     "loadFailed": "Load Failed",
     "couldNotLoadOverlay": "Could not load the image on the map",
-    "missingData": "Missing Data",
-    "missingCityOrCountry": "The image has no country information",
     "coordinatesViewOnMap": "Coordinates (view on map)",
     "replaces": "Replaces",
     "viewOriginalOverlay": "View Original Image",

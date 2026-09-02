@@ -218,8 +218,6 @@
     "couldNotPreviewCoordinates": "Impossible d'afficher un aperçu des coordonnées sur la carte",
     "loadFailed": "Échec du chargement",
     "couldNotLoadOverlay": "Impossible de charger l'image sur la carte",
-    "missingData": "Données manquantes",
-    "missingCityOrCountry": "L'image n'a pas d'information de pays",
     "coordinatesViewOnMap": "Coordonnées (voir sur la carte)",
     "replaces": "Remplace",
     "viewOriginalOverlay": "Voir l'image d'origine",
