@@ -2,7 +2,6 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useUiStore } from "@/stores/uiStore";
-import { ensureProjectSummary } from "@/services/core/projectSelection";
 import {
   getMarker,
   getRenderedOverlayIdsTopToBottom,
@@ -19,7 +18,7 @@ import { isOverlayUnsaved } from "@/services/overlay/unsavedState";
 
 /**
  * Open overlay detail. The map highlight follows the focus store reactively; this owns the
- * non-reactive work (raised image, country sync, and parent-project loading).
+ * non-reactive work (raised image and country sync).
  */
 export function openOverlayDetail(overlayId: string): void {
   const overlayStore = useOverlayStore();
@@ -49,11 +48,6 @@ export function openOverlayDetail(overlayId: string): void {
     ? useProjectStore().getMapProjectById(newlySelected.projectId, useUiStore().mode)
     : null;
   syncModerationCountryFromMapClick(project?.countryCode);
-
-  // Map tile selections only carry a project id, so load the project when it is not cached.
-  if (newlySelected.projectId && !project) {
-    void ensureProjectSummary(newlySelected.projectId);
-  }
 }
 
 export function closeDetail(): void {

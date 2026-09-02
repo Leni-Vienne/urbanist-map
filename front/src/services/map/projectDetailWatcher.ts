@@ -5,10 +5,6 @@ import { useUiStore } from "@/stores/uiStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useFocusStore } from "@/stores/focusStore";
 
-// Permanent slugs never change once assigned, so a session-lifetime cache is always valid and saves
-// refetching the slug of a project selected more than once.
-const slugCache = new Map<string, string>();
-
 // "/" and "/project/:slug" are the only paths that render the map, so they are the only ones whose
 // path describes the open project. On any other route (legal, contact, admin) a selection change
 // must not touch the address bar: rewriting the path there would silently replace the destination
@@ -30,37 +26,43 @@ function writeProjectPath(slug: string | null): void {
   history.replaceState(history.state, "", nextPath + url.search + url.hash);
 }
 
-// Keep the address bar in sync with the open project detail so the live URL is a copy-pasteable
-// /project/<slug> deep link, and reverts to "/" when nothing is selected. No `immediate`: on a
-// deep-link load the URL already carries the slug and the project is selected asynchronously, so
-// reacting only to changes avoids wiping the slug back to "/" before it loads.
-function watchProjectUrlSync(): void {
+function selectedProjectSlug(): string | null | undefined {
+  const projectStore = useProjectStore();
+  const projectId = useFocusStore().selectedProjectId;
+  if (!projectId) return null;
+
+  const project = projectStore.getProjectById(projectId);
+  if (project?.status === null) return null;
+  return projectStore.getHydratedProject(projectId)?.slug;
+}
+
+function watchSelectedProjectHydration(): void {
   const projectStore = useProjectStore();
   const focus = useFocusStore();
 
   watch(
     () => focus.selectedProjectId,
-    async (projectId) => {
-      if (!projectId) {
-        writeProjectPath(null);
-        return;
-      }
+    (projectId) => {
+      if (!projectId) return;
 
-      const knownSlug = projectStore.projects[projectId]?.slug ?? slugCache.get(projectId);
-      if (knownSlug) {
-        slugCache.set(projectId, knownSlug);
-        writeProjectPath(knownSlug);
-        return;
-      }
-
-      // Slug wasn't loaded with the project (e.g. it came from the viewport payload). Resolve it once.
-      const fresh = await hydrateProjectDetail(projectId);
-      if (!fresh?.slug) return;
-      slugCache.set(projectId, fresh.slug);
-      // A fast re-selection may have moved on while awaiting; only write if still the active project.
-      if (focus.selectedProjectId === projectId) writeProjectPath(fresh.slug);
+      const project = projectStore.getProjectById(projectId);
+      if (project?.status === null || projectStore.getHydratedProject(projectId)) return;
+      void hydrateProjectDetail(projectId);
     },
+    { immediate: true },
   );
+}
+
+// Keep the address bar in sync with the open project detail so the live URL is a copy-pasteable
+// /project/<slug> deep link, and reverts to "/" when nothing is selected. No `immediate`: on a
+// deep-link load the URL already carries the slug and the project is selected asynchronously, so
+// reacting only to changes avoids wiping the slug back to "/" before it loads.
+function watchProjectUrlSync(): void {
+  const focus = useFocusStore();
+
+  watch([() => focus.selectedProjectId, selectedProjectSlug], ([, slug]) => {
+    if (slug !== undefined) writeProjectPath(slug);
+  });
 }
 
 // The selected project (project or overlay selection) is shown in the docked panel's "Selected
@@ -98,6 +100,7 @@ function watchModerationSelectionIsolation(): void {
  * until the page is torn down and are never stopped.
  */
 export function startDetailWatcher(): void {
+  watchSelectedProjectHydration();
   watchProjectUrlSync();
   watchSelectedPanelCleanup();
   watchModerationSelectionIsolation();

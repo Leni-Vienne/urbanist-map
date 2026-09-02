@@ -47,18 +47,11 @@ export function openProjectForEditing(project: Project): void {
  * then the backend.
  * Returns null when none has it.
  */
-export async function ensureProjectSummary(projectId: string): Promise<Project | null> {
+async function ensureProjectSummary(projectId: string): Promise<Project | null> {
   const projectStore = useProjectStore();
   const cached = projectStore.projects[projectId];
   if (cached) return cached;
-
-  const result = await loadOrNull(async () => trpc.project.getById.query({ id: projectId }), {
-    errorMessage: "Failed to load project",
-  });
-  if (!result) return null;
-
-  const project = hydratedProjectFromWire(result);
-  return projectStore.upsertHydratedProject(project);
+  return hydrateProjectDetail(projectId);
 }
 
 const detailHydrations = new Map<string, Promise<HydratedProject | null>>();

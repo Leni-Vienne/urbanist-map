@@ -1,16 +1,14 @@
-import { computed, watch } from "vue";
+import { computed } from "vue";
 import { storeToRefs } from "pinia";
 
 import { useFocusStore } from "@/stores/focusStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
-import { hydrateProjectDetail } from "@/services/core/projectSelection";
 import type { OverlayData, Project } from "@/types/index";
 
 /**
  * The project and overlay behind the open detail, resolved for a read-only panel: a project with
- * unsaved local edits shows its approved original. The fields only `getById` returns are fetched
- * once the selection settles.
+ * unsaved local edits shows its approved original.
  */
 export function useDetailProject() {
   const projectStore = useProjectStore();
@@ -31,15 +29,6 @@ export function useDetailProject() {
 
     return projectStore.getPersistedProject(id) ?? projects.value[id];
   });
-
-  // Summary selections render immediately; the detail-only fields land after.
-  function hydrate(id: string | undefined): void {
-    const current = project.value;
-    if (!id || !current || current.status === null || projectStore.getHydratedProject(id)) return;
-    void hydrateProjectDetail(id);
-  }
-
-  watch(() => project.value?.id, hydrate, { immediate: true });
 
   return { project, overlay };
 }
