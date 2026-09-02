@@ -16,8 +16,6 @@ import { throttle } from "@/utils/throttle";
 import { useOverlayStore } from "@/stores/overlayStore";
 import type { TileOverlayData, TileProperties } from "@/types/index";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
-import { cornersIntersectBounds } from "@/utils/cornersBounds";
-import { resolveOverlayCorners } from "@/services/overlay/data";
 import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 import { matchesProjectFilters, type FilterableProject } from "@/services/core/filters";
 
@@ -99,35 +97,18 @@ export function syncOverlaysFromTiles(): void {
   if (!mlMap?.getLayer("overlay-footprints")) return;
 
   try {
-    // querySourceFeatures (not queryRenderedFeatures) is used to also catch overlays whose
-    // edges are outside the viewport (e.g. when zoomed in so far that only the interior shows).
+    // Source queries cover MapLibre's renderable in-view tiles and include features independently
+    // of their style visibility.
     const allFeatures = mlMap.querySourceFeatures("project-sources", {
       sourceLayer: "overlay-footprints",
     });
 
-    const bounds = mlMap.getBounds();
-    const viewportBounds = {
-      north: bounds.getNorth(),
-      south: bounds.getSouth(),
-      east: bounds.getEast(),
-      west: bounds.getWest(),
-    };
-
-    const liveOverlays = useOverlayStore().liveOverlays;
-
-    // Approved overlays that should be on the map for this viewport. Deduplicated by id.
+    // Approved overlays represented by the current renderable tile set. Deduplicated by id.
     const featureMap = new Map<string, TileOverlayData>();
     for (const feat of allFeatures) {
       const { overlay, project } = decodeFootprint(feat);
       if (!overlay || featureMap.has(overlay.id) || !matchesProjectFilters(project)) continue;
-
-      // Membership follows the position the image has (or would be created at), resolved from the
-      // store object when one exists: its change-request/edit state can place the image away from
-      // the tile footprint's baseline corners.
-      const effectiveCorners = resolveOverlayCorners(liveOverlays[overlay.id] ?? overlay);
-      if (effectiveCorners && cornersIntersectBounds(effectiveCorners, viewportBounds)) {
-        featureMap.set(overlay.id, overlay);
-      }
+      featureMap.set(overlay.id, overlay);
     }
 
     useOverlayStore().replaceTileOverlays(featureMap);

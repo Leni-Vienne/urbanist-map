@@ -1,15 +1,12 @@
 import { watch } from "vue";
+import type { LngLatBounds } from "maplibre-gl";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { getMap, getMapOrNull } from "@/services/core/map";
-import {
-  isOverlayVisible,
-  matchesMapFilters,
-  shouldDisplayOverlay,
-} from "@/services/overlay/visibility";
+import { shouldDisplayOverlay } from "@/services/overlay/visibility";
 import type { OverlayObject, OverlayData } from "@/types/index";
 import { activeFilters } from "@/services/core/filters";
 import { createOverlayMarker, updateMarkerPosition } from "@/services/overlay/markers";
@@ -20,29 +17,6 @@ import { createRafBatchQueue } from "@/utils/rafBatchQueue";
 import { cornersIntersectBounds } from "@/utils/cornersBounds";
 import { getMapSessionSnapshot } from "@/services/map/mapSessionState";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
-
-interface ViewportBounds {
-  north: number;
-  south: number;
-  east: number;
-  west: number;
-}
-
-// Current viewport padded by 10% per axis, so content just past the edge isn't destroyed only to
-// be re-created on the next small pan.
-function getPaddedViewportBounds(): ViewportBounds {
-  const mlBounds = getMap().getBounds();
-  const sw = mlBounds.getSouthWest();
-  const ne = mlBounds.getNorthEast();
-  const latPad = (ne.lat - sw.lat) * 0.1;
-  const lngPad = (ne.lng - sw.lng) * 0.1;
-  return {
-    north: Math.min(90, ne.lat + latPad),
-    south: Math.max(-90, sw.lat - latPad),
-    east: ne.lng + lngPad,
-    west: sw.lng - lngPad,
-  };
-}
 
 let renderLoopRafId: number | null = null;
 
@@ -75,13 +49,13 @@ export function stopViewportRenderLoop(): void {
 
 function runViewportRenderLoopNow(): void {
   // Scheduled work can survive into a frame where MapView has already unmounted.
-  if (!getMapOrNull()) return;
+  const mlMap = getMapOrNull();
+  if (!mlMap) return;
 
-  reconcileOverlayExistence(getPaddedViewportBounds());
+  reconcileOverlayExistence(mlMap.getBounds());
 }
 
-// Drains in batches of 10 per frame to keep bulk teardown (e.g. Edit -> View) off the main thread.
-// Destruction is cheaper than creation, so the batch can be larger than the init queue.
+// Drains in batches of 10 per frame to spread bulk teardown (e.g. Edit -> View) across frames.
 const destructionQueue = createRafBatchQueue<null>((_, id) => registry.clearEntry(id), 10);
 
 function queueForDestruction(id: string): void {
@@ -93,10 +67,10 @@ function queueForDestruction(id: string): void {
 // image alive at its suggested position even when the approved footprint sits off-screen.
 function resolvedCornersInBounds(
   source: OverlayObject | OverlayData,
-  bounds: ViewportBounds,
+  bounds: LngLatBounds,
 ): boolean {
   const corners = resolveOverlayCorners(source);
-  return corners !== null && cornersIntersectBounds(corners, bounds);
+  return isValidQuad(corners) && cornersIntersectBounds(corners, bounds);
 }
 
 // Converge an existing overlay's image + marker to its desired store-derived display. The desired
@@ -138,18 +112,16 @@ function convergeOverlayDisplay(overlayObject: OverlayObject): boolean {
  * convergeOverlayDisplay.
  *
  * Candidate ids come from every set that can want an overlay on the map:
- *   - approvedOverlayDataCache: approved overlays vetted by tile sync (filters + viewport applied).
+ *   - tileOverlays: approved overlays represented by MapLibre's renderable in-view tiles.
  *   - active map session: pending + session change-request overlays (edit/moderation only).
  *   - liveOverlays(status === null): local/unsaved overlays.
  *   - current registry ids: so entries that left every live set get destroyed.
  *
- * Desired existence = zoom ≥ MIN_ZOOM_FOR_OVERLAYS ∧ mode/user visibility ∧ map filters ∧ resolved
- * corners intersect bounds; local overlays are exempt from the bounds test (only explicit deletion,
- * a mode switch or the zoom gate removes them). An overlay the tile sync rejected on a user filter
- * is never desired, whichever data source resolves it.
+ * Tile-managed approved overlays use their renderable tile as the spatial gate. Session, selected,
+ * and local overlays use mode/user visibility, map filters, and their resolved corners.
  */
 // oxlint-disable-next-line complexity
-function reconcileOverlayExistence(bounds: ViewportBounds): void {
+function reconcileOverlayExistence(bounds: LngLatBounds): void {
   const overlayStore = useOverlayStore();
   const uiStore = useUiStore();
   const authStore = useAuthStore();
@@ -193,40 +165,16 @@ function reconcileOverlayExistence(bounds: ViewportBounds): void {
     const hasImage = registry.getImageHandle(id) !== null;
     const hasMarker = registry.getMarker(id) !== null;
 
-    // Local/unsaved overlay: bounds-exempt, gated only on visibility + filters.
-    if (liveObject?.status === null) {
-      if (!isValidQuad(liveObject.baselineCorners)) continue;
-      if (shouldDisplayOverlay(liveObject, mode, userId)) {
-        destructionQueue.delete(id);
-        if (!hasImage) {
-          registry.createOverlayImage(
-            liveObject.id,
-            liveObject.imageUrl,
-            resolveOverlayCorners(liveObject),
-          );
-        } else if (isSessionMode && convergeOverlayDisplay(liveObject)) handlesNeedSync = true;
-        if (!hasMarker) createOverlayMarker(liveObject);
-      } else if (hasImage || hasMarker) {
-        queueForDestruction(id);
-      }
-      continue;
-    }
-
-    // Approved + tile-delivered: cache membership already applied filters and viewport.
     const tileData = tileManaged[id];
     const isTileManaged = tileData !== undefined;
-    let desired = isTileManaged;
-    if (!isTileManaged) {
-      // Session rows and the selected overlay can render at a position other than their tile
-      // footprint. Other cached backend rows are not part of this viewport.
-      const data = liveObject ?? null;
-      desired =
-        data !== null &&
-        (sessionOverlayIdSet.has(id) || id === selectedOverlayId) &&
-        isOverlayVisible(liveObject ?? data, mode, userId) &&
-        matchesMapFilters(liveObject ?? data, mode) &&
-        resolvedCornersInBounds(liveObject ?? data, bounds);
-    }
+    const isStoreManaged =
+      liveObject?.status === null || sessionOverlayIdSet.has(id) || id === selectedOverlayId;
+    const desired =
+      isTileManaged ||
+      (liveObject !== undefined &&
+        isStoreManaged &&
+        shouldDisplayOverlay(liveObject, mode, userId) &&
+        resolvedCornersInBounds(liveObject, bounds));
 
     if (desired) {
       const overlayObject = tileData ? overlayStore.getOverlayById(id) : liveObject;

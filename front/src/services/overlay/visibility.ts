@@ -49,7 +49,7 @@ export function isOverlayVisible(
   return false;
 }
 
-export function matchesMapFilters(overlay: OverlayVisibilityInput, mode: AppMode): boolean {
+function matchesMapFilters(overlay: OverlayVisibilityInput, mode: AppMode): boolean {
   const project = overlay.projectId
     ? useProjectStore().getMapProjectById(overlay.projectId, mode)
     : null;
