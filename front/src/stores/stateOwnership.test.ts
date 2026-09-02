@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { createPinia, setActivePinia } from "pinia";
 import { useOverlayStore } from "./overlayStore";
 import { useProjectStore } from "./projectStore";
+import { useFocusStore } from "./focusStore";
 import { createLocalProject } from "@/utils/typeFactories";
+import { openProjectDetailById } from "@/services/core/projectSelection";
 import type { BackendOverlayData, Project, TileOverlayData } from "@/types/index";
 
 function makePersistedProject(name: string, description: string): Project {
@@ -110,6 +112,15 @@ function overlayDraftTest() {
 
 function projectStateOwnership() {
   test("keeps backend refreshes separate from changed draft fields", projectDraftTest);
+  test("selects an uncached project immediately by id", () => {
+    openProjectDetailById("project-a");
+    openProjectDetailById("project-b");
+
+    const focus = useFocusStore();
+    expect(focus.selectedProjectId).toBe("project-b");
+    expect(focus.selectedProject).toBeNull();
+    expect(focus.detailVisible).toBe(true);
+  });
 }
 
 function overlayStateOwnership() {

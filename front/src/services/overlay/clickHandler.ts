@@ -2,16 +2,16 @@ import { navigateToProject } from "@/services/navigation/projectNavigation";
 import { mobileAwareFlyTo } from "@/services/core/mapNavigation";
 import { navigateToOverlay } from "@/services/overlay/navigation";
 import { useOverlayStore } from "@/stores/overlayStore";
+import { useProjectStore } from "@/stores/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useModerationStore } from "@/stores/moderationStore";
 
 import { t } from "@/locales";
-import { trpc } from "@/client";
 import type { LatestContribution, ProjectPanelOverlay } from "@/types/index";
 import { canModerateCountry } from "@/services/moderation/moderationCountrySync";
-import { loadOrNull } from "@/services/core/errorHandling";
 import { isValidQuad } from "@/services/overlay/transform";
 import { toastWarn, toastError } from "@/services/core/toast";
+import { openProjectDetailById } from "@/services/core/projectSelection";
 
 // Union type to accept overlays from moderation and contributions panels
 type NavigableOverlay = LatestContribution | ProjectPanelOverlay;
@@ -55,10 +55,10 @@ export async function handleOverlayClickNavigation(overlay: NavigableOverlay): P
  * Navigate to a replaced or rejected overlay.
  * Tries to use the overlay centroid from the store, then falls back to the project centre.
  */
-async function navigateToReplacedOrRejectedOverlay(
+function navigateToReplacedOrRejectedOverlay(
   overlay: NavigableOverlay,
   overlayStore: ReturnType<typeof useOverlayStore>,
-): Promise<boolean> {
+): boolean {
   if (!("projectId" in overlay) || !overlay.projectId) {
     return false;
   }
@@ -74,14 +74,22 @@ async function navigateToReplacedOrRejectedOverlay(
     return true;
   }
 
-  const project = await loadOrNull(async () => trpc.project.getById.query({ id: projectId }), {
-    errorMessage: t("overlay.failedToNavigate"),
-  });
+  if (
+    "lat" in overlay &&
+    typeof overlay.lat === "number" &&
+    "lng" in overlay &&
+    typeof overlay.lng === "number"
+  ) {
+    navigateToProject(overlay.lat, overlay.lng, projectId);
+    return true;
+  }
 
-  if (project && typeof project.lat === "number" && typeof project.lng === "number") {
+  const project = useProjectStore().getProjectById(projectId);
+  if (typeof project?.lat === "number" && typeof project.lng === "number") {
     navigateToProject(project.lat, project.lng, project.id);
     return true;
   }
 
+  openProjectDetailById(projectId);
   return false;
 }

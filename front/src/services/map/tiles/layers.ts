@@ -14,7 +14,7 @@ import type {
 import type { TileProperties } from "@/types/index";
 import { getMap, getMapOrNull } from "@/services/core/map";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
-import { handleProjectClickFromTile } from "@/services/core/projectSelection";
+import { openProjectDetailById } from "@/services/core/projectSelection";
 import { handleBackgroundClick, openOverlayDetail } from "@/services/overlay/selection";
 import { VECTOR_QUERY_LAYERS } from "@/services/map/tiles/queryLayers";
 import { useOverlayStore } from "@/stores/overlayStore";
@@ -917,14 +917,11 @@ function handleVectorFeatureClick(feature: MapGeoJSONFeature): void {
       openOverlayDetail(overlayId);
     }
   } else {
-    // Pin the vector highlight immediately so mousemove cannot clear it during the async project
-    // fetch inside handleProjectClickFromTile; opening the detail replaces hover with selection.
-    useFocusStore().setHoverTarget({ kind: "project", projectId });
-    void handleProjectClickFromTile(projectId);
+    openProjectDetailById(projectId);
   }
 }
 
-async function handlePointFeatureClick(pointFeature: MapGeoJSONFeature): Promise<void> {
+function handlePointFeatureClick(pointFeature: MapGeoJSONFeature): void {
   const projectId = String(pointFeature.properties.id ?? pointFeature.id ?? "");
   if (projectId.length === 0) return;
 
@@ -942,7 +939,7 @@ async function handlePointFeatureClick(pointFeature: MapGeoJSONFeature): Promise
 
   // Lone marker: open its detail. The marker is on-screen (the tap came through), so the camera
   // stays put on both platforms, matching shape/footprint clicks.
-  await handleProjectClickFromTile(projectId);
+  openProjectDetailById(projectId);
 }
 
 function watchSelectedHoverState(): () => void {
@@ -1075,7 +1072,7 @@ function registerMapInteractionListeners(mlMap: MaplibreMap): void {
 
     const { features, pointFeature } = queryInteractionFeatures(event, mlMap);
     if (pointFeature) {
-      void handlePointFeatureClick(pointFeature);
+      handlePointFeatureClick(pointFeature);
       return;
     }
 
