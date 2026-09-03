@@ -40,28 +40,6 @@
           />
           <span class="text-[13px] text-muted-color min-w-7 text-right">{{ opacity }}%</span>
 
-          <!-- Nav prev/next + index -->
-          <template v-if="showNav">
-            <span class="w-px h-4.5 bg-content-border-color mx-0.5 shrink-0" />
-            <button
-              :title="t('toolbar.previousOverlay')"
-              :class="btnCls()"
-              @click="navigateOverlaySequence('previous')"
-            >
-              <i class="pi pi-chevron-left" />
-            </button>
-            <span v-if="overlayIndex" class="text-[13px] text-muted-color min-w-7 text-center"
-              >{{ overlayIndex.current }}/{{ overlayIndex.total }}</span
-            >
-            <button
-              :title="t('toolbar.nextOverlay')"
-              :class="btnCls()"
-              @click="navigateOverlaySequence('next')"
-            >
-              <i class="pi pi-chevron-right" />
-            </button>
-          </template>
-
           <!-- Bring image to front / send to back, only when it overlaps a project shape -->
           <template v-if="canStack">
             <span class="w-px h-4.5 bg-content-border-color mx-0.5 shrink-0" />
@@ -150,10 +128,6 @@ import {
 } from "@/services/overlay/mapLayers";
 import { resolveOverlayCorners } from "@/services/overlay/data";
 import { transformToCorners } from "@/services/overlay/transform";
-import {
-  navigateOverlaySequence,
-  getProjectSiblingOverlayIds,
-} from "@/services/overlay/navigation";
 import { closeDetail } from "@/services/overlay/selection";
 import { showEditHandles, hideEditHandles } from "@/services/overlay/editing";
 import { undo, redo } from "@/services/overlay/history";
@@ -323,20 +297,6 @@ function readOpacity(): number {
   const id = selectedId.value;
   return id ? Math.round(getOverlayOpacity(id) * 100) : 100;
 }
-
-const overlayIndex = computed(() => {
-  const id = selectedId.value;
-  if (!id) return null;
-  const overlay = overlayStore.liveOverlays[id];
-  if (!overlay?.projectId) return null;
-  // Same source as navigateOverlaySequence, so the displayed index matches prev/next.
-  const siblings = getProjectSiblingOverlayIds(overlay.projectId);
-  if (siblings.length <= 1) return null;
-  const idx = siblings.indexOf(id);
-  return idx !== -1 ? { current: idx + 1, total: siblings.length } : null;
-});
-
-const showNav = computed(() => (overlayIndex.value?.total ?? 0) > 1);
 
 const selectedOverlay = computed(() => overlayStore.liveOverlays[selectedId.value ?? ""]);
 

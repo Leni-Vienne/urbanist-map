@@ -74,6 +74,41 @@
             <div ref="contentRef">
               <ProjectMetadataCard :project="project" :wikidata-entity="wikidataEntity" />
 
+              <div v-if="mapOverlays.length > 0" class="mt-3 pt-3 border-t border-surface">
+                <span class="block mb-2 text-xs font-semibold text-muted-color">
+                  {{ $t("project.mapImages") }}
+                </span>
+                <div class="map-image-scroll flex gap-2 overflow-x-auto overscroll-x-contain pb-2">
+                  <button
+                    v-for="mapOverlay in mapOverlays"
+                    :key="mapOverlay.id"
+                    type="button"
+                    class="w-16 h-16 p-0 shrink-0 overflow-hidden rounded-lg border-2 bg-(--p-content-hover-background) cursor-pointer transition-all duration-150 hover:border-primary-color active:scale-95 flex items-center justify-center"
+                    :class="
+                      mapOverlay.id === overlay?.id ? 'border-primary-color' : 'border-surface'
+                    "
+                    :aria-label="mapOverlay.caption || $t('overlay.untitled')"
+                    :aria-current="mapOverlay.id === overlay?.id ? 'true' : undefined"
+                    @click.stop="handleMapOverlayClick(mapOverlay)"
+                  >
+                    <img
+                      v-if="!thumbnailErrors[mapOverlay.id]"
+                      :src="buildThumbnailUrl(mapOverlay.filename)"
+                      :alt="mapOverlay.caption ?? undefined"
+                      class="w-full h-full object-cover"
+                      loading="lazy"
+                      :crossorigin="
+                        imageRequiresCredentials(buildThumbnailUrl(mapOverlay.filename))
+                          ? 'use-credentials'
+                          : undefined
+                      "
+                      @error="handleThumbnailError(mapOverlay.id)"
+                    />
+                    <i v-else class="pi pi-image text-xl text-muted-color"></i>
+                  </button>
+                </div>
+              </div>
+
               <!-- Project imagery below the metadata: the Wikidata main image (P18) and the
                    user-contributed render. Click to view full size. -->
               <div
@@ -132,19 +167,21 @@ import { useI18n } from "vue-i18n";
 import { useDetailProject } from "@/composables/project/useDetailProject";
 import { useWikidataEntity } from "@/composables/project/useWikidataEntity";
 import { useScrollFade } from "@/composables/ui/useScrollFade";
+import { useImageErrors } from "@/composables/ui/useImageErrors";
 import { isMobile } from "@/services/core/viewport";
 
 import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
 
-import { viewOriginalOverlay } from "@/services/overlay/navigation";
+import { navigateToOverlay, viewOriginalOverlay } from "@/services/overlay/navigation";
 import { flyToGeometry, mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
 import { buildShapeBounds } from "@/utils/cornersBounds";
 import { openProjectForEditing } from "@/services/core/projectSelection";
 import { closeDetail } from "@/services/overlay/selection";
 
-import { buildImageUrl, imageRequiresCredentials } from "@/utils/imageUrl";
+import { buildImageUrl, buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { formatConstructionName } from "@shared/osmRules";
+import type { ProjectMapOverlay } from "@/types/index";
 
 import ProjectMetadataCard from "@/components/map/popups/ProjectMetadataCard.vue";
 import ImageLightbox from "@/components/common/ImageLightbox.vue";
@@ -167,8 +204,11 @@ const { scrollAreaRef, contentRef, showScrollFade } = useScrollFade();
 
 const uiStore = useUiStore();
 const authStore = useAuthStore();
+const { imageErrors: thumbnailErrors, handleImageError: handleThumbnailError } = useImageErrors();
 
 const { project, overlay } = useDetailProject();
+
+const mapOverlays = computed(() => project.value?.mapOverlays ?? []);
 
 // Wikidata entity for the current project (logo, image)
 const { entity: wikidataEntity } = useWikidataEntity(
@@ -211,6 +251,10 @@ const images = computed<DetailImage[]>(() => {
 
   return list;
 });
+
+async function handleMapOverlayClick(mapOverlay: ProjectMapOverlay): Promise<void> {
+  await navigateToOverlay(mapOverlay.id);
+}
 
 // When another project is picked while the panel stays open, the content swaps in place with no
 // signal. Echo the open transition (short fade + slide-up) and scroll back to the top so the switch
@@ -280,6 +324,30 @@ function handleBack() {
 /* Replayed when the panel stays open but switches to another project, signalling new content. */
 .detail-content-refresh {
   animation: detail-content-refresh 0.28s ease-out;
+}
+
+.map-image-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--p-text-muted-color) transparent;
+}
+
+.map-image-scroll::-webkit-scrollbar {
+  height: 0.55rem;
+}
+
+.map-image-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.map-image-scroll::-webkit-scrollbar-thumb {
+  background: var(--p-text-muted-color);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+.map-image-scroll::-webkit-scrollbar-button {
+  display: none;
 }
 
 @keyframes detail-content-refresh {

@@ -22,10 +22,52 @@ import { deleteLocalImages } from "../lib/imageCleanup";
 import { resolveBoundaryPath } from "../db/boundaryAssignment";
 import { getEditSessionData } from "../services/editSession";
 import { getMyChangeRequests } from "./changes";
+import type { SessionUser } from "../lib/types";
 
 function requestLanguageCode(acceptLanguage: string | undefined): string {
   const language = acceptLanguage?.split(",")[0]?.split(";")[0]?.trim().split("-")[0];
   return language && /^[a-z]{2,3}$/i.test(language) ? language.toLowerCase() : "en";
+}
+
+async function getProjectImages(projectId: string, user: SessionUser | null | undefined) {
+  const [renderRows, mapOverlays] = await Promise.all([
+    db
+      .select({
+        filename: overlays.filename,
+        caption: overlays.caption,
+        status: overlays.status,
+      })
+      .from(overlays)
+      .where(
+        and(
+          eq(overlays.projectId, projectId),
+          eq(overlays.kind, "render"),
+          buildOverlayVisibilityCondition(user, "edit"),
+        ),
+      )
+      .orderBy(
+        sql`CASE WHEN ${overlays.status} = 'approved' THEN 0 ELSE 1 END`,
+        desc(overlays.updatedAt),
+      )
+      .limit(1),
+    db
+      .select({
+        id: overlays.id,
+        filename: overlays.filename,
+        caption: overlays.caption,
+      })
+      .from(overlays)
+      .where(
+        and(
+          eq(overlays.projectId, projectId),
+          eq(overlays.kind, "map"),
+          eq(overlays.status, "approved"),
+        ),
+      )
+      .orderBy(overlays.createdAt, overlays.id),
+  ]);
+
+  return { render: renderRows[0] ?? null, mapOverlays };
 }
 
 export const projectRouter = router({
@@ -134,34 +176,13 @@ export const projectRouter = router({
       const project = rows[0];
       if (!project) return null;
 
-      // Attach the render the caller is allowed to know about: approved, or their own pending.
-      // Another user's pending render is never returned. The frontend decides whether to display a
-      // pending render based on the live map mode, so this stays mode-independent.
-      const renderRows = await db
-        .select({
-          filename: overlays.filename,
-          caption: overlays.caption,
-          status: overlays.status,
-        })
-        .from(overlays)
-        .where(
-          and(
-            eq(overlays.projectId, input.id),
-            eq(overlays.kind, "render"),
-            buildOverlayVisibilityCondition(ctx.user, "edit"),
-          ),
-        )
-        .orderBy(
-          sql`CASE WHEN ${overlays.status} = 'approved' THEN 0 ELSE 1 END`,
-          desc(overlays.updatedAt),
-        )
-        .limit(1);
-
-      // Full administrative breadcrumb (deepest boundary up to the country) for the detail panel.
       const { adminBoundaryId, ...projectData } = project;
-      const boundaryPath = adminBoundaryId ? await resolveBoundaryPath(adminBoundaryId) : [];
+      const [images, boundaryPath] = await Promise.all([
+        getProjectImages(project.id, ctx.user),
+        adminBoundaryId ? resolveBoundaryPath(adminBoundaryId) : [],
+      ]);
 
-      return { ...projectData, render: renderRows[0] ?? null, boundaryPath };
+      return { ...projectData, ...images, boundaryPath };
     } catch (error) {
       console.error("Error fetching project by id:", error);
       throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to fetch project" });
@@ -194,32 +215,15 @@ export const projectRouter = router({
 
       const project = rows[0];
       if (project) {
-        const renderRows = await db
-          .select({
-            filename: overlays.filename,
-            caption: overlays.caption,
-            status: overlays.status,
-          })
-          .from(overlays)
-          .where(
-            and(
-              eq(overlays.projectId, project.id),
-              eq(overlays.kind, "render"),
-              buildOverlayVisibilityCondition(ctx.user, "edit"),
-            ),
-          )
-          .orderBy(
-            sql`CASE WHEN ${overlays.status} = 'approved' THEN 0 ELSE 1 END`,
-            desc(overlays.updatedAt),
-          )
-          .limit(1);
-
         const { adminBoundaryId, ...projectData } = project;
-        const boundaryPath = adminBoundaryId ? await resolveBoundaryPath(adminBoundaryId) : [];
+        const [images, boundaryPath] = await Promise.all([
+          getProjectImages(project.id, ctx.user),
+          adminBoundaryId ? resolveBoundaryPath(adminBoundaryId) : [],
+        ]);
 
         return {
           found: true as const,
-          project: { ...projectData, render: renderRows[0] ?? null, boundaryPath },
+          project: { ...projectData, ...images, boundaryPath },
         };
       }
 

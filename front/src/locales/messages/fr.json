@@ -103,6 +103,7 @@
     "website": "Site web",
     "architect": "Architecte",
     "addImages": "Ajouter",
+    "mapImages": "Images sur la carte",
     "tags": "Catégories",
     "setPrimaryTag": "Définir comme catégorie principale",
     "removeTag": "Retirer la catégorie",
@@ -228,7 +229,6 @@
     "uploadFailed": "Échec du téléchargement",
     "uploadFailedDetail": "Échec du téléchargement du fichier image",
     "noChangesToSave": "Aucune modification à enregistrer",
-    "onlyOneOverlayInProject": "Ce projet n'a qu'une seule image",
     "replacementCaption": "Remplacement de {name}"
   },
   "map": {
@@ -482,8 +482,6 @@
     "approveProjectFirst": "Approuvez d'abord le projet pour modérer ses images"
   },
   "toolbar": {
-    "previousOverlay": "Aller à l'image précédente",
-    "nextOverlay": "Aller à l'image suivante",
     "undo": "Annuler (ctrl + z)",
     "redo": "Rétablir (ctrl + y)",
     "editInfo": "Modifier l'image",

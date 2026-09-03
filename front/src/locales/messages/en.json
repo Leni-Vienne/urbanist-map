@@ -103,6 +103,7 @@
     "website": "Website",
     "architect": "Architect",
     "addImages": "Add Images",
+    "mapImages": "Images on the map",
     "tags": "Tags",
     "setPrimaryTag": "Set as main category",
     "removeTag": "Remove tag",
@@ -228,7 +229,6 @@
     "uploadFailed": "Upload Failed",
     "uploadFailedDetail": "Failed to upload the image file",
     "noChangesToSave": "No changes to save",
-    "onlyOneOverlayInProject": "This project only has one image",
     "replacementCaption": "Replacement for {name}"
   },
   "map": {
@@ -482,8 +482,6 @@
     "approveProjectFirst": "Approve the project first to moderate its images"
   },
   "toolbar": {
-    "previousOverlay": "Go to previous image",
-    "nextOverlay": "Go to next image",
     "undo": "Undo (ctrl + z)",
     "redo": "Redo (ctrl + y)",
     "editInfo": "Edit image",

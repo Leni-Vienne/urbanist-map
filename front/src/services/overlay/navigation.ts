@@ -2,14 +2,13 @@ import { LngLat } from "maplibre-gl";
 import { t } from "@/locales";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
 import { useOverlayStore } from "@/stores/overlayStore";
-import { useFocusStore } from "@/stores/focusStore";
 import type { OverlayObject } from "@/types/index";
 import { trpc } from "@/client";
 import { openOverlayDetail, raiseSelectedOverlayWhenReady } from "@/services/overlay/selection";
 import { getMarker } from "@/services/overlay/mapLayers";
 import { getOverlayBounds } from "@/services/overlay/markers";
 import { overlayWireToData } from "@/utils/typeFactories";
-import { toastError, toastInfo } from "@/services/core/toast";
+import { toastError } from "@/services/core/toast";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 
 // Helper to zoom to overlay bounds
@@ -30,54 +29,6 @@ function zoomToOverlayBounds(overlay: OverlayObject): void {
     const lngLat = marker.getLngLat();
     mobileAwareFlyTo(new LngLat(lngLat.lng, lngLat.lat), 17);
   }
-}
-
-/**
- * Sibling overlay ids of a project, derived from already-loaded overlays. Shared by the toolbar
- * index display and prev/next navigation so both agree on order and count.
- */
-export function getProjectSiblingOverlayIds(projectId: string): string[] {
-  const overlayStore = useOverlayStore();
-  return Object.values(overlayStore.liveOverlays)
-    .filter((overlay) => overlay.projectId === projectId)
-    .map((overlay) => overlay.id);
-}
-
-/**
- * Navigates between overlays in the current project based on direction.
- */
-
-export function navigateOverlaySequence(direction: "next" | "previous") {
-  const overlayStore = useOverlayStore();
-  const selectedOverlayId = useFocusStore().selectedOverlayId;
-
-  // Only callable from the floating toolbar, which requires a selected overlay.
-  if (!selectedOverlayId) {
-    return;
-  }
-
-  const currentOverlay = overlayStore.liveOverlays[selectedOverlayId];
-
-  if (!currentOverlay?.projectId) {
-    return;
-  }
-
-  const projectOverlayIds = getProjectSiblingOverlayIds(currentOverlay.projectId);
-
-  if (projectOverlayIds.length <= 1) {
-    toastInfo(t("overlay.onlyOneOverlayInProject"));
-    return;
-  }
-
-  // Get the next/previous overlay (with wraparound)
-  const currentIndex = projectOverlayIds.indexOf(selectedOverlayId);
-  const step = direction === "next" ? 1 : -1;
-  const newIndex = (currentIndex + step + projectOverlayIds.length) % projectOverlayIds.length;
-  // newIndex is always in range: modulo over projectOverlayIds, which has length > 1 here.
-  // oxlint-disable-next-line no-non-null-assertion
-  const newOverlayId = projectOverlayIds[newIndex]!;
-
-  selectAndCenterOverlay(newOverlayId);
 }
 
 const overlayLoadRequests = new Map<string, Promise<OverlayObject>>();

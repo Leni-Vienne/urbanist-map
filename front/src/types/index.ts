@@ -74,6 +74,8 @@ export interface ProjectDetailFields {
   slug: string | null;
   // The project's render, scoped server-side to approved or the requester's own pending render.
   render: ProjectRender | null;
+  // Approved map images in stable presentation order for the project detail gallery.
+  mapOverlays: ProjectMapOverlay[];
   ownerUsername: string | null;
   // Administrative breadcrumb ordered deepest-first. [] means no matching boundary.
   boundaryPath:
@@ -93,6 +95,12 @@ export type LocalProject = ProjectFields & { status: null };
 export type Project = (ProjectSummary | LocalProject) & Partial<ProjectDetailFields>;
 
 export type HydratedProject = ProjectSummary & ProjectDetailFields;
+
+export interface ProjectMapOverlay {
+  id: string;
+  filename: string;
+  caption: string | null;
+}
 
 // A non-georeferenced project image (artist's impression). Stored as a kind='render' overlay.
 interface ProjectRender {

@@ -89,6 +89,7 @@ export function hasProjectDetailFields(project: Project): project is HydratedPro
     project.status !== null &&
     project.slug !== undefined &&
     project.render !== undefined &&
+    project.mapOverlays !== undefined &&
     project.ownerUsername !== undefined &&
     project.boundaryPath !== undefined
   );
