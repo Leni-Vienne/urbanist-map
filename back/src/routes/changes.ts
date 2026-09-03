@@ -326,18 +326,6 @@ export const changesRouter = router({
       }
     }),
 
-  getMyChangeRequests: loggedInProcedure.query(async ({ ctx }) => {
-    try {
-      return getMyChangeRequests(db, ctx.user.id);
-    } catch (error) {
-      console.error("Error fetching my change requests:", error);
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to fetch my change requests",
-      });
-    }
-  }),
-
   approveChangeRequests: moderatorProcedure
     .input(approveChangeRequestSchema)
     .mutation(async ({ input, ctx }) => {

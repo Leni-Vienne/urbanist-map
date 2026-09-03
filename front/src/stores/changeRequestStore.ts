@@ -7,7 +7,8 @@ import { useModerationStore } from "@/stores/moderationStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import type { PendingChangeRequest } from "@/types/index";
 
-export type ChangeRequest = RouterOutput["changes"]["getMyChangeRequests"][number];
+export type ChangeRequest =
+  RouterOutput["project"]["getUsersContributions"]["changeRequests"][number];
 
 // Which change request's position the map is previewing, and how (approved vs suggested, overlay vs
 // project shape). Drives the map preview render and the moderation panel's "viewed" tracking.

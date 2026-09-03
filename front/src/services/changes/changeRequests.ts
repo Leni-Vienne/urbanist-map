@@ -1,44 +1,12 @@
 import { trpc } from "@/client";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
-import { loadOrNull } from "@/services/core/errorHandling";
 import { refreshEditSessionData } from "@/services/map/viewportTriggers";
 import { refreshUserContributions } from "@/services/project/userContributions";
-import { useAuthStore } from "@/stores/authStore";
-
-let changeRequestLoadVersion = 0;
-
-/** Ensures the current user's pending change requests are loaded; `force` refetches even if already loaded. */
-export async function refreshPendingChangeRequests(options?: { force?: boolean }): Promise<void> {
-  const authStore = useAuthStore();
-  const userId = authStore.user?.id;
-  if (!userId) return;
-
-  const changeRequestStore = useChangeRequestStore();
-  if (changeRequestStore.loaded && !options?.force) return;
-
-  const epoch = authStore.getSessionEpoch();
-  changeRequestLoadVersion += 1;
-  const requestVersion = changeRequestLoadVersion;
-  const result = await loadOrNull(async () => trpc.changes.getMyChangeRequests.query(), {
-    errorMessage: "Failed to fetch pending change requests",
-  });
-
-  if (
-    result &&
-    requestVersion === changeRequestLoadVersion &&
-    authStore.getSessionEpoch() === epoch &&
-    authStore.user?.id === userId
-  ) {
-    changeRequestStore.setPendingChangeRequests(result);
-  }
-}
 
 export async function approveChangeRequests(changeRequestIds: string[]) {
   try {
     await trpc.changes.approveChangeRequests.mutate({ changeRequestIds });
 
-    // The current user's own change requests are fetched lazily, so just invalidate; a conflicted
-    // change of theirs must reappear with its conflict badge on the next My Contributions load.
     useChangeRequestStore().resetLoaded();
 
     return true;

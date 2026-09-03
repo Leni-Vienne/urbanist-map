@@ -1,4 +1,3 @@
-import { refreshPendingChangeRequests } from "@/services/changes/changeRequests";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useProjectStore } from "@/stores/projectStore";
@@ -18,8 +17,6 @@ async function resolveShapeEditorGeometry(
   projectId: string,
   approvedGeometry: GeoJSON.GeometryCollection | null,
 ): Promise<GeoJSON.GeometryCollection | null> {
-  await refreshPendingChangeRequests();
-
   const projectStore = useProjectStore();
   const authStore = useAuthStore();
 
