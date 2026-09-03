@@ -79,7 +79,6 @@ export function useModeration() {
       moderationStore.setModerationData({
         projectIds,
         overlaysById: response.overlaysById,
-        projectOverlayIds: response.projectOverlayIds,
         changeRequests: response.changeRequests,
       });
     } catch (error) {

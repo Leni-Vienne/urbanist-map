@@ -5,23 +5,19 @@ import { useAuthStore } from "@/stores/authStore";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useContributionStore } from "@/stores/contributionStore";
 import { useProjectStore } from "@/stores/projectStore";
-import { projectFromWire } from "@/utils/typeFactories";
+import { useUiStore } from "@/stores/uiStore";
+import { applyMapSessionRows } from "@/services/map/viewportTriggers";
+import { overlayWireToData, projectFromWire } from "@/utils/typeFactories";
 
 let loadToken = 0;
 
-async function loadUserContributions(force: boolean): Promise<void> {
+export async function refreshUserContributions(): Promise<void> {
   const authStore = useAuthStore();
   const changeRequestStore = useChangeRequestStore();
   const contributionStore = useContributionStore();
   const projectStore = useProjectStore();
   const userId = authStore.user?.id;
   if (!userId) return;
-  if (
-    !force &&
-    (contributionStore.loading || (contributionStore.loaded && changeRequestStore.loaded))
-  ) {
-    return;
-  }
 
   loadToken += 1;
   const token = loadToken;
@@ -37,13 +33,19 @@ async function loadUserContributions(force: boolean): Promise<void> {
       epoch === authStore.getSessionEpoch() &&
       authStore.user?.id === userId
     ) {
+      if (useUiStore().mode === "edit") {
+        applyMapSessionRows(
+          "edit",
+          result.editSession.projects,
+          result.editSession.overlays.map(overlayWireToData),
+        );
+      }
       for (const project of Object.values(result.projectsById)) {
         projectStore.upsertProjectSummary(projectFromWire(project));
       }
       contributionStore.setData({
         projectIds: Object.keys(result.projectsById),
         overlaysById: result.overlaysById,
-        projectOverlayIds: result.projectOverlayIds,
       });
       changeRequestStore.setPendingChangeRequests(result.changeRequests);
     }
@@ -56,12 +58,4 @@ async function loadUserContributions(force: boolean): Promise<void> {
       contributionStore.setLoading(false);
     }
   }
-}
-
-export async function fetchUserContributions(): Promise<void> {
-  await loadUserContributions(false);
-}
-
-export async function refreshUserContributions(): Promise<void> {
-  await loadUserContributions(true);
 }

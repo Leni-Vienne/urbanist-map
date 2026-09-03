@@ -5,18 +5,12 @@ import type { Overlay } from "@/types/index";
 export const useContributionStore = defineStore("contribution", () => {
   const projectIds = ref<string[]>([]);
   const overlaysById = ref<Record<string, Overlay>>({});
-  const projectOverlayIds = ref<Record<string, string[]>>({});
   const loading = ref(false);
   const loaded = ref(false);
 
-  function setData(data: {
-    projectIds: string[];
-    overlaysById: Record<string, Overlay>;
-    projectOverlayIds: Record<string, string[]>;
-  }): void {
+  function setData(data: { projectIds: string[]; overlaysById: Record<string, Overlay> }): void {
     projectIds.value = data.projectIds;
     overlaysById.value = data.overlaysById;
-    projectOverlayIds.value = data.projectOverlayIds;
     loaded.value = true;
   }
 
@@ -27,7 +21,6 @@ export const useContributionStore = defineStore("contribution", () => {
   function clearAllState(): void {
     projectIds.value = [];
     overlaysById.value = {};
-    projectOverlayIds.value = {};
     loading.value = false;
     loaded.value = false;
   }
@@ -35,7 +28,6 @@ export const useContributionStore = defineStore("contribution", () => {
   return {
     projectIds,
     overlaysById,
-    projectOverlayIds,
     loading,
     loaded,
     setData,

@@ -116,7 +116,8 @@ export interface ProjectFormData {
 }
 
 // Wire format from backend API - derived automatically from tRPC route output
-type ApiOverlayData = RouterOutput["viewport"]["getEditSessionData"]["overlays"][number];
+type ApiOverlayData =
+  RouterOutput["project"]["getUsersContributions"]["editSession"]["overlays"][number];
 
 // Frontend overlay data type - extends API type with:
 // - null status for local overlays not yet submitted to the backend

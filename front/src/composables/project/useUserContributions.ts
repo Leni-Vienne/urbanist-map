@@ -6,7 +6,6 @@ import { useAuthStore } from "@/stores/authStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { t } from "@/locales";
-import { fetchUserContributions } from "@/services/project/userContributions";
 import { getStagedRender } from "@/services/submission/stagedRenderState";
 import type { Project, ProjectPanelOverlay } from "@/types/index";
 
@@ -74,7 +73,7 @@ export function useUserContributions() {
   const projectOverlayIds = computed<Record<string, string[]>>(() => {
     const result: Record<string, string[]> = {};
     for (const project of allContributions.value) {
-      result[project.id] = [...(contributionStore.projectOverlayIds[project.id] ?? [])];
+      result[project.id] = [];
     }
     if (pinnedExternalProject.value) result[pinnedExternalProject.value.id] = [];
 
@@ -131,7 +130,6 @@ export function useUserContributions() {
 
   return {
     isLoading,
-    fetchUserContributions,
     allContributions,
     overlaysById,
     projectOverlayIds,

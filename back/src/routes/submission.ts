@@ -19,7 +19,7 @@ import { loggedInProcedure, router, TRPCError } from "../trpc";
 import { getClientIp } from "../utils/ip";
 import type { SessionUser } from "../lib/types";
 import { getMyChangeRequests } from "./changes";
-import { getEditSessionData } from "./viewport";
+import { getEditSessionData } from "../services/editSession";
 
 const MAX_PENDING_CONTRIBUTIONS = 50;
 const MAX_TOTAL_CONTRIBUTIONS = 2000;

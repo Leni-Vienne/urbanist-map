@@ -1,6 +1,6 @@
 // Viewport-based content manager
 // View mode: the vector tile sync and cluster source handle rendering (no data loading)
-// Edit: session-scoped fetch (own pending + own open-CR + own projects), once per entry
+// Edit: renders the session snapshot published by the user-contribution loader
 // Moderation: no independent data loading; it renders the published session snapshot
 // moveend re-runs the render loop off the in-memory session snapshot; it performs NO network fetch, and no
 // zoom decisions: the reconciler owns what exists on the map at the current zoom.
@@ -17,9 +17,7 @@ import { isOverlayVisible } from "@/services/overlay/visibility";
 import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 import { clearOverlayRenderState } from "@/services/overlay/teardown";
 import * as registry from "@/services/overlay/mapLayers";
-import { projectFromWire, overlayWireToData, type ProjectWire } from "@/utils/typeFactories";
-import { loadOrNull } from "@/services/core/errorHandling";
-import { trpc } from "@/client";
+import { projectFromWire, type ProjectWire } from "@/utils/typeFactories";
 import {
   renderMapSessionPendingSources,
   watchPendingProjectSources,
@@ -78,50 +76,11 @@ export function applyMapSessionRows(
   return projectIds;
 }
 
-// Mode transitions are not serialized and the country selection can change mid-flight, so a fetch
-// may resolve after the state it was issued for is gone. Every fetch takes a token and applies its
-// rows only while that token is still current; starting a fetch or clearing the snapshot invalidates
-// whatever is in flight.
-let sessionFetchToken = 0;
-
-function beginSessionFetch(): number {
-  sessionFetchToken += 1;
-  return sessionFetchToken;
-}
-
 /**
- * Drop the mode-session sets and invalidate any fetch in flight for them. The mode being entered,
- * or the next map mount, fetches its own.
+ * Drop the active mode-session set. Each loader guards its own request before publishing a new one.
  */
 export function clearMapSessionData(): void {
-  sessionFetchToken += 1;
   clearMapSessionSnapshot();
-}
-
-/**
- * Fetch the caller's full edit-session pending set (own pending overlays + own open change-request
- * overlays + own non-approved projects) and render it. Cleared outside edit mode. Called on edit
- * entry and after a CR submit/withdraw.
- */
-export async function refreshEditSessionData(): Promise<void> {
-  const authStore = useAuthStore();
-  const uiStore = useUiStore();
-
-  if (!authStore.user || uiStore.mode !== "edit") {
-    clearMapSessionSnapshot("edit");
-    return;
-  }
-
-  const token = beginSessionFetch();
-  const rows = await loadOrNull(async () => trpc.viewport.getEditSessionData.query(), {
-    errorMessage: "Failed to fetch edit session data",
-  });
-
-  // Keep the previous snapshot on transient failure rather than dropping the session set.
-  if (!rows) return;
-  if (token !== sessionFetchToken) return;
-
-  applyMapSessionRows("edit", rows.projects, rows.overlays.map(overlayWireToData));
 }
 
 // ── Event listeners ─────────────────────────────────────────────────────
@@ -155,14 +114,14 @@ export function resetMapSessionState(): void {
   runViewportRenderLoop();
 }
 
-export async function syncSessionDataForMode(newMode: AppMode): Promise<void> {
+export function syncSessionDataForMode(newMode: AppMode): void {
   // Switching TO view mode: tile rendering takes over.
   if (newMode === "view") {
     resetMapSessionState();
     return;
   }
 
-  // The snapshot is mode-scoped; the mode being entered refetches its own.
+  // The snapshot is mode-scoped; the loader for the mode being entered publishes its own.
   clearMapSessionData();
 
   // Switching TO edit or moderation: hide overlays not visible in the new mode
@@ -173,8 +132,6 @@ export async function syncSessionDataForMode(newMode: AppMode): Promise<void> {
       registry.clearEntry(id);
     }
   }
-
-  if (newMode === "edit") await refreshEditSessionData();
 
   runViewportRenderLoop();
 }

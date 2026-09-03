@@ -20,6 +20,7 @@ import {
 } from "../db/helpers";
 import { deleteLocalImages } from "../lib/imageCleanup";
 import { resolveBoundaryPath } from "../db/boundaryAssignment";
+import { getEditSessionData } from "../services/editSession";
 import { getMyChangeRequests } from "./changes";
 
 function requestLanguageCode(acceptLanguage: string | undefined): string {
@@ -251,7 +252,7 @@ export const projectRouter = router({
   // Get every project the user owns or has contributed to through an overlay or change request.
   getUsersContributions: loggedInProcedure.query(async ({ ctx }) => {
     try {
-      const [contributionProjectRows, myChangeRequests] = await Promise.all([
+      const [contributionProjectRows, myChangeRequests, editSession] = await Promise.all([
         union(
           db.select({ id: projects.id }).from(projects).where(eq(projects.ownerId, ctx.user.id)),
           db
@@ -282,6 +283,7 @@ export const projectRouter = router({
             ),
         ),
         getMyChangeRequests(db, ctx.user.id),
+        getEditSessionData(db, ctx.user),
       ]);
       const candidateProjectIds = contributionProjectRows.map((row) => row.id);
       const requestLanguage = requestLanguageCode(ctx.hono.req.header("Accept-Language"));
@@ -324,18 +326,15 @@ export const projectRouter = router({
 
       const projectsById: Record<string, (typeof allProjects)[number]> = {};
       const overlaysById: Record<string, (typeof projectOverlays)[number]> = {};
-      const projectOverlayIds: Record<string, string[]> = {};
       for (const project of allProjects) {
         projectsById[project.id] = { ...project, tags: project.tags ?? [] };
-        projectOverlayIds[project.id] = [];
       }
       for (const overlay of projectOverlays) {
         if (!overlay.projectId) continue;
         overlaysById[overlay.id] = overlay;
-        projectOverlayIds[overlay.projectId]?.push(overlay.id);
       }
 
-      return { projectsById, overlaysById, projectOverlayIds, changeRequests: myChangeRequests };
+      return { projectsById, overlaysById, changeRequests: myChangeRequests, editSession };
     } catch (error) {
       console.error("Error fetching all projects:", error);
       throw new TRPCError({

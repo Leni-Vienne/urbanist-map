@@ -13,11 +13,10 @@ import {
   stopViewportRenderLoop,
   watchOverlayReconciliation,
 } from "@/services/map/viewportRenderLoop";
-import {
-  watchViewportModeData,
-  refreshEditSessionData,
-  syncSessionDataForMode,
-} from "@/services/map/viewportTriggers";
+import { watchViewportModeData, syncSessionDataForMode } from "@/services/map/viewportTriggers";
+import { refreshUserContributions } from "@/services/project/userContributions";
+import { renderMapSessionPendingSources } from "@/services/map/tiles/pendingSources";
+import { getMapSessionSnapshot } from "@/services/map/mapSessionState";
 import {
   watchTileLayerState,
   syncTileLayerState,
@@ -29,17 +28,28 @@ import {
   watchProjectShapePreview,
 } from "@/services/map/shapes/previewCoordinator";
 import { useUiStore } from "@/stores/uiStore";
+import type { AppMode } from "@shared/types";
+
+async function applyModeTransition(newMode: AppMode): Promise<void> {
+  syncEditHandlesForMode(newMode);
+  const retainedSession = getMapSessionSnapshot()?.mode === newMode;
+  if (!retainedSession) {
+    syncSessionDataForMode(newMode);
+    if (newMode === "edit") await refreshUserContributions();
+  }
+  syncModeVectorFilters();
+}
 
 function watchModeTransitions(): () => void {
   const uiStore = useUiStore();
   return watch(
     () => uiStore.mode,
     (newMode) => {
-      syncEditHandlesForMode(newMode);
-      void syncSessionDataForMode(newMode)
-        .catch((error: unknown) => console.error("Mode session sync failed", error))
-        .then(syncModeVectorFilters);
+      void applyModeTransition(newMode).catch((error: unknown) =>
+        console.error("Mode session sync failed", error),
+      );
     },
+    { immediate: true },
   );
 }
 
@@ -73,11 +83,10 @@ export function startMapStateCoordinator(): () => void {
 }
 
 /** Project the retained application state onto a newly-ready map instance. */
-export async function activateMapStateCoordinator(target: MaplibreMap): Promise<void> {
+export function activateMapStateCoordinator(target: MaplibreMap): void {
   if (getMapOrNull() !== target) return;
   syncEditHandlesForCurrentState();
-  await refreshEditSessionData();
-  if (getMapOrNull() !== target) return;
+  renderMapSessionPendingSources();
   syncTileLayerState();
   syncMapAreaOutline();
   syncProjectShapePreview();

@@ -11,7 +11,6 @@ export const useModerationStore = defineStore("moderation", () => {
   const selectedCountryCode = ref<string | null>(null);
   const projectIds = ref<string[]>([]);
   const overlaysById = ref<Record<string, Overlay>>({});
-  const projectOverlayIds = ref<Record<string, string[]>>({});
   const changeRequests = ref<PendingChangeRequest[]>([]);
 
   const projects = computed<Project[]>(() => {
@@ -21,6 +20,16 @@ export const useModerationStore = defineStore("moderation", () => {
       const project = projectStore.getMapProjectById(id, "moderation");
       if (!project) continue;
       result.push(project);
+    }
+    return result;
+  });
+
+  const projectOverlayIds = computed<Record<string, string[]>>(() => {
+    const result: Record<string, string[]> = {};
+    for (const projectId of projectIds.value) result[projectId] = [];
+    for (const overlay of Object.values(overlaysById.value)) {
+      if (!overlay.projectId) continue;
+      result[overlay.projectId]?.push(overlay.id);
     }
     return result;
   });
@@ -36,12 +45,10 @@ export const useModerationStore = defineStore("moderation", () => {
   function setModerationData(data: {
     projectIds: string[];
     overlaysById: Record<string, Overlay>;
-    projectOverlayIds: Record<string, string[]>;
     changeRequests: PendingChangeRequest[];
   }) {
     projectIds.value = data.projectIds;
     overlaysById.value = data.overlaysById;
-    projectOverlayIds.value = data.projectOverlayIds;
     changeRequests.value = data.changeRequests;
     moderationLoadStatus.value = "loaded";
   }
@@ -60,7 +67,6 @@ export const useModerationStore = defineStore("moderation", () => {
     moderationLoadStatus.value = "idle";
     projectIds.value = [];
     overlaysById.value = {};
-    projectOverlayIds.value = {};
     changeRequests.value = [];
   }
 
@@ -83,7 +89,6 @@ export const useModerationStore = defineStore("moderation", () => {
     selectedCountryCode.value = null;
     projectIds.value = [];
     overlaysById.value = {};
-    projectOverlayIds.value = {};
     changeRequests.value = [];
     moderationLoadStatus.value = "idle";
     allCountries.value = [];

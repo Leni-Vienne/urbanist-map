@@ -527,21 +527,18 @@ async function normalizeModerationCollections(
     string,
     (typeof filteredOverlays)[number] & { authorReportCount: number }
   > = {};
-  const projectOverlayIds: Record<string, string[]> = {};
 
   for (const project of filteredProjects) {
     projectsById[project.id] = {
       ...project,
       ownerReportCount: project.ownerId ? (reportCountMap.get(project.ownerId) ?? 0) : 0,
     };
-    projectOverlayIds[project.id] = [];
   }
   for (const overlay of filteredOverlays) {
     overlaysById[overlay.id] = {
       ...overlay,
       authorReportCount: overlay.authorId ? (reportCountMap.get(overlay.authorId) ?? 0) : 0,
     };
-    if (overlay.projectId) projectOverlayIds[overlay.projectId]?.push(overlay.id);
   }
 
   const changeRequestsWithReports = [];
@@ -555,7 +552,6 @@ async function normalizeModerationCollections(
   return {
     projectsById,
     overlaysById,
-    projectOverlayIds,
     changeRequests: changeRequestsWithReports,
   };
 }

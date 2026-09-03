@@ -148,7 +148,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed } from "vue";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useUserContributions } from "@/composables/project/useUserContributions";
 import { useContributeActions } from "@/composables/project/useContributeActions";
@@ -161,7 +161,6 @@ const focusStore = useFocusStore();
 
 const {
   isLoading,
-  fetchUserContributions,
   allContributions,
   overlaysById,
   projectOverlayIds,
@@ -190,8 +189,4 @@ const {
 } = useContributeActions(allContributions, projectOverlayIds);
 
 const selectedProjectId = computed(() => focusStore.selectedProject?.id ?? null);
-
-onMounted(() => {
-  fetchUserContributions();
-});
 </script>

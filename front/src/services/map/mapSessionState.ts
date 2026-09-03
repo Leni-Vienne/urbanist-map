@@ -18,8 +18,7 @@ export function replaceMapSessionSnapshot(snapshot: MapSessionSnapshot): void {
   activeMapSession = snapshot;
 }
 
-export function clearMapSessionSnapshot(expectedMode?: MapSessionMode): void {
-  if (expectedMode && activeMapSession?.mode !== expectedMode) return;
+export function clearMapSessionSnapshot(): void {
   activeMapSession = null;
 }
 

@@ -3,7 +3,7 @@
 import { watch } from "vue";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { mapRotationEnabled } from "@/services/core/settings";
-import { setupEventListeners, clearMapSessionData } from "@/services/map/viewportTriggers";
+import { setupEventListeners } from "@/services/map/viewportTriggers";
 import { clearPendingProjectSourceCache } from "@/services/map/tiles/basemap";
 import { clearPreviewShapes } from "@/services/map/shapes/rendering";
 import { hideEditHandles } from "@/services/overlay/editing";
@@ -51,9 +51,8 @@ export function startMapRuntime(target: MaplibreMap): () => void {
     clearOverlayRenderObjects();
     clearPreviewShapes();
 
-    // Session sets and the pending-source payloads replayed onto a style are re-fetched by the next
-    // mount, which must not inherit this one's content.
-    clearMapSessionData();
+    // Pending-source payloads belong to this MapLibre instance. The application session snapshot
+    // survives so the next map can project it without another backend request.
     clearPendingProjectSourceCache();
   };
 }

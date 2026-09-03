@@ -7,7 +7,6 @@ import { moderationRouter } from "./moderation/index";
 import { changesRouter } from "./changes";
 import { accountRouter } from "./account";
 import { adminRouter } from "./admin";
-import { viewportRouter } from "./viewport";
 import { feedRouter } from "./feed";
 import { submissionRouter } from "./submission";
 
@@ -20,7 +19,6 @@ export const appRouter = router({
   overlay: overlayRouter,
   changes: changesRouter,
   admin: adminRouter,
-  viewport: viewportRouter,
   feed: feedRouter,
   submission: submissionRouter,
 });

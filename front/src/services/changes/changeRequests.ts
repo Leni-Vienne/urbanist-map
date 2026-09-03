@@ -1,6 +1,5 @@
 import { trpc } from "@/client";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
-import { refreshEditSessionData } from "@/services/map/viewportTriggers";
 import { refreshUserContributions } from "@/services/project/userContributions";
 
 export async function approveChangeRequests(changeRequestIds: string[]) {
@@ -40,9 +39,7 @@ export async function deleteChangeRequest(changeRequestId: string): Promise<bool
       store.removeChangeRequest(changeRequestId);
     }
 
-    const sessionRefresh =
-      changeRequest?.entityType === "overlay" ? refreshEditSessionData() : Promise.resolve();
-    await Promise.all([refreshUserContributions(), sessionRefresh]);
+    await refreshUserContributions();
 
     return true;
   } catch (error) {

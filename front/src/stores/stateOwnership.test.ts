@@ -3,9 +3,10 @@ import { createPinia, setActivePinia } from "pinia";
 import { useOverlayStore } from "./overlayStore";
 import { useProjectStore } from "./projectStore";
 import { useFocusStore } from "./focusStore";
+import { useModerationStore } from "./moderationStore";
 import { createLocalProject } from "@/utils/typeFactories";
 import { openProjectDetailById } from "@/services/core/projectSelection";
-import type { BackendOverlayData, Project, TileOverlayData } from "@/types/index";
+import type { BackendOverlayData, Overlay, Project, TileOverlayData } from "@/types/index";
 
 function makePersistedProject(name: string, description: string): Project {
   return {
@@ -53,6 +54,27 @@ function makeTileOverlay(id: string): TileOverlayData {
       { lat: 1, lng: 0 },
     ],
     baselineCaption: id,
+  };
+}
+
+function makePanelOverlay(id: string, projectId: string): Overlay {
+  return {
+    id,
+    caption: id,
+    filename: `${id}.webp`,
+    status: "pending",
+    kind: "map",
+    version: 1,
+    projectId,
+    authorId: "user-1",
+    authorUsername: "user",
+    authorApprovedCount: 0,
+    authorRejectedCount: 0,
+    replacesOverlayId: null,
+    replacedByOverlayId: null,
+    updatedAt: new Date(0),
+    countryCode: "FRA",
+    countryName: "France",
   };
 }
 
@@ -128,6 +150,27 @@ function overlayStateOwnership() {
   test("preserves a draft across backend refresh and drops it after replacement", overlayDraftTest);
 }
 
+function moderationStateOwnership() {
+  test("derives project overlay groups from the normalized snapshot", () => {
+    const store = useModerationStore();
+    store.setModerationData({
+      projectIds: ["project-1", "project-2"],
+      overlaysById: {
+        "overlay-1": makePanelOverlay("overlay-1", "project-1"),
+        "overlay-2": makePanelOverlay("overlay-2", "project-1"),
+        "overlay-outside": makePanelOverlay("overlay-outside", "project-outside"),
+      },
+      changeRequests: [],
+    });
+
+    expect(store.projectOverlayIds).toEqual({
+      "project-1": ["overlay-1", "overlay-2"],
+      "project-2": [],
+    });
+  });
+}
+
 beforeEach(activateFreshPinia);
 describe("project state ownership", projectStateOwnership);
 describe("overlay state ownership", overlayStateOwnership);
+describe("moderation state ownership", moderationStateOwnership);
