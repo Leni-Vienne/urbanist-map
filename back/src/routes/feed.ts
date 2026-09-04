@@ -138,9 +138,18 @@ function standaloneMapAreaConditions(input: FeedInput): SQL[] {
   ];
 }
 
-function overlayMapAreaConditions(input: FeedInput): SQL[] {
+function imageMapAreaConditions(input: FeedInput): SQL[] {
   if (!input.mapArea) return [];
-  return [intersectsMapArea(sql`${overlays.corners}`, input.mapArea)];
+  const area = input.mapArea;
+  return [
+    sql`(
+      (${overlays.kind} = 'map' AND ${intersectsMapArea(sql`${overlays.corners}`, area)})
+      OR (${overlays.kind} = 'render' AND (
+        ${intersectsMapArea(sql`${projects.geometry}`, area)}
+        OR ${intersectsMapArea(sql`${projects.centerCoordinate}`, area)}
+      ))
+    )`,
+  ];
 }
 
 // Keyset predicate. Row comparison orders by date then id, matching the ORDER BY, so rows sharing
@@ -185,7 +194,7 @@ function standaloneConditions(
       SELECT 1 FROM ${overlays}
       WHERE ${overlays.projectId} = ${projects.id}
       AND ${overlays.status} = 'approved'
-      AND ${overlays.kind} = 'map'
+      AND ${overlays.kind} IN ('map', 'render')
     )`,
     standaloneImportFilter(stream),
     ...projectFilterConditions(input),
@@ -198,12 +207,7 @@ function standaloneConditions(
   ];
 
   if (input.onlyWithImages) {
-    conditions.push(sql`EXISTS (
-      SELECT 1 FROM ${overlays}
-      WHERE ${overlays.projectId} = ${projects.id}
-      AND ${overlays.status} = 'approved'
-      AND ${overlays.kind} = 'render'
-    )`);
+    conditions.push(sql`FALSE`);
   }
 
   return conditions;
@@ -219,14 +223,6 @@ function buildStandaloneProjectsQuery(
   cursor: FeedStreamCursor | null | undefined,
 ) {
   const contributionDate = standaloneContributionDate(stream);
-  const approvedRender = sql`(
-    SELECT ${overlays.filename} FROM ${overlays}
-    WHERE ${overlays.projectId} = ${projects.id}
-    AND ${overlays.status} = 'approved'
-    AND ${overlays.kind} = 'render'
-    ORDER BY ${overlays.updatedAt} DESC
-    LIMIT 1
-  )`;
 
   const candidates = db
     .select({
@@ -245,9 +241,6 @@ function buildStandaloneProjectsQuery(
       id: projects.id,
       name: projects.name,
       filename: sql<null>`NULL`,
-      // A standalone project has no map overlay but may have an approved render (artist's
-      // impression). Surface its filename so the feed shows the render thumbnail instead of a generic icon.
-      renderFilename: sql<string | null>`${approvedRender}`,
       updatedAt: candidates.updatedAt,
       city: boundaryName("city"),
       state: boundaryName("state"),
@@ -293,7 +286,6 @@ function mapStandaloneProject(p: StandaloneProjectRow) {
     id: p.id,
     name: p.name,
     filename: null as string | null,
-    renderFilename: p.renderFilename,
     updatedAt: p.updatedAt,
     city: p.city,
     state: p.state,
@@ -327,24 +319,22 @@ function overlayProjectName(): SQL<string> {
   return sql<string>`COALESCE(${projects.name}, ${overlays.caption})`;
 }
 
-function overlayConditions(input: FeedInput): SQL[] {
+function imageConditions(input: FeedInput): SQL[] {
   return [
     eq(overlays.status, "approved"),
     eq(projects.status, "approved"),
-    eq(overlays.kind, "map"),
+    sql`${overlays.kind} IN ('map', 'render')`,
     ...projectFilterConditions(input),
     ...dateRangeConditions(
       input,
       sql`COALESCE(${projects.externalLastModified}, ${projects.updatedAt})`,
     ),
-    ...overlayMapAreaConditions(input),
+    ...imageMapAreaConditions(input),
   ];
 }
 
-// One feed entry per project: the most recently updated approved overlay.
-// DISTINCT ON (project) collapses a multi-overlay project to a single row so a
-// batch approval can't bury every other contribution.
-function buildLatestOverlaysQuery(
+// One feed entry per project: the most recently updated approved map image or render.
+function buildLatestImagesQuery(
   limit: number,
   input: FeedInput,
   cursor: FeedStreamCursor | null | undefined,
@@ -352,12 +342,13 @@ function buildLatestOverlaysQuery(
   const contributionDate = overlayContributionDate();
   const overlayName = overlayProjectName();
 
-  const latestOverlayPerProject = db
+  const latestImagePerProject = db
     .selectDistinctOn([overlays.projectId], {
       type: sql<"overlay">`'overlay'`.as("type"),
       id: overlays.id,
       name: overlayName.as("name"),
       filename: overlays.filename,
+      kind: overlays.kind,
       updatedAt: contributionDate.as("updatedAt"),
       city: boundaryName("city").as("city"),
       state: boundaryName("state").as("state"),
@@ -370,36 +361,37 @@ function buildLatestOverlaysQuery(
     })
     .from(overlays)
     .innerJoin(projects, eq(overlays.projectId, projects.id))
-    .where(and(...overlayConditions(input)))
+    .where(and(...imageConditions(input)))
     .orderBy(overlays.projectId, desc(overlays.updatedAt))
-    .as("latest_overlay_per_project");
+    .as("latest_image_per_project");
 
   // The keyset lands outside the DISTINCT ON, whose ordering picks the surviving overlay per
   // project rather than the feed order.
   return db
     .select()
-    .from(latestOverlayPerProject)
+    .from(latestImagePerProject)
     .where(
       and(
         ...keysetCondition(
-          sql`${latestOverlayPerProject.updatedAt}`,
-          sql`${latestOverlayPerProject.id}`,
+          sql`${latestImagePerProject.updatedAt}`,
+          sql`${latestImagePerProject.id}`,
           cursor,
         ),
       ),
     )
-    .orderBy(desc(latestOverlayPerProject.updatedAt), desc(latestOverlayPerProject.id))
+    .orderBy(desc(latestImagePerProject.updatedAt), desc(latestImagePerProject.id))
     .limit(limit);
 }
 
-type LatestOverlayRow = Awaited<ReturnType<typeof buildLatestOverlaysQuery>>[number];
+type LatestImageRow = Awaited<ReturnType<typeof buildLatestImagesQuery>>[number];
 
-function mapOverlayContribution(o: LatestOverlayRow) {
+function mapImageContribution(o: LatestImageRow) {
   return {
     type: "overlay" as const,
     id: o.id,
     name: o.name,
     filename: o.filename,
+    kind: o.kind,
     updatedAt: o.updatedAt,
     city: o.city,
     state: o.state,
@@ -414,7 +406,7 @@ function mapOverlayContribution(o: LatestOverlayRow) {
 
 type LatestContributionItem =
   | ReturnType<typeof mapStandaloneProject>
-  | ReturnType<typeof mapOverlayContribution>;
+  | ReturnType<typeof mapImageContribution>;
 
 // A fetched row tagged with the query it came from, so the emitted page can advance exactly the
 // cursors it consumed.
@@ -494,12 +486,12 @@ function standaloneProjectCount(stream: StandaloneStream, input: FeedInput): SQL
   )`;
 }
 
-function overlayProjectCount(input: FeedInput): SQL<number> {
+function imageProjectCount(input: FeedInput): SQL<number> {
   return sql<number>`(
     SELECT COUNT(DISTINCT ${overlays.projectId})::int
     FROM ${overlays}
     INNER JOIN ${projects} ON ${overlays.projectId} = ${projects.id}
-    WHERE ${and(...overlayConditions(input))}
+    WHERE ${and(...imageConditions(input))}
   )`;
 }
 
@@ -508,7 +500,7 @@ async function countLatestContributions(input: FeedInput): Promise<number> {
   const wantsImported = input.source !== "community";
   const countExpressions: SQL<number>[] = [];
   if (wantsCommunity) {
-    countExpressions.push(overlayProjectCount(input), standaloneProjectCount("direct", input));
+    countExpressions.push(imageProjectCount(input), standaloneProjectCount("direct", input));
   }
   if (wantsImported) {
     countExpressions.push(standaloneProjectCount("imported", input));
@@ -602,7 +594,7 @@ export const feedRouter = router({
         // contribution, so it joins the direct group rather than the import one.
         const [overlayRows, directRows, importedRows] = await Promise.all([
           queryOverlays
-            ? buildLatestOverlaysQuery(fetchSize, input, input.cursor?.overlay)
+            ? buildLatestImagesQuery(fetchSize, input, input.cursor?.overlay)
             : Promise.resolve([]),
           queryDirect
             ? buildStandaloneProjectsQuery("direct", fetchSize, input, input.cursor?.direct)
@@ -615,7 +607,7 @@ export const feedRouter = router({
         const pending: PendingRow[] = [
           ...overlayRows.map((o) => ({
             stream: "overlay" as const,
-            item: mapOverlayContribution(o),
+            item: mapImageContribution(o),
           })),
           ...directRows.map((p) => ({
             stream: "direct" as const,

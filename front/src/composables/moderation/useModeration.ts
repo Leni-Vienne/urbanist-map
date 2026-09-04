@@ -10,6 +10,7 @@ import { applyMapSessionRows } from "@/services/map/viewportTriggers";
 import { t } from "@/locales";
 import { toastError } from "@/services/core/toast";
 import { overlayWireToData } from "@/utils/typeFactories";
+import { invalidateLatestContributions } from "@/services/feed/latestContributions";
 
 // Result type for approval operations
 export type ApprovalResult = {
@@ -160,6 +161,8 @@ export function useModeration() {
         message: t(`moderation.${itemType}VersionConflict`),
       };
     }
+
+    invalidateLatestContributions();
 
     return {
       success: true,

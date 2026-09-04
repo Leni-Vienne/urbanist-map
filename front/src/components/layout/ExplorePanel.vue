@@ -298,14 +298,6 @@ function formatProjectCount(): string {
   return t(key, { count: formatted });
 }
 
-// Overlays use their own image; standalone projects fall back to their render thumbnail (if any).
-function getThumbnailFilename(contribution: LatestContribution): string | null {
-  if (contribution.type === "overlay") {
-    return contribution.filename;
-  }
-  return contribution.renderFilename;
-}
-
 function getThumbnailIcon(contribution: LatestContribution) {
   if (
     contribution.type === "standalone" &&
@@ -339,7 +331,10 @@ function getHeadings(contribution: LatestContribution) {
       subtitle: trail && code ? `${trail} (${code})` : trail,
     };
   }
-  const fallback = contribution.type === "overlay" ? "overlay.untitled" : "project.unnamed";
+  const fallback =
+    contribution.type === "overlay" && contribution.kind === "map"
+      ? "overlay.untitled"
+      : "project.unnamed";
   return { title: t(fallback), isPlaceholder: true, subtitle: t("project.noLocation") };
 }
 
@@ -347,7 +342,7 @@ function getHeadings(contribution: LatestContribution) {
 // per contribution, instead of recomputing them several times each in the template.
 const rows = computed(() =>
   contributions.value.map((contribution) => {
-    const filename = getThumbnailFilename(contribution);
+    const filename = contribution.type === "overlay" ? contribution.filename : null;
     const thumbnailUrl = filename ? buildThumbnailUrl(filename) : null;
     const { title, isPlaceholder, subtitle } = getHeadings(contribution);
     return {
@@ -416,8 +411,15 @@ async function handleContributionClick(contribution: LatestContribution) {
     clearContributionHover();
   }
 
-  if (contribution.type === "overlay") {
+  if (contribution.type === "overlay" && contribution.kind === "map") {
     await handleOverlayClickNavigation(contribution);
+  } else if (
+    contribution.type === "overlay" &&
+    contribution.projectId &&
+    typeof contribution.lat === "number" &&
+    typeof contribution.lng === "number"
+  ) {
+    navigateToProject(contribution.lat, contribution.lng, contribution.projectId);
   } else if (contribution.type === "standalone") {
     if (contribution.geometryBbox) {
       // Fly to the actual geometry bounds instead of the project center point.
@@ -433,9 +435,11 @@ async function handleContributionClick(contribution: LatestContribution) {
 // The row whose detail is docked above the list, so the list still says which one the panel
 // describes. An overlay selection carries its parent project id too, so match on the row's own kind.
 function isSelectedRow(contribution: LatestContribution): boolean {
-  return contribution.type === "overlay"
-    ? contribution.id === focusStore.selectedOverlayId
-    : contribution.id === focusStore.selectedProjectId;
+  if (contribution.type === "overlay" && contribution.kind === "map") {
+    return contribution.id === focusStore.selectedOverlayId;
+  }
+  const projectId = contribution.type === "overlay" ? contribution.projectId : contribution.id;
+  return projectId === focusStore.selectedProjectId;
 }
 
 let hoveredContributionId: string | null = null;
@@ -443,14 +447,15 @@ let locationBeacon: Marker | null = null;
 
 function handleContributionHover(contribution: LatestContribution, color: string): void {
   hoveredContributionId = contribution.id;
-  if (contribution.type === "overlay") {
+  if (contribution.type === "overlay" && contribution.kind === "map") {
     focusStore.setHoverTarget({
       kind: "overlay",
       overlayId: contribution.id,
       projectId: contribution.projectId,
     });
   } else {
-    focusStore.setHoverTarget({ kind: "project", projectId: contribution.id });
+    const projectId = contribution.type === "overlay" ? contribution.projectId : contribution.id;
+    focusStore.setHoverTarget(projectId ? { kind: "project", projectId } : null);
   }
 
   locationBeacon?.remove();

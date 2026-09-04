@@ -182,6 +182,10 @@ export function activateLatestContributions(): void {
   ensureContributionCount(queryKey.value);
 }
 
+export function invalidateLatestContributions(): void {
+  clearLoadedContributions();
+}
+
 // Bounding the feed to a viewport asks what is in that place, so include OSM projects too.
 export function setMapArea(bounds: MapArea): void {
   isOsmIncluded.value = true;
