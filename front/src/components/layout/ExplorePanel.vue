@@ -1,101 +1,194 @@
 <template>
-  <div class="relative h-full flex flex-col">
-    <!-- Controls. On desktop the filter surface opens in a popover here, so narrowing the list
-         never costs a navigation away from it; on mobile there is no room for it beside the list,
-         so it opens the Filter tab instead. -->
-    <div class="shrink-0 border-b border-surface">
-      <div class="flex items-center gap-2 px-2 py-2">
-        <div role="group" :aria-label="t('contribution.filterBySource')" class="shrink-0">
-          <SelectButton
-            v-model="sourceSelection"
-            :options="SOURCE_OPTIONS"
-            option-label="label"
-            option-value="value"
-            multiple
-            :allow-empty="false"
-            size="small"
-          />
-        </div>
+  <div class="relative h-full min-h-0">
+    <div ref="scrollAreaRef" class="contribution-scroll-area h-full min-h-0 overflow-y-auto">
+      <div ref="contentRef" class="min-h-full">
+        <Transition name="detail-dock">
+          <div v-if="showInlineDetail" class="detail-dock">
+            <div class="detail-dock-inner p-2">
+              <div class="detail-card">
+                <ProjectDetailPanel :scrollable="false" />
+              </div>
+            </div>
+          </div>
+        </Transition>
 
-        <span
-          v-if="projectCount !== null"
-          class="min-w-0 truncate text-xs text-muted-color transition-opacity duration-150"
-          :class="isCountStale ? 'opacity-50' : ''"
-          aria-live="polite"
-        >
-          {{ projectCountLabel }}
-        </span>
-        <span v-else-if="isCountStale" class="text-xs text-muted-color" aria-hidden="true">…</span>
+        <!-- Controls. On desktop the filter surface opens in a popover here, so narrowing the list
+             never costs a navigation away from it; on mobile there is no room for it beside the list,
+             so it opens the Filter tab instead. -->
+        <div class="sticky top-0 z-10 bg-content-background border-b border-surface">
+          <div class="px-2 py-2 flex items-center gap-2">
+            <span
+              v-if="projectCount !== null"
+              class="min-w-0 truncate text-xs text-muted-color transition-opacity duration-150"
+              :class="isCountStale ? 'opacity-50' : ''"
+              aria-live="polite"
+            >
+              {{ projectCountLabel }}
+            </span>
+            <span v-else-if="isCountStale" class="text-xs text-muted-color" aria-hidden="true">
+              …
+            </span>
+            <i
+              v-if="isLoading"
+              class="pi pi-spin pi-spinner text-[11px] text-muted-color shrink-0"
+            ></i>
 
-        <i v-if="isLoading" class="pi pi-spin pi-spinner text-sm text-muted-color shrink-0"></i>
+            <label
+              for="explore-include-osm"
+              class="ml-auto inline-flex shrink-0 cursor-pointer items-center gap-1.5 text-xs text-color"
+            >
+              <ToggleSwitch
+                input-id="explore-include-osm"
+                v-model="isOsmIncluded"
+                class="explore-osm-switch"
+              />
+              <span>{{ t("contribution.includeOsm") }}</span>
+            </label>
 
-        <div class="relative ml-auto inline-flex shrink-0">
-          <span
-            v-if="showFilterDot"
-            class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-content-background pointer-events-none z-10"
-          />
-          <Button
-            @click="openFilters"
-            icon="pi pi-sliders-h"
-            size="small"
-            severity="secondary"
-            v-tooltip.top="t('contribution.moreFilters')"
-            :aria-label="t('contribution.moreFilters')"
-          />
-        </div>
-      </div>
+            <div class="relative inline-flex shrink-0">
+              <span
+                v-if="showFilterDot"
+                class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-content-background pointer-events-none z-10"
+              />
+              <Button
+                @click="openFilters"
+                icon="pi pi-sliders-h"
+                :label="t('navigation.filter')"
+                size="small"
+                severity="secondary"
+                v-tooltip.top="t('contribution.moreFilters')"
+                :aria-label="t('contribution.moreFilters')"
+              />
+            </div>
+          </div>
 
-      <!-- Applied filters, removable in place. Relaxing a filter is the common case and needs no
+          <!-- Applied filters, removable in place. Relaxing a filter is the common case and needs no
            trip back to the full palette. -->
-      <div v-if="hasChippedFilters" class="flex flex-wrap items-center gap-1.5 px-2 pb-2">
-        <button
-          v-if="mapArea"
-          type="button"
-          class="inline-flex items-center gap-1 pl-2 pr-1.5 py-0.5 rounded-full text-[0.7rem] font-medium bg-(--p-content-hover-background) text-color border border-surface cursor-pointer transition-colors duration-150 hover:bg-black/5 dark:hover:bg-white/10"
-          @click="clearMapArea"
-        >
-          {{ t("contribution.mapArea") }}
-          <i class="pi pi-times text-[0.6rem] text-muted-color"></i>
-        </button>
-        <button
-          v-for="filter in activeFilters"
-          :key="filterKey(filter)"
-          type="button"
-          class="inline-flex items-center gap-1 pl-2 pr-1.5 py-0.5 rounded-full text-[0.7rem] font-medium bg-(--p-content-hover-background) text-color border border-surface cursor-pointer transition-colors duration-150 hover:bg-black/5 dark:hover:bg-white/10"
-          @click="clearActiveFilter(filter)"
-        >
-          {{ filterLabel(filter) }}
-          <i class="pi pi-times text-[0.6rem] text-muted-color"></i>
-        </button>
-      </div>
+          <div v-if="hasChippedFilters" class="flex flex-wrap items-center gap-1.5 px-2 pb-2">
+            <button
+              v-if="mapArea"
+              type="button"
+              class="inline-flex items-center gap-1 pl-2 pr-1.5 py-0.5 rounded-full text-[0.7rem] font-medium bg-(--p-content-hover-background) text-color border border-surface cursor-pointer transition-colors duration-150 hover:bg-black/5 dark:hover:bg-white/10"
+              @click="clearMapArea"
+            >
+              {{ t("contribution.mapArea") }}
+              <i class="pi pi-times text-[0.6rem] text-muted-color"></i>
+            </button>
+            <button
+              v-for="filter in activeFilters"
+              :key="filterKey(filter)"
+              type="button"
+              class="inline-flex items-center gap-1 pl-2 pr-1.5 py-0.5 rounded-full text-[0.7rem] font-medium bg-(--p-content-hover-background) text-color border border-surface cursor-pointer transition-colors duration-150 hover:bg-black/5 dark:hover:bg-white/10"
+              @click="clearActiveFilter(filter)"
+            >
+              {{ filterLabel(filter) }}
+              <i class="pi pi-times text-[0.6rem] text-muted-color"></i>
+            </button>
+          </div>
+        </div>
 
-      <div v-if="showOsmSyncNotice" class="px-2 pb-1.5">
-        <button
-          type="button"
-          class="w-full flex items-center justify-between gap-2 px-1 py-1.5 text-xs text-muted-color bg-transparent border-0 cursor-pointer transition-colors duration-150 hover:text-color"
-          :aria-expanded="isOsmSyncExpanded"
-          @click="isOsmSyncExpanded = !isOsmSyncExpanded"
-        >
-          <span class="flex items-center gap-2 min-w-0">
-            <i class="pi pi-refresh text-[0.7rem] shrink-0"></i>
-            <span class="truncate">{{ osmSyncLabel }}</span>
-          </span>
-          <i
-            class="pi pi-chevron-down text-[0.65rem] shrink-0 transition-transform duration-150"
-            :class="isOsmSyncExpanded ? 'rotate-180' : ''"
-          ></i>
-        </button>
-
-        <div v-if="isOsmSyncExpanded" class="px-1 pb-1 pt-0.5 text-xs text-muted-color">
-          <p class="m-0 mb-1.5 leading-snug">{{ t("contribution.osmDataDescription") }}</p>
-          <button
-            type="button"
-            class="inline-flex items-center gap-1 p-0 text-xs font-medium text-primary-color bg-transparent border-0 cursor-pointer hover:text-primary-hover-color"
-            @click="browseOsmUpdates"
+        <div v-if="rows.length > 0" class="flex flex-col">
+          <div
+            v-for="row in rows"
+            :key="row.contribution.id"
+            class="group flex items-center gap-3 px-2 py-2 cursor-pointer transition-all duration-150 hover:bg-black/5 dark:hover:bg-white/10 active:bg-black/5 dark:active:bg-white/10 active:scale-[0.98]"
+            :class="{ 'contribution-row-selected': isSelectedRow(row.contribution) }"
+            @mouseenter="handleContributionHover(row.contribution, row.color)"
+            @mouseleave="clearContributionHover(row.contribution.id)"
+            @click="handleContributionClick(row.contribution)"
           >
-            {{ t("contribution.browseOsmUpdates") }}
-            <i class="pi pi-arrow-right text-[0.65rem]"></i>
-          </button>
+            <div
+              class="contribution-thumbnail w-13 h-13 md:w-15 md:h-15 rounded-lg overflow-hidden shrink-0 flex items-center justify-center relative"
+              :style="{ '--thumbnail-color': row.color }"
+              :class="{
+                'border border-surface': row.thumbnailUrl && !imageErrors[row.contribution.id],
+              }"
+            >
+              <img
+                v-if="row.thumbnailUrl && !imageErrors[row.contribution.id]"
+                :src="row.thumbnailUrl"
+                class="w-full h-full object-cover"
+                alt=""
+                :crossorigin="row.crossorigin"
+                @error="() => handleImageError(row.contribution.id)"
+              />
+              <component
+                :is="row.icon"
+                v-else-if="row.icon"
+                class="w-7 h-7 md:w-8 md:h-8"
+                :style="{ color: row.color }"
+                :stroke-width="1.5"
+              />
+              <ShapeThumbnail
+                v-else-if="row.shape"
+                :geometry="row.shape"
+                class="w-11 h-11 md:w-13 md:h-13"
+                :style="{ color: row.color }"
+              />
+              <i v-else class="pi pi-image text-2xl text-muted-color"></i>
+            </div>
+
+            <!-- Contribution info -->
+            <div class="flex-1 min-w-0">
+              <h2
+                class="text-[13px] md:text-sm font-semibold truncate leading-tight mb-0.5"
+                :class="row.isPlaceholderTitle ? 'text-muted-color italic' : 'text-color'"
+              >
+                {{ row.title }}
+              </h2>
+              <div class="flex items-baseline gap-2 text-xs text-muted-color">
+                <span v-if="row.subtitle" class="min-w-0 flex-1 truncate">
+                  {{ row.subtitle }}
+                </span>
+                <span class="shrink-0 whitespace-nowrap">
+                  {{ formatRelativeTime(row.contribution.updatedAt, t) }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="hasMore" ref="loadMoreSentinel" class="h-10 flex items-center justify-center">
+            <i v-if="isLoadingMore" class="pi pi-spin pi-spinner text-sm text-muted-color"></i>
+          </div>
+
+          <!-- End of a community-only list: the rest of the map's activity is one toggle away, and the
+             end of the list is where that is worth offering. -->
+          <div
+            v-else-if="showOsmInvite"
+            class="flex flex-col items-center gap-1 px-2 py-4 text-center border-t border-surface"
+          >
+            <span class="text-xs text-muted-color">{{ t("contribution.endOfCommunityFeed") }}</span>
+            <button
+              type="button"
+              class="inline-flex items-center gap-1 p-0 text-xs font-medium text-primary-color bg-transparent border-0 cursor-pointer hover:text-primary-hover-color"
+              @click="includeOsmContributions"
+            >
+              {{ t("contribution.includeOsmProjects") }}
+              <i class="pi pi-arrow-right text-[0.65rem]"></i>
+            </button>
+          </div>
+        </div>
+
+        <PanelEmptyState
+          v-else-if="!isLoading && hasNarrowedQuery"
+          icon="filter-slash"
+          :message="t('contribution.noMatchingContributions')"
+          :sub-message="t('contribution.tryWideningFilters')"
+        />
+
+        <PanelEmptyState
+          v-else-if="!isLoading"
+          icon="image"
+          :message="t('contribution.noContributionsFound')"
+          :sub-message="t('contribution.beFirstToAdd')"
+        />
+
+        <div
+          v-if="isLoading && rows.length === 0"
+          class="flex flex-col items-center justify-center p-12 text-center text-(--p-text-color-secondary)"
+        >
+          <i class="pi pi-spin pi-spinner text-2xl mb-4"></i>
+          <p>{{ t("contribution.loadingContributions") }}</p>
         </div>
       </div>
     </div>
@@ -110,111 +203,6 @@
       </div>
     </Popover>
 
-    <div ref="scrollAreaRef" class="contribution-scroll-area flex-1 min-h-0 overflow-y-auto">
-      <div v-if="rows.length > 0" ref="contentRef" class="flex flex-col">
-        <div
-          v-for="row in rows"
-          :key="row.contribution.id"
-          :ref="(element) => registerRow(row.contribution.id, element)"
-          class="group flex items-center gap-3 px-2 py-2 cursor-pointer transition-all duration-150 hover:bg-black/5 dark:hover:bg-white/10 active:bg-black/5 dark:active:bg-white/10 active:scale-[0.98]"
-          :class="{ 'contribution-row-selected': isSelectedRow(row.contribution) }"
-          @mouseenter="handleContributionHover(row.contribution, row.color)"
-          @mouseleave="clearContributionHover(row.contribution.id)"
-          @click="handleContributionClick(row.contribution)"
-        >
-          <div
-            class="contribution-thumbnail w-13 h-13 md:w-15 md:h-15 rounded-lg overflow-hidden shrink-0 flex items-center justify-center relative"
-            :style="{ '--thumbnail-color': row.color }"
-            :class="{
-              'border border-surface': row.thumbnailUrl && !imageErrors[row.contribution.id],
-            }"
-          >
-            <img
-              v-if="row.thumbnailUrl && !imageErrors[row.contribution.id]"
-              :src="row.thumbnailUrl"
-              class="w-full h-full object-cover"
-              alt=""
-              :crossorigin="row.crossorigin"
-              @error="() => handleImageError(row.contribution.id)"
-            />
-            <component
-              :is="row.icon"
-              v-else-if="row.icon"
-              class="w-7 h-7 md:w-8 md:h-8"
-              :style="{ color: row.color }"
-              :stroke-width="1.5"
-            />
-            <ShapeThumbnail
-              v-else-if="row.shape"
-              :geometry="row.shape"
-              class="w-11 h-11 md:w-13 md:h-13"
-              :style="{ color: row.color }"
-            />
-            <i v-else class="pi pi-image text-2xl text-muted-color"></i>
-          </div>
-
-          <!-- Contribution info -->
-          <div class="flex-1 min-w-0">
-            <h2
-              class="text-[13px] md:text-sm font-semibold truncate leading-tight mb-0.5"
-              :class="row.isPlaceholderTitle ? 'text-muted-color italic' : 'text-color'"
-            >
-              {{ row.title }}
-            </h2>
-            <div v-if="row.subtitle" class="text-xs text-muted-color truncate mb-0.5">
-              {{ row.subtitle }}
-            </div>
-            <div class="text-xs text-muted-color">
-              {{ formatRelativeTime(row.contribution.updatedAt, t) }}
-            </div>
-          </div>
-        </div>
-
-        <div v-if="hasMore" ref="loadMoreSentinel" class="h-10 flex items-center justify-center">
-          <i v-if="isLoadingMore" class="pi pi-spin pi-spinner text-sm text-muted-color"></i>
-        </div>
-
-        <!-- End of a community-only list: the rest of the map's activity is one toggle away, and the
-             end of the list is where that is worth offering. -->
-        <div
-          v-else-if="showOsmInvite"
-          class="flex flex-col items-center gap-1 px-2 py-4 text-center border-t border-surface"
-        >
-          <span class="text-xs text-muted-color">{{ t("contribution.endOfCommunityFeed") }}</span>
-          <button
-            type="button"
-            class="inline-flex items-center gap-1 p-0 text-xs font-medium text-primary-color bg-transparent border-0 cursor-pointer hover:text-primary-hover-color"
-            @click="showOsmUpdates"
-          >
-            {{ t("contribution.switchToOsm") }}
-            <i class="pi pi-arrow-right text-[0.65rem]"></i>
-          </button>
-        </div>
-      </div>
-
-      <PanelEmptyState
-        v-else-if="!isLoading && hasNarrowedQuery"
-        icon="filter-slash"
-        :message="t('contribution.noMatchingContributions')"
-        :sub-message="t('contribution.tryWideningFilters')"
-      />
-
-      <PanelEmptyState
-        v-else-if="!isLoading"
-        icon="image"
-        :message="t('contribution.noContributionsFound')"
-        :sub-message="t('contribution.beFirstToAdd')"
-      />
-
-      <div
-        v-if="isLoading && rows.length === 0"
-        class="flex flex-col items-center justify-center p-12 text-center text-(--p-text-color-secondary)"
-      >
-        <i class="pi pi-spin pi-spinner text-2xl mb-4"></i>
-        <p>{{ t("contribution.loadingContributions") }}</p>
-      </div>
-    </div>
-
     <div v-if="showScrollFade" class="scroll-fade-overlay"></div>
   </div>
 </template>
@@ -222,12 +210,12 @@
 <script setup lang="ts">
 import {
   computed,
+  defineAsyncComponent,
   nextTick,
   onBeforeUnmount,
   onMounted,
   ref,
   watch,
-  type ComponentPublicInstance,
 } from "vue";
 import { useI18n } from "vue-i18n";
 import {
@@ -238,14 +226,12 @@ import {
   projectCount,
   hasMore,
   source,
-  sourceSelection,
+  isOsmIncluded,
   mapArea,
-  osmLastSyncedAt,
-  showOsmSyncNotice,
   activateLatestContributions,
   loadMoreLatestContributions,
   clearMapArea,
-  showOsmUpdates,
+  includeOsmContributions,
 } from "@/services/feed/latestContributions";
 import {
   activeFilters,
@@ -262,6 +248,7 @@ import FilterPanelContent from "@/components/map/FilterPanelContent.vue";
 import { formatRelativeTime } from "@/utils/dateFormat";
 import { boundaryLocationParts, formatBoundaryLocation } from "@/utils/locationDisplay";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
+import { useDetailPanel } from "@/composables/layout/useDetailPanel";
 import { useFocusStore } from "@/stores/focusStore";
 import { useUiStore } from "@/stores/uiStore";
 import { isMobile } from "@/services/core/viewport";
@@ -277,17 +264,15 @@ import { handleOverlayClickNavigation } from "@/services/overlay/clickHandler";
 import { getMapOrNull } from "@/services/core/map";
 import { LngLatBounds, Marker } from "maplibre-gl";
 
+const ProjectDetailPanel = defineAsyncComponent(() => import("./ProjectDetailPanel.vue"));
+
 const { t, te, locale } = useI18n();
 const uiStore = useUiStore();
 const focusStore = useFocusStore();
+const { detailVisible } = useDetailPanel();
+const showInlineDetail = computed(() => detailVisible.value && !isMobile.value);
 
 const { imageErrors, handleImageError } = useImageErrors();
-const isOsmSyncExpanded = ref(false);
-
-const SOURCE_OPTIONS = computed(() => [
-  { value: "community" as const, label: t("contribution.sourceCommunity") },
-  { value: "osm" as const, label: t("contribution.sourceOsm") },
-]);
 
 // Drives the empty-state copy: an empty list means something different when the query was narrowed.
 const hasNarrowedQuery = computed(
@@ -301,11 +286,6 @@ const hasPopoverFilters = computed(() => activeFilterCount.value > 0 || mapArea.
 // Before the filter surface has ever been opened the dot is a discovery hint instead.
 const showFilterDot = computed(() => hasPopoverFilters.value || !filtersSeen.value);
 const hasChippedFilters = computed(() => activeFilters.value.length > 0 || mapArea.value !== null);
-const osmSyncLabel = computed(() =>
-  t("contribution.osmDataUpdated", {
-    time: formatRelativeTime(osmLastSyncedAt.value, t),
-  }),
-);
 const projectCountLabel = computed(formatProjectCount);
 
 function formatProjectCount(): string {
@@ -314,11 +294,6 @@ function formatProjectCount(): string {
   const formatted = new Intl.NumberFormat(locale.value).format(count);
   const key = count === 1 ? "contribution.projectCountOne" : "contribution.projectCountMany";
   return t(key, { count: formatted });
-}
-
-function browseOsmUpdates(): void {
-  isOsmSyncExpanded.value = false;
-  showOsmUpdates();
 }
 
 // Overlays use their own image; standalone projects fall back to their render thumbnail (if any).
@@ -503,24 +478,12 @@ const { scrollAreaRef, showScrollFade } = useScrollFade();
 
 const selectedRowId = computed(() => focusStore.selectedOverlayId ?? focusStore.selectedProjectId);
 
-const rowElements = new Map<string, HTMLElement>();
-
-function registerRow(id: string, element: Element | ComponentPublicInstance | null): void {
-  if (element instanceof HTMLElement) {
-    rowElements.set(id, element);
-  } else {
-    rowElements.delete(id);
-  }
+function revealSelectedDetail([id, visible]: [string | null, boolean]): void {
+  if (!id || !visible) return;
+  scrollAreaRef.value?.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-// Opening the detail claims height from the list, which can leave the picked row below the fold.
-// Centering keeps it visible through the shrink; a selection made on the map is simply absent here.
-function revealSelectedRow(id: string | null): void {
-  if (!id) return;
-  rowElements.get(id)?.scrollIntoView({ block: "center", behavior: "smooth" });
-}
-
-watch(selectedRowId, revealSelectedRow, { flush: "post" });
+watch([selectedRowId, showInlineDetail], revealSelectedDetail, { flush: "post" });
 
 let loadMoreObserver: IntersectionObserver | null = null;
 
@@ -590,6 +553,39 @@ onBeforeUnmount(teardownExplorePanel);
 </script>
 
 <style scoped>
+.detail-dock {
+  display: grid;
+  grid-template-rows: 1fr;
+}
+
+.detail-dock-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.detail-card {
+  --detail-panel-background: var(--accordion-card-bg);
+
+  overflow: hidden;
+  border: 1px solid var(--p-content-border-color);
+  border-radius: 12px;
+  background: var(--detail-panel-background);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 6%);
+}
+
+.detail-dock-enter-active,
+.detail-dock-leave-active {
+  transition:
+    grid-template-rows 0.25s ease-out,
+    opacity 0.25s ease-out;
+}
+
+.detail-dock-enter-from,
+.detail-dock-leave-to {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+
 .contribution-scroll-area {
   scrollbar-width: thin;
   scrollbar-color: var(--p-text-muted-color) transparent;
@@ -618,6 +614,13 @@ onBeforeUnmount(teardownExplorePanel);
   background-color: color-mix(in srgb, var(--p-primary-color) 10%, transparent);
 }
 
+.explore-osm-switch {
+  --p-toggleswitch-width: 2rem;
+  --p-toggleswitch-height: 1.125rem;
+  --p-toggleswitch-gap: 0.125rem;
+  --p-toggleswitch-handle-size: 0.875rem;
+}
+
 :global(.explore-project-beacon) {
   width: 18px;
   height: 18px;
@@ -626,5 +629,12 @@ onBeforeUnmount(teardownExplorePanel);
   background: var(--beacon-color);
   box-shadow: 0 0 0 2px rgb(15 23 42 / 55%);
   pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .detail-dock-enter-active,
+  .detail-dock-leave-active {
+    transition: opacity 0.25s ease-out;
+  }
 }
 </style>

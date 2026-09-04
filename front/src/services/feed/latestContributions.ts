@@ -7,10 +7,8 @@ import { debounce } from "@/utils/debounce";
 import type { LatestContribution } from "@/types/index";
 
 type FeedCursor = RouterOutput["feed"]["getLatestContributions"]["nextCursor"];
-type OsmSyncStatus = RouterOutput["feed"]["getOsmSyncStatus"];
 
-type ContributionSource = "all" | "community" | "osm";
-type SelectedContributionSource = Exclude<ContributionSource, "all">;
+type ContributionSource = "all" | "community";
 export type MapArea = {
   west: number;
   south: number;
@@ -29,17 +27,11 @@ const loadingMore = ref(false);
 const latestProjectCount = ref<number | null>(null);
 const countLoading = ref(false);
 
-// A complete selection means "no narrowing", so the toggles stay independent and a selected pair
-// reads as selected instead of collapsing to a single All button.
-export const sourceSelection = ref<SelectedContributionSource[]>(["community"]);
+export const isOsmIncluded = ref(false);
 export const mapArea = ref<MapArea | null>(null);
-const osmSyncStatus = shallowRef<OsmSyncStatus | null>(null);
-let osmSyncStatusRequest: Promise<void> | null = null;
-
-const osmEverSelected = ref(false);
 
 export const source = computed<ContributionSource>(() =>
-  sourceSelection.value.length === 1 ? (sourceSelection.value[0] ?? "all") : "all",
+  isOsmIncluded.value ? "all" : "community",
 );
 
 // Identifies the query the loaded rows belong to. Comparing it against the live one tells whether
@@ -63,10 +55,6 @@ export const projectCount = computed(() => latestProjectCount.value);
 // query.
 export const isCountStale = computed(() => loadedCountKey.value !== queryKey.value);
 export const hasMore = computed(() => cursor.value !== null);
-export const osmLastSyncedAt = computed(() => osmSyncStatus.value?.lastSyncedAt ?? null);
-export const showOsmSyncNotice = computed(
-  () => !osmEverSelected.value && osmLastSyncedAt.value !== null,
-);
 // True while the tab hosting this feed is the one on screen, so a filter change with the tab closed
 // costs no request. Read from the shared tab state rather than the panel's own mount hooks: desktop
 // and mobile render separate panel components, and swapping one for the other across the viewport
@@ -190,15 +178,13 @@ export async function loadMoreLatestContributions(): Promise<void> {
 
 // The on-screen edge of the feed: it catches up with any query change made while the tab was away.
 export function activateLatestContributions(): void {
-  void loadOsmSyncStatus();
   ensureLatestContributions();
   ensureContributionCount(queryKey.value);
 }
 
-// Bounding the feed to a viewport asks what is in that place, so it widens the selection to every
-// source rather than answering from whichever of the two happens to be toggled on.
+// Bounding the feed to a viewport asks what is in that place, so include OSM projects too.
 export function setMapArea(bounds: MapArea): void {
-  sourceSelection.value = ["community", "osm"];
+  isOsmIncluded.value = true;
   if (sameMapArea(mapArea.value, bounds)) return;
   changeMapArea(bounds);
 }
@@ -216,24 +202,8 @@ function changeMapArea(bounds: MapArea | null): void {
   ensureLatestContributions();
 }
 
-export function showOsmUpdates(): void {
-  sourceSelection.value = ["osm"];
-}
-
-// Fetched once and then held. Sharing the in-flight promise keeps back-to-back activations to one
-// request; a failed attempt drops it so the next activation retries.
-async function loadOsmSyncStatus(): Promise<void> {
-  osmSyncStatusRequest ??= fetchOsmSyncStatus();
-  return osmSyncStatusRequest;
-}
-
-async function fetchOsmSyncStatus(): Promise<void> {
-  const result = await loadOrNull(async () => trpc.feed.getOsmSyncStatus.query());
-  if (!result) {
-    osmSyncStatusRequest = null;
-    return;
-  }
-  osmSyncStatus.value = result;
+export function includeOsmContributions(): void {
+  isOsmIncluded.value = true;
 }
 
 function clearLoadedContributions(): void {
@@ -255,10 +225,6 @@ function sameMapArea(left: MapArea | null, right: MapArea): boolean {
     left.north === right.north
   );
 }
-
-watch(sourceSelection, (selection) => {
-  osmEverSelected.value ||= selection.includes("osm");
-});
 
 // A range slider rewrites the query on every step of a drag, and each intermediate query would
 // otherwise cost a page fetch plus an unbatched count query whose answers are thrown away on

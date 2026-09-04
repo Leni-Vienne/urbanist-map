@@ -25,64 +25,17 @@
       <PanelTabs v-model:active-tab="activeTab" variant="desktop" />
     </div>
 
-    <!-- Selected project/overlay detail, docked above the tab content so the list it was picked from
-         stays visible and browsable. Sized by its content up to a cap, past which the panel's own
-         fields area scrolls. -->
-    <Transition name="detail-dock">
-      <div v-if="detailVisible" class="detail-dock shrink-0 border-b border-surface">
-        <ProjectDetailPanel />
-      </div>
-    </Transition>
-
-    <!-- Scrollable content area -->
-    <PanelContent content-container-class="flex-1 overflow-y-auto flex flex-col min-h-0" />
+    <PanelContent content-container-class="flex-1 flex flex-col min-h-0 overflow-hidden" />
 
     <PanelFooter />
   </div>
 </template>
 
 <script setup lang="ts">
-import { defineAsyncComponent } from "vue";
 import PanelContent from "./PanelContent.vue";
 import PanelFooter from "./PanelFooter.vue";
 import PanelTabs from "./PanelTabs.vue";
 import { useDetailPanel } from "@/composables/layout/useDetailPanel";
 
-// Lazy loaded so the detail panel shares the same async chunk scope as PanelContent's copy.
-const ProjectDetailPanel = defineAsyncComponent(() => import("./ProjectDetailPanel.vue"));
-
-const { detailVisible, activeTab } = useDetailPanel();
+const { activeTab } = useDetailPanel();
 </script>
-
-<style scoped>
-/* Sized by its content so a sparse detail costs the list nothing, capped so a rich one can't crowd
-   it out. The flex column is what makes the cap bite: the panel shrinks into it and thereby gains
-   the definite height its fields area needs in order to scroll. */
-.detail-dock {
-  display: flex;
-  flex-direction: column;
-  max-height: min(45%, 26rem);
-}
-
-/* The dock grows and shrinks in place, pushing the list down rather than covering it. */
-.detail-dock-enter-active,
-.detail-dock-leave-active {
-  overflow: hidden;
-  transition:
-    max-height 0.25s ease-out,
-    opacity 0.25s ease-out;
-}
-
-.detail-dock-enter-from,
-.detail-dock-leave-to {
-  max-height: 0;
-  opacity: 0;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .detail-dock-enter-active,
-  .detail-dock-leave-active {
-    transition: opacity 0.25s ease-out;
-  }
-}
-</style>

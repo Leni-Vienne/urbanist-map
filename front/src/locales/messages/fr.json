@@ -95,6 +95,9 @@
     "proposalDate": "Date de proposition",
     "source": "Source",
     "lastModified": "Dernière modification",
+    "modifiedOn": "Modifié le {date}",
+    "previousMapImages": "Images précédentes sur la carte",
+    "nextMapImages": "Images suivantes sur la carte",
     "createdBy": "Créé par",
     "modifyOn": "Modifier sur {name}",
     "altName": "Autre nom",
@@ -186,16 +189,11 @@
     "projectCountMany": "{count} projets",
     "noMatchingContributions": "Aucun résultat pour ces filtres.",
     "tryWideningFilters": "Élargissez un filtre, ou ajoutez le premier depuis Contribuer.",
-    "filterBySource": "Filtrer par source",
-    "sourceCommunity": "Site",
-    "sourceOsm": "OpenStreetMap",
     "moreFilters": "Plus de filtres",
     "mapArea": "Zone de la carte",
     "endOfCommunityFeed": "Fin des contributions du site.",
-    "switchToOsm": "Voir les projets OpenStreetMap",
-    "osmDataUpdated": "Données OSM actualisées {time}",
-    "osmDataDescription": "Les données OpenStreetMap sont synchronisées chaque jour et séparées de l'activité de la communauté.",
-    "browseOsmUpdates": "Explorer les données OpenStreetMap"
+    "includeOsm": "+ OpenStreetMap",
+    "includeOsmProjects": "Inclure les projets OpenStreetMap"
   },
   "overlay": {
     "overlayName": "Nom de l'image",
@@ -477,6 +475,7 @@
   "tooltips": {
     "editProject": "Modifier le projet",
     "editThisProject": "Modifier ce projet",
+    "centerProjectOnMap": "Centrer la carte sur ce projet",
     "suggestChanges": "Suggérer des modifications",
     "editOverlay": "Modifier l'image",
     "approveProjectFirst": "Approuvez d'abord le projet pour modérer ses images"

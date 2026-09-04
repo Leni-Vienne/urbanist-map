@@ -76,15 +76,6 @@ export function applyMapSessionRows(
   return projectIds;
 }
 
-/**
- * Drop the active mode-session set. Each loader guards its own request before publishing a new one.
- */
-export function clearMapSessionData(): void {
-  clearMapSessionSnapshot();
-}
-
-// ── Event listeners ─────────────────────────────────────────────────────
-
 const debouncedRefreshViewport = debounce(runViewportRenderLoop, 100);
 
 /**
@@ -108,7 +99,7 @@ export function setupEventListeners(target: MaplibreMap): () => void {
  * to edit mode. Safe to call with no map mounted.
  */
 export function resetMapSessionState(): void {
-  clearMapSessionData();
+  clearMapSessionSnapshot();
   clearOverlayRenderState();
   renderMapSessionPendingSources();
   runViewportRenderLoop();
@@ -122,7 +113,7 @@ export function syncSessionDataForMode(newMode: AppMode): void {
   }
 
   // The snapshot is mode-scoped; the loader for the mode being entered publishes its own.
-  clearMapSessionData();
+  clearMapSessionSnapshot();
 
   // Switching TO edit or moderation: hide overlays not visible in the new mode
   const overlayStore = useOverlayStore();
@@ -148,7 +139,7 @@ export function watchViewportModeData(): () => void {
     () => {
       moderationStore.invalidateModerationData();
       if (uiStore.mode === "moderation") {
-        clearMapSessionData();
+        clearMapSessionSnapshot();
         renderMapSessionPendingSources();
         runViewportRenderLoop();
       }

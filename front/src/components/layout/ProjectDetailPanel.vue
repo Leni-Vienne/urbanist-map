@@ -1,25 +1,13 @@
 <template>
-  <div class="flex flex-col h-full min-h-0 bg-content-background">
+  <div class="project-detail-panel flex flex-col h-full min-h-0">
     <div v-if="!project" class="flex-1 flex justify-center items-center p-4">
       <i class="pi pi-spin pi-spinner"></i>
     </div>
     <template v-else>
-      <!-- Recenter region: the project header and the info area below share one click target, so
-           clicking anywhere (except the close button, links and images, which stop propagation)
-           recenters the map on the project. The chevron on the right marks the region as clickable. -->
-      <div
-        class="flex flex-col flex-auto min-h-0 transition-colors duration-150"
-        :class="{ 'cursor-pointer hover:bg-black/5 dark:hover:bg-white/10': canRecenter }"
-        @click="handleRecenter"
-      >
-        <!-- Project header. Desktop adds a divider and symmetrical padding; on mobile the drawer
-             already frames it. Doubles as the drawer drag handle on mobile. -->
-        <div
-          class="drawer-drag-handle shrink-0"
-          :class="isMobile ? 'px-4 pt-3 pb-2' : 'px-4 py-3 border-b border-surface'"
-        >
+      <div class="flex flex-col flex-auto min-h-0">
+        <!-- Doubles as the drawer drag handle on mobile. -->
+        <div class="drawer-drag-handle shrink-0 px-4" :class="isMobile ? 'pt-3 pb-2' : 'py-2.5'">
           <div class="flex gap-2 items-center">
-            <!-- Left: project name (recenters via the surrounding region) -->
             <div class="flex-1 flex items-center gap-1.5 min-w-0">
               <!-- Wikidata logo (e.g. metro line badge) shown when available -->
               <img
@@ -30,21 +18,30 @@
                 loading="eager"
               />
               <span
-                class="text-sm font-semibold leading-snug wrap-break-word"
+                class="text-base font-semibold leading-snug wrap-break-word"
                 :class="project?.name ? 'text-color' : 'text-muted-color italic'"
               >
                 {{ displayName }}
               </span>
             </div>
-            <!-- Right: edit + close buttons (stop propagation so they don't recenter) -->
-            <div class="flex gap-1 shrink-0" @click.stop>
+            <div class="flex gap-1 shrink-0">
+              <button
+                v-if="canRecenter"
+                type="button"
+                :aria-label="$t('tooltips.centerProjectOnMap')"
+                class="w-8 h-8 rounded-md flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-muted-color bg-content-background border border-surface hover:text-primary-color hover:bg-[color-mix(in_srgb,var(--p-primary-color)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--p-primary-color)_30%,transparent)]"
+                @click="handleRecenter"
+                v-tooltip.bottom="$t('tooltips.centerProjectOnMap')"
+              >
+                <i class="pi pi-map-marker"></i>
+              </button>
               <!-- Edit: switch to edit mode and pin this project in the contribute panel, so the
                    user can act on it (add images, draw, edit fields) without closing the detail and
                    switching tabs by hand. -->
               <button
                 type="button"
                 :aria-label="$t('common.edit')"
-                class="w-8 h-8 rounded-md flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-color hover:text-primary-hover-color hover:bg-[color-mix(in_srgb,var(--p-primary-color)_10%,transparent)] bg-transparent border-none"
+                class="w-8 h-8 rounded-md flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-color bg-content-background border border-surface hover:text-primary-hover-color hover:bg-[color-mix(in_srgb,var(--p-primary-color)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--p-primary-color)_30%,transparent)]"
                 @click="handleEdit"
                 v-tooltip.bottom="$t('tooltips.editThisProject')"
               >
@@ -54,7 +51,7 @@
               <button
                 type="button"
                 :aria-label="$t('common.close')"
-                class="w-8 h-8 rounded-md flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-muted-color hover:text-color hover:bg-black/5 dark:hover:bg-white/10 bg-transparent border-none"
+                class="w-8 h-8 rounded-md flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-muted-color bg-content-background border border-surface hover:text-color hover:bg-(--p-content-hover-background)"
                 @click="handleBack"
               >
                 <i class="pi pi-times"></i>
@@ -63,22 +60,57 @@
           </div>
         </div>
 
-        <!-- Project fields + overlay section (links and images inside stop propagation so they
-             keep their own click behavior instead of recentering). Sizes to its content when the
-             host leaves the panel's height open, and scrolls in place when the host fixes it. -->
         <div class="relative flex-auto min-h-0">
           <div
             ref="scrollAreaRef"
-            class="h-full px-4 pt-3 pb-4 overflow-y-auto overscroll-contain scrollbar-none [&::-webkit-scrollbar]:hidden"
+            :class="[
+              isMobile ? 'px-4 pt-3 pb-4' : 'px-4 pt-1 pb-3',
+              scrollable
+                ? 'h-full overflow-y-auto overscroll-contain scrollbar-none [&::-webkit-scrollbar]:hidden'
+                : '',
+            ]"
           >
             <div ref="contentRef">
-              <ProjectMetadataCard :project="project" :wikidata-entity="wikidataEntity" />
+              <ProjectMetadataCard
+                :project="project"
+                :wikidata-entity="wikidataEntity"
+                :compact="!isMobile"
+              />
 
-              <div v-if="mapOverlays.length > 0" class="mt-3 pt-3 border-t border-surface">
-                <span class="block mb-2 text-xs font-semibold text-muted-color">
-                  {{ $t("project.mapImages") }}
-                </span>
-                <div class="map-image-scroll flex gap-2 overflow-x-auto overscroll-x-contain pb-2">
+              <div v-if="mapOverlays.length > 0" class="mt-2.5 pt-2.5 border-t border-surface">
+                <div class="mb-2 flex items-center justify-between gap-2">
+                  <span class="text-xs font-semibold text-muted-color">
+                    {{ $t("project.mapImages") }}
+                  </span>
+                  <div
+                    v-if="canScrollMapImagesBackward || canScrollMapImagesForward"
+                    class="flex items-center gap-1"
+                  >
+                    <button
+                      type="button"
+                      class="w-6 h-6 rounded-md flex items-center justify-center border border-surface bg-content-background text-muted-color cursor-pointer hover:text-color hover:bg-(--p-content-hover-background) disabled:opacity-30 disabled:cursor-default"
+                      :aria-label="$t('project.previousMapImages')"
+                      :disabled="!canScrollMapImagesBackward"
+                      @click="scrollMapImages(-1)"
+                    >
+                      <i class="pi pi-chevron-left text-[10px]"></i>
+                    </button>
+                    <button
+                      type="button"
+                      class="w-6 h-6 rounded-md flex items-center justify-center border border-surface bg-content-background text-muted-color cursor-pointer hover:text-color hover:bg-(--p-content-hover-background) disabled:opacity-30 disabled:cursor-default"
+                      :aria-label="$t('project.nextMapImages')"
+                      :disabled="!canScrollMapImagesForward"
+                      @click="scrollMapImages(1)"
+                    >
+                      <i class="pi pi-chevron-right text-[10px]"></i>
+                    </button>
+                  </div>
+                </div>
+                <div
+                  ref="mapImageScroll"
+                  class="map-image-scroll flex gap-2 overflow-x-auto overscroll-x-contain"
+                  @scroll="updateMapImageScroll"
+                >
                   <button
                     v-for="mapOverlay in mapOverlays"
                     :key="mapOverlay.id"
@@ -89,7 +121,7 @@
                     "
                     :aria-label="mapOverlay.caption || $t('overlay.untitled')"
                     :aria-current="mapOverlay.id === overlay?.id ? 'true' : undefined"
-                    @click.stop="handleMapOverlayClick(mapOverlay)"
+                    @click="handleMapOverlayClick(mapOverlay)"
                   >
                     <img
                       v-if="!thumbnailErrors[mapOverlay.id]"
@@ -114,7 +146,7 @@
               <div
                 v-for="image in images"
                 :key="image.url"
-                class="mt-3 pt-3 border-t border-surface flex flex-col gap-1.5"
+                class="mt-2.5 pt-2.5 border-t border-surface flex flex-col gap-1.5"
               >
                 <span v-if="image.label" class="text-xs font-semibold text-muted-color">{{
                   image.label
@@ -123,22 +155,23 @@
                   :src="image.url"
                   :crossorigin="image.crossorigin"
                   :referrerpolicy="image.referrerpolicy"
-                  class="w-full rounded-lg object-cover max-h-48 cursor-zoom-in"
+                  class="w-full rounded-lg object-cover cursor-zoom-in"
+                  :class="isMobile ? 'max-h-48' : 'max-h-40'"
                   loading="lazy"
                   v-tooltip.top="$t('overlay.viewFullImage')"
-                  @click.stop="lightbox?.open(image)"
+                  @click="lightbox?.open(image)"
                 />
               </div>
 
               <!-- Show view original button for pending replacements -->
               <div
                 v-if="overlay?.replacesOverlayId && overlay?.status === 'pending'"
-                class="mt-3 pt-3 border-t border-surface"
+                class="mt-2.5 pt-2.5 border-t border-surface"
               >
                 <button
                   type="button"
                   class="inline-flex items-center gap-2 font-medium text-sm text-purple-600 dark:text-purple-300 bg-purple-50 dark:bg-purple-400/12 border border-purple-200 dark:border-purple-400/40 rounded-md cursor-pointer px-3 py-1.5 transition-all w-full justify-center hover:bg-purple-100 dark:hover:bg-purple-400/20 hover:border-purple-300 dark:hover:border-purple-400/60 hover:text-purple-700 dark:hover:text-purple-200"
-                  @click.stop="viewOriginalOverlay(overlay.replacesOverlayId)"
+                  @click="viewOriginalOverlay(overlay.replacesOverlayId)"
                 >
                   <i class="pi pi-arrow-left text-sm"></i>
                   {{ $t("overlay.viewOriginalOverlay") }}
@@ -150,7 +183,7 @@
           <div
             v-if="showScrollFade"
             class="scroll-fade-overlay"
-            style="--scroll-fade-color: var(--p-content-background)"
+            style="--scroll-fade-color: var(--detail-panel-background, var(--p-content-background))"
           ></div>
         </div>
       </div>
@@ -161,7 +194,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, useTemplateRef, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 
 import { useDetailProject } from "@/composables/project/useDetailProject";
@@ -197,7 +230,18 @@ interface DetailImage {
 
 const { t } = useI18n();
 
+withDefaults(
+  defineProps<{
+    scrollable?: boolean;
+  }>(),
+  { scrollable: true },
+);
+
 const lightbox = useTemplateRef<InstanceType<typeof ImageLightbox>>("lightbox");
+const mapImageScroll = useTemplateRef<HTMLElement>("mapImageScroll");
+const canScrollMapImagesBackward = ref(false);
+const canScrollMapImagesForward = ref(false);
+let mapImageResizeObserver: ResizeObserver | null = null;
 
 // Hide the scrollbar on the fields area and fade its bottom edge while there's more to scroll.
 const { scrollAreaRef, contentRef, showScrollFade } = useScrollFade();
@@ -209,6 +253,48 @@ const { imageErrors: thumbnailErrors, handleImageError: handleThumbnailError } =
 const { project, overlay } = useDetailProject();
 
 const mapOverlays = computed(() => project.value?.mapOverlays ?? []);
+
+function updateMapImageScroll(): void {
+  const element = mapImageScroll.value;
+  if (!element) {
+    canScrollMapImagesBackward.value = false;
+    canScrollMapImagesForward.value = false;
+    return;
+  }
+
+  canScrollMapImagesBackward.value = element.scrollLeft > 1;
+  canScrollMapImagesForward.value =
+    element.scrollLeft + element.clientWidth < element.scrollWidth - 1;
+}
+
+function observeMapImageScroll(element: HTMLElement | null): void {
+  mapImageResizeObserver?.disconnect();
+  if (!element) return;
+  mapImageResizeObserver ??= new ResizeObserver(updateMapImageScroll);
+  mapImageResizeObserver.observe(element);
+  updateMapImageScroll();
+}
+
+function refreshMapImageScroll(): void {
+  void nextTick().then(updateMapImageScroll);
+}
+
+function scrollMapImages(direction: -1 | 1): void {
+  const element = mapImageScroll.value;
+  if (!element) return;
+  element.scrollBy({
+    left: direction * Math.max(element.clientWidth - 64, 64),
+    behavior: "smooth",
+  });
+}
+
+function disconnectMapImageResizeObserver(): void {
+  mapImageResizeObserver?.disconnect();
+}
+
+watch(mapImageScroll, observeMapImageScroll, { flush: "post" });
+watch(mapOverlays, refreshMapImageScroll, { flush: "post" });
+onBeforeUnmount(disconnectMapImageResizeObserver);
 
 // Wikidata entity for the current project (logo, image)
 const { entity: wikidataEntity } = useWikidataEntity(
@@ -321,32 +407,20 @@ function handleBack() {
 </script>
 
 <style scoped>
+.project-detail-panel {
+  background: var(--detail-panel-background, var(--p-content-background));
+}
+
 /* Replayed when the panel stays open but switches to another project, signalling new content. */
 .detail-content-refresh {
   animation: detail-content-refresh 0.28s ease-out;
 }
 
 .map-image-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: var(--p-text-muted-color) transparent;
+  scrollbar-width: none;
 }
 
 .map-image-scroll::-webkit-scrollbar {
-  height: 0.55rem;
-}
-
-.map-image-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.map-image-scroll::-webkit-scrollbar-thumb {
-  background: var(--p-text-muted-color);
-  border: 2px solid transparent;
-  border-radius: 999px;
-  background-clip: padding-box;
-}
-
-.map-image-scroll::-webkit-scrollbar-button {
   display: none;
 }
 

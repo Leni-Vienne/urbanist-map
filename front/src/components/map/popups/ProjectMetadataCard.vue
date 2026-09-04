@@ -1,21 +1,43 @@
 <template>
-  <div v-if="project" class="flex flex-col gap-3">
+  <div v-if="project" class="flex flex-col" :class="props.compact ? 'gap-2' : 'gap-3'">
     <!-- Description: prefer OSM description, fall back to Wikidata description -->
     <div v-if="project.description || wikidataDescription" :class="cls.row">
       <span :class="cls.label">{{ $t("common.description") }}</span>
       <span :class="cls.value">{{ project.description || wikidataDescription }}</span>
     </div>
 
-    <div class="flex flex-wrap gap-x-6 gap-y-3">
+    <div v-if="props.compact" class="flex flex-col gap-2">
+      <div class="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-[13px]">
+        <span class="text-color">{{ timelineStatusLabel }}</span>
+        <template v-if="lastModifiedDate">
+          <span class="text-muted-color" aria-hidden="true">·</span>
+          <span class="text-muted-color">
+            {{ $t("project.modifiedOn", { date: formatDate(lastModifiedDate) }) }}
+          </span>
+        </template>
+      </div>
+
+      <span v-if="projectLocationDisplay !== '—'" :class="cls.value">
+        {{ projectLocationDisplay }}
+      </span>
+
+      <div v-if="!project.importSourceId && project.ownerUsername" :class="cls.row">
+        <span :class="cls.label">{{ $t("project.createdBy") }}</span>
+        <span :class="cls.value">{{ project.ownerUsername }}</span>
+      </div>
+
+      <div v-if="periodParts" :class="cls.row">
+        <span :class="cls.label">{{ periodParts.label }}</span>
+        <span :class="cls.value">{{ periodParts.value }}</span>
+      </div>
+    </div>
+
+    <div v-else class="flex flex-wrap gap-x-6 gap-y-3">
       <!-- Timeline Status -->
       <div :class="cls.row">
         <span :class="cls.label">{{ $t("project.timelineStatus") }}</span>
         <div class="flex items-center gap-1.5">
-          <span :class="cls.value">{{
-            $te(`timelineStatus.${project.timelineStatus}`)
-              ? $t(`timelineStatus.${project.timelineStatus}`)
-              : project.timelineStatus
-          }}</span>
+          <span :class="cls.value">{{ timelineStatusLabel }}</span>
         </div>
       </div>
 
@@ -55,7 +77,7 @@
 
     <!-- Tags -->
     <div v-if="project.tags && project.tags.length > 0" :class="cls.row">
-      <span :class="cls.label">{{ $t("project.tags") }}</span>
+      <span v-if="!props.compact" :class="cls.label">{{ $t("project.tags") }}</span>
       <div class="flex flex-wrap gap-1.5">
         <TagChip v-for="tag in project.tags" :key="tag" :tag="tag" />
       </div>
@@ -75,18 +97,23 @@
     </div>
 
     <!-- Modify on source link (imported projects only, edit mode) -->
-    <div v-if="osmEditUrl" :class="cls.row">
-      <span :class="cls.label">{{
+    <div v-if="osmEditUrl" :class="props.compact ? '' : cls.row">
+      <span v-if="!props.compact" :class="cls.label">{{
         $t("project.modifyOn", { name: project.importSource?.name ?? "OpenStreetMap" })
       }}</span>
       <a
         :href="osmEditUrl"
         target="_blank"
         rel="noopener noreferrer"
-        class="text-[13px] text-indigo-600! dark:text-indigo-300! no-underline hover:underline"
+        class="inline-flex items-center gap-1 text-[13px] text-indigo-600! dark:text-indigo-300! no-underline hover:underline"
         @click.stop
-        >{{ project.externalId }}</a
-      >
+        >{{
+          props.compact
+            ? $t("project.modifyOn", { name: project.importSource?.name ?? "OpenStreetMap" })
+            : project.externalId
+        }}
+        <i v-if="props.compact" class="pi pi-external-link text-[10px]" aria-hidden="true"></i
+      ></a>
     </div>
 
     <!-- External properties (OSM tags) for imported projects -->
@@ -160,12 +187,13 @@ import TagChip from "@/components/common/TagChip.vue";
 import { mapLabelLanguageRef, pickBoundaryName } from "@/services/map/mapLabelLanguage";
 import type { JsonObject } from "@shared/json";
 
-const { t: $t, locale } = useI18n();
+const { t: $t, te: $te, locale } = useI18n();
 
 const lightbox = useTemplateRef<InstanceType<typeof ImageLightbox>>("lightbox");
 
 interface Props {
   project: Project | null;
+  compact?: boolean;
   // Render the Wikidata logo + main image inside the card. Off by default because the detail
   // panel renders its own (logo next to the name, image with a zoom lightbox).
   showWikidataMedia?: boolean;
@@ -173,6 +201,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  compact: false,
   showWikidataMedia: false,
   wikidataEntity: undefined,
 });
@@ -196,9 +225,26 @@ function readWikidataEntity(): WikidataEntity | null {
 
 const cls = {
   row: "flex flex-col gap-0.5",
-  label: "text-[10px] font-medium uppercase tracking-[0.07em] text-muted-color",
+  label: "text-xs font-medium uppercase tracking-[0.05em] text-muted-color",
   value: "text-[13px] text-color wrap-break-word",
 };
+
+const timelineStatusLabel = computed(readTimelineStatusLabel);
+const lastModifiedDate = computed(readLastModifiedDate);
+
+function readTimelineStatusLabel(): string {
+  const status = props.project?.timelineStatus;
+  if (!status) return "";
+  return $te(`timelineStatus.${status}`) ? $t(`timelineStatus.${status}`) : status;
+}
+
+function readLastModifiedDate(): Date | string | null | undefined {
+  const project = props.project;
+  if (!project) return null;
+  return project.importSourceId
+    ? (project.externalLastModified ?? project.updatedAt)
+    : project.updatedAt;
+}
 
 function formatDate(date: Date | string | null | undefined): string {
   if (!date) return "—";

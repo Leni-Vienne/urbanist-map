@@ -95,6 +95,9 @@
     "estimatedCompletion": "Estimated Completion",
     "source": "Source",
     "lastModified": "Last Modified",
+    "modifiedOn": "Modified {date}",
+    "previousMapImages": "Previous map images",
+    "nextMapImages": "Next map images",
     "createdBy": "Created by",
     "modifyOn": "Modify on {name}",
     "altName": "Also known as",
@@ -186,16 +189,11 @@
     "projectCountMany": "{count} projects",
     "noMatchingContributions": "Nothing matches these filters yet.",
     "tryWideningFilters": "Widen a filter, or add the first one from Contribute.",
-    "filterBySource": "Filter by source",
-    "sourceCommunity": "Website",
-    "sourceOsm": "OpenStreetMap",
     "moreFilters": "More filters",
     "mapArea": "Map area",
     "endOfCommunityFeed": "That's every website contribution.",
-    "switchToOsm": "Browse OpenStreetMap projects",
-    "osmDataUpdated": "OSM data refreshed {time}",
-    "osmDataDescription": "OpenStreetMap data is synchronized daily and kept separate from community activity.",
-    "browseOsmUpdates": "Explore OpenStreetMap data"
+    "includeOsm": "+ OpenStreetMap",
+    "includeOsmProjects": "Include OpenStreetMap projects"
   },
   "overlay": {
     "overlayName": "Image Name",
@@ -477,6 +475,7 @@
   "tooltips": {
     "editProject": "Edit Project",
     "editThisProject": "Edit this project",
+    "centerProjectOnMap": "Center map on this project",
     "suggestChanges": "Suggest Changes",
     "editOverlay": "Edit Image",
     "approveProjectFirst": "Approve the project first to moderate its images"
