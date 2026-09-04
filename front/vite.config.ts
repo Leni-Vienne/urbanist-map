@@ -1,4 +1,4 @@
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig, isCSSRequest, loadEnv } from "vite";
 import vue from "@vitejs/plugin-vue";
 import Components from "unplugin-vue-components/vite";
 import { PrimeVueResolver } from "@primevue/auto-import-resolver";
@@ -9,6 +9,27 @@ import { fileURLToPath } from "node:url";
 import { visualizer } from "rollup-plugin-visualizer";
 import { qrcode } from "vite-plugin-qrcode";
 import { stringify } from "yaml";
+
+interface BundleReportEntry {
+  javascriptModules: string[];
+  cssModules?: string[];
+  emittedCss?: string[];
+}
+
+function createBundleReportEntry(
+  modules: string[],
+  emittedCss: Iterable<string>,
+): BundleReportEntry {
+  const javascriptModules = modules.filter((module) => !isCSSRequest(module));
+  const cssModules = modules.filter(isCSSRequest);
+  const cssAssets = [...emittedCss];
+
+  return {
+    javascriptModules,
+    ...(cssModules.length > 0 && { cssModules }),
+    ...(cssAssets.length > 0 && { emittedCss: cssAssets }),
+  };
+}
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -43,8 +64,8 @@ export default defineConfig(({ mode }) => {
         name: "bundle-report-clean",
         apply: "build",
         generateBundle(_, bundle) {
-          const fullReport: Record<string, string[]> = {};
-          const lightReport: Record<string, string[]> = {};
+          const fullReport: Record<string, BundleReportEntry> = {};
+          const lightReport: Record<string, BundleReportEntry> = {};
           const root = process.cwd();
 
           Object.entries(bundle).forEach(([fileName, chunk]) => {
@@ -55,14 +76,20 @@ export default defineConfig(({ mode }) => {
                 return cleanModule.replace(cleanRoot, "");
               });
 
-              fullReport[fileName] = modules;
+              fullReport[fileName] = createBundleReportEntry(
+                modules,
+                chunk.viteMetadata?.importedCss ?? [],
+              );
 
               const lightModules = modules.filter(
                 (m) =>
                   !m.includes("node_modules") && !m.startsWith("\0") && !m.startsWith("virtual:"),
               );
               if (lightModules.length > 0) {
-                lightReport[fileName] = lightModules;
+                lightReport[fileName] = createBundleReportEntry(
+                  lightModules,
+                  chunk.viteMetadata?.importedCss ?? [],
+                );
               }
             }
           });
