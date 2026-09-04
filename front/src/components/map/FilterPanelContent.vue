@@ -21,7 +21,7 @@
       />
       {{ $t("map.controls.onlyVisibleArea") }}
     </label>
-    <p v-if="!canPickArea" class="m-0 text-[0.7rem] italic text-(--p-text-color-secondary)">
+    <p v-if="!canPickArea" class="m-0 text-xs italic text-(--p-text-color-secondary)">
       {{ $t("map.controls.zoomInToFilterArea") }}
     </p>
   </div>
@@ -41,7 +41,7 @@
     </button>
   </div>
   <template v-for="group in tagGroups" :key="group.key">
-    <p v-if="group.hintKey" class="m-0 mb-1.5 text-[0.7rem] italic text-(--p-text-color-secondary)">
+    <p v-if="group.hintKey" class="m-0 mb-1.5 text-xs italic text-(--p-text-color-secondary)">
       {{ $t(group.hintKey) }}
     </p>
     <div class="flex flex-wrap gap-2 mb-4">

@@ -130,7 +130,7 @@
             :title="$t('auth.lastUsedEmail')"
             top="top-7.5"
           />
-          <small v-if="emailError" class="p-error">{{ emailError }}</small>
+          <small v-if="emailError" class="p-error text-[13px]">{{ emailError }}</small>
         </div>
 
         <div v-if="!isLoginMode">
@@ -147,8 +147,8 @@
             :invalid="Boolean(usernameError)"
             dir="auto"
           />
-          <small v-if="usernameError" class="p-error">{{ usernameError }}</small>
-          <small v-else class="text-muted-color text-xs">{{ $t("auth.displayName") }}</small>
+          <small v-if="usernameError" class="p-error text-[13px]">{{ usernameError }}</small>
+          <small v-else class="text-muted-color text-[13px]">{{ $t("auth.displayName") }}</small>
         </div>
 
         <div>
@@ -161,9 +161,10 @@
               type="button"
               :label="$t('auth.forgotPassword')"
               link
+              size="small"
               @click="showForgotPassword"
               :disabled="loading || oauthLoading"
-              class="p-0 text-xs"
+              class="p-0"
             />
           </div>
           <Password
@@ -178,7 +179,7 @@
               autocomplete: isLoginMode ? 'current-password' : 'new-password',
             }"
           />
-          <small v-if="passwordError" class="p-error">{{ passwordError }}</small>
+          <small v-if="passwordError" class="p-error text-[13px]">{{ passwordError }}</small>
         </div>
 
         <!-- Remember Me Checkbox (only in login mode) -->
@@ -186,7 +187,9 @@
           <Checkbox inputId="auth-remember-me" v-model="form.rememberMe" :binary="true" />
           <label for="auth-remember-me" class="text-sm cursor-pointer select-none">
             {{ $t("auth.rememberMe") }}
-            <span class="text-muted-color text-xs ml-1">({{ $t("auth.rememberMeHint") }})</span>
+            <span class="text-muted-color text-[13px] ml-1">
+              ({{ $t("auth.rememberMeHint") }})
+            </span>
           </label>
         </div>
 

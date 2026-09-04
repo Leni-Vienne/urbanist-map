@@ -27,7 +27,7 @@
               <h3 class="m-0 text-lg font-semibold text-color select-none leading-tight">
                 {{ $t("app.title") }}
               </h3>
-              <p class="mt-1 text-xs text-muted-color leading-tight">
+              <p class="mt-1 text-[13px] text-muted-color leading-tight">
                 {{ $t("app.subtitle") }}
               </p>
             </div>

@@ -19,13 +19,13 @@
           <div class="px-2 py-2 flex items-center gap-2">
             <span
               v-if="projectCount !== null"
-              class="min-w-0 truncate text-xs text-muted-color transition-opacity duration-150"
+              class="px-0.5 min-w-0 truncate text-[13px] text-muted-color transition-opacity duration-150"
               :class="isCountStale ? 'opacity-50' : ''"
               aria-live="polite"
             >
               {{ projectCountLabel }}
             </span>
-            <span v-else-if="isCountStale" class="text-xs text-muted-color" aria-hidden="true">
+            <span v-else-if="isCountStale" class="text-[13px] text-muted-color" aria-hidden="true">
               …
             </span>
             <i
@@ -35,7 +35,7 @@
 
             <label
               for="explore-include-osm"
-              class="ml-auto inline-flex shrink-0 cursor-pointer items-center gap-1.5 text-xs text-color"
+              class="ml-auto inline-flex shrink-0 cursor-pointer items-center gap-1.5 text-[13px] text-color"
             >
               <ToggleSwitch
                 input-id="explore-include-osm"
@@ -68,7 +68,7 @@
             <button
               v-if="mapArea"
               type="button"
-              class="inline-flex items-center gap-1 pl-2 pr-1.5 py-0.5 rounded-full text-[0.7rem] font-medium bg-(--p-content-hover-background) text-color border border-surface cursor-pointer transition-colors duration-150 hover:bg-black/5 dark:hover:bg-white/10"
+              class="inline-flex items-center gap-1 pl-2 pr-1.5 py-0.5 rounded-full text-xs font-medium bg-(--p-content-hover-background) text-color border border-surface cursor-pointer transition-colors duration-150 hover:bg-black/5 dark:hover:bg-white/10"
               @click="clearMapArea"
             >
               {{ t("contribution.mapArea") }}
@@ -78,7 +78,7 @@
               v-for="filter in activeFilters"
               :key="filterKey(filter)"
               type="button"
-              class="inline-flex items-center gap-1 pl-2 pr-1.5 py-0.5 rounded-full text-[0.7rem] font-medium bg-(--p-content-hover-background) text-color border border-surface cursor-pointer transition-colors duration-150 hover:bg-black/5 dark:hover:bg-white/10"
+              class="inline-flex items-center gap-1 pl-2 pr-1.5 py-0.5 rounded-full text-xs font-medium bg-(--p-content-hover-background) text-color border border-surface cursor-pointer transition-colors duration-150 hover:bg-black/5 dark:hover:bg-white/10"
               @click="clearActiveFilter(filter)"
             >
               {{ filterLabel(filter) }}
@@ -131,12 +131,12 @@
             <!-- Contribution info -->
             <div class="flex-1 min-w-0">
               <h2
-                class="text-[13px] md:text-sm font-semibold truncate leading-tight mb-0.5"
+                class="text-sm font-semibold truncate leading-tight mb-0.5"
                 :class="row.isPlaceholderTitle ? 'text-muted-color italic' : 'text-color'"
               >
                 {{ row.title }}
               </h2>
-              <div class="flex items-baseline gap-2 text-xs text-muted-color">
+              <div class="flex items-baseline gap-2 text-[13px] text-muted-color">
                 <span v-if="row.subtitle" class="min-w-0 flex-1 truncate">
                   {{ row.subtitle }}
                 </span>
@@ -157,10 +157,12 @@
             v-else-if="showOsmInvite"
             class="flex flex-col items-center gap-1 px-2 py-4 text-center border-t border-surface"
           >
-            <span class="text-xs text-muted-color">{{ t("contribution.endOfCommunityFeed") }}</span>
+            <span class="text-[13px] text-muted-color">{{
+              t("contribution.endOfCommunityFeed")
+            }}</span>
             <button
               type="button"
-              class="inline-flex items-center gap-1 p-0 text-xs font-medium text-primary-color bg-transparent border-0 cursor-pointer hover:text-primary-hover-color"
+              class="inline-flex items-center gap-1 p-0 text-[13px] font-medium text-primary-color bg-transparent border-0 cursor-pointer hover:text-primary-hover-color"
               @click="includeOsmContributions"
             >
               {{ t("contribution.includeOsmProjects") }}
@@ -588,11 +590,11 @@ onBeforeUnmount(teardownExplorePanel);
 
 .contribution-scroll-area {
   scrollbar-width: thin;
-  scrollbar-color: var(--p-text-muted-color) transparent;
+  scrollbar-color: color-mix(in srgb, var(--p-text-muted-color) 35%, transparent) transparent;
 }
 
 .contribution-scroll-area::-webkit-scrollbar {
-  width: 0.55rem;
+  width: 0.5rem;
 }
 
 .contribution-scroll-area::-webkit-scrollbar-track {
@@ -600,10 +602,18 @@ onBeforeUnmount(teardownExplorePanel);
 }
 
 .contribution-scroll-area::-webkit-scrollbar-thumb {
-  background: var(--p-text-muted-color);
+  background: color-mix(in srgb, var(--p-text-muted-color) 35%, transparent);
   border: 2px solid transparent;
   border-radius: 999px;
   background-clip: padding-box;
+}
+
+.contribution-scroll-area::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--p-text-muted-color) 60%, transparent);
+}
+
+.contribution-scroll-area::-webkit-scrollbar-thumb:active {
+  background-color: color-mix(in srgb, var(--p-text-muted-color) 75%, transparent);
 }
 
 .contribution-thumbnail {

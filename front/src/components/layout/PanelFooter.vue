@@ -41,12 +41,12 @@
 <script setup lang="ts">
 import { useAuthStore } from "@/stores/authStore";
 
-const props = defineProps<{
+defineProps<{
   compact?: boolean;
 }>();
 
 const authStore = useAuthStore();
-const textSizeClass = props.compact ? "text-[0.65rem]" : "text-xs";
+const textSizeClass = "text-xs";
 const linkClass = [
   "text-(--p-text-color-secondary) underline underline-offset-2 decoration-(--p-text-muted-color) transition-all duration-150 hover:text-primary-color hover:decoration-primary-color",
   textSizeClass,
