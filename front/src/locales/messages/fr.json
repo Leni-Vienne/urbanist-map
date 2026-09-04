@@ -78,6 +78,7 @@
     "name": "Nom du projet",
     "noLocation": "Aucun emplacement",
     "timelineStatus": "Statut chronologique",
+    "centerOnMap": "Centrer sur la carte",
     "proposalDateHelp": "Quand ce projet a-t-il été proposé ou annoncé ?",
     "location": "Localisation",
     "startDate": "Début des travaux",
@@ -99,7 +100,7 @@
     "previousMapImages": "Images précédentes sur la carte",
     "nextMapImages": "Images suivantes sur la carte",
     "createdBy": "Créé par",
-    "modifyOn": "Modifier sur {name}",
+    "importedFrom": "Importé depuis {name}",
     "altName": "Autre nom",
     "from": "De",
     "to": "À",
@@ -192,7 +193,6 @@
     "moreFilters": "Plus de filtres",
     "mapArea": "Zone de la carte",
     "endOfCommunityFeed": "Fin des contributions du site.",
-    "includeOsm": "+ OpenStreetMap",
     "includeOsmProjects": "Inclure les projets OpenStreetMap"
   },
   "overlay": {
@@ -474,8 +474,6 @@
   },
   "tooltips": {
     "editProject": "Modifier le projet",
-    "editThisProject": "Modifier ce projet",
-    "centerProjectOnMap": "Centrer la carte sur ce projet",
     "suggestChanges": "Suggérer des modifications",
     "editOverlay": "Modifier l'image",
     "approveProjectFirst": "Approuvez d'abord le projet pour modérer ses images"

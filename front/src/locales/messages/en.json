@@ -78,6 +78,7 @@
     "name": "Project Name",
     "noLocation": "No Location",
     "timelineStatus": "Timeline Status",
+    "centerOnMap": "Center on map",
     "proposalDate": "Proposal Date",
     "proposalDateHelp": "When was this project first proposed or announced?",
     "location": "Location",
@@ -99,7 +100,7 @@
     "previousMapImages": "Previous map images",
     "nextMapImages": "Next map images",
     "createdBy": "Created by",
-    "modifyOn": "Modify on {name}",
+    "importedFrom": "Imported from {name}",
     "altName": "Also known as",
     "from": "From",
     "to": "To",
@@ -192,7 +193,6 @@
     "moreFilters": "More filters",
     "mapArea": "Map area",
     "endOfCommunityFeed": "That's every website contribution.",
-    "includeOsm": "+ OpenStreetMap",
     "includeOsmProjects": "Include OpenStreetMap projects"
   },
   "overlay": {
@@ -474,8 +474,6 @@
   },
   "tooltips": {
     "editProject": "Edit Project",
-    "editThisProject": "Edit this project",
-    "centerProjectOnMap": "Center map on this project",
     "suggestChanges": "Suggest Changes",
     "editOverlay": "Edit Image",
     "approveProjectFirst": "Approve the project first to moderate its images"

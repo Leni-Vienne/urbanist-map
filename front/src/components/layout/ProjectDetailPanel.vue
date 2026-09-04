@@ -6,7 +6,10 @@
     <template v-else>
       <div class="flex flex-col flex-auto min-h-0">
         <!-- Doubles as the drawer drag handle on mobile. -->
-        <div class="drawer-drag-handle shrink-0 px-4" :class="isMobile ? 'pt-3 pb-2' : 'py-2.5'">
+        <div
+          class="drawer-drag-handle shrink-0 pl-4 pr-2"
+          :class="isMobile ? 'pt-3 pb-2' : 'py-2.5'"
+        >
           <div class="flex gap-2 items-center">
             <div class="flex-1 flex items-center gap-1.5 min-w-0">
               <!-- Wikidata logo (e.g. metro line badge) shown when available -->
@@ -17,7 +20,18 @@
                 referrerpolicy="no-referrer"
                 loading="eager"
               />
+              <button
+                v-if="canRecenter"
+                type="button"
+                :aria-label="$t('project.centerOnMap')"
+                class="min-w-0 p-0 text-left text-base font-semibold leading-snug wrap-break-word bg-transparent border-0 cursor-pointer underline-offset-2 hover:text-primary-color hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color"
+                :class="project?.name ? 'text-color' : 'text-muted-color italic'"
+                @click="handleRecenter"
+              >
+                {{ displayName }}
+              </button>
               <span
+                v-else
                 class="text-base font-semibold leading-snug wrap-break-word"
                 :class="project?.name ? 'text-color' : 'text-muted-color italic'"
               >
@@ -25,25 +39,14 @@
               </span>
             </div>
             <div class="flex gap-1 shrink-0">
-              <button
-                v-if="canRecenter"
-                type="button"
-                :aria-label="$t('tooltips.centerProjectOnMap')"
-                class="w-8 h-8 rounded-md flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-muted-color bg-content-background border border-surface hover:text-primary-color hover:bg-[color-mix(in_srgb,var(--p-primary-color)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--p-primary-color)_30%,transparent)]"
-                @click="handleRecenter"
-                v-tooltip.bottom="$t('tooltips.centerProjectOnMap')"
-              >
-                <i class="pi pi-map-marker"></i>
-              </button>
               <!-- Edit: switch to edit mode and pin this project in the contribute panel, so the
                    user can act on it (add images, draw, edit fields) without closing the detail and
                    switching tabs by hand. -->
               <button
                 type="button"
                 :aria-label="$t('common.edit')"
-                class="w-8 h-8 rounded-md flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-primary-color bg-content-background border border-surface hover:text-primary-hover-color hover:bg-[color-mix(in_srgb,var(--p-primary-color)_10%,transparent)] hover:border-[color-mix(in_srgb,var(--p-primary-color)_30%,transparent)]"
+                class="w-8 h-8 rounded-md flex items-center justify-center cursor-pointer transition-colors duration-150 text-sm text-primary-color bg-transparent border-0 hover:text-primary-hover-color hover:bg-(--p-content-hover-background)"
                 @click="handleEdit"
-                v-tooltip.bottom="$t('tooltips.editThisProject')"
               >
                 <i class="pi pi-pencil"></i>
               </button>
@@ -51,7 +54,7 @@
               <button
                 type="button"
                 :aria-label="$t('common.close')"
-                class="w-8 h-8 rounded-md flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-muted-color bg-content-background border border-surface hover:text-color hover:bg-(--p-content-hover-background)"
+                class="w-8 h-8 rounded-md flex items-center justify-center cursor-pointer transition-colors duration-150 text-sm text-muted-color bg-transparent border-0 hover:text-color hover:bg-(--p-content-hover-background)"
                 @click="handleBack"
               >
                 <i class="pi pi-times"></i>
@@ -78,13 +81,10 @@
               />
 
               <div v-if="mapOverlays.length > 0" class="mt-2.5 pt-2.5 border-t border-surface">
-                <div class="mb-2 flex items-center justify-between gap-2">
-                  <span class="text-xs font-semibold text-muted-color">
-                    {{ $t("project.mapImages") }}
-                  </span>
+                <div class="flex items-center gap-2">
                   <div
                     v-if="canScrollMapImagesBackward || canScrollMapImagesForward"
-                    class="flex items-center gap-1"
+                    class="order-2 flex items-center gap-1"
                   >
                     <button
                       type="button"
@@ -105,63 +105,74 @@
                       <i class="pi pi-chevron-right text-[10px]"></i>
                     </button>
                   </div>
-                </div>
-                <div
-                  ref="mapImageScroll"
-                  class="map-image-scroll flex gap-2 overflow-x-auto overscroll-x-contain"
-                  @scroll="updateMapImageScroll"
-                >
-                  <button
-                    v-for="mapOverlay in mapOverlays"
-                    :key="mapOverlay.id"
-                    type="button"
-                    class="w-16 h-16 p-0 shrink-0 overflow-hidden rounded-lg border-2 bg-(--p-content-hover-background) cursor-pointer transition-all duration-150 hover:border-primary-color active:scale-95 flex items-center justify-center"
-                    :class="
-                      mapOverlay.id === overlay?.id ? 'border-primary-color' : 'border-surface'
-                    "
-                    :aria-label="mapOverlay.caption || $t('overlay.untitled')"
-                    :aria-current="mapOverlay.id === overlay?.id ? 'true' : undefined"
-                    @click="handleMapOverlayClick(mapOverlay)"
+                  <div
+                    ref="mapImageScroll"
+                    class="map-image-scroll order-1 min-w-0 flex-1 flex gap-2 overflow-x-auto overscroll-x-contain"
+                    role="group"
+                    :aria-label="$t('project.mapImages')"
+                    @scroll="updateMapImageScroll"
                   >
-                    <img
-                      v-if="!thumbnailErrors[mapOverlay.id]"
-                      :src="buildThumbnailUrl(mapOverlay.filename)"
-                      :alt="mapOverlay.caption ?? undefined"
-                      class="w-full h-full object-cover"
-                      loading="lazy"
-                      :crossorigin="
-                        imageRequiresCredentials(buildThumbnailUrl(mapOverlay.filename))
-                          ? 'use-credentials'
-                          : undefined
+                    <button
+                      v-for="mapOverlay in mapOverlays"
+                      :key="mapOverlay.id"
+                      type="button"
+                      class="w-16 h-16 p-0 shrink-0 overflow-hidden rounded-lg border-2 bg-(--p-content-hover-background) cursor-pointer transition-all duration-150 hover:border-primary-color active:scale-95 flex items-center justify-center"
+                      :class="
+                        mapOverlay.id === overlay?.id ? 'border-primary-color' : 'border-surface'
                       "
-                      @error="handleThumbnailError(mapOverlay.id)"
-                    />
-                    <i v-else class="pi pi-image text-xl text-muted-color"></i>
-                  </button>
+                      :aria-label="mapOverlay.caption || $t('overlay.untitled')"
+                      :aria-current="mapOverlay.id === overlay?.id ? 'true' : undefined"
+                      @click="handleMapOverlayClick(mapOverlay)"
+                    >
+                      <img
+                        v-if="!thumbnailErrors[mapOverlay.id]"
+                        :src="buildThumbnailUrl(mapOverlay.filename)"
+                        :alt="mapOverlay.caption ?? undefined"
+                        class="w-full h-full object-cover"
+                        loading="lazy"
+                        :crossorigin="
+                          imageRequiresCredentials(buildThumbnailUrl(mapOverlay.filename))
+                            ? 'use-credentials'
+                            : undefined
+                        "
+                        @error="handleThumbnailError(mapOverlay.id)"
+                      />
+                      <i v-else class="pi pi-image text-xl text-muted-color"></i>
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <!-- Project imagery below the metadata: the Wikidata main image (P18) and the
-                   user-contributed render. Click to view full size. -->
-              <div
+              <figure
                 v-for="image in images"
                 :key="image.url"
-                class="mt-2.5 pt-2.5 border-t border-surface flex flex-col gap-1.5"
+                class="m-0 mt-2.5 pt-2.5 border-t border-surface flex flex-col gap-1.5"
               >
-                <span v-if="image.label" class="text-xs font-semibold text-muted-color">{{
-                  image.label
-                }}</span>
-                <img
-                  :src="image.url"
-                  :crossorigin="image.crossorigin"
-                  :referrerpolicy="image.referrerpolicy"
-                  class="w-full rounded-lg object-cover cursor-zoom-in"
-                  :class="isMobile ? 'max-h-48' : 'max-h-40'"
-                  loading="lazy"
-                  v-tooltip.top="$t('overlay.viewFullImage')"
+                <button
+                  type="button"
+                  class="group relative block w-full p-0 overflow-hidden rounded-lg border-0 bg-transparent cursor-zoom-in focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color"
+                  :aria-label="$t('overlay.viewFullImage')"
                   @click="lightbox?.open(image)"
-                />
-              </div>
+                >
+                  <img
+                    :src="image.url"
+                    :crossorigin="image.crossorigin"
+                    :referrerpolicy="image.referrerpolicy"
+                    class="block w-full object-cover"
+                    :class="isMobile ? 'max-h-48' : 'max-h-40'"
+                    loading="lazy"
+                  />
+                  <span
+                    class="absolute right-2 bottom-2 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center shadow-sm transition-colors duration-150 group-hover:bg-black/75"
+                    aria-hidden="true"
+                  >
+                    <i class="pi pi-search-plus text-xs"></i>
+                  </span>
+                </button>
+                <figcaption v-if="image.label" class="text-xs text-muted-color">
+                  {{ image.label }}
+                </figcaption>
+              </figure>
 
               <!-- Show view original button for pending replacements -->
               <div

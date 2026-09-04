@@ -1,8 +1,8 @@
 <template>
   <div v-if="project" class="flex flex-col" :class="props.compact ? 'gap-2' : 'gap-3'">
     <!-- Description: prefer OSM description, fall back to Wikidata description -->
-    <div v-if="project.description || wikidataDescription" :class="cls.row">
-      <span :class="cls.label">{{ $t("common.description") }}</span>
+    <div v-if="project.description || wikidataDescription" :class="props.compact ? '' : cls.row">
+      <span v-if="!props.compact" :class="cls.label">{{ $t("common.description") }}</span>
       <span :class="cls.value">{{ project.description || wikidataDescription }}</span>
     </div>
 
@@ -21,13 +21,13 @@
         {{ projectLocationDisplay }}
       </span>
 
-      <div v-if="!project.importSourceId && project.ownerUsername" :class="cls.row">
-        <span :class="cls.label">{{ $t("project.createdBy") }}</span>
+      <div v-if="!project.importSourceId && project.ownerUsername" :class="cls.inlineRow">
+        <span :class="cls.inlineLabel">{{ $t("project.createdBy") }}</span>
         <span :class="cls.value">{{ project.ownerUsername }}</span>
       </div>
 
-      <div v-if="periodParts" :class="cls.row">
-        <span :class="cls.label">{{ periodParts.label }}</span>
+      <div v-if="periodParts" :class="cls.inlineRow">
+        <span :class="cls.inlineLabel">{{ periodParts.label }}</span>
         <span :class="cls.value">{{ periodParts.value }}</span>
       </div>
     </div>
@@ -84,74 +84,77 @@
     </div>
 
     <!-- Source URL (user-provided reference: article, city hall page, etc.) -->
-    <div v-if="project.sourceUrl" :class="cls.row">
-      <span :class="cls.label">{{ $t("project.source") }}</span>
+    <div v-if="project.sourceUrl" :class="props.compact ? cls.inlineRow : cls.row">
+      <span :class="props.compact ? cls.inlineLabel : cls.label">{{ $t("project.source") }}</span>
       <a
         :href="project.sourceUrl"
         target="_blank"
         rel="noopener noreferrer"
-        class="text-[13px] text-indigo-600! dark:text-indigo-300! no-underline hover:underline wrap-break-word"
+        class="min-w-0 text-[13px] text-indigo-600! dark:text-indigo-300! no-underline hover:underline wrap-break-word"
         @click.stop
         >{{ formatSourceUrl(project.sourceUrl) }}</a
       >
     </div>
 
-    <!-- Modify on source link (imported projects only, edit mode) -->
-    <div v-if="osmEditUrl" :class="props.compact ? '' : cls.row">
+    <!-- Architect, Wikipedia, Wikidata -->
+    <div
+      v-if="project.importSourceId && externalEntries.length > 0"
+      :class="props.compact ? 'flex flex-col gap-2' : 'flex flex-wrap gap-x-6 gap-y-3'"
+    >
+      <div
+        v-for="entry in externalEntries"
+        :key="entry.key"
+        :class="props.compact ? cls.inlineRow : cls.row"
+      >
+        <span :class="props.compact ? cls.inlineLabel : cls.label">{{ entry.label }}</span>
+        <a
+          v-if="entry.href"
+          :href="entry.href"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="min-w-0 text-[13px] text-indigo-600! dark:text-indigo-300! no-underline hover:underline wrap-break-word"
+          @click.stop
+          >{{ entry.display }}</a
+        >
+        <span v-else :class="cls.value">{{ entry.display }}</span>
+      </div>
+    </div>
+
+    <div v-if="importSourceUrl" :class="props.compact ? '' : cls.row">
       <span v-if="!props.compact" :class="cls.label">{{
-        $t("project.modifyOn", { name: project.importSource?.name ?? "OpenStreetMap" })
+        $t("project.importedFrom", { name: project.importSource?.name ?? "OpenStreetMap" })
       }}</span>
       <a
-        :href="osmEditUrl"
+        :href="importSourceUrl"
         target="_blank"
         rel="noopener noreferrer"
         class="inline-flex items-center gap-1 text-[13px] text-indigo-600! dark:text-indigo-300! no-underline hover:underline"
         @click.stop
         >{{
           props.compact
-            ? $t("project.modifyOn", { name: project.importSource?.name ?? "OpenStreetMap" })
+            ? $t("project.importedFrom", { name: project.importSource?.name ?? "OpenStreetMap" })
             : project.externalId
         }}
         <i v-if="props.compact" class="pi pi-external-link text-[10px]" aria-hidden="true"></i
       ></a>
     </div>
 
-    <!-- External properties (OSM tags) for imported projects -->
-    <template v-if="project.importSourceId && externalProperties">
-      <!-- Architect, Wikipedia, Wikidata -->
-      <div v-if="externalEntries.length > 0" class="flex flex-wrap gap-x-6 gap-y-3">
-        <div v-for="entry in externalEntries" :key="entry.key" class="flex flex-col gap-0.5">
-          <span :class="cls.label">{{ entry.label }}</span>
-          <a
-            v-if="entry.href"
-            :href="entry.href"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="text-[13px] text-indigo-600! dark:text-indigo-300! no-underline hover:underline wrap-break-word"
-            @click.stop
-            >{{ entry.display }}</a
-          >
-          <span v-else :class="cls.value">{{ entry.display }}</span>
-        </div>
-      </div>
-
-      <!-- OSM image (Wikimedia Commons photo) -->
-      <a
-        v-if="externalImageUrl"
-        :href="externalImageUrl"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="block"
-        @click.stop
-      >
-        <img
-          :src="externalImageUrl"
-          class="w-full rounded-lg object-cover max-h-36"
-          loading="lazy"
-          referrerpolicy="no-referrer"
-        />
-      </a>
-    </template>
+    <!-- OSM image (Wikimedia Commons photo) -->
+    <a
+      v-if="project.importSourceId && externalImageUrl"
+      :href="externalImageUrl"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="block"
+      @click.stop
+    >
+      <img
+        :src="externalImageUrl"
+        class="w-full rounded-lg object-cover max-h-36"
+        loading="lazy"
+        referrerpolicy="no-referrer"
+      />
+    </a>
 
     <!-- Wikidata main image (P18). Opt-in: the detail panel renders its own, so only standalone
          surfaces enable it here. Click to zoom in the self-contained lightbox below. -->
@@ -225,6 +228,8 @@ function readWikidataEntity(): WikidataEntity | null {
 
 const cls = {
   row: "flex flex-col gap-0.5",
+  inlineRow: "flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5",
+  inlineLabel: "text-[13px] font-medium text-muted-color",
   label: "text-xs font-medium uppercase tracking-[0.05em] text-muted-color",
   value: "text-[13px] text-color wrap-break-word",
 };
@@ -256,7 +261,7 @@ const periodParts = computed(() => {
   return formatProjectDateRangeParts(props.project, $t);
 });
 
-const osmEditUrl = computed(() => {
+const importSourceUrl = computed(() => {
   const project = props.project;
   if (!project?.importSource || project.importSource.type !== "osm" || !project.externalId) {
     return null;

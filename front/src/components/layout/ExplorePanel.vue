@@ -42,7 +42,7 @@
                 v-model="isOsmIncluded"
                 class="explore-osm-switch"
               />
-              <span>{{ t("contribution.includeOsm") }}</span>
+              <span>{{ t("project.osmSource") }}</span>
             </label>
 
             <div class="relative inline-flex shrink-0">
