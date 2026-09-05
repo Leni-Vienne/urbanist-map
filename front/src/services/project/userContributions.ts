@@ -11,7 +11,9 @@ import { overlayWireToData, projectFromWire } from "@/utils/typeFactories";
 
 let loadToken = 0;
 
-export async function refreshUserContributions(): Promise<void> {
+export async function refreshUserContributions(
+  replaceOverlayIds?: ReadonlySet<string>,
+): Promise<void> {
   const authStore = useAuthStore();
   const changeRequestStore = useChangeRequestStore();
   const contributionStore = useContributionStore();
@@ -38,6 +40,7 @@ export async function refreshUserContributions(): Promise<void> {
           "edit",
           result.editSession.projects,
           result.editSession.overlays.map(overlayWireToData),
+          replaceOverlayIds,
         );
       }
       for (const project of Object.values(result.projectsById)) {

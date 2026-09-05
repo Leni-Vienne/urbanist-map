@@ -18,8 +18,6 @@ import {
 import { loggedInProcedure, router, TRPCError } from "../trpc";
 import { getClientIp } from "../utils/ip";
 import type { SessionUser } from "../lib/types";
-import { getMyChangeRequests } from "./changes";
-import { getEditSessionData } from "../services/editSession";
 
 const MAX_PENDING_CONTRIBUTIONS = 50;
 const MAX_TOTAL_CONTRIBUTIONS = 2000;
@@ -586,16 +584,10 @@ export const submissionRouter = router({
           await writeChangeRequest(tx, request, ctx.user, notifications);
         }
 
-        const [editSession, myChangeRequests] = await Promise.all([
-          getEditSessionData(tx, ctx.user),
-          getMyChangeRequests(tx, userId),
-        ]);
         return {
           notifications,
           supersededFilenames,
           render,
-          editSession,
-          changeRequests: myChangeRequests,
           directProjectId: plan.project?.id,
           outcome,
         };
@@ -612,8 +604,6 @@ export const submissionRouter = router({
       for (const notification of committed.notifications) void notifyNewSubmission(notification);
 
       return {
-        editSession: committed.editSession,
-        changeRequests: committed.changeRequests,
         render: committed.render,
         outcome: committed.outcome,
       };

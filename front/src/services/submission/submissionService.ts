@@ -1,6 +1,5 @@
 import { useProjectStore } from "@/stores/projectStore";
 import { useOverlayStore } from "@/stores/overlayStore";
-import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { trpc, type RouterOutput } from "@/client";
 import { uploadImageFile } from "@/services/submission/uploadImageFile";
 import { clearStagedRender } from "@/services/submission/stagedRenderState";
@@ -19,9 +18,7 @@ import {
   prepareOverlayValidationData,
 } from "@/utils/validationHelpers";
 import { resolveOverlaySubmissionCorners } from "@/services/overlay/data";
-import { applyMapSessionRows } from "@/services/map/viewportTriggers";
 import { refreshUserContributions } from "@/services/project/userContributions";
-import { overlayWireToData } from "@/utils/typeFactories";
 import {
   PROJECT_CHANGE_FIELDS,
   type ProjectFieldChange,
@@ -248,41 +245,25 @@ function getProjectChangeField(change: ProjectFieldChange) {
   return change.fieldName;
 }
 
-function applySubmissionResult(
-  draft: SubmissionDraft,
-  result: RouterOutput["submission"]["submit"],
-): void {
-  const projectStore = useProjectStore();
-  const submittedOverlayIds = new Set([
-    ...draft.newOverlayIds,
-    ...draft.overlayModifications.map((mod) => mod.overlayId),
-  ]);
-  applyMapSessionRows(
-    "edit",
-    result.editSession.projects,
-    result.editSession.overlays.map(overlayWireToData),
-    submittedOverlayIds,
-  );
-  if (draft.projectChanges) projectStore.discardProjectDraft(draft.projectId);
-  useChangeRequestStore().setPendingChangeRequests(result.changeRequests);
-
-  if (result.render) {
-    projectStore.updatePersistedProject(draft.projectId, {
-      render: { filename: result.render.filename, caption: null, status: result.render.status },
-    });
-    clearStagedRender(draft.projectId);
-  }
-}
-
 export async function submitDraft(
   draft: SubmissionDraft,
   reason: string,
 ): Promise<RouterOutput["submission"]["submit"]["outcome"]> {
-  const project = useProjectStore().getProjectById(draft.projectId);
+  const projectStore = useProjectStore();
+  const project = projectStore.getProjectById(draft.projectId);
   validateSubmission(draft, project);
   const batch = await buildSubmissionBatch(draft, project, reason);
-  const result = await trpc.submission.submit.mutate(batch);
-  applySubmissionResult(draft, result);
-  await refreshUserContributions();
-  return result.outcome;
+  const { render, outcome } = await trpc.submission.submit.mutate(batch);
+  const submittedOverlayIds = new Set<string>();
+  for (const overlay of batch.overlays) submittedOverlayIds.add(overlay.id);
+  await refreshUserContributions(submittedOverlayIds);
+
+  if (draft.projectChanges) projectStore.discardProjectDraft(draft.projectId);
+  if (render) {
+    projectStore.updatePersistedProject(draft.projectId, {
+      render: { filename: render.filename, caption: null, status: render.status },
+    });
+    clearStagedRender(draft.projectId);
+  }
+  return outcome;
 }
