@@ -4,9 +4,18 @@ import { useOverlayStore } from "./overlayStore";
 import { useProjectStore } from "./projectStore";
 import { useFocusStore } from "./focusStore";
 import { useModerationStore } from "./moderationStore";
+import { useContributionStore } from "./contributionStore";
+import { useAuthStore } from "./authStore";
+import { useUserContributions } from "@/composables/project/useUserContributions";
 import { createLocalProject } from "@/utils/typeFactories";
 import { openProjectDetailById } from "@/services/core/projectSelection";
-import type { BackendOverlayData, Overlay, Project, TileOverlayData } from "@/types/index";
+import type {
+  BackendOverlayData,
+  Overlay,
+  OverlayObject,
+  Project,
+  TileOverlayData,
+} from "@/types/index";
 
 function makePersistedProject(name: string, description: string): Project {
   return {
@@ -39,13 +48,13 @@ function makeBackendOverlay(caption: string): BackendOverlayData {
   };
 }
 
-function makeTileOverlay(id: string): TileOverlayData {
+function makeTileOverlay(id: string, projectId = "project-1"): TileOverlayData {
   return {
     id,
     filename: `${id}.webp`,
     caption: id,
     status: "approved",
-    projectId: "project-1",
+    projectId,
     centroid: { lat: 0.5, lng: 0.5 },
     baselineCorners: [
       { lat: 0, lng: 0 },
@@ -75,6 +84,32 @@ function makePanelOverlay(id: string, projectId: string): Overlay {
     updatedAt: new Date(0),
     countryCode: "FRA",
     countryName: "France",
+  };
+}
+
+function authenticateTestUser(): void {
+  useAuthStore().user = {
+    id: "user-1",
+    email: "user@example.com",
+    username: "user",
+    role: null,
+    moderatedCountries: [],
+    emailVerified: true,
+  };
+}
+
+function makeLocalOverlay(id: string, projectId: string): OverlayObject {
+  return {
+    ...makeBackendOverlay(id),
+    id,
+    filename: `${id}.webp`,
+    caption: id,
+    status: null,
+    projectId,
+    imageUrl: `data:image/webp;base64,${id}`,
+    history: [],
+    redoStack: [],
+    positionState: "baseline",
   };
 }
 
@@ -148,6 +183,90 @@ function projectStateOwnership() {
 function overlayStateOwnership() {
   test("replaces viewport projections without promoting them to persisted state", tileTest);
   test("preserves a draft across backend refresh and drops it after replacement", overlayDraftTest);
+  test("projects local overlay edits into contribution rows without dropping list metadata", () => {
+    authenticateTestUser();
+    const projectStore = useProjectStore();
+    const overlayStore = useOverlayStore();
+    const contributionStore = useContributionStore();
+    projectStore.upsertProjectSummary(makePersistedProject("Project", "Description"));
+
+    const pending = {
+      ...makePanelOverlay("overlay-1", "project-1"),
+      authorApprovedCount: 7,
+      authorRejectedCount: 2,
+    };
+    const render = {
+      ...makePanelOverlay("render-1", "project-1"),
+      kind: "render" as const,
+      status: "approved" as const,
+    };
+    const rejected = {
+      ...makePanelOverlay("rejected-1", "project-1"),
+      status: "rejected" as const,
+      replacedByOverlayId: "replacement-1",
+    };
+    contributionStore.setData({
+      projectIds: ["project-1"],
+      overlaysById: {
+        "overlay-1": pending,
+        "render-1": render,
+        "rejected-1": rejected,
+      },
+    });
+
+    overlayStore.ingestBackendOverlay({
+      ...makeBackendOverlay("Server caption"),
+      status: "pending",
+    });
+    overlayStore.updateOverlayDraft("overlay-1", {
+      caption: "Local caption",
+      filename: "local-preview.webp",
+      imageUrl: "data:image/webp;base64,local-preview",
+    });
+    overlayStore.addLocalOverlay("local-overlay", makeLocalOverlay("local-overlay", "project-1"));
+
+    const contributions = useUserContributions();
+    expect(contributions.overlaysById.value["overlay-1"]).toMatchObject({
+      caption: "Local caption",
+      filename: "local-preview.webp",
+      imageUrl: "data:image/webp;base64,local-preview",
+      authorUsername: "user",
+      authorApprovedCount: 7,
+      authorRejectedCount: 2,
+    });
+    expect(contributions.overlaysById.value["render-1"]).toMatchObject(render);
+    expect(contributions.overlaysById.value["rejected-1"]).toMatchObject(rejected);
+    expect(contributions.overlaysById.value["local-overlay"]?.status).toBeNull();
+    expect(contributions.projectOverlayIds.value["project-1"]).toEqual([
+      "overlay-1",
+      "render-1",
+      "rejected-1",
+      "local-overlay",
+    ]);
+  });
+
+  test("includes live overlays for an externally selected project", () => {
+    authenticateTestUser();
+    const projectStore = useProjectStore();
+    const overlayStore = useOverlayStore();
+    const contributionStore = useContributionStore();
+    const focusStore = useFocusStore();
+    const externalProject = {
+      ...makePersistedProject("External", "Description"),
+      id: "external-project",
+      ownerId: "another-user",
+    };
+    projectStore.upsertProjectSummary(externalProject);
+    contributionStore.setData({ projectIds: [], overlaysById: {} });
+    overlayStore.replaceTileOverlays(
+      new Map([["external-overlay", makeTileOverlay("external-overlay", "external-project")]]),
+    );
+    focusStore.setSelectionTarget({ kind: "project", projectId: "external-project" });
+
+    const contributions = useUserContributions();
+    expect(contributions.pinnedExternalProject.value?.id).toBe("external-project");
+    expect(contributions.projectOverlayIds.value["external-project"]).toEqual(["external-overlay"]);
+  });
 }
 
 function moderationStateOwnership() {

@@ -59,6 +59,17 @@ export function useUserContributions() {
     if (pinnedExternalProject.value) visibleProjectIds.add(pinnedExternalProject.value.id);
 
     for (const overlay of Object.values(overlayStore.liveOverlays)) {
+      const contributionOverlay = result[overlay.id];
+      if (contributionOverlay) {
+        result[overlay.id] = {
+          ...contributionOverlay,
+          caption: overlay.caption,
+          filename: overlay.filename,
+          imageUrl:
+            overlayStore.overlayDrafts[overlay.id]?.imageUrl ?? contributionOverlay.imageUrl,
+        };
+        continue;
+      }
       if (
         overlay.projectId &&
         visibleProjectIds.has(overlay.projectId) &&
