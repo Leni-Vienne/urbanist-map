@@ -9,7 +9,7 @@ import {
 } from "../lib/storage";
 import { exceedsPendingStorageQuota } from "../lib/storageQuota";
 import { MAX_UPLOAD_FILE_SIZE_BYTES, MAX_UPLOAD_FILE_SIZE_MB } from "@shared/uploadLimits";
-import { allowedDomains } from "../lib/corsConfig";
+import { allowedDomains, isAllowedCorsOrigin } from "../lib/corsConfig";
 import type { FileUploadResult, AppEnv, SessionUser } from "../lib/types";
 import * as rateLimit from "../lib/rateLimit";
 import { resolveSessionUser } from "../lib/currentUser";
@@ -35,21 +35,6 @@ const filenameParamSchema = z.object({
     .regex(/^[a-zA-Z0-9\-_./]+$/, "Invalid filename format")
     .refine((name) => !name.includes(".."), "Path traversal not allowed"),
 });
-
-function isAllowedCorsOrigin(origin: string | undefined): boolean {
-  if (!origin) return false;
-  try {
-    const url = new URL(origin);
-    return (
-      url.protocol === "https:" &&
-      allowedDomains.some(
-        (domain) => url.hostname === domain || url.hostname.endsWith(`.${domain}`),
-      )
-    );
-  } catch {
-    return false;
-  }
-}
 
 // Pending/rejected files are restricted to the author, admins, and moderators of the
 // overlay's country. Approved files are public and never reach this check.

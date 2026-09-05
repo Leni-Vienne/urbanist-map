@@ -2,7 +2,7 @@ import { adminProcedure, router } from "../trpc";
 import { projects, overlays, users } from "../db/schema";
 import { eq, sql, and, inArray } from "drizzle-orm";
 import { db } from "../database";
-import { deleteImages, executePendingDeletions } from "../lib/imageCleanup";
+import { deleteImagesEverywhere, executePendingDeletions } from "../lib/imageCleanup";
 import { TRPCError } from "@trpc/server";
 import * as z from "zod";
 import { countryNameSql } from "../db/helpers";
@@ -163,7 +163,7 @@ export const adminRouter = router({
         // Clean up overlay images
         for (const overlay of projectOverlays) {
           try {
-            await deleteImages(overlay.filename, "both");
+            await deleteImagesEverywhere(overlay.filename, "both");
           } catch (error) {
             console.error(`Failed to delete images for overlay ${overlay.id}:`, error);
             // Continue - don't fail if image cleanup fails

@@ -10,7 +10,7 @@ import { tilesApp, warmLowZoomTileCache } from "./routes/tiles";
 import { seoApp } from "./routes/seo";
 import { authApp, SESSION_DURATION_LONG } from "./routes/auth";
 import { uploadsApp } from "./routes/uploads";
-import { allowedDomains } from "./lib/corsConfig";
+import { isAllowedCorsOrigin } from "./lib/corsConfig";
 import type { AppEnv } from "./lib/types";
 import { config as appConfig } from "./config";
 import { generateMissingThumbnails } from "./lib/startup";
@@ -33,12 +33,7 @@ app.use(
         return origin; // Allow all origins in development
       }
 
-      // Allow if matches any root domain or subdomain, usefull for checking older cloudflare deployments
-      const isAllowed = allowedDomains.some(
-        (domain) => origin === `https://${domain}` || origin.endsWith(`.${domain}`),
-      );
-
-      return isAllowed ? origin : null;
+      return isAllowedCorsOrigin(origin) ? origin : null;
     },
     credentials: true,
   }),

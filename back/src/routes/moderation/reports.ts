@@ -2,7 +2,7 @@ import { moderatorProcedure, adminProcedure } from "../../trpc";
 import { db } from "../../database";
 import { projects, overlays, users, userReports } from "../../db/schema";
 import { and, eq, or, sql, inArray } from "drizzle-orm";
-import { deleteImages, deleteLocalImages } from "../../lib/imageCleanup";
+import { deleteImagesEverywhere, deleteLocalImages } from "../../lib/imageCleanup";
 import { deleteUserSessions } from "../../lib/drizzleSessionStore";
 import { assignProjectBoundary } from "../../db/boundaryAssignment";
 import { TRPCError } from "@trpc/server";
@@ -300,7 +300,7 @@ export const reportProcedures = {
         }
 
         try {
-          await deleteImages(overlay.filename, "both");
+          await deleteImagesEverywhere(overlay.filename, "both");
         } catch (error) {
           console.error(`Failed to delete images for overlay ${input.id}:`, error);
         }

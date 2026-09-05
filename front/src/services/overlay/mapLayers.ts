@@ -12,6 +12,7 @@ import {
   type OverlayTransform,
 } from "@/services/overlay/transform";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
+import { projectDataLayersBottomId } from "@/services/map/layerOrder";
 import type { LatLng } from "@/types/index";
 
 // Centralized registry for all overlay layer references (image sources + markers).
@@ -334,18 +335,6 @@ function overlayRasterLayerId(id: string): string {
 
 type ImageCoordinates = [[number, number], [number, number], [number, number], [number, number]];
 
-// Back rasters anchor just beneath the first pending or approved project-geometry layer. Every
-// footprint border stays below the image while both project-shape sources stay above it.
-function getVectorLayersBottomId(mlMap: MaplibreMap): string | undefined {
-  const anchor = mlMap
-    .getStyle()
-    .layers.find(
-      (layer) =>
-        layer.id === "pending-project-shapes-fill" || layer.id.startsWith("project-shapes"),
-    );
-  return anchor?.id;
-}
-
 // Overlay IDs the user pinned to the front (above the geometry); otherwise inter-image order follows
 // selection (clicked image rises to its band top). Held off the handle so the choice survives handle
 // re-creation (zoom threshold crossing, style switch, viewport re-entry). Reactive so UI state
@@ -368,7 +357,7 @@ function raiseToBandTop(mlMap: MaplibreMap, rasterLayerId: string, front: boolea
   if (front) {
     mlMap.moveLayer(rasterLayerId);
   } else {
-    mlMap.moveLayer(rasterLayerId, getVectorLayersBottomId(mlMap));
+    mlMap.moveLayer(rasterLayerId, projectDataLayersBottomId(mlMap.getStyle().layers));
   }
 }
 
@@ -464,7 +453,7 @@ export function createOverlayImage(id: string, imageUrl: string, corners: LatLng
         minzoom: getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS),
         paint: { "raster-opacity": opacity, "raster-fade-duration": 0 },
       },
-      frontOverlayIds.has(id) ? undefined : getVectorLayersBottomId(mlMap),
+      frontOverlayIds.has(id) ? undefined : projectDataLayersBottomId(mlMap.getStyle().layers),
     );
     registerImageHandle(
       id,

@@ -4,10 +4,8 @@ import { getStagedRender, clearStagedRender } from "@/services/submission/staged
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useUiStore } from "@/stores/uiStore";
-import {
-  getEditModeDefaultCaption,
-  getStagedOverlayModifications,
-} from "@/services/overlay/unsavedState";
+import { getStagedOverlayModifications } from "@/services/overlay/unsavedState";
+import { getEditModeDefaultCaption } from "@/services/overlay/defaultState";
 import { getEditModeRestingCorners } from "@/services/overlay/positionState";
 import { detectProjectChanges, submitDraft } from "./submissionService";
 import {

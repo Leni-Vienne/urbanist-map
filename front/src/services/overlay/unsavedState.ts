@@ -5,6 +5,7 @@ import type { LatLng, OverlayObject, PendingOverlayModification, Project } from 
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { hasStagedRender, hasStagedRenders } from "@/services/submission/stagedRenderState";
+import { getEditModeDefaultCaption } from "@/services/overlay/defaultState";
 
 type OverlayLike = Pick<OverlayObject, "id" | "status">;
 type ProjectLike = Pick<Project, "id" | "status">;
@@ -19,21 +20,6 @@ function getStagedCornersDelta(
   const current = overlay.history.at(-1)?.corners;
   if (!current) return null;
   return { current, original: overlay.baselineCorners ?? [] };
-}
-
-// Edit-mode default caption: the proposed caption of an open change request when one exists,
-// otherwise the approved baseline. Mirror of getEditModeDefaultCorners.
-export function getEditModeDefaultCaption(
-  overlay: Pick<OverlayObject, "hasPendingChanges" | "suggestedCaption" | "baselineCaption">,
-): string | null {
-  if (
-    overlay.hasPendingChanges === true &&
-    overlay.suggestedCaption !== null &&
-    overlay.suggestedCaption !== undefined
-  ) {
-    return overlay.suggestedCaption;
-  }
-  return overlay.baselineCaption;
 }
 
 // Staged (unsubmitted) caption delta, derived: the live caption differs from the edit-mode default.

@@ -3,6 +3,7 @@ import type { Feature, FeatureCollection, MultiPolygon, Polygon, Position } from
 import { computed, watch } from "vue";
 import { getMapOrNull, onStyleSwitch, type StyleSwitchPhase } from "@/services/core/map";
 import { mapArea, type MapArea } from "@/services/feed/latestContributions";
+import { projectDataLayersBottomId } from "@/services/map/layerOrder";
 import { useUiStore } from "@/stores/uiStore";
 
 // The area filter is picked from the feed's filter surface, which mobile hosts in a tab of its own.
@@ -76,10 +77,6 @@ function buildAreaFeatures(area: MapArea): FeatureCollection {
 
 // The project geometry marks the bottom of the data layers. Anchoring there keeps the scrim on the
 // basemap alone, so contributions stay legible however dim the surroundings get.
-function dataLayersBottomId(mlMap: MaplibreMap): string | undefined {
-  return mlMap.getStyle().layers.find((layer) => layer.id.startsWith("project-shapes"))?.id;
-}
-
 // A light stroke over a white casing so the boundary reads on the plan, dark and satellite
 // basemaps alike, dashed so it does not invite dragging: the area is not editable in place.
 function addAreaLayers(mlMap: MaplibreMap, data: FeatureCollection): void {
@@ -93,7 +90,7 @@ function addAreaLayers(mlMap: MaplibreMap, data: FeatureCollection): void {
       filter: ["==", ["get", "role"], "scrim"],
       paint: { "fill-color": "#000000", "fill-opacity": 0.18 },
     },
-    dataLayersBottomId(mlMap),
+    projectDataLayersBottomId(mlMap.getStyle().layers),
   );
 
   mlMap.addLayer({

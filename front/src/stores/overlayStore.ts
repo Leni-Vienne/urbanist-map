@@ -1,6 +1,7 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { computed, ref } from "vue";
 import { buildImageUrl } from "@/utils/imageUrl";
+import { getEditModeDefaultCaption } from "@/services/overlay/defaultState";
 import type {
   BackendOverlayData,
   LatLng,
@@ -20,14 +21,6 @@ type OverlayDraft = Partial<
 
 function restingPositionState(overlay: OverlayObject): OverlayPositionState {
   return overlay.hasPendingChanges === true ? "suggested" : "baseline";
-}
-
-function defaultCaption(overlay: OverlayObject): string | null {
-  return overlay.hasPendingChanges === true &&
-    overlay.suggestedCaption !== null &&
-    overlay.suggestedCaption !== undefined
-    ? overlay.suggestedCaption
-    : overlay.baselineCaption;
 }
 
 function toRuntimeOverlayData(overlay: OverlayObject): RuntimeOverlayData {
@@ -76,7 +69,7 @@ export const useOverlayStore = defineStore("overlay", () => {
       (selectedTileOverlay.value?.id === overlayId ? selectedTileOverlay.value : undefined);
     if (!data) return null;
     const overlay = materializeOverlay(data);
-    overlay.caption = defaultCaption(overlay);
+    overlay.caption = getEditModeDefaultCaption(overlay);
     if (!draft) return overlay;
     const { base: _base, ...updates } = draft;
     return Object.assign(overlay, updates);
@@ -274,7 +267,6 @@ export const useOverlayStore = defineStore("overlay", () => {
   return {
     persistedOverlays,
     tileOverlays,
-    selectedTileOverlay,
     overlayDrafts,
     liveOverlays,
     replacementOverlayId,

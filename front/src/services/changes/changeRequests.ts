@@ -30,14 +30,11 @@ export async function rejectChangeRequests(changeRequestIds: string[]): Promise<
 
 export async function deleteChangeRequest(changeRequestId: string): Promise<boolean> {
   const store = useChangeRequestStore();
-  const changeRequest = store.pendingChangeRequests.find((cr) => cr.id === changeRequestId);
 
   try {
     await trpc.changes.deleteChangeRequest.mutate({ id: changeRequestId });
 
-    if (changeRequest) {
-      store.removeChangeRequest(changeRequestId);
-    }
+    store.removeChangeRequest(changeRequestId);
 
     await refreshUserContributions();
 

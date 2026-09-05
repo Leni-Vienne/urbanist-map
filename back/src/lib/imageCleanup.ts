@@ -11,6 +11,12 @@ import {
 import type { StorageInterface } from "./types";
 
 const THUMBNAIL_RETENTION_DAYS = 15;
+type ImageDeletionType = "full" | "thumbnail" | "both";
+
+function parseImageDeletionType(value: string): ImageDeletionType {
+  if (value === "full" || value === "thumbnail" || value === "both") return value;
+  throw new Error(`Unsupported image deletion type: ${value}`);
+}
 
 function createR2Storage(): R2StorageS3 {
   const storage = createR2StorageFromEnv();
@@ -28,7 +34,7 @@ function createR2Storage(): R2StorageS3 {
 async function deleteFilesFromStorage(
   storage: StorageInterface,
   filename: string,
-  deleteType: "full" | "thumbnail" | "both",
+  deleteType: ImageDeletionType,
 ): Promise<string[]> {
   const thumbnailFilename = getThumbnailFilename(filename);
   const failed: string[] = [];
@@ -114,7 +120,6 @@ export async function cleanupRejectedPendingOverlay(
 
 /**
  * Cleanup after an approved overlay was replaced by a new approved overlay.
- * The original full image lives in R2 (production) or local (dev), the thumbnail is always local.
  * The thumbnail is retained briefly so any in-flight client renders don't 404.
  */
 export async function cleanupReplacedApprovedOverlay(
@@ -127,8 +132,7 @@ export async function cleanupReplacedApprovedOverlay(
 
 /**
  * Execute pending deletions (run by background job/cron).
- * Deletes from both local and R2 storage, rejected/replaced overlay thumbnails are always local,
- * approved overlay images are in R2.
+ * Deletes from both local and R2 storage so cleanup remains correct across storage transitions.
  */
 export async function executePendingDeletions(): Promise<{ deleted: number; failed: number }> {
   const now = new Date();
@@ -144,24 +148,9 @@ export async function executePendingDeletions(): Promise<{ deleted: number; fail
   // TODO: storage.delete() swallows its own errors, so `failed` only captures DB-level failures.
   // For accurate per-file tracking, storage.delete() should throw on real errors (not 404s).
 
-  const localStorage = new LocalFileStorage();
-  const isProduction = process.env.NODE_ENV === "production";
-  const r2Storage = isProduction ? createR2Storage() : null;
-
   for (const item of pendingDeletions) {
     try {
-      // Full images may be in local (pending overlays) or R2 (approved overlays), try both.
-      // Thumbnails are always local (not migrated to R2).
-      const fullOrBoth = item.deletionType === "full" || item.deletionType === "both";
-      const thumbnailOrBoth = item.deletionType === "thumbnail" || item.deletionType === "both";
-
-      if (fullOrBoth) {
-        await deleteFilesFromStorage(localStorage, item.filename, "full");
-        if (r2Storage) await deleteFilesFromStorage(r2Storage, item.filename, "full");
-      }
-      if (thumbnailOrBoth) {
-        await deleteFilesFromStorage(localStorage, item.filename, "thumbnail");
-      }
+      await deleteImagesEverywhere(item.filename, parseImageDeletionType(item.deletionType));
 
       await db.delete(scheduledDeletions).where(eq(scheduledDeletions.id, item.id));
       deleted += 1;
@@ -181,26 +170,40 @@ export async function executePendingDeletions(): Promise<{ deleted: number; fail
  */
 export async function deleteLocalImages(
   filename: string,
-  deleteType: "full" | "thumbnail" | "both",
+  deleteType: ImageDeletionType,
 ): Promise<void> {
-  const storage = new LocalFileStorage();
-  const failed = await deleteFilesFromStorage(storage, filename, deleteType);
-  if (deleteType === "full" || deleteType === "both") {
-    await deleteLocalOriginal(filename);
-  }
-  await appendOrphanLog(failed);
+  await deleteFromStorageBackends(filename, deleteType, [new LocalFileStorage()]);
 }
 
 /**
  * Delete images immediately from the active storage backend (R2 in production, local in dev).
  */
-export async function deleteImages(
-  filename: string,
-  deleteType: "full" | "thumbnail" | "both",
-): Promise<void> {
+async function deleteImages(filename: string, deleteType: ImageDeletionType): Promise<void> {
   const storage =
     process.env.NODE_ENV === "production" ? createR2Storage() : new LocalFileStorage();
-  const failed = await deleteFilesFromStorage(storage, filename, deleteType);
+  await deleteFromStorageBackends(filename, deleteType, [storage]);
+}
+
+export async function deleteImagesEverywhere(
+  filename: string,
+  deleteType: ImageDeletionType,
+): Promise<void> {
+  const storageBackends: StorageInterface[] = [new LocalFileStorage()];
+  if (process.env.NODE_ENV === "production") {
+    storageBackends.push(createR2Storage());
+  }
+  await deleteFromStorageBackends(filename, deleteType, storageBackends);
+}
+
+async function deleteFromStorageBackends(
+  filename: string,
+  deleteType: ImageDeletionType,
+  storageBackends: StorageInterface[],
+): Promise<void> {
+  const deletionResults = await Promise.all(
+    storageBackends.map((storage) => deleteFilesFromStorage(storage, filename, deleteType)),
+  );
+  const failed = deletionResults.flat();
   if (deleteType === "full" || deleteType === "both") {
     await deleteLocalOriginal(filename);
   }
