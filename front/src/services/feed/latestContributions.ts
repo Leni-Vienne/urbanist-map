@@ -206,10 +206,6 @@ function changeMapArea(bounds: MapArea | null): void {
   ensureLatestContributions();
 }
 
-export function includeOsmContributions(): void {
-  isOsmIncluded.value = true;
-}
-
 function clearLoadedContributions(): void {
   requestToken += 1;
   latestContributions.value = [];

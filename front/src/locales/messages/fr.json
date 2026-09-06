@@ -192,8 +192,8 @@
     "tryWideningFilters": "Élargissez un filtre, ou ajoutez le premier depuis Contribuer.",
     "moreFilters": "Plus de filtres",
     "mapArea": "Zone de la carte",
-    "endOfCommunityFeed": "Fin des contributions du site.",
-    "includeOsmProjects": "Inclure les projets OpenStreetMap"
+    "endOfFeed": "Vous avez fait le tour",
+    "moreProjectsWithOsm": "Voir les projets OpenStreetMap"
   },
   "overlay": {
     "overlayName": "Nom de l'image",

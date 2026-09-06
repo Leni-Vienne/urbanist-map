@@ -150,24 +150,23 @@
           <div v-if="hasMore" ref="loadMoreSentinel" class="h-10 flex items-center justify-center">
             <i v-if="isLoadingMore" class="pi pi-spin pi-spinner text-sm text-muted-color"></i>
           </div>
-
-          <!-- End of a community-only list: the rest of the map's activity is one toggle away, and the
-             end of the list is where that is worth offering. -->
           <div
-            v-else-if="showOsmInvite"
-            class="flex flex-col items-center gap-1 px-2 py-4 text-center border-t border-surface"
+            v-else-if="source === 'community' && !hasPopoverFilters && !isLoading"
+            class="flex items-center justify-center border-t border-surface px-2 py-3"
           >
-            <span class="text-[13px] text-muted-color">{{
-              t("contribution.endOfCommunityFeed")
-            }}</span>
             <button
               type="button"
-              class="inline-flex items-center gap-1 p-0 text-[13px] font-medium text-primary-color bg-transparent border-0 cursor-pointer hover:text-primary-hover-color"
-              @click="includeOsmContributions"
+              class="rounded-md border-0 bg-transparent px-3 py-1.5 text-[13px] font-medium text-primary-color cursor-pointer hover:bg-black/5 hover:text-primary-hover-color dark:hover:bg-white/10"
+              @click="includeOsmProjects"
             >
-              {{ t("contribution.includeOsmProjects") }}
-              <i class="pi pi-arrow-right text-[0.65rem]"></i>
+              {{ t("contribution.moreProjectsWithOsm") }}
             </button>
+          </div>
+          <div
+            v-else-if="!isLoading"
+            class="flex items-center justify-center border-t border-surface px-2 py-4 text-[13px] text-muted-color"
+          >
+            {{ t("contribution.endOfFeed") }}
           </div>
         </div>
 
@@ -233,7 +232,6 @@ import {
   activateLatestContributions,
   loadMoreLatestContributions,
   clearMapArea,
-  includeOsmContributions,
 } from "@/services/feed/latestContributions";
 import {
   activeFilters,
@@ -281,14 +279,16 @@ const hasNarrowedQuery = computed(
   () => activeFilterCount.value > 0 || source.value !== "all" || mapArea.value !== null,
 );
 
-const showOsmInvite = computed(() => source.value === "community" && !hasMore.value);
-
 // Everything reachable only through the popover, so the button can show that something is applied.
 const hasPopoverFilters = computed(() => activeFilterCount.value > 0 || mapArea.value !== null);
 // Before the filter surface has ever been opened the dot is a discovery hint instead.
 const showFilterDot = computed(() => hasPopoverFilters.value || !filtersSeen.value);
 const hasChippedFilters = computed(() => activeFilters.value.length > 0 || mapArea.value !== null);
 const projectCountLabel = computed(formatProjectCount);
+
+function includeOsmProjects(): void {
+  isOsmIncluded.value = true;
+}
 
 function formatProjectCount(): string {
   const count = projectCount.value;

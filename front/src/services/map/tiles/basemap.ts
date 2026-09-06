@@ -436,7 +436,8 @@ let styleSwitchGeneration = 0;
 
 async function switchToStyle(style: StyleSpecification | string): Promise<void> {
   const mlMap = getMap();
-  const generation = (styleSwitchGeneration += 1);
+  styleSwitchGeneration += 1;
+  const generation = styleSwitchGeneration;
   await new Promise<void>((resolve) => {
     void mlMap.once("style.load", () => {
       // A newer switch superseded this one: skip the work so it can't apply this call's

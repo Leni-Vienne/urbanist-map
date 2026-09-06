@@ -192,8 +192,8 @@
     "tryWideningFilters": "Widen a filter, or add the first one from Contribute.",
     "moreFilters": "More filters",
     "mapArea": "Map area",
-    "endOfCommunityFeed": "That's every website contribution.",
-    "includeOsmProjects": "Include OpenStreetMap projects"
+    "endOfFeed": "You've seen it all",
+    "moreProjectsWithOsm": "See OpenStreetMap projects"
   },
   "overlay": {
     "overlayName": "Image Name",

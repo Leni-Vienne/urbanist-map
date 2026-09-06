@@ -200,9 +200,11 @@ async function deleteFromStorageBackends(
   deleteType: ImageDeletionType,
   storageBackends: StorageInterface[],
 ): Promise<void> {
-  const deletionResults = await Promise.all(
-    storageBackends.map((storage) => deleteFilesFromStorage(storage, filename, deleteType)),
-  );
+  async function deleteFromStorage(storage: StorageInterface): Promise<string[]> {
+    return deleteFilesFromStorage(storage, filename, deleteType);
+  }
+
+  const deletionResults = await Promise.all(storageBackends.map(deleteFromStorage));
   const failed = deletionResults.flat();
   if (deleteType === "full" || deleteType === "both") {
     await deleteLocalOriginal(filename);
