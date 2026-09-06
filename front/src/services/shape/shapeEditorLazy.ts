@@ -9,20 +9,17 @@ import { useProjectStore } from "@/stores/projectStore";
  * Resolve the best available geometry to pre-load into the editor.
  *
  * Priority:
- * 1. Local store geometry, reflects same-session edits.
+ * 1. An explicit geometry field in the local project draft.
  * 2. Pending change request geometry, the user's last submitted value (post page reload).
- * 3. approvedGeometry, caller-supplied approved geometry from the backend.
+ * 3. Persisted project geometry.
  */
-async function resolveShapeEditorGeometry(
-  projectId: string,
-  approvedGeometry: GeoJSON.GeometryCollection | null,
-): Promise<GeoJSON.GeometryCollection | null> {
+export function resolveShapeEditorGeometry(projectId: string): GeoJSON.GeometryCollection | null {
   const projectStore = useProjectStore();
   const authStore = useAuthStore();
 
-  // Use undefined (not null) as sentinel: an explicit null means "delete all shapes"
-  // and must be preserved rather than fallen through.
-  const localStoredGeometry = projectStore.projects[projectId]?.geometry;
+  const draft = projectStore.projectDrafts[projectId];
+  if (draft && "geometry" in draft) return draft.geometry ?? null;
+
   const changeRequestStore = useChangeRequestStore();
   const pendingGeometryChange = changeRequestStore.pendingChangeRequests.find(
     (cr) =>
@@ -33,24 +30,21 @@ async function resolveShapeEditorGeometry(
       cr.status === "pending",
   );
   // oxlint-disable no-unsafe-type-assertion
-  const pendingGeometry = pendingGeometryChange
-    ? (pendingGeometryChange.newValue as GeoJSON.GeometryCollection | null)
-    : undefined;
+  const pendingGeometry = pendingGeometryChange?.newValue as
+    | GeoJSON.GeometryCollection
+    | null
+    | undefined;
   // oxlint-enable no-unsafe-type-assertion
 
-  if (localStoredGeometry !== undefined) return localStoredGeometry;
   if (pendingGeometry !== undefined) return pendingGeometry;
-  return approvedGeometry;
+  return projectStore.getPersistedProject(projectId)?.geometry ?? null;
 }
 
 /**
  * Resolve the best available geometry, then lazy-load the editor and start it.
  */
-export async function startShapeEditing(
-  projectId: string,
-  approvedGeometry: GeoJSON.GeometryCollection | null,
-): Promise<void> {
-  const existingGeometry = await resolveShapeEditorGeometry(projectId, approvedGeometry);
+export async function startShapeEditing(projectId: string): Promise<void> {
+  const existingGeometry = resolveShapeEditorGeometry(projectId);
   const { initShapeEditor } = await import("@/services/shape/shapeEditing");
   await initShapeEditor(existingGeometry ?? undefined);
 }

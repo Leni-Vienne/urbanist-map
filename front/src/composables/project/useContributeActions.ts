@@ -115,12 +115,10 @@ export function useContributeActions(
       return;
     }
 
-    const approvedGeometry = project.geometry ?? null;
-
     closeDetail();
 
     uiStore.openShapeEditor(project.id);
-    await startShapeEditing(project.id, approvedGeometry);
+    await startShapeEditing(project.id);
   }
 
   function handleExternalProjectClick(): void {
