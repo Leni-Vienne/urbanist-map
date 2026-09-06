@@ -136,6 +136,7 @@ def create_display_name(props):
 
     return None
 
+
 def classify_feature(tags):
     """Tag-level qualification shared by closed areas and unclosed area-tagged ways.
     Returns 'park' or 'building' when the tags describe a proposed/construction
@@ -154,36 +155,11 @@ def classify_feature(tags):
     planned_landuse = tags.get('planned:landuse', '')
     construction_landuse = tags.get('construction:landuse', '')
 
-    park_values = ('park', 'garden', 'playground', 'recreation_ground', 'stadium', 'pitch', 'golf_course')
-    is_park_construction = (
-        leisure in ('park', 'garden', 'playground', 'recreation_ground', 'sports_centre',
-                    'stadium', 'pitch', 'golf_course') and
-        (construction or proposed or planned)
-    ) or (
-        construction in park_values or
-        proposed in park_values or
-        planned in park_values
-    )
-
-    is_building_construction = (
-        building in ('construction', 'proposed', 'planned') or
-        landuse == 'construction' or
-        leisure in ('construction', 'proposed', 'planned') or
-        amenity in ('construction', 'proposed', 'planned') or
-        construction in NONHOUSE_TYPES or construction == 'yes' or
-        proposed in ('apartments', 'commercial', 'office', 'industrial', 'retail', 'yes') or
-        planned in ('apartments', 'commercial', 'office', 'industrial', 'retail', 'yes') or
-        (proposed_building and proposed_building != 'no') or
-        (planned_building and planned_building != 'no') or
-        (construction_building and construction_building != 'no') or
-        proposed_landuse in ('construction', 'residential', 'commercial', 'retail', 'industrial') or
-        planned_landuse in ('construction', 'residential', 'commercial', 'retail', 'industrial') or
-        construction_landuse in ('construction', 'residential', 'commercial', 'retail', 'industrial') or
-        (proposed and proposed != 'no') or
-        (planned and planned != 'no')
-    )
-
-    if not is_park_construction and not is_building_construction:
+    if 'administrative' in (
+        tags.get('boundary'), construction, proposed, planned,
+        tags.get('construction:boundary'), tags.get('proposed:boundary'),
+        tags.get('planned:boundary'),
+    ):
         return None
 
     # Exclude small residential building types regardless of area. The target use is read
@@ -234,7 +210,31 @@ def classify_feature(tags):
     if not has_areal_context and any(v in INFRASTRUCTURE_VALUES for v in (construction, proposed, planned)):
         return None
 
-    return 'park' if is_park_construction else 'building'
+    park_values = ('park', 'garden', 'playground', 'recreation_ground', 'stadium', 'pitch', 'golf_course')
+    if (
+        leisure in (*park_values, 'sports_centre') and
+        (construction or proposed or planned)
+    ) or any(v in park_values for v in (construction, proposed, planned)):
+        return 'park'
+
+    # proposed=/planned= values are intentionally open-ended. Unsupported domains are
+    # excluded above so previously unseen development types can still enter the extract.
+    is_building_construction = (
+        building in ('construction', 'proposed', 'planned') or
+        landuse == 'construction' or
+        leisure in ('construction', 'proposed', 'planned') or
+        amenity in ('construction', 'proposed', 'planned') or
+        construction in NONHOUSE_TYPES or construction == 'yes' or
+        (proposed_building and proposed_building != 'no') or
+        (planned_building and planned_building != 'no') or
+        (construction_building and construction_building != 'no') or
+        proposed_landuse in ('construction', 'residential', 'commercial', 'retail', 'industrial') or
+        planned_landuse in ('construction', 'residential', 'commercial', 'retail', 'industrial') or
+        construction_landuse in ('construction', 'residential', 'commercial', 'retail', 'industrial') or
+        (proposed and proposed != 'no') or
+        (planned and planned != 'no')
+    )
+    return 'building' if is_building_construction else None
 
 
 class ArealExtractionHandler(osmium.SimpleHandler):
