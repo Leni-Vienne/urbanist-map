@@ -716,16 +716,25 @@ function getHiddenProjectIds(): string[] {
   return hiddenProjectIdsCache;
 }
 
+function hiddenProjectIdsKey(): string {
+  return computeHiddenProjectIds().toSorted().join("|");
+}
+
+function readShapeEditorProjectId(): string | null {
+  return useUiStore().shapeEditorProjectId;
+}
+
+function syncHiddenProjectFilters([key]: [string, string | null]): void {
+  hiddenProjectIdsCache = key.length > 0 ? key.split("|") : [];
+  const mlMap = getMapOrNull();
+  if (mlMap) applyTagFiltersToVectorLayers(mlMap);
+}
+
 function watchHiddenProjects(): () => void {
-  return watch(
-    () => computeHiddenProjectIds().toSorted().join("|"),
-    (key) => {
-      hiddenProjectIdsCache = key.length > 0 ? key.split("|") : [];
-      const mlMap = getMapOrNull();
-      if (mlMap) applyTagFiltersToVectorLayers(mlMap);
-    },
-    { immediate: true },
-  );
+  // Editor identity controls pending layers separately from the hidden-ID cache used by vector layers.
+  return watch([hiddenProjectIdsKey, readShapeEditorProjectId], syncHiddenProjectFilters, {
+    immediate: true,
+  });
 }
 
 function computeHiddenOverlayIds(): string[] {
