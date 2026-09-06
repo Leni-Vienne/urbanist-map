@@ -42,6 +42,8 @@ const loadedCountKey = ref<string | null>(null);
 let requestedKey: string | null = null;
 let requestedCountKey: string | null = null;
 
+export const isFeedStale = computed(() => loadedKey.value !== queryKey.value);
+
 // Only the newest request may write to the list; earlier ones are abandoned on arrival.
 let requestToken = 0;
 let countRequestToken = 0;

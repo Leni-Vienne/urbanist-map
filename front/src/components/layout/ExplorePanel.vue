@@ -151,7 +151,7 @@
             <i v-if="isLoadingMore" class="pi pi-spin pi-spinner text-sm text-muted-color"></i>
           </div>
           <div
-            v-else-if="source === 'community' && !hasPopoverFilters && !isLoading"
+            v-else-if="source === 'community' && !hasPopoverFilters && !isLoading && !isFeedStale"
             class="flex items-center justify-center border-t border-surface px-2 py-3"
           >
             <button
@@ -161,12 +161,6 @@
             >
               {{ t("contribution.moreProjectsWithOsm") }}
             </button>
-          </div>
-          <div
-            v-else-if="!isLoading"
-            class="flex items-center justify-center border-t border-surface px-2 py-4 text-[13px] text-muted-color"
-          >
-            {{ t("contribution.endOfFeed") }}
           </div>
         </div>
 
@@ -224,6 +218,7 @@ import {
   isLoading,
   isLoadingMore,
   isCountStale,
+  isFeedStale,
   projectCount,
   hasMore,
   source,

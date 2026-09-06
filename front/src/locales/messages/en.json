@@ -192,7 +192,6 @@
     "tryWideningFilters": "Widen a filter, or add the first one from Contribute.",
     "moreFilters": "More filters",
     "mapArea": "Map area",
-    "endOfFeed": "You've seen it all",
     "moreProjectsWithOsm": "See OpenStreetMap projects"
   },
   "overlay": {
