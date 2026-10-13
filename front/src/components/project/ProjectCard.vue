@@ -1,13 +1,57 @@
 <template>
   <component
+    :is="plain ? 'div' : AccordionHeader"
+    :class="plain ? 'project-header-plain' : undefined"
+  >
+    <div class="flex items-center justify-between w-full gap-2">
+      <div class="flex items-center gap-1.5 min-w-0">
+        <!-- Wikidata logo (e.g. metro line badge) shown when available -->
+        <img
+          v-if="wikidataEntity?.logoUrl"
+          :src="wikidataEntity.logoUrl"
+          class="w-5 h-5 object-contain shrink-0"
+          referrerpolicy="no-referrer"
+          loading="lazy"
+        />
+        <span
+          class="font-semibold truncate"
+          :class="project.name ? '' : 'text-muted-color italic'"
+          >{{ project.name || (isOsmImport ? $t("project.osmName") : $t("project.unnamed")) }}</span
+        >
+      </div>
+      <div class="flex items-center gap-1.5 shrink-0 mr-2">
+        <!-- Pending change requests badge -->
+        <Badge v-if="pendingChangeCount > 0" :value="pendingChangeCount" severity="warn" />
+        <!-- OSM-imported projects show their source instead of a moderation status -->
+        <Tag
+          v-if="isOsmImport"
+          v-tooltip.bottom="$t('project.importedTooltip')"
+          :value="$t('project.osmSource')"
+          severity="info"
+          rounded
+        />
+        <!-- Moderation status badge with tooltip clarifying it is not a timeline status -->
+        <Tag
+          v-else
+          v-tooltip.bottom="$t('approvalStatus.tooltipLabel')"
+          :value="$t(`approvalStatus.${project.status ?? 'draft'}`)"
+          :severity="getStatusSeverity(project.status)"
+          class="capitalize"
+          rounded
+        />
+      </div>
+    </div>
+  </component>
+
+  <component
     :is="plain ? 'div' : AccordionContent"
     :class="plain ? 'project-content-plain' : undefined"
   >
     <div
       class="cursor-pointer transition-all duration-150 hover:bg-(--p-content-hover-background) active:scale-[0.99] rounded-lg"
       @click="handleCardClick"
-      @mouseenter="$emit('highlight-project', project)"
-      @mouseleave="$emit('remove-project-highlight', project)"
+      @mouseenter="focusStore.setHoverTarget({ kind: 'project', projectId: project.id })"
+      @mouseleave="focusStore.setHoverTarget(null)"
     >
       <div class="flex flex-row items-start gap-y-3">
         <div class="flex-1 min-w-0">
@@ -32,7 +76,7 @@
 
         <div class="flex flex-col gap-1.5 shrink-0 self-center" @click.stop>
           <i
-            v-if="!hideChevron"
+            v-if="!plain"
             class="pi pi-chevron-right text-sm text-muted-color shrink-0 transition-colors duration-150"
           ></i>
         </div>
@@ -43,7 +87,7 @@
         class="flex flex-row flex-wrap gap-1.5 mt-3 py-1"
         @click.stop
       >
-        <slot name="project-actions" :project="project"></slot>
+        <slot name="project-actions" :project="project" :is-external="isExternal ?? false"></slot>
       </div>
 
       <div class="cursor-default" @click.stop>
@@ -84,8 +128,8 @@
               : 'hover:bg-white dark:hover:bg-white/10 active:bg-white dark:active:bg-white/10'
           "
           @click="handleOverlayCardClick(overlay)"
-          @mouseenter="$emit('highlight-overlay', overlay.id)"
-          @mouseleave="$emit('remove-highlight', overlay.id)"
+          @mouseenter="highlightOverlayById(overlay.id)"
+          @mouseleave="removeOverlayHighlight(overlay.id)"
         >
           <!-- Overlay thumbnail (click to view the full image, e.g. renders that have no map view) -->
           <div
@@ -218,7 +262,7 @@
 
 <script setup lang="ts">
 import { computed, useTemplateRef } from "vue";
-import { AccordionContent } from "primevue";
+import { AccordionHeader, AccordionContent } from "primevue";
 import { useI18n } from "vue-i18n";
 import { viewOriginalOverlay } from "@/services/overlay/navigation";
 import { buildImageUrl, buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
@@ -232,6 +276,14 @@ import type {
 } from "@/types/index";
 import { getStatusSeverity } from "@/utils/statusHelpers";
 import { useAuthStore } from "@/stores/authStore";
+import { useFocusStore } from "@/stores/focusStore";
+import { useProjectStore } from "@/stores/projectStore";
+import { useWikidataEntity } from "@/composables/project/useWikidataEntity";
+import { toastWarn, toastError } from "@/services/core/toast";
+import { mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
+import { buildShapeBounds } from "@/utils/cornersBounds";
+import { navigateToProject } from "@/services/navigation/projectNavigation";
+import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/selection";
 
 import ContributorInfo from "@/components/common/ContributorInfo.vue";
 import ChangeRequestSection from "@/components/layout/ChangeRequestSection.vue";
@@ -240,6 +292,8 @@ import ProjectMetadataCard from "@/components/map/popups/ProjectMetadataCard.vue
 
 const { t } = useI18n();
 const authStore = useAuthStore();
+const focusStore = useFocusStore();
+const projectStore = useProjectStore();
 
 interface Props {
   project: Project;
@@ -249,25 +303,30 @@ interface Props {
   overlayChangesMap: Map<string, PendingChangeRequest[]>;
   isContributePanel: boolean;
   showUserStatsLink?: boolean;
-  // Hide the project-level navigation chevron (e.g. in the "selected project" card).
-  hideChevron?: boolean;
-  // Render as a plain card (a <div>) instead of an AccordionContent, for use outside an Accordion.
+  isExternal?: boolean;
+  // Selected cards use plain header/content elements; list cards use the accordion components.
   plain?: boolean;
-  onOverlayClick: (overlay: ProjectPanelOverlay) => Promise<void>;
+  onOverlayClick: (overlay: ProjectPanelOverlay) => Promise<unknown>;
 }
 
 const props = defineProps<Props>();
 
 const emit = defineEmits<{
   "show-user-stats": [data: UserStatsPayload];
-  "project-click": [project: Project];
-  "highlight-project": [project: Project];
-  "remove-project-highlight": [project: Project];
-  "highlight-overlay": [overlayId: string];
-  "remove-highlight": [overlayId: string];
+  "external-project-click": [];
 }>();
 
 const { imageErrors, handleImageError } = useImageErrors();
+const isOsmImport = computed(() => props.project.importSource?.type === "osm");
+const { entity: wikidataEntity } = useWikidataEntity(
+  computed(() => props.project.externalProperties ?? null),
+);
+const pendingChangeCount = computed(() =>
+  props.overlays.reduce(
+    (count, overlay) => count + (props.overlayChangesMap.get(overlay.id)?.length ?? 0),
+    props.projectChanges.length,
+  ),
+);
 
 // OSM-imported projects have no on-site contributor and their updatedAt is just
 // the import date, so the contributor line carries no meaning: hide it for them.
@@ -278,8 +337,42 @@ const contributorDate = computed(() =>
 const shouldShowImages = computed(
   () => props.overlays.length > 0 || Boolean(props.localRenderPreviewUrl),
 );
-function handleCardClick() {
-  emit("project-click", props.project);
+async function handleCardClick() {
+  if (props.plain) {
+    emit("external-project-click");
+    return;
+  }
+  const project = props.project;
+  const originalGeometry = projectStore.hasProjectDraft(project.id)
+    ? projectStore.getPersistedProject(project.id)?.geometry
+    : null;
+  const bounds = buildShapeBounds(project.geometry, originalGeometry);
+  if (bounds) {
+    mobileAwareFlyToBounds(bounds);
+    return;
+  }
+  const firstOverlay = props.overlays[0];
+  if (firstOverlay) {
+    await props.onOverlayClick(firstOverlay);
+  } else {
+    handleProjectClick(project);
+  }
+}
+
+function handleProjectClick(project: Project) {
+  try {
+    if (typeof project.lat !== "number" || typeof project.lng !== "number") {
+      toastWarn(t("project.noLocation"), t("project.noLocation"));
+      return;
+    }
+    navigateToProject(project.lat, project.lng, project.id);
+  } catch (error) {
+    console.error("Failed to navigate to project:", error);
+    toastError(
+      error instanceof Error ? error.message : t("overlay.failedToNavigate"),
+      t("overlay.navigationFailed"),
+    );
+  }
 }
 
 function handleContributorClick(
@@ -354,6 +447,12 @@ function openLocalRenderPreview(): void {
 </script>
 
 <style scoped>
+/* Mirror the AccordionHeader padding so the plain-card header lines up with accordion cards. */
+.project-header-plain {
+  display: block;
+  padding: var(--p-accordion-header-padding, 1.125rem);
+}
+
 /* Mirror the .p-accordioncontent-content padding so the plain card matches accordion cards. */
 .project-content-plain {
   display: block;

@@ -38,52 +38,26 @@
               {{ $t("contribute.selectedProject") }}
             </div>
             <div class="selected-project-card">
-              <ProjectHeader
+              <ProjectCard
+                v-bind="projectCardProps(selectedCard)"
                 plain
-                :name="selectedCard.name ?? ''"
-                :status="selectedCard.status"
-                :pending-change-count="getPendingChangeCount(selectedCard)"
-                :import-source-type="selectedCard.importSource?.type ?? null"
-                :external-properties="selectedCard.externalProperties"
-              />
-              <ProjectContent
-                plain
-                :project="selectedCard"
-                :overlays="getProjectOverlays(selectedCard.id)"
-                :local-render-preview-url="localRenderPreviewUrlsByProjectId[selectedCard.id]"
-                :project-changes="getProjectChangeRequestsForProject(selectedCard)"
-                :overlay-changes-map="overlayChangesMap"
-                :is-contribute-panel="isContributePanel"
-                :show-user-stats-link="showUserStatsLink"
-                hide-chevron
-                :on-overlay-click="handleOverlayCardClick"
+                :is-external="selectedCardIsExternal"
                 @show-user-stats="(data) => emit('show-user-stats', data)"
-                @project-click="emit('external-project-click')"
-                @highlight-project="handleProjectHighlight"
-                @remove-project-highlight="handleProjectUnhighlight"
-                @highlight-overlay="highlightOverlayById"
-                @remove-highlight="removeOverlayHighlight"
+                @external-project-click="emit('external-project-click')"
               >
-                <template v-if="$slots['project-actions']" #project-actions="{ project: p }">
-                  <slot
-                    name="project-actions"
-                    :project="p"
-                    :is-external="selectedCardIsExternal"
-                  ></slot>
+                <template v-if="$slots['project-actions']" #project-actions="slotProps">
+                  <slot name="project-actions" v-bind="slotProps"></slot>
                 </template>
-                <template v-if="$slots['change-actions']" #change-actions="{ change }">
-                  <slot name="change-actions" :change="change"></slot>
+                <template v-if="$slots['change-actions']" #change-actions="slotProps">
+                  <slot name="change-actions" v-bind="slotProps"></slot>
                 </template>
-                <template
-                  v-if="$slots['overlay-actions']"
-                  #overlay-actions="{ overlay, project: p }"
-                >
-                  <slot name="overlay-actions" :overlay="overlay" :project="p"></slot>
+                <template v-if="$slots['overlay-actions']" #overlay-actions="slotProps">
+                  <slot name="overlay-actions" v-bind="slotProps"></slot>
                 </template>
-                <template v-if="$slots['staged-render-actions']" #staged-render-actions>
-                  <slot name="staged-render-actions" :project="selectedCard"></slot>
+                <template v-if="$slots['staged-render-actions']" #staged-render-actions="slotProps">
+                  <slot name="staged-render-actions" v-bind="slotProps"></slot>
                 </template>
-              </ProjectContent>
+              </ProjectCard>
             </div>
           </div>
         </Transition>
@@ -113,52 +87,23 @@
             :key="project.id"
             :value="project.id"
           >
-            <ProjectHeader
-              :name="project.name ?? ''"
-              :status="project.status"
-              :pending-change-count="getPendingChangeCount(project)"
-              :import-source-type="project.importSource?.type ?? null"
-              :external-properties="project.externalProperties"
-            />
-            <ProjectContent
-              :project="project"
-              :overlays="getProjectOverlays(project.id)"
-              :local-render-preview-url="localRenderPreviewUrlsByProjectId[project.id]"
-              :project-changes="getProjectChangeRequestsForProject(project)"
-              :overlay-changes-map="overlayChangesMap"
-              :is-contribute-panel="isContributePanel"
-              :show-user-stats-link="showUserStatsLink"
-              :on-overlay-click="handleOverlayCardClick"
+            <ProjectCard
+              v-bind="projectCardProps(project)"
               @show-user-stats="(data) => emit('show-user-stats', data)"
-              @project-click="handleCardClick"
-              @highlight-project="handleProjectHighlight"
-              @remove-project-highlight="handleProjectUnhighlight"
-              @highlight-overlay="highlightOverlayById"
-              @remove-highlight="removeOverlayHighlight"
             >
-              <template #project-actions="{ project: p }">
-                <slot
-                  v-if="$slots['project-actions']"
-                  name="project-actions"
-                  :project="p"
-                  :is-external="false"
-                ></slot>
+              <template v-if="$slots['project-actions']" #project-actions="slotProps">
+                <slot name="project-actions" v-bind="slotProps"></slot>
               </template>
-              <template #change-actions="{ change }">
-                <slot name="change-actions" :change="change"></slot>
+              <template v-if="$slots['change-actions']" #change-actions="slotProps">
+                <slot name="change-actions" v-bind="slotProps"></slot>
               </template>
-              <template #overlay-actions="{ overlay, project: p }">
-                <slot
-                  v-if="$slots['overlay-actions']"
-                  name="overlay-actions"
-                  :overlay="overlay"
-                  :project="p"
-                ></slot>
+              <template v-if="$slots['overlay-actions']" #overlay-actions="slotProps">
+                <slot name="overlay-actions" v-bind="slotProps"></slot>
               </template>
-              <template v-if="$slots['staged-render-actions']" #staged-render-actions>
-                <slot name="staged-render-actions" :project="project"></slot>
+              <template v-if="$slots['staged-render-actions']" #staged-render-actions="slotProps">
+                <slot name="staged-render-actions" v-bind="slotProps"></slot>
               </template>
-            </ProjectContent>
+            </ProjectCard>
           </AccordionPanel>
         </Accordion>
 
@@ -199,12 +144,8 @@
 </template>
 
 <script setup lang="ts">
-import { toastWarn, toastError } from "@/services/core/toast";
-
 import { computed } from "vue";
-import { useI18n } from "vue-i18n";
-import ProjectHeader from "@/components/project/ProjectHeader.vue";
-import ProjectContent from "@/components/project/ProjectContent.vue";
+import ProjectCard from "@/components/project/ProjectCard.vue";
 import PanelEmptyState from "@/components/common/PanelEmptyState.vue";
 
 import type {
@@ -215,13 +156,7 @@ import type {
 } from "@/types/index";
 
 import { useUiStore } from "@/stores/uiStore";
-import { useFocusStore } from "@/stores/focusStore";
-import { useProjectStore } from "@/stores/projectStore";
 import { handleOverlayClickNavigation } from "@/services/overlay/clickHandler";
-import { mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
-import { buildShapeBounds } from "@/utils/cornersBounds";
-import { navigateToProject } from "@/services/navigation/projectNavigation";
-import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/selection";
 
 import { useScrollFade } from "@/composables/ui/useScrollFade";
 
@@ -277,11 +212,7 @@ const emit = defineEmits<{
   "external-project-click": [];
 }>();
 
-const { t } = useI18n();
-
 const uiStore = useUiStore();
-const focusStore = useFocusStore();
-const projectStore = useProjectStore();
 
 const { showScrollFade } = useScrollFade();
 
@@ -346,61 +277,17 @@ function getProjectOverlays(projectId: string): ProjectPanelOverlay[] {
   return overlays;
 }
 
-function getPendingChangeCount(project: Project): number {
-  let count = getProjectChangeRequestsForProject(project).length;
-  for (const overlay of getProjectOverlays(project.id)) {
-    count += overlayChangesMap.value.get(overlay.id)?.length ?? 0;
-  }
-  return count;
-}
-
-async function handleCardClick(project: Project) {
-  const originalGeometry = projectStore.hasProjectDraft(project.id)
-    ? projectStore.getPersistedProject(project.id)?.geometry
-    : null;
-  const bounds = buildShapeBounds(project.geometry, originalGeometry);
-  if (bounds) {
-    mobileAwareFlyToBounds(bounds);
-    return;
-  }
-  const firstOverlay = getProjectOverlays(project.id)[0];
-  if (firstOverlay) {
-    await handleOverlayCardClick(firstOverlay);
-  } else {
-    handleProjectClick(project);
-  }
-}
-
-function handleProjectHighlight(project: Project) {
-  focusStore.setHoverTarget({ kind: "project", projectId: project.id });
-}
-
-function handleProjectUnhighlight() {
-  focusStore.setHoverTarget(null);
-}
-
-async function handleOverlayCardClick(overlay: ProjectPanelOverlay) {
-  if (props.onOverlayClick) {
-    await props.onOverlayClick(overlay);
-  } else {
-    await handleOverlayClickNavigation(overlay);
-  }
-}
-
-function handleProjectClick(project: Project) {
-  try {
-    if (typeof project.lat !== "number" || typeof project.lng !== "number") {
-      toastWarn(t("project.noLocation"), t("project.noLocation"));
-      return;
-    }
-    navigateToProject(project.lat, project.lng, project.id);
-  } catch (error) {
-    console.error("Failed to navigate to project:", error);
-    toastError(
-      error instanceof Error ? error.message : t("overlay.failedToNavigate"),
-      t("overlay.navigationFailed"),
-    );
-  }
+function projectCardProps(project: Project) {
+  return {
+    project,
+    overlays: getProjectOverlays(project.id),
+    localRenderPreviewUrl: props.localRenderPreviewUrlsByProjectId[project.id],
+    projectChanges: getProjectChangeRequestsForProject(project),
+    overlayChangesMap: overlayChangesMap.value,
+    isContributePanel: props.isContributePanel,
+    showUserStatsLink: props.showUserStatsLink,
+    onOverlayClick: props.onOverlayClick ?? handleOverlayClickNavigation,
+  };
 }
 </script>
 
