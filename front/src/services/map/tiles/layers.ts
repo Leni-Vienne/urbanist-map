@@ -76,7 +76,6 @@ const MVT_SOURCE_MAX_ZOOM = 14;
 const FOOTPRINT_LINE_WIDTH = 2;
 
 const VECTOR_HOVER_HIT_RADIUS_PX = 6;
-const HOVER_NONE_ID = "__none__";
 // Clicking a cluster marker zooms in by this many levels to spread its grid cell apart (the
 // conventional "expand cluster" gesture). No detail opens, since a cluster has no single project.
 const CLUSTER_EXPAND_ZOOM_STEP = 2;
@@ -374,43 +373,6 @@ function getTagFilterExpression(): FilterSpecification | null {
   return ["any", ...conditions] as FilterSpecification;
 }
 
-// Layers with existing filters that need tag filter merged with "all"
-const LAYERS_WITH_EXISTING_FILTERS = {
-  // project-shapes sub-layers: each combines a status filter with the zoom+size visibility gate
-  // so that large projects appear at lower zoom levels (z6/z7) while small ones wait until z8+.
-  "project-shapes": () =>
-    [
-      "all",
-      isNeitherProposedNorCompletedFilterExpression,
-      getShapeZoomVisibilityFilter(),
-    ] as FilterSpecification,
-  "project-shapes-completed": () =>
-    ["all", isCompletedFilterExpression, getShapeZoomVisibilityFilter()] as FilterSpecification,
-  "project-shapes-fill": () =>
-    [
-      "all",
-      ["==", ["geometry-type"], "Polygon"],
-      ["!=", ["get", "timeline_status"], "proposed"],
-      getShapeZoomVisibilityFilter(),
-    ] as FilterSpecification,
-  "project-shapes-proposed-fill": () =>
-    [
-      "all",
-      ["==", ["geometry-type"], "Polygon"],
-      isProposedFilterExpression,
-      getShapeZoomVisibilityFilter(),
-    ] as FilterSpecification,
-  "project-shapes-proposed-dashed": () =>
-    ["all", isProposedFilterExpression, getShapeZoomVisibilityFilter()] as FilterSpecification,
-  // Solid hover overlay: every dashed shape (non-completed), gated to the same zoom visibility.
-  "project-shapes-hover-solid": () =>
-    [
-      "all",
-      ["!=", ["get", "timeline_status"], "completed"],
-      getShapeZoomVisibilityFilter(),
-    ] as FilterSpecification,
-} satisfies Record<string, () => FilterSpecification>;
-
 /**
  * Build a MapLibre filter expression based on current timeline status selection.
  */
@@ -642,21 +604,25 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
     );
   }
 
-  // Layers with existing filters that must be merged
-  for (const [layerId, getBaseLayerFilter] of Object.entries(LAYERS_WITH_EXISTING_FILTERS)) {
-    if (!mlMap.getLayer(layerId)) continue;
-
-    const baseLayerFilter = getBaseLayerFilter();
-    const sizeFilter = getSizeFilterExpressionForShapes();
-    const merged = combineFilters(baseLayerFilter, shapesBaseFilter, sizeFilter);
-    setLayerFilter(mlMap, layerId, merged);
-  }
-
+  const shapeSpecs = getProjectShapeLayerSpecs();
+  const zoomFilter = getShapeZoomVisibilityFilter();
+  const sizeFilter = getSizeFilterExpressionForShapes();
   const editorProjectId = useUiStore().shapeEditorProjectId;
   const pendingHiddenFilter = editorProjectId
     ? buildHiddenIdExclusionFilter([editorProjectId])
     : null;
-  for (const spec of getProjectShapeLayerSpecs()) {
+
+  for (const spec of shapeSpecs) {
+    if (mlMap.getLayer(spec.id)) {
+      setLayerFilter(
+        mlMap,
+        spec.id,
+        combineFilters(spec.filter, zoomFilter, shapesBaseFilter, sizeFilter),
+      );
+    }
+
+    // Pending geometry keeps the same discriminator, but is visible at every zoom and
+    // ignores view-mode filters so the user can always see their contributions.
     const layerId = `pending-${spec.id}`;
     if (!mlMap.getLayer(layerId)) continue;
     setLayerFilter(
@@ -834,11 +800,11 @@ function diffFeatureState(
   appliedFeatureStates.set(trackingKey, nextIds);
 }
 
-// Collect ids into a set, dropping empties and the "no hover" sentinel.
+// Collect ids into a set, dropping empties.
 function idSet(...ids: (string | null | undefined)[]): Set<string> {
   const set = new Set<string>();
   for (const id of ids) {
-    if (id && id !== HOVER_NONE_ID) set.add(id);
+    if (id) set.add(id);
   }
   return set;
 }
@@ -1304,9 +1270,8 @@ function getProjectShapeLayerSpecs(): ProjectShapeLayerSpec[] {
       // Solid continuous highlight for the dashed shapes (everything except completed, which is
       // already solid). Stays fully transparent until the feature is hovered/selected, then draws an
       // opaque line over the dashes. Driven purely by feature-state opacity, so toggling it only
-      // repaints (no tile reload) the way a setFilter hover layer would have. Tag/status/size/zoom
-      // filters are applied via LAYERS_WITH_EXISTING_FILTERS so it never lights a feature the dashed
-      // base wouldn't render.
+      // repaints (no tile reload) the way a setFilter hover layer would have. The same
+      // tag/status/size/zoom filters apply to this layer and the dashed bases.
       id: "project-shapes-hover-solid",
       type: "line",
       filter: ["!=", ["get", "timeline_status"], "completed"],

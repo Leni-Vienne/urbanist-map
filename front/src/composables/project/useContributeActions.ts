@@ -47,10 +47,7 @@ function handleDeleteStagedRender(projectId: string): void {
   clearStagedRender(projectId);
 }
 
-export function useContributeActions(
-  allContributions: ComputedRef<Project[]>,
-  projectOverlayIds: ComputedRef<Record<string, string[]>>,
-) {
+export function useContributeActions(projectOverlayIds: ComputedRef<Record<string, string[]>>) {
   const { t } = useI18n();
 
   const uiStore = useUiStore();
@@ -131,9 +128,7 @@ export function useContributeActions(
   }
 
   function handleEditProjectClick(project: Project): void {
-    const latestProjectData = allContributions.value.find((p) => p.id === project.id);
-    const projectToEdit = latestProjectData ?? project;
-    uiStore.openProjectEditForm(projectToEdit.id);
+    uiStore.openProjectEditForm(project.id);
   }
 
   return {

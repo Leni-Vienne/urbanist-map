@@ -186,7 +186,7 @@ const {
   handleDrawShapesClick,
   handleExternalProjectClick,
   handleEditProjectClick,
-} = useContributeActions(allContributions, projectOverlayIds);
+} = useContributeActions(projectOverlayIds);
 
 const selectedProjectId = computed(() => focusStore.selectedProject?.id ?? null);
 </script>

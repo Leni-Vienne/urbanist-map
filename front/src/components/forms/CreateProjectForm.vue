@@ -14,7 +14,7 @@ import { useI18n } from "vue-i18n";
 import { getScopedProjectValidationErrors } from "@/utils/validationHelpers";
 import { toastError } from "@/services/core/toast";
 import type { Project, ProjectFormData } from "@/types/index";
-import { projectToFormData, formDataToProjectFields } from "@/utils/projectFormHelpers";
+import { projectToFormData } from "@/utils/projectFormHelpers";
 
 import ProjectFormFields from "@/components/forms/ProjectFormFields.vue";
 
@@ -42,7 +42,7 @@ function handleSubmit() {
 
   const result: Partial<Project> = {
     ...props.project,
-    ...formDataToProjectFields(formData),
+    ...formData,
   };
 
   emit("submit", result);

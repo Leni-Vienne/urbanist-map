@@ -1,12 +1,12 @@
 <template>
   <div class="pt-0 p-6 max-sm:p-4">
-    <form @submit.prevent="form.submitChanges" class="flex flex-col gap-4">
+    <form @submit.prevent="submitChanges" class="flex flex-col gap-4">
       <ProjectFormFields
-        :form-data="form.formData"
-        :original-data="form.originalData"
+        :form-data="formData"
+        :original-data="originalData"
         :show-change-indicators="true"
         id-prefix="edit"
-        @update:form-data="Object.assign(form.formData, $event)"
+        @update:form-data="Object.assign(formData, $event)"
       />
 
       <!-- Form actions -->
@@ -14,9 +14,9 @@
         class="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-6 pt-4 border-t border-surface"
       >
         <Button
-          v-if="form.hasChanges.value"
+          v-if="hasChanges"
           type="button"
-          @click="handleReset"
+          @click="Object.assign(formData, originalData)"
           :label="$t('common.reset')"
           severity="secondary"
           outlined
@@ -31,7 +31,7 @@
         />
         <Button
           type="submit"
-          :disabled="!form.hasChanges.value"
+          :disabled="!hasChanges"
           :label="$t('forms.saveChanges')"
           icon="pi pi-send"
         />
@@ -41,15 +41,18 @@
 </template>
 
 <script setup lang="ts">
-import { useEditableProjectForm } from "@/composables/forms/useEditableProjectForm";
+import { computed, reactive } from "vue";
+import { t } from "@/locales";
 import { useProjectStore } from "@/stores/projectStore";
-import type { Project } from "@/types/index";
-import { projectToFormData } from "@/utils/projectFormHelpers";
+import { toastError } from "@/services/core/toast";
+import { getProjectValidationErrors } from "@/utils/validationHelpers";
+import type { Project, ProjectFormData } from "@/types/index";
+import { projectToFormData, projectFormFieldsDiffer } from "@/utils/projectFormHelpers";
 
 import ProjectFormFields from "@/components/forms/ProjectFormFields.vue";
 
 const props = defineProps<{ project: Project }>();
-const emit = defineEmits<{ close: []; submitted: [] }>();
+const emit = defineEmits<{ close: [] }>();
 
 const projectStore = useProjectStore();
 
@@ -58,16 +61,49 @@ const projectStore = useProjectStore();
 const originalProject = projectStore.getPersistedProject(props.project.id) ?? props.project;
 const storeProject = projectStore.projects[props.project.id];
 
-const form = useEditableProjectForm({
-  entityId: props.project.id,
-  initialData: projectToFormData(originalProject),
-  currentData: projectToFormData(storeProject ?? originalProject),
-  getSourceProject: () => props.project,
-  onSubmitted: () => emit("submitted"),
-  onClose: () => emit("close"),
-});
+const originalData = reactive(projectToFormData(originalProject));
+const formData = reactive(projectToFormData(storeProject ?? originalProject));
+// oxlint-disable-next-line no-unsafe-type-assertion
+const fields = Object.keys(formData) as (keyof ProjectFormData)[];
 
-function handleReset() {
-  form.resetChanges();
+function fieldDiffersFromOriginal(field: keyof ProjectFormData): boolean {
+  return projectFormFieldsDiffer(originalData[field], formData[field]);
+}
+
+const hasChanges = computed(() => fields.some(fieldDiffersFromOriginal));
+
+function submitChanges() {
+  if (!hasChanges.value) return;
+
+  const projectId = props.project.id;
+  const currentProject = projectStore.getProjectById(projectId);
+  const errors = getProjectValidationErrors(formData, {
+    lat: currentProject?.lat,
+    lng: currentProject?.lng,
+  });
+  if (errors) {
+    const firstError = errors[0];
+    if (firstError)
+      toastError(t(firstError.key, firstError.params ?? {}), t("toast.validationError"));
+    return;
+  }
+
+  // The store may have been cleared while the form was open; seed it from the source project.
+  if (!currentProject) {
+    if (props.project.status === null) projectStore.addLocalProject(props.project);
+    else projectStore.upsertProjectSummary(props.project);
+  }
+
+  const changedFields: Partial<Project> = {};
+  for (const field of fields) {
+    if (fieldDiffersFromOriginal(field)) {
+      Object.assign(changedFields, { [field]: formData[field] });
+    } else {
+      projectStore.resetProjectField(projectId, field);
+    }
+  }
+  projectStore.updateProjectDraft(projectId, changedFields);
+
+  emit("close");
 }
 </script>

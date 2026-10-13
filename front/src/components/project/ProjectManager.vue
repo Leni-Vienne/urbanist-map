@@ -21,11 +21,7 @@
       content: { class: '!p-0 sm:overflow-y-auto sm:max-h-[70vh]' },
     }"
   >
-    <EditProjectForm
-      :project="projectEditTarget"
-      @close="uiStore.closeProjectEditForm"
-      @submitted="uiStore.closeProjectEditForm"
-    />
+    <EditProjectForm :project="projectEditTarget" @close="uiStore.closeProjectEditForm" />
   </Dialog>
 
   <!-- Marker Placement Dialog -->

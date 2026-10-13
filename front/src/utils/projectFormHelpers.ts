@@ -1,5 +1,5 @@
 import type { TimelineStatus } from "../../../back/src/db/schema";
-import type { Project, ProjectFormData } from "@/types/index";
+import type { ProjectFormData } from "@/types/index";
 
 function toDateObject(value: Date | string | null | undefined): Date | null {
   if (value instanceof Date) return value;
@@ -54,20 +54,4 @@ export function projectFormFieldsDiffer(
   }
 
   return original !== current;
-}
-
-export function formDataToProjectFields(f: ProjectFormData): Partial<Project> {
-  return {
-    name: f.name,
-    description: f.description ?? null,
-    proposalDate: f.proposalDate ?? null,
-    proposalDatePrecision: f.proposalDatePrecision ?? null,
-    startDate: f.startDate ?? null,
-    startDatePrecision: f.startDatePrecision ?? null,
-    endDate: f.endDate ?? null,
-    endDatePrecision: f.endDatePrecision ?? null,
-    sourceUrl: f.sourceUrl ?? null,
-    tags: f.tags,
-    timelineStatus: f.timelineStatus,
-  };
 }
