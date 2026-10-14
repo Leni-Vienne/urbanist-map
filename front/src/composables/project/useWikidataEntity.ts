@@ -11,7 +11,7 @@ export interface WikidataEntity {
 }
 
 // Module-level session cache keyed by "Q123:en", persists across component mounts
-const cache = new Map<string, WikidataEntity | null>();
+const cache = new Map<string, WikidataEntity>();
 // In-flight promise cache to avoid duplicate requests for the same id+lang
 const pending = new Map<string, Promise<WikidataEntity | null>>();
 
@@ -84,7 +84,7 @@ function extractWikidataId(externalProperties: JsonObject | null): string | null
 /**
  * Fetch and cache Wikidata entity data (description, logo, image).
  * Takes a project's `externalProperties` and derives the Wikidata Q-id from it.
- * Results are cached for the session so each Q-id is fetched at most once per locale.
+ * Successful results are cached for the session. Failed lookups can retry on later mounts.
  */
 export function useWikidataEntity(externalProperties: Ref<JsonObject | null>) {
   const { locale } = useI18n();
@@ -126,7 +126,7 @@ export function useWikidataEntity(externalProperties: Ref<JsonObject | null>) {
       pending.set(cacheKey, promise);
       try {
         const result = await promise;
-        cache.set(cacheKey, result);
+        if (result) cache.set(cacheKey, result);
         // oxlint-disable-next-line no-unnecessary-condition
         if (!stale) entity.value = result;
       } finally {
