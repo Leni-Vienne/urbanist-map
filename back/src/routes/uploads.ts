@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import {
   LocalFileStorage,
   createR2StorageFromEnv,
+  readPublicR2File,
   getThumbnailFilename,
   compressImageIfNeeded,
 } from "../lib/storage";
@@ -27,6 +28,10 @@ const storage = new LocalFileStorage();
 // them readable, which a database populated by another environment needs.
 const readFallbackStorage =
   process.env.NODE_ENV === "development" ? createR2StorageFromEnv() : null;
+
+// Approved images can use the same public CDN as production without S3 credentials.
+const publicReadFallbackUrl =
+  process.env.NODE_ENV === "development" ? process.env.R2_PUBLIC_URL : undefined;
 
 const filenameParamSchema = z.object({
   filename: z
@@ -272,7 +277,10 @@ uploadsApp.get("/uploads/*", async (c) => {
     }
 
     const file =
-      (await storage.get(validatedFilename)) ?? (await readFallbackStorage?.get(validatedFilename));
+      (await storage.get(validatedFilename)) ??
+      (overlay.status === "approved" && publicReadFallbackUrl
+        ? await readPublicR2File(validatedFilename, publicReadFallbackUrl)
+        : await readFallbackStorage?.get(validatedFilename));
     if (!file) {
       return c.json({ error: "File not found" }, 404);
     }

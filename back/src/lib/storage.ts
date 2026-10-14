@@ -208,6 +208,30 @@ export class LocalFileStorage implements StorageInterface {
 }
 /* oxlint-enable class-methods-use-this */
 
+async function fetchR2File(
+  url: string,
+  filename: string,
+): Promise<{ body: ReadableStream; contentType?: string } | null> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    await response.body?.cancel();
+    if (response.status === 404) return null;
+    throw new Error(`R2 read failed for ${filename}: HTTP ${response.status}`);
+  }
+  if (!response.body) {
+    throw new Error(`R2 returned an empty response for ${filename}`);
+  }
+  return {
+    body: response.body,
+    contentType: response.headers.get("Content-Type") || "application/octet-stream",
+  };
+}
+
+// Only use this for approved images, which have already been published to the CDN.
+export async function readPublicR2File(filename: string, publicUrl: string) {
+  return fetchR2File(`${publicUrl.replace(/\/+$/, "")}/${filename}`, filename);
+}
+
 // Cloudflare R2 storage implementation using Bun's built-in S3 client
 // Used for production when backend runs on dedicated server
 export class R2StorageS3 implements StorageInterface {
@@ -263,18 +287,10 @@ export class R2StorageS3 implements StorageInterface {
   public async get(
     filename: string,
   ): Promise<{ body: ReadableStream; contentType?: string } | null> {
-    try {
-      const s3file = this.client.file(filename);
-      // stream() is lazy and resolves for absent keys; stat() both rejects on a miss and
-      // carries the stored content type, which s3file.type does not.
-      const { type } = await s3file.stat();
-      return {
-        body: s3file.stream(),
-        contentType: type || "application/octet-stream",
-      };
-    } catch {
-      return null;
-    }
+    // Read through a signed GET so the HTTP status is available before returning the stream.
+    // Bun's stat() can report both missing objects and access denials as UnknownError.
+    const url = this.client.file(filename).presign({ method: "GET", expiresIn: 60 });
+    return fetchR2File(url, filename);
   }
 
   // Delete a single file - does NOT automatically delete related thumbnails
