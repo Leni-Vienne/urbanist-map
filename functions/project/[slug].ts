@@ -52,7 +52,7 @@ const SITE_URL = "https://urbanistmap.org";
 const DEFAULT_OG_IMAGE = `${SITE_URL}/og-preview.jpg`;
 // Site-level brand line appended to the crawlable noscript body. The count is a rounded, manually
 // maintained figure (kept in sync with the homepage shell's meta description, currently lower).
-const SITE_TAGLINE = "Explore 500,000+ urban projects worldwide on Urbanistmap.org.";
+const SITE_TAGLINE = "Explore 500,000+ urban projects worldwide.";
 
 function escapeHtml(value: string): string {
   return value
@@ -224,35 +224,34 @@ function indefiniteArticle(nextWord: string): "a" | "an" {
   return /^[aeiou]/i.test(nextWord) ? "an" : "a";
 }
 
-// Build a unique, natural one-sentence description for projects with no author-written description,
-// weaving in the tag, lifecycle status and location so each page reads differently. Avoids the
-// thousands of near-duplicate meta descriptions a single boilerplate string would produce.
+// Describe the category and stage without an article so unnamed projects can start with this phrase.
 function describeProject(subject: string, timelineStatus: string | null | undefined): string {
-  // "under construction" reads better as a trailing clause ("a Metro project under construction");
-  // the other statuses read naturally as a leading adjective ("a proposed Metro project").
+  // "under construction" reads better as a trailing clause; other stages lead the category.
   if (timelineStatus === "under_construction") {
-    return `${indefiniteArticle(subject)} ${subject} under construction`;
+    return `${subject} under construction`;
   }
   const label = timelineStatus ? TIMELINE_STATUS_LABELS.get(timelineStatus) : undefined;
   if (label) {
     const adjective = label.toLowerCase();
-    return `${indefiniteArticle(adjective)} ${adjective} ${subject}`;
+    return `${adjective} ${subject}`;
   }
-  return `${indefiniteArticle(subject)} ${subject}`;
+  return subject;
 }
 
 // Build a unique, natural one-sentence description for projects with no author-written description,
 // weaving in the tag, lifecycle status and location so each page reads differently. Avoids the
 // thousands of near-duplicate meta descriptions a single boilerplate string would produce.
 function buildFallbackDescription(
-  name: string,
+  name: string | null,
   locationLabel: string | null,
   tag: string | null,
   timelineStatus: string | null | undefined,
 ): string {
-  const subject = tag ? `${tag} project` : "urban project";
+  const subject = tag ? `${tag.toLowerCase()} project` : "urban project";
+  const phrase = describeProject(subject, timelineStatus);
   const where = locationLabel ? ` in ${locationLabel}` : "";
-  return `${name} is ${describeProject(subject, timelineStatus)}${where}.`;
+  if (name) return `${name} is ${indefiniteArticle(phrase)} ${phrase}${where}.`;
+  return `${phrase.charAt(0).toUpperCase()}${phrase.slice(1)}${where}.`;
 }
 
 /** The two injection points a project page needs: <head> tags and the crawler-visible body block. */
@@ -261,10 +260,20 @@ interface SeoTags {
   body: string;
 }
 
+function resolveSeoProjectName(
+  name: string | null,
+  category: string | null,
+  location: SeoLocation | undefined,
+): string {
+  if (name) return name;
+  const titleLocation = location?.city ?? location?.state ?? location?.country ?? location?.label;
+  const fallbackName = category ? `${category} project` : "Urban project";
+  return `${fallbackName}${titleLocation ? ` in ${titleLocation}` : ""}`;
+}
+
 function buildLiveTags(data: SeoProject): SeoTags {
-  const name = (data.name ?? "").trim() || "Urban project";
+  const projectName = (data.name ?? "").trim() || null;
   const locationLabel = data.location?.label ?? null;
-  const titleText = `${name} | Urbanistmap.org`;
   const canonical = data.canonical ?? `${SITE_URL}/project/${data.slug ?? ""}`;
   const image = data.image ?? DEFAULT_OG_IMAGE;
   const robots = data.indexable ? "index,follow" : "noindex";
@@ -277,9 +286,13 @@ function buildLiveTags(data: SeoProject): SeoTags {
     .filter((tag): tag is string => typeof tag === "string" && tag.length > 0)
     .map((tag) => TAG_LABELS.get(tag) ?? tag);
 
+  const category = tags[0] ?? null;
+  const name = resolveSeoProjectName(projectName, category, data.location);
+  const titleText = `${name} | Urbanist Map`;
+
   const description = data.description
     ? truncate(data.description, 200)
-    : buildFallbackDescription(name, locationLabel, tags[0] ?? null, data.timelineStatus);
+    : buildFallbackDescription(projectName, locationLabel, category, data.timelineStatus);
 
   const jsonLd = buildJsonLd(
     data,
