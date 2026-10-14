@@ -2,19 +2,19 @@ import { Hono, type Context } from "hono";
 import { serveStatic } from "hono/bun";
 import { cors } from "hono/cors";
 import { trpcServer } from "@hono/trpc-server";
-import { sessionMiddleware } from "hono-sessions";
 import { secureHeaders } from "hono/secure-headers";
 import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
 import { appRouter } from "./routes";
 import { tilesApp, warmLowZoomTileCache } from "./routes/tiles";
 import { seoApp } from "./routes/seo";
-import { authApp, SESSION_DURATION_LONG } from "./routes/auth";
+import { authApp } from "./routes/auth";
 import { uploadsApp } from "./routes/uploads";
 import { isAllowedCorsOrigin } from "./lib/corsConfig";
 import type { AppEnv } from "./lib/types";
 import { config as appConfig } from "./config";
 import { generateMissingThumbnails } from "./lib/startup";
 import { sessionStore, startSessionCleanup } from "./lib/drizzleSessionStore";
+import { createSessionMiddleware } from "./lib/sessionPolicy";
 import { resolveSessionUser } from "./lib/currentUser";
 import { requestLogger } from "./middleware/requestLogger";
 import { logger } from "./services/logger";
@@ -80,24 +80,7 @@ app.route("/api/tiles", tilesApp);
 // Public SEO endpoints (project metadata + sitemap) - cookie-free, mounted before session middleware
 app.route("/", seoApp);
 
-app.use(
-  "*",
-  sessionMiddleware({
-    // @ts-ignore hono doesn't like the session store's type for some reason
-    store: sessionStore,
-    sessionCookieName: "session",
-    encryptionKey: appConfig.COOKIE_SECRET,
-    expireAfterSeconds: SESSION_DURATION_LONG, // Max duration, actual duration set per login
-    cookieOptions: {
-      httpOnly: true,
-      // secure must be true when sameSite is 'None' for cross-site cookies
-      secure: process.env.NODE_ENV !== "development",
-      sameSite: process.env.NODE_ENV !== "development" ? "None" : "Lax",
-      // No domain restriction to allow the cookie to work with the backend domain
-      path: "/",
-    },
-  }),
-);
+app.use("*", createSessionMiddleware(sessionStore, appConfig.COOKIE_SECRET));
 
 // tRPC routes
 app.use(

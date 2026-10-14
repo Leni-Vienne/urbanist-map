@@ -262,7 +262,7 @@ uploadsApp.get("/uploads/*", async (c) => {
 
     // Approved images are public (legacy support); everything else is access-controlled.
     if (overlay.status !== "approved") {
-      const user = c.get("session").get("user");
+      const user = await resolveSessionUser(c.get("session"));
       if (!user) {
         return c.json({ error: "Authentication required" }, 401);
       }

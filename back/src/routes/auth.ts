@@ -6,6 +6,7 @@ import { db } from "../database";
 import { users, config } from "../db/schema";
 import * as rateLimit from "../lib/rateLimit";
 import { resolveSessionUser } from "../lib/currentUser";
+import { SESSION_DURATION_SHORT, SESSION_DURATION_LONG } from "../lib/sessionPolicy";
 import { getClientIp } from "../utils/ip";
 import { verifyGoogleToken } from "../utils/googleAuth";
 import { findOrCreateOAuthUser } from "../utils/oauthAccounts";
@@ -16,10 +17,6 @@ import type { AppEnv, SessionUser } from "../lib/types";
 // Cookie-session HTTP endpoints (login, OAuth, logout, session check).
 // The tRPC account router (./account) covers registration/verification/reset.
 export const authApp = new Hono<AppEnv>();
-
-// Session duration constants
-const SESSION_DURATION_SHORT = 7 * 24 * 60 * 60; // 7 days for regular login
-export const SESSION_DURATION_LONG = 30 * 24 * 60 * 60; // 30 days for "Remember Me"
 
 const loginSchema = z.object({
   email: z.email(),

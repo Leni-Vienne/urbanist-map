@@ -2,6 +2,7 @@ import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod'
 import { TRPCError } from "@trpc/server";
 import * as rateLimit from "../lib/rateLimit";
 import { deleteUserSessions } from "../lib/drizzleSessionStore";
+import { SESSION_DURATION_LONG } from "../lib/sessionPolicy";
 import { getClientIp } from "../utils/ip";
 import crypto from "node:crypto";
 import { eq, gt } from "drizzle-orm";
@@ -227,8 +228,7 @@ export const accountRouter = router({
 
         // Create session for auto-login (30-day duration)
         const session = ctx.hono.get("session");
-        const sessionDuration = 30 * 24 * 60 * 60; // 30 days in seconds
-        const expiresAt = new Date(Date.now() + sessionDuration * 1000);
+        const expiresAt = new Date(Date.now() + SESSION_DURATION_LONG * 1000);
 
         session.set("user", {
           id: matchedUser.id,

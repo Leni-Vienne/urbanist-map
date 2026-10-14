@@ -17,6 +17,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql, type InferSelectModel } from "drizzle-orm";
 import type { JsonObject } from "@shared/json";
+import type { SessionData } from "hono-sessions";
 
 // Custom column type for PostGIS GeometryCollection.
 // Drizzle's built-in geometry() hardcodes getSQLType() to "geometry(point)" and
@@ -184,7 +185,7 @@ export const sessions = pgTable(
   "sessions",
   {
     id: text("id").primaryKey(), // Session ID from hono-sessions
-    data: jsonb("data").notNull(), // Session data (user info, expiresAt, etc)
+    data: jsonb("data").$type<SessionData>().notNull(), // hono-sessions cache with wrapped values
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })

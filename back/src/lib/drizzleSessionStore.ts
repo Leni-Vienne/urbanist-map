@@ -2,13 +2,14 @@ import { db } from "../database";
 import { sessions } from "../db/schema";
 import { eq, lt, sql } from "drizzle-orm";
 import type { SessionData } from "hono-sessions";
+import { prepareSessionForPersistence } from "./sessionPolicy";
 
 const CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
-const DEFAULT_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 let cleanupInterval: NodeJS.Timeout | null = null;
 
-async function getSessionById(sessionId: string) {
+async function getSessionById(sessionId?: string) {
+  if (!sessionId) return null;
   try {
     const [session] = await db.select().from(sessions).where(eq(sessions.id, sessionId)).limit(1);
 
@@ -50,7 +51,13 @@ async function createSession(sessionId: string, initialData: SessionData): Promi
 async function persistSessionData(sessionId: string, sessionData: SessionData): Promise<void> {
   try {
     const { shouldPersist, expiresAt } = prepareSessionForPersistence(sessionData);
-    if (!shouldPersist) return;
+    if (!shouldPersist) {
+      // A consumed OAuth state must also disappear from any previously stored row.
+      // Anonymous visits with no OAuth entry still avoid database writes.
+      // oxlint-disable-next-line no-underscore-dangle
+      if (sessionData._data.osmOauth) await deleteSession(sessionId);
+      return;
+    }
 
     // UPSERT covers the case where persistSessionData lands before createSession,
     // or after a row was reaped by cleanupExpiredSessions.
@@ -86,48 +93,10 @@ async function deleteSession(sessionId: string): Promise<void> {
 // Drops every stored session belonging to a user, revoking credentials already issued.
 export async function deleteUserSessions(userId: string): Promise<void> {
   try {
-    await db.delete(sessions).where(sql`data->'_data'->'user'->>'id' = ${userId}`);
+    await db.delete(sessions).where(sql`data->'_data'->'user'->'value'->>'id' = ${userId}`);
   } catch (error) {
     console.error("Failed to delete user sessions:", error);
   }
-}
-
-// Whether a session earns a DB row, and until when. `expiresAt` is meaningless when shouldPersist
-// is false.
-interface SessionPersistence {
-  shouldPersist: boolean;
-  expiresAt: Date;
-}
-
-function prepareSessionForPersistence(data: unknown): SessionPersistence {
-  // hono-sessions wraps the user payload inside `_data`
-  /* oxlint-disable no-underscore-dangle no-unsafe-type-assertion */
-  const inner = (
-    data as {
-      _data?: { user?: unknown; osmOauth?: unknown; expiresAt?: string | number | Date };
-    }
-  )._data;
-  /* eslint-enable no-underscore-dangle */
-
-  // Anonymous visitors get no DB row to keep the table small. Exception: a session
-  // mid-OAuth carries the OSM CSRF state, which must survive the redirect to
-  // openstreetmap.org and back, so persist it with a short expiry.
-  if (!inner?.user) {
-    if (inner?.osmOauth) {
-      return { shouldPersist: true, expiresAt: new Date(Date.now() + 10 * 60 * 1000) };
-    }
-    return { shouldPersist: false, expiresAt: new Date() };
-  }
-
-  let expiresAt = new Date(Date.now() + DEFAULT_EXPIRY_MS);
-  if (inner.expiresAt !== undefined) {
-    const parsed = new Date(inner.expiresAt);
-    if (!Number.isNaN(parsed.getTime())) {
-      expiresAt = parsed;
-    }
-  }
-
-  return { shouldPersist: true, expiresAt };
 }
 
 async function cleanupExpiredSessions(): Promise<void> {
