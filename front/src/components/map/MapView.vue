@@ -40,6 +40,7 @@
       </div>
 
       <SatellitePreview />
+      <RenderImageMarkers />
       <OverlayFloatingToolbar v-if="focusStore.selectedOverlayId" />
     </div>
   </div>
@@ -68,6 +69,7 @@ import { useFocusStore } from "@/stores/focusStore";
 import SatellitePreview from "@/components/map/SatellitePreview.vue";
 import ZoomControls from "@/components/map/ZoomControls.vue";
 import CompassControl from "@/components/map/CompassControl.vue";
+import RenderImageMarkers from "@/components/map/RenderImageMarkers.vue";
 
 const OverlayFloatingToolbar = defineAsyncComponent(
   () => import("@/components/map/OverlayFloatingToolbar.vue"),

@@ -8,7 +8,8 @@
 -- Passing it as a literal parameter lets the planner pick the appropriate partial GIST index
 -- (idx_projects_geometry_Nk) instead of scanning the full geometry index.
 -- The center marker is suppressed inline (see the points CTE) from the same $4 threshold, so a
--- project's marker disappears exactly when its shape becomes visible.
+-- project's center marker disappears when its shape becomes visible. Render thumbnails are
+-- carried by the visible shape itself, independently of center-point clustering.
 WITH tile_env AS (
   -- Calculate the bounding box for the requested tile ($1=Z, $2=X, $3=Y) in Web Mercator (EPSG:3857)
   -- and also transform it to WGS84 (EPSG:4326) for quick intersection checks against table geometries.
@@ -41,12 +42,23 @@ shapes AS (
       array_to_json(COALESCE(p.tags, ARRAY[]::text[]))::text AS tags,
       COALESCE(p.tags[1], '') AS first_tag,
       p.timeline_status,
+      render.filename AS render_filename,
+      CASE WHEN render.filename IS NOT NULL THEN p.lng END AS render_lng,
+      CASE WHEN render.filename IS NOT NULL THEN p.lat END AS render_lat,
       ROUND(p.geometry_size_m)::int AS geometry_size_m,
       CASE WHEN NULLIF(BTRIM(p.name), '') IS NOT NULL THEN 1 ELSE 0 END AS is_named,
       EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s,
       -- Any approved image satisfies the project filter, including non-georeferenced renders.
       EXISTS (SELECT 1 FROM overlays image WHERE image.project_id = p.id AND image.status = 'approved') AS has_image
-    FROM projects p, tile_env te
+    FROM projects p
+    LEFT JOIN LATERAL (
+      SELECT image.filename
+      FROM overlays image
+      WHERE image.project_id = p.id AND image.status = 'approved' AND image.kind = 'render'
+      ORDER BY image.updated_at DESC, image.id
+      LIMIT 1
+    ) render ON true
+    CROSS JOIN tile_env te
     WHERE $1 >= 4
       AND p.status = 'approved'
       AND p.geometry IS NOT NULL
@@ -119,6 +131,7 @@ points AS (
         raw_q.timeline_status,
         raw_q.has_image,
         raw_q.has_map_image,
+        raw_q.render_filename,
         raw_q.is_named,
         raw_q.last_modified_s,
         raw_q.geometry_size_m,
@@ -143,6 +156,7 @@ points AS (
           p.timeline_status,
           EXISTS (SELECT 1 FROM overlays image WHERE image.project_id = p.id AND image.status = 'approved') AS has_image,
           EXISTS (SELECT 1 FROM overlays image WHERE image.project_id = p.id AND image.status = 'approved' AND image.kind = 'map') AS has_map_image,
+          render.filename AS render_filename,
           ROUND(p.geometry_size_m)::int AS geometry_size_m,
           CASE WHEN NULLIF(BTRIM(p.name), '') IS NOT NULL THEN 1 ELSE 0 END AS is_named,
           EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s,
@@ -158,11 +172,19 @@ points AS (
               ) / pi()
             ) / 2 * te.grid_scale + 1.0 / 2048.0
           )::integer - te.grid_y_offset AS grid_y
-        FROM projects p, tile_env te
+        FROM projects p
+        LEFT JOIN LATERAL (
+          SELECT image.filename
+          FROM overlays image
+          WHERE image.project_id = p.id AND image.status = 'approved' AND image.kind = 'render'
+          ORDER BY image.updated_at DESC, image.id
+          LIMIT 1
+        ) render ON true
+        CROSS JOIN tile_env te
         WHERE p.status = 'approved'
           AND p.center_coordinate IS NOT NULL
           AND p.center_coordinate && te.bounds_4326
-          -- Hide the center marker if its shape is visible at this zoom.
+          -- Visible shapes carry their own render metadata; their centers must not enter clusters.
           AND NOT (
             p.geometry IS NOT NULL
             AND ($4::float8 IS NULL OR p.geometry_size_m >= $4::float8)
@@ -245,6 +267,7 @@ points AS (
       f.timeline_status,
       f.cluster_has_image AS has_image,
       f.has_map_image,
+      f.render_filename,
       f.is_named,
       f.cluster_has_untagged,
       f.cluster_has_named,

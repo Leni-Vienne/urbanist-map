@@ -235,8 +235,14 @@ function hoverOrSelectedCondition(): ExpressionSpecification {
 // Circle paint shared by the MVT project-points layer and the geojson pending-project-points layer,
 // so a pending marker is pixel-identical to the approved marker it becomes on approval.
 function getProjectPointPaint(): CircleLayerSpecification["paint"] {
+  const thumbnailVisible: ExpressionSpecification = [
+    "boolean",
+    ["feature-state", "renderThumbnailVisible"],
+    false,
+  ];
   return {
     "circle-color": getProjectPointColorExpression(),
+    "circle-opacity": ["case", thumbnailVisible, 0, 1],
     "circle-radius": [
       "case",
       hoverOrSelectedCondition(),
@@ -245,7 +251,7 @@ function getProjectPointPaint(): CircleLayerSpecification["paint"] {
     ] as ExpressionSpecification,
     "circle-stroke-width": getPointStrokeWidthExpression(),
     "circle-stroke-color": getPointStrokeColorExpression(),
-    "circle-stroke-opacity": getPointStrokeOpacityExpression(),
+    "circle-stroke-opacity": ["case", thumbnailVisible, 0, getPointStrokeOpacityExpression()],
   };
 }
 
@@ -440,6 +446,7 @@ function getImageFilterExpression(): FilterSpecification | null {
  * getEffectiveThreshold(MIN_ZOOM_FOR_OVERLAYS) up.
  *
  * has_map_image is project-specific, so it can only retire a lone marker.
+ * A render thumbnail keeps its own marker even when a map image is also visible.
  */
 function getOverlayCoveredPointFilter(): FilterSpecification | null {
   if (useUiStore().mode !== "view") return null;
@@ -449,6 +456,7 @@ function getOverlayCoveredPointFilter(): FilterSpecification | null {
       "all",
       ["==", ["get", "cell_count"], 1],
       ["==", ["get", "has_map_image"], true],
+      ["!", ["has", "render_filename"]],
       [">=", ["zoom"], getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS)],
     ],
   ] as FilterSpecification;
@@ -975,6 +983,12 @@ function registerMapInteractionListeners(mlMap: MaplibreMap): void {
   let hoverThrottleTimer: ReturnType<typeof setTimeout> | null = null;
 
   function processHover(event: MapMouseEvent, clientX: number, clientY: number): void {
+    // A DOM thumbnail owns hover above the canvas. Check the current pointer target as well
+    // as stopping its mousemove events, so a queued canvas hover cannot cover its preview.
+    if (document.elementFromPoint(clientX, clientY)?.closest(".render-image-marker")) {
+      clearHoverPreview();
+      return;
+    }
     const { features, pointFeature } = queryInteractionFeatures(event, mlMap);
 
     mlMap.getContainer().classList.toggle("cursor-pointer", features.length > 0);

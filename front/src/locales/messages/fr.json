@@ -536,10 +536,10 @@
     },
     "renderOption": {
       "title": "Vue d'artiste",
-      "description": "Un rendu ou une photo affiché dans le panneau d'information du projet."
+      "description": "Un rendu ou une photo affiché dans un repère avec miniature sur la carte et dans le panneau d'information du projet."
     },
     "renderDialogTitle": "Ajouter une vue d'artiste",
-    "renderUploadDescription": "Ajoutez un rendu ou une photo du projet. Elle apparaît uniquement dans le panneau d'information du projet, elle n'est pas alignée sur la carte.",
+    "renderUploadDescription": "Ajoutez un rendu ou une photo du projet. L'image apparaît dans un repère avec miniature sur la carte et dans le panneau d'information du projet.",
     "renderReplaceNote": "Cela remplacera la vue d'artiste actuelle du projet.",
     "renderStaged": "Vue d'artiste ajoutée",
     "renderStagedDetail": "Envoyez vos modifications pour la soumettre à validation."

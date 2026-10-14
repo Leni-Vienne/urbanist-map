@@ -536,10 +536,10 @@
     },
     "renderOption": {
       "title": "Artist's impression",
-      "description": "A render or photo shown in the project info panel, not placed on the map."
+      "description": "A render or photo shown as a thumbnail pin on the map and in the project info panel."
     },
     "renderDialogTitle": "Add artist's impression",
-    "renderUploadDescription": "Upload a render or photo of the project. It appears in the project info panel only, it is not aligned onto the map.",
+    "renderUploadDescription": "Upload a render or photo of the project. It appears as a thumbnail pin on the map and in the project info panel.",
     "renderReplaceNote": "This will replace the project's current artist's impression.",
     "renderStaged": "Render added",
     "renderStagedDetail": "Submit your changes to send it for review."

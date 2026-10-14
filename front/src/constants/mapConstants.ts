@@ -5,9 +5,9 @@ export const MAP_CONFIG = {
   // For switching to country specific satellite layers
   MIN_ZOOM_FOR_COUNTRY_LAYERS: 7,
 
-  // Minimum zoom at which overlay content exists on the map: the raster images, the footprint
-  // tile layers, the edit handles, and the status markers of edit/moderation mode. Below it the
-  // map shows project points/shapes only.
+  // Minimum zoom at which image content exists on the map: overlay rasters, render thumbnails,
+  // footprint tile layers, edit handles, and status markers of edit/moderation mode.
+  // Below it the map shows project points/shapes only.
   MIN_ZOOM_FOR_OVERLAYS: 13,
 } as const;
 

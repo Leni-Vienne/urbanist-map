@@ -90,6 +90,8 @@ function createProjectFeature(project: Project & { lat: number; lng: number }): 
       first_tag: project.tags[0] ?? null,
       status: project.status,
       cell_count: 1,
+      render_filename: project.render?.filename,
+      render_status: project.render?.status,
     },
   };
 }
@@ -201,6 +203,10 @@ function createProjectShapeFeature(
       timeline_status: project.timelineStatus,
       tags: JSON.stringify(project.tags),
       first_tag: project.tags[0] ?? null,
+      render_filename: project.render?.filename,
+      render_status: project.render?.status,
+      render_lng: project.lng,
+      render_lat: project.lat,
       ...style,
     },
   };
