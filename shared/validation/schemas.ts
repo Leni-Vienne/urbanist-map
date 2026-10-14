@@ -152,6 +152,15 @@ export const PROJECT_CHANGE_FIELDS = [
 
 const OVERLAY_CHANGE_FIELDS = ["caption", "corners"] as const;
 
+// Include coordinate fields stored by older change-request submissions.
+export const CHANGE_REQUEST_FIELDS = [
+  ...PROJECT_CHANGE_FIELDS,
+  ...OVERLAY_CHANGE_FIELDS,
+  "centroid",
+  "centerCoordinate",
+] as const;
+export type ChangeRequestFieldName = (typeof CHANGE_REQUEST_FIELDS)[number];
+
 export type ProjectFieldName = (typeof PROJECT_CHANGE_FIELDS)[number];
 export type OverlayFieldName = (typeof OVERLAY_CHANGE_FIELDS)[number];
 

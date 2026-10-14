@@ -1,6 +1,7 @@
 import { LngLat, LngLatBounds } from "maplibre-gl";
 import type { LatLng } from "@/types/index";
-import { forEachPosition } from "@/utils/geojson";
+
+type NestedCoordinates = number[] | NestedCoordinates[];
 
 // Build a maplibre LngLatBounds enclosing every corner, for camera navigation.
 export function buildLngLatBounds(corners: LatLng[]): LngLatBounds {
@@ -18,10 +19,26 @@ export function extendBoundsWithGeometry(
   geometry: GeoJSON.Geometry,
 ): LngLatBounds | null {
   let result = bounds;
-  forEachPosition(geometry, (lng, lat) => {
-    if (result) result.extend([lng, lat]);
-    else result = new LngLatBounds([lng, lat], [lng, lat]);
-  });
+  if (geometry.type === "GeometryCollection") {
+    for (const part of geometry.geometries) result = extendBoundsWithGeometry(result, part);
+    return result;
+  }
+
+  const pending: NestedCoordinates[] = [geometry.coordinates];
+  while (pending.length > 0) {
+    const coordinates = pending.pop();
+    if (!coordinates) continue;
+    const [lng, lat] = coordinates;
+    if (typeof lng === "number" && typeof lat === "number") {
+      const position: [number, number] = [lng, lat];
+      if (result) result.extend(position);
+      else result = new LngLatBounds(position, position);
+    } else {
+      for (const child of coordinates) {
+        if (Array.isArray(child)) pending.push(child);
+      }
+    }
+  }
   return result;
 }
 

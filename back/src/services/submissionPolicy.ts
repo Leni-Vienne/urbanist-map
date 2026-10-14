@@ -72,7 +72,7 @@ function valuesDiffer(oldValue: unknown, newValue: unknown): boolean {
   return JSON.stringify(oldValue) !== JSON.stringify(newValue);
 }
 
-function submittedProjectValue(project: SubmittedProject, field: ProjectFieldName): unknown {
+function submittedProjectValue(project: SubmittedProject, field: ProjectFieldName) {
   if (field === "tags") return project.tags ?? [];
   if (field === "name" || field === "timelineStatus") return project[field];
   return project[field] ?? null;

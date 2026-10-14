@@ -169,6 +169,25 @@ function handleTouchEnd() {
   finalizePosition();
 }
 
+function handleMouseMove(moveEvent: MouseEvent) {
+  if (!isDragging.value) return;
+
+  applyDragHeight(moveEvent.clientY);
+}
+
+function removeMouseDragListeners() {
+  document.removeEventListener("mousemove", handleMouseMove);
+  document.removeEventListener("mouseup", handleMouseUp);
+}
+
+function handleMouseUp() {
+  removeMouseDragListeners();
+  if (!isDragging.value) return;
+
+  isDragging.value = false;
+  finalizePosition();
+}
+
 function handleMouseDown(e: MouseEvent) {
   const target = e.target as HTMLElement;
   if (!isDragTarget(target)) {
@@ -176,22 +195,6 @@ function handleMouseDown(e: MouseEvent) {
   }
 
   beginDrag(e.clientY);
-
-  function handleMouseMove(moveEvent: MouseEvent) {
-    if (!isDragging.value) return;
-
-    applyDragHeight(moveEvent.clientY);
-  }
-
-  function handleMouseUp() {
-    if (!isDragging.value) return;
-
-    isDragging.value = false;
-    finalizePosition();
-
-    document.removeEventListener("mousemove", handleMouseMove);
-    document.removeEventListener("mouseup", handleMouseUp);
-  }
 
   document.addEventListener("mousemove", handleMouseMove);
   document.addEventListener("mouseup", handleMouseUp);
@@ -205,18 +208,20 @@ function finalizePosition() {
   emit("update:heightPercent", currentHeight.value);
 }
 
+function handleResize() {
+  viewportHeight.value = globalThis.innerHeight;
+}
+
 onMounted(() => {
   currentHeight.value = props.heightPercent;
   viewportHeight.value = globalThis.innerHeight;
 
-  function handleResize() {
-    viewportHeight.value = globalThis.innerHeight;
-  }
-
   globalThis.addEventListener("resize", handleResize);
+});
 
-  onUnmounted(() => {
-    globalThis.removeEventListener("resize", handleResize);
-  });
+onUnmounted(() => {
+  isDragging.value = false;
+  removeMouseDragListeners();
+  globalThis.removeEventListener("resize", handleResize);
 });
 </script>

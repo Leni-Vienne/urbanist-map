@@ -231,8 +231,13 @@ async function previewGeometry(change: PendingChangeRequest, type: "old" | "new"
       geometryValue,
       type,
     });
-  } else if (change.entityType === "project" && props.project) {
-    await previewShapes({ change, project: props.project, geometryValue, type });
+  } else if (change.entityType === "project" && change.fieldName === "geometry" && props.project) {
+    await previewShapes({
+      change,
+      project: props.project,
+      geometryValue: type === "old" ? change.oldValue : change.newValue,
+      type,
+    });
   }
 }
 </script>

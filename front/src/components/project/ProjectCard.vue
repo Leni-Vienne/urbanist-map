@@ -306,7 +306,7 @@ interface Props {
   isExternal?: boolean;
   // Selected cards use plain header/content elements; list cards use the accordion components.
   plain?: boolean;
-  onOverlayClick: (overlay: ProjectPanelOverlay) => Promise<unknown>;
+  onOverlayClick: (overlay: ProjectPanelOverlay) => Promise<boolean> | Promise<void>;
 }
 
 const props = defineProps<Props>();

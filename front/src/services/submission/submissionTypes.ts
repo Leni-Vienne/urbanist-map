@@ -1,4 +1,4 @@
-import type { PendingOverlayModification } from "@/types/index";
+import type { PendingOverlayModification, Project } from "@/types/index";
 import { PROJECT_CHANGE_FIELDS, type OverlayFieldName } from "@shared/validation/schemas";
 
 export { PROJECT_CHANGE_FIELDS } from "@shared/validation/schemas";
@@ -23,11 +23,13 @@ export function isProjectChangeField(field: RemovableChange): field is ProjectCh
   return (PROJECT_CHANGE_FIELDS as readonly string[]).includes(field);
 }
 
-export interface ProjectFieldChange {
-  fieldName: ProjectChangeField;
-  oldValue: unknown;
-  newValue: unknown;
-}
+export type ProjectFieldChange =
+  | { fieldName: "geometry"; oldValue: Project["geometry"]; newValue: Project["geometry"] }
+  | {
+      fieldName: Exclude<ProjectChangeField, "geometry">;
+      oldValue: Project[Exclude<ProjectChangeField, "geometry">];
+      newValue: Project[Exclude<ProjectChangeField, "geometry">];
+    };
 
 export interface SubmissionDraft {
   projectId: string;

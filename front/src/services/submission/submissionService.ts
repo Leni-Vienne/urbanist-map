@@ -76,7 +76,11 @@ export function detectProjectChanges(project: Project): ProjectFieldChange[] {
     const oldValue = originalProject[field];
     const newValue = project[field];
     if (projectValuesEqual(field, oldValue, newValue)) continue;
-    changes.push({ fieldName: field, oldValue, newValue });
+    changes.push(
+      field === "geometry"
+        ? { fieldName: field, oldValue: originalProject.geometry, newValue: project.geometry }
+        : { fieldName: field, oldValue: originalProject[field], newValue: project[field] },
+    );
   }
 
   return changes;

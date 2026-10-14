@@ -4,7 +4,6 @@ import { getMapOrNull, onStyleSwitch, type StyleSwitchPhase } from "@/services/c
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useUiStore } from "@/stores/uiStore";
-import { parseShapeCollection } from "@/utils/geojson";
 import { clearPreviewShapes, renderPreviewShapes } from "@/services/map/shapes/rendering";
 
 type ProjectShapePreview =
@@ -25,15 +24,16 @@ function resolveProjectShapePreview(): ProjectShapePreview {
 
   const project = useProjectStore().getMapProjectById(preview.projectId, useUiStore().mode);
   const change = changeRequestStore.getRelevantChangeRequest(preview.changeId);
-  if (!project || !change || change.entityId !== preview.projectId) return { type: "none" };
+  if (!project || change?.fieldName !== "geometry" || change.entityId !== preview.projectId)
+    return { type: "none" };
 
   const baselineGeometry = project.geometry ?? null;
   if (preview.type === "project-current") {
     return { type: "render", project, geometry: baselineGeometry, baselineGeometry: null };
   }
 
-  const geometry = parseShapeCollection(change.newValue);
-  if (!geometry) return { type: "none" };
+  const geometry = change.newValue;
+  if (!geometry || geometry.geometries.length === 0) return { type: "none" };
   return { type: "render", project, geometry, baselineGeometry };
 }
 

@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { db } from "../database";
 
 // Minimal shape both the app's shared and import script's Drizzle clients satisfy.
-type SqlExecutor = { execute: (query: ReturnType<typeof sql>) => Promise<unknown> };
+type SqlExecutor = Pick<typeof db, "execute">;
 
 // The curation rule that decides whether a project is worth indexing in Google. A project qualifies
 // when it is approved, named, and carries visual content the SEO page can actually show: an approved

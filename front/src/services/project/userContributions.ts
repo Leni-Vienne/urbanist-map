@@ -26,9 +26,16 @@ export async function refreshUserContributions(
   const epoch = authStore.getSessionEpoch();
   contributionStore.setLoading(true);
   try {
-    const result = await loadOrNull(async () => trpc.project.getUsersContributions.query(), {
-      errorMessage: t("contribute.loadContributionsError"),
-    });
+    const result = await loadOrNull(
+      async () => {
+        const [data, { changeRequestFromWire }] = await Promise.all([
+          trpc.project.getUsersContributions.query(),
+          import("@/services/changes/changeRequestData"),
+        ]);
+        return { ...data, changeRequests: data.changeRequests.map(changeRequestFromWire) };
+      },
+      { errorMessage: t("contribute.loadContributionsError") },
+    );
     if (
       result &&
       token === loadToken &&

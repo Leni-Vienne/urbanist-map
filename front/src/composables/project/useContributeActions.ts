@@ -17,8 +17,7 @@ import { closeDetail } from "@/services/overlay/selection";
 import { ensureOverlayLoaded } from "@/services/overlay/navigation";
 import { flyToGeometry } from "@/services/core/mapNavigation";
 import { clearStagedRender, hasStagedRender } from "@/services/submission/stagedRenderState";
-import type { ChangeRequest } from "@/stores/changeRequestStore";
-import type { Project, ProjectPanelOverlay } from "@/types/index";
+import type { Project, ProjectPanelOverlay, PendingChangeRequest } from "@/types/index";
 import { toastError, toastSuccess, toastWarn } from "@/services/core/toast";
 
 // New project button click: opens the marker placement bar (after an auth gate and a clean slate).
@@ -74,7 +73,7 @@ export function useContributeActions(projectOverlayIds: ComputedRef<Record<strin
     await confirmAndDeleteProject(project.id, project.name, imageCount);
   }
 
-  async function handleDeleteChangeRequestClick(change: ChangeRequest): Promise<void> {
+  async function handleDeleteChangeRequestClick(change: PendingChangeRequest): Promise<void> {
     const fieldName = change.fieldName;
     const confirmed = confirm(t("contribute.confirmDeleteChangeRequest", { field: fieldName }));
     if (!confirmed) return;

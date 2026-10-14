@@ -29,14 +29,11 @@ export function resolveShapeEditorGeometry(projectId: string): GeoJSON.GeometryC
       cr.fieldName === "geometry" &&
       cr.status === "pending",
   );
-  // oxlint-disable no-unsafe-type-assertion
-  const pendingGeometry = pendingGeometryChange?.newValue as
-    | GeoJSON.GeometryCollection
-    | null
-    | undefined;
-  // oxlint-enable no-unsafe-type-assertion
-
-  if (pendingGeometry !== undefined) return pendingGeometry;
+  if (
+    pendingGeometryChange?.fieldName === "geometry" &&
+    pendingGeometryChange.newValue !== undefined
+  )
+    return pendingGeometryChange.newValue;
   return projectStore.getPersistedProject(projectId)?.geometry ?? null;
 }
 

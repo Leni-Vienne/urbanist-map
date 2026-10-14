@@ -27,10 +27,15 @@ export function createSessionMiddleware(
   });
 }
 
+interface SessionPersistencePolicy {
+  shouldPersist: boolean;
+  expiresAt: Date;
+}
+
 export function prepareSessionForPersistence(
   data: SessionData<unknown>,
   now = Date.now(),
-): { shouldPersist: boolean; expiresAt: Date } {
+): SessionPersistencePolicy {
   // Each hono-sessions entry is stored as { value, flash } inside `_data`.
   // oxlint-disable-next-line no-underscore-dangle
   const inner = data._data;

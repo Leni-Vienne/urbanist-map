@@ -21,7 +21,6 @@ import {
 } from "./submissionTypes";
 import { toastError, toastSuccess, toastInfo } from "@/services/core/toast";
 import { t } from "@/locales";
-import { parseShapeCollection } from "@/utils/geojson";
 import { buildThumbnailUrl } from "@/utils/imageUrl";
 import { deleteOverlayDirect } from "@/services/entity/entityRemoval";
 import { closeDetail } from "@/services/overlay/selection";
@@ -109,18 +108,21 @@ function buildNewOverlayChanges(
 function buildProjectChanges(changes: ProjectFieldChange[]): SubmissionChange[] {
   return changes.map((change) => ({
     field: change.fieldName,
-    oldValue: formatValueForDisplay(change.oldValue, change.fieldName),
-    newValue: formatValueForDisplay(change.newValue, change.fieldName),
+    oldValue: formatValueForDisplay(change, "oldValue"),
+    newValue: formatValueForDisplay(change, "newValue"),
     displayLabel: t(`fields.${change.fieldName}`),
   }));
 }
 
-function formatValueForDisplay(value: unknown, fieldName?: string): string {
-  if (value === null || value === undefined || value === "") return "";
+function formatValueForDisplay(change: ProjectFieldChange, side: "oldValue" | "newValue"): string {
+  const value = change[side];
+  if (value === null || value === "") return "";
 
-  if (fieldName === "geometry") {
-    const shapes = parseShapeCollection(value);
-    if (shapes) return t("shapes.geometrySummary", { count: shapes.geometries.length });
+  if (change.fieldName === "geometry") {
+    const geometry = change[side];
+    return geometry && geometry.geometries.length > 0
+      ? t("shapes.geometrySummary", { count: geometry.geometries.length })
+      : "";
   }
 
   if (Array.isArray(value)) return `[${value.length} items]`;

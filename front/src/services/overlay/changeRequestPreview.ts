@@ -15,7 +15,6 @@ import { openProjectDetail } from "@/services/core/projectSelection";
 import type { LatLng, Overlay, PendingChangeRequest, Project } from "@/types/index";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { toastError, toastWarn } from "@/services/core/toast";
-import { parseShapeCollection } from "@/utils/geojson";
 
 interface PreviewGeometryOptions {
   change: PendingChangeRequest;
@@ -27,7 +26,7 @@ interface PreviewGeometryOptions {
 interface PreviewShapesOptions {
   change: PendingChangeRequest;
   project: Project;
-  geometryValue: unknown;
+  geometryValue: GeoJSON.GeometryCollection | null | undefined;
   type: "old" | "new";
 }
 
@@ -150,8 +149,8 @@ export async function previewOverlayGeometry(options: PreviewGeometryOptions): P
 export async function previewShapes(options: PreviewShapesOptions): Promise<void> {
   const { change, project, geometryValue, type } = options;
 
-  const geometry = parseShapeCollection(geometryValue);
-  if (!geometry) {
+  const geometry = geometryValue;
+  if (!geometry || geometry.geometries.length === 0) {
     toastWarn(t("shapes.noShapesToPreview"));
     return;
   }

@@ -23,7 +23,7 @@
   <div v-else-if="change.fieldName === 'geometry'" class="my-2">
     <div class="flex gap-2 flex-wrap">
       <Button
-        v-if="parseShapeCollection(change.oldValue)"
+        v-if="change.oldValue?.geometries.length"
         icon="pi pi-map-marker"
         :label="$t('shapes.viewCurrentShapes')"
         @click.stop="$emit('preview-geometry', change, 'old')"
@@ -32,7 +32,7 @@
         size="small"
       />
       <Button
-        v-if="parseShapeCollection(change.newValue)"
+        v-if="change.newValue?.geometries.length"
         icon="pi pi-map-marker"
         :label="$t('shapes.viewSuggestedShapes')"
         @click.stop="$emit('preview-geometry', change, 'new')"
@@ -77,7 +77,6 @@
 import { useI18n } from "vue-i18n";
 import type { PendingChangeRequest } from "@/types/index";
 import ContributorInfo from "@/components/common/ContributorInfo.vue";
-import { parseShapeCollection } from "@/utils/geojson";
 
 interface Props {
   change: PendingChangeRequest;

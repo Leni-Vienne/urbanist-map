@@ -75,7 +75,7 @@ export const useOverlayStore = defineStore("overlay", () => {
     return Object.assign(overlay, updates);
   }
 
-  function getEffectiveOverlays(): Record<string, OverlayObject> {
+  function getEffectiveOverlays() {
     const ids = new Set([
       ...Object.keys(tileOverlays.value),
       ...Object.keys(persistedOverlays.value),

@@ -22,7 +22,7 @@ function isLocalProjectDraft(draft: ProjectDraft): draft is LocalProject {
 export const useProjectStore = defineStore("project", () => {
   const persistedProjects = ref<ProjectIndex>({});
   const projectDrafts = ref<Record<string, ProjectDraft>>({});
-  function getEffectiveProjects(): ProjectIndex {
+  function getEffectiveProjects() {
     const effective: ProjectIndex = {};
     Object.assign(effective, persistedProjects.value);
     for (const [id, draft] of Object.entries(projectDrafts.value)) {

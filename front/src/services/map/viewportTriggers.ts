@@ -83,13 +83,10 @@ const debouncedRefreshViewport = debounce(runViewportRenderLoop, 100);
  * so moveend also fires after zooms. Returns the disposer.
  */
 export function setupEventListeners(target: MaplibreMap): () => void {
-  function onMoveEnd(): void {
-    debouncedRefreshViewport();
-  }
-  target.on("moveend", onMoveEnd);
+  target.on("moveend", debouncedRefreshViewport);
 
   return function stopViewportMoveListener(): void {
-    target.off("moveend", onMoveEnd);
+    target.off("moveend", debouncedRefreshViewport);
   };
 }
 

@@ -1,5 +1,6 @@
 import type { RouterOutput } from "@/client";
 import type { DBProject, DBImportSource, ApprovalStatus } from "../../../back/src/db/schema";
+import type { ChangeRequestFieldName } from "@shared/validation/schemas";
 
 export type LatLng = { lat: number; lng: number };
 
@@ -30,8 +31,26 @@ export type MarkerColor = "blue" | "green" | "orange" | "red" | "yellow" | "purp
  * - `staged`: unsubmitted corner edits; the position is the top of the undo history.
  */ export type OverlayPositionState = "baseline" | "suggested" | "staged" | "approved-toggled";
 
-export type PendingChangeRequest =
+export type PendingChangeRequestWire =
   RouterOutput["moderation"]["getPendingSubmissions"]["changeRequests"][0];
+
+export type PendingChangeRequest = Omit<
+  PendingChangeRequestWire,
+  "fieldName" | "oldValue" | "newValue"
+> &
+  (
+    | {
+        fieldName: "geometry";
+        // null clears shapes; undefined means malformed geometry received from the API.
+        oldValue: GeoJSON.GeometryCollection | null | undefined;
+        newValue: GeoJSON.GeometryCollection | null | undefined;
+      }
+    | {
+        fieldName: Exclude<ChangeRequestFieldName, "geometry">;
+        oldValue: PendingChangeRequestWire["oldValue"];
+        newValue: PendingChangeRequestWire["newValue"];
+      }
+  );
 
 export type LatestContribution = RouterOutput["feed"]["getLatestContributions"]["items"][number];
 

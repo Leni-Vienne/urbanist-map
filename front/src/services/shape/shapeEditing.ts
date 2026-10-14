@@ -12,6 +12,19 @@ import { getMap } from "@/services/core/map";
 import type { LngLatBounds } from "maplibre-gl";
 import { extendBoundsWithGeometry } from "@/utils/cornersBounds";
 import { ref } from "vue";
+import {
+  GeoJSONGenericSchema as createGeoJSONSchema,
+  GeoJSONGeometrySchema,
+  GeoJSONPositionSchema,
+  GeoJSONPropertiesSchema,
+} from "zod-geojson";
+
+// GeoJSON features may have null geometry, which the importer skips.
+const importGeoJSONSchema = createGeoJSONSchema(
+  GeoJSONPositionSchema,
+  GeoJSONPropertiesSchema.nullable(),
+  GeoJSONGeometrySchema.nullable(),
+);
 
 const drawableGeometryTypes = new Set(["LineString", "MultiLineString", "Polygon", "MultiPolygon"]);
 
@@ -201,25 +214,25 @@ export function getDrawnGeometry(): GeoJSON.GeometryCollection {
   return { type: "GeometryCollection", geometries };
 }
 
+function makeFeature(
+  geom: GeoJSON.LineString | GeoJSON.Polygon,
+  mode: ShapeDrawMode,
+): GeoJSONStoreFeatures {
+  return {
+    type: "Feature",
+    // oxlint-disable-next-line no-non-null-assertion
+    id: draw!.getFeatureId(),
+    geometry: geom,
+    properties: { mode },
+  };
+}
+
 /**
  * Convert a single GeoJSON geometry into Terra Draw features. Terra Draw modes
  * only accept single LineString/Polygon geometries, so Multi* are split into parts.
  * Each feature is tagged with the `mode` property Terra Draw uses for routing.
  */
 function geometryToFeatures(geometry: GeoJSON.Geometry): GeoJSONStoreFeatures[] {
-  function makeFeature(
-    geom: GeoJSON.LineString | GeoJSON.Polygon,
-    mode: ShapeDrawMode,
-  ): GeoJSONStoreFeatures {
-    return {
-      type: "Feature",
-      // oxlint-disable-next-line no-non-null-assertion
-      id: draw!.getFeatureId(),
-      geometry: geom,
-      properties: { mode },
-    };
-  }
-
   switch (geometry.type) {
     case "LineString":
       return [makeFeature(geometry, "linestring")];
@@ -275,34 +288,27 @@ export async function addLayersFromGeometry(
  */
 export async function loadGeoJSONFile(file: File): Promise<LoadedGeoJSON> {
   const text = await file.text();
-  const parsed = (() => {
-    try {
-      // oxlint-disable-next-line no-unsafe-type-assertion
-      return JSON.parse(text) as GeoJSON.GeoJSON;
-    } catch {
-      throw new Error(`Invalid JSON in file "${file.name}"`);
+  try {
+    const parsed = importGeoJSONSchema.parse(JSON.parse(text));
+    if (parsed === null) throw new Error("Expected a GeoJSON object");
+
+    if (parsed.type === "FeatureCollection") {
+      const geometries = parsed.features.map((f) => f.geometry);
+      return filterDrawableGeometries(geometries);
     }
-  })();
 
-  if (parsed.type === "FeatureCollection") {
-    const geometries = parsed.features.map((f) => f.geometry);
-    return filterDrawableGeometries(geometries);
-  }
+    if (parsed.type === "GeometryCollection") {
+      return filterDrawableGeometries(parsed.geometries);
+    }
 
-  if (parsed.type === "GeometryCollection") {
-    return filterDrawableGeometries(parsed.geometries);
-  }
+    // Single geometry or Feature
+    if (parsed.type === "Feature") {
+      return filterDrawableGeometries([parsed.geometry]);
+    }
 
-  // Single geometry or Feature
-  if (parsed.type === "Feature") {
-    return filterDrawableGeometries([parsed.geometry]);
-  }
-
-  if ("coordinates" in parsed) {
     return filterDrawableGeometries([parsed]);
+  } catch (error) {
+    const format = error instanceof SyntaxError ? "JSON" : "GeoJSON";
+    throw new Error(`Invalid ${format} in file "${file.name}"`, { cause: error });
   }
-
-  throw new Error(
-    `Unrecognised GeoJSON type "${(parsed as { type: string }).type}" in file "${file.name}"`,
-  );
 }

@@ -60,11 +60,14 @@ export function useModeration() {
     }
 
     try {
-      const response = await trpc.moderation.getPendingSubmissions.query({
-        countryCode,
-      });
+      const [response, { changeRequestFromWire }] = await Promise.all([
+        trpc.moderation.getPendingSubmissions.query({ countryCode }),
+        import("@/services/changes/changeRequestData"),
+      ]);
 
       if (!isCurrentRequest()) return;
+
+      const parsedChanges = response.changeRequests.map(changeRequestFromWire);
 
       const mapProjects = [];
       for (const project of Object.values(response.projectsById)) {
@@ -80,7 +83,7 @@ export function useModeration() {
       moderationStore.setModerationData({
         projectIds,
         overlaysById: response.overlaysById,
-        changeRequests: response.changeRequests,
+        changeRequests: parsedChanges,
       });
     } catch (error) {
       if (!isCurrentRequest()) return;

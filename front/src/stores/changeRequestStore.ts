@@ -1,14 +1,10 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { computed, ref } from "vue";
-import type { RouterOutput } from "@/client";
 import { useFocusStore } from "@/stores/focusStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useModerationStore } from "@/stores/moderationStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import type { PendingChangeRequest } from "@/types/index";
-
-export type ChangeRequest =
-  RouterOutput["project"]["getUsersContributions"]["changeRequests"][number];
 
 // Which change request's position the map is previewing, and how (approved vs suggested, overlay vs
 // project shape). Drives the map preview render and the moderation panel's "viewed" tracking.
@@ -47,7 +43,7 @@ function findProjectShapesChange(
 }
 
 export const useChangeRequestStore = defineStore("changeRequest", () => {
-  const pendingChangeRequests = ref<ChangeRequest[]>([]);
+  const pendingChangeRequests = ref<PendingChangeRequest[]>([]);
   const loaded = ref(false);
 
   const previewIntent = ref<PreviewIntent>(null);
@@ -114,7 +110,7 @@ export const useChangeRequestStore = defineStore("changeRequest", () => {
     return undefined;
   }
 
-  function setPendingChangeRequests(items: ChangeRequest[]) {
+  function setPendingChangeRequests(items: PendingChangeRequest[]) {
     pendingChangeRequests.value = items;
     loaded.value = true;
   }

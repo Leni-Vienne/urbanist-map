@@ -2,10 +2,11 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { createPinia, setActivePinia } from "pinia";
 import { resolveShapeEditorGeometry } from "./shapeEditorLazy";
 import { useAuthStore } from "@/stores/authStore";
-import { useChangeRequestStore, type ChangeRequest } from "@/stores/changeRequestStore";
+import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { createLocalProject } from "@/utils/typeFactories";
-import type { Project } from "@/types/index";
+import type { Project, PendingChangeRequest } from "@/types/index";
+import { changeRequestFromWire } from "@/services/changes/changeRequestData";
 
 function makeGeometry(offset: number): GeoJSON.GeometryCollection {
   return {
@@ -32,7 +33,7 @@ function makePersistedProject(geometry: GeoJSON.GeometryCollection | null): Proj
 function makeGeometryChange(
   geometry: GeoJSON.GeometryCollection | null,
   requestedBy = "user-1",
-): ChangeRequest {
+): PendingChangeRequest {
   return {
     id: "geometry-change",
     entityType: "project",
@@ -117,6 +118,27 @@ function usesLocalProjectGeometry(): void {
   expect(resolveShapeEditorGeometry("project-1")).toEqual(local);
 }
 
+function preservesPendingShapeRemoval(): void {
+  seedPersistedProject(makeGeometry(0));
+  useChangeRequestStore().setPendingChangeRequests([makeGeometryChange(null)]);
+  expect(resolveShapeEditorGeometry("project-1")).toBeNull();
+}
+
+function ignoresMalformedPendingGeometry(): void {
+  const baseline = makeGeometry(0);
+  seedPersistedProject(baseline);
+  useChangeRequestStore().setPendingChangeRequests([
+    changeRequestFromWire({
+      ...makeGeometryChange(null),
+      newValue: {
+        type: "GeometryCollection",
+        geometries: [{ type: "LineString", coordinates: null }],
+      },
+    }),
+  ]);
+  expect(resolveShapeEditorGeometry("project-1")).toEqual(baseline);
+}
+
 function shapeEditorGeometryOwnership(): void {
   test("uses persisted geometry when no draft or pending proposal exists", usesPersistedGeometry);
   test(
@@ -127,6 +149,11 @@ function shapeEditorGeometryOwnership(): void {
   test("preserves an explicit null geometry draft", preservesExplicitNullDraft);
   test("does not let an unrelated draft hide a pending geometry proposal", ignoresUnrelatedDraft);
   test("uses the base geometry owned by a new local project", usesLocalProjectGeometry);
+  test("preserves a pending removal of all shapes", preservesPendingShapeRemoval);
+  test(
+    "falls back to approved shapes for malformed pending geometry",
+    ignoresMalformedPendingGeometry,
+  );
 }
 
 describe("shape editor geometry ownership", shapeEditorGeometryOwnership);

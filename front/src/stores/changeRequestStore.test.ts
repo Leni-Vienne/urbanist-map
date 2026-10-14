@@ -1,13 +1,16 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { createPinia, setActivePinia } from "pinia";
-import { useChangeRequestStore, type ChangeRequest } from "@/stores/changeRequestStore";
+import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useFocusStore } from "@/stores/focusStore";
+import { useModerationStore } from "@/stores/moderationStore";
+import { changeRequestFromWire } from "@/services/changes/changeRequestData";
+import type { PendingChangeRequest } from "@/types/index";
 
 function activateFreshPinia(): void {
   setActivePinia(createPinia());
 }
 
-function makeProjectGeometryChange(projectId: string): ChangeRequest {
+function makeProjectGeometryChange(projectId: string): PendingChangeRequest {
   return {
     id: `change-${projectId}`,
     entityType: "project",
@@ -70,6 +73,25 @@ function projectPreviewFollowsSelection(): void {
 beforeEach(activateFreshPinia);
 function changeRequestPreviewOwnership(): void {
   test("scopes project geometry previews to the selected project", projectPreviewFollowsSelection);
+  test("stores decoded moderation geometry while preserving intentional removals", () => {
+    const valid = makeProjectGeometryChange("project-1");
+    const invalid = {
+      ...makeProjectGeometryChange("project-2"),
+      newValue: {
+        type: "GeometryCollection",
+        geometries: [{ type: "LineString", coordinates: null }],
+      },
+    };
+    const store = useModerationStore();
+    store.setModerationData({
+      projectIds: [],
+      overlaysById: {},
+      changeRequests: [valid, invalid].map(changeRequestFromWire),
+    });
+    expect(store.changeRequests[0]?.newValue).toBeNull();
+    expect(store.changeRequests[1]?.newValue).toBeUndefined();
+    expect(invalid.newValue).toBeDefined();
+  });
 }
 
 describe("change request preview ownership", changeRequestPreviewOwnership);
