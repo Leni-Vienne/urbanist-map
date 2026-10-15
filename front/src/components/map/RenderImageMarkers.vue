@@ -143,7 +143,7 @@ function syncPins(): void {
       setDotsHidden(pin, pin.imageVisible);
     } else {
       const element = document.createElement("div");
-      element.className = "render-image-marker z-2 hover:z-5 focus-within:z-5";
+      element.className = "render-image-marker z-2 hover:z-5";
       const marker = new Marker({ element, anchor: "bottom" })
         .setLngLat(data.coordinates)
         .addTo(map);

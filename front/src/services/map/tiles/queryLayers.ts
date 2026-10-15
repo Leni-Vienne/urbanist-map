@@ -3,7 +3,6 @@
 // any interaction code (detail commands, click handlers) to stay cheap to import.
 export const PROJECT_SHAPE_QUERY_LAYERS = [
   "project-shapes-fill",
-  "project-shapes-proposed-fill",
   "project-shapes",
   "project-shapes-completed",
   "project-shapes-proposed-dashed",

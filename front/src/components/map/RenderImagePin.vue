@@ -3,28 +3,33 @@
     v-if="!failed"
     class="render-pin"
     :class="{ 'is-selected': selected }"
-    :style="{ '--pin-color': data.color }"
+    :style="{
+      '--pin-color': data.color,
+      '--pin-preview-width': `${previewDimensions.width}px`,
+      '--pin-preview-height': `${previewDimensions.height}px`,
+    }"
     @pointerdown.stop
     @mousemove.stop
     @dblclick.stop
     @mouseenter="hoverProject"
     @mouseleave="focus.setHoverTarget(null)"
-    @focusin="hoverProject"
-    @focusout="focus.setHoverTarget(null)"
   >
     <div class="render-pin-frame">
       <button
         type="button"
+        tabindex="-1"
         class="render-pin-project"
         :aria-label="`${data.name || t('project.unnamed')} — ${t('render.label')}`"
+        @mousedown.prevent
         @click.stop="openProject"
       >
         <img
-          :src="imageSrc"
-          :crossorigin="imageRequiresCredentials(imageSrc) ? 'use-credentials' : undefined"
+          :key="data.thumbnailUrl"
+          :src="data.thumbnailUrl"
+          :crossorigin="imageRequiresCredentials(data.thumbnailUrl) ? 'use-credentials' : undefined"
           :alt="t('render.label')"
           draggable="false"
-          @load="loaded = true"
+          @load="handleImageLoad"
           @error="handleImageError"
         />
       </button>
@@ -35,18 +40,20 @@
           severity="secondary"
           size="small"
           rounded
+          :tabindex="-1"
           :aria-label="t('overlay.viewFullImage')"
           v-tooltip.bottom="{
             value: t('overlay.viewFullImage'),
             disabled: isMobile,
             showDelay: 300,
           }"
+          @mousedown.prevent
           @click.stop="$emit('open-image')"
         />
       </div>
     </div>
     <span
-      class="render-pin-label text-sm font-semibold leading-snug"
+      class="render-pin-label bg-content-background rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.14),0_1px_4px_rgba(0,0,0,0.06)] px-3 py-2 max-w-56 text-sm font-semibold leading-snug"
       :class="data.name ? 'text-color' : 'text-muted-color italic'"
       >{{ data.name || t("project.unnamed") }}</span
     >
@@ -54,7 +61,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import type { RenderImagePinData } from "@/services/map/renderImagePin";
 import { imageRequiresCredentials } from "@/utils/imageUrl";
@@ -70,19 +77,16 @@ const emit = defineEmits<{
 }>();
 const { t } = useI18n();
 const focus = useFocusStore();
-const useOriginal = ref(false);
 const failed = ref(false);
 const loaded = ref(false);
-const imageSrc = computed(() =>
-  useOriginal.value ? props.data.imageUrl : props.data.thumbnailUrl,
-);
+const previewDimensions = ref({ width: 56, height: 42 });
 
 watch(
   () => props.data.thumbnailUrl,
   () => {
-    useOriginal.value = false;
     failed.value = false;
     loaded.value = false;
+    previewDimensions.value = { width: 56, height: 42 };
   },
 );
 
@@ -91,10 +95,21 @@ watch(
   (visible) => emit("image-visibility-change", visible),
 );
 
+function handleImageLoad(event: Event): void {
+  const image = event.currentTarget;
+  if (!(image instanceof HTMLImageElement)) return;
+  // Fit inside the hover bounds without enlarging the thumbnail's actual pixels.
+  const scale = Math.min(1, 120 / image.naturalWidth, 88 / image.naturalHeight);
+  previewDimensions.value = {
+    width: Math.floor(image.naturalWidth * scale),
+    height: Math.floor(image.naturalHeight * scale),
+  };
+  loaded.value = true;
+}
+
 function handleImageError(): void {
   loaded.value = false;
-  if (useOriginal.value) failed.value = true;
-  else useOriginal.value = true;
+  failed.value = true;
 }
 
 function hoverProject(): void {
@@ -118,39 +133,54 @@ function openProject(): void {
   height: 49px;
 }
 
+.render-pin::before,
 .render-pin::after {
   content: "";
   position: absolute;
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.render-pin::before {
   border: 7px solid transparent;
+  border-bottom: 0;
+  border-top-color: #fff;
+  filter: drop-shadow(0 1px 1px #0003);
+}
+
+.render-pin::after {
+  bottom: 1px;
+  border: 5px solid transparent;
   border-bottom: 0;
   border-top-color: var(--pin-color);
 }
 
 .render-pin-frame {
   position: absolute;
-  bottom: 7px;
+  bottom: 6px;
   left: 50%;
   transform: translateX(-50%);
   width: var(--pin-width);
   height: var(--pin-height);
   overflow: hidden;
-  border: 1.5px solid var(--pin-color);
-  border-radius: 8px;
-  background: var(--pin-color);
+  z-index: 1;
+  border: 2px solid #fff;
+  border-radius: 6px;
+  background: #fff;
   box-shadow:
-    0 0 0 1px #ffffffe6,
-    0 2px 4px #0003;
+    0 0 0 1px #17212b33,
+    0 2px 5px #17212b40;
   transition:
-    width 180ms,
-    height 180ms;
+    width 180ms ease-out,
+    height 180ms ease-out,
+    border-color 120ms,
+    box-shadow 120ms;
 }
 
 .is-selected .render-pin-frame {
-  outline: 2px solid var(--pin-color);
-  outline-offset: 1px;
+  border-color: var(--pin-color);
 }
 
 .render-pin-project,
@@ -161,12 +191,10 @@ function openProject(): void {
 }
 
 .render-pin-project {
+  padding: 0;
+  border: 0;
+  background: transparent;
   cursor: pointer;
-}
-
-.render-pin-project:focus-visible {
-  outline: 3px solid white;
-  outline-offset: -4px;
 }
 
 .render-pin-project img {
@@ -175,26 +203,21 @@ function openProject(): void {
 
 .render-pin-zoom {
   position: absolute;
-  right: 5px;
-  bottom: 5px;
+  right: 4px;
+  bottom: 4px;
   display: flex;
+  transition: opacity 120ms;
 }
 
 .render-pin-label {
   position: absolute;
-  bottom: calc(var(--pin-height) + 11px);
+  bottom: calc(var(--pin-height) + 12px);
   left: 50%;
   transform: translateX(-50%);
   width: max-content;
-  max-width: 12rem;
-  padding: 0.375rem 0.625rem;
-  border-radius: 8px;
-  background: var(--p-content-background);
-  text-align: center;
   overflow-wrap: break-word;
-  box-shadow: 0 2px 8px #0002;
   pointer-events: none;
-  transition: opacity 180ms;
+  transition: opacity 120ms;
 }
 
 .render-pin-label,
@@ -203,25 +226,20 @@ function openProject(): void {
   visibility: hidden;
 }
 
-.render-pin:has(:focus-visible) {
-  --pin-width: 128px;
-  --pin-height: 88px;
-}
-
-.render-pin:has(:focus-visible) .render-pin-label,
-.render-pin:has(:focus-visible) .render-pin-zoom {
-  opacity: 1;
-  visibility: visible;
-}
-
 @media (hover: hover) and (pointer: fine) {
-  .render-pin:is(:hover, :focus-within) {
-    --pin-width: 128px;
-    --pin-height: 88px;
+  .render-pin:hover {
+    --pin-width: var(--pin-preview-width);
+    --pin-height: var(--pin-preview-height);
   }
 
-  .render-pin:is(:hover, :focus-within) .render-pin-label,
-  .render-pin:is(:hover, :focus-within) .render-pin-zoom {
+  .render-pin:hover .render-pin-frame {
+    box-shadow:
+      0 0 0 1px #17212b40,
+      0 4px 10px #17212b40;
+  }
+
+  .render-pin:hover .render-pin-label,
+  .render-pin:hover .render-pin-zoom {
     opacity: 1;
     visibility: visible;
   }
@@ -229,7 +247,8 @@ function openProject(): void {
 
 @media (prefers-reduced-motion: reduce) {
   .render-pin-frame,
-  .render-pin-label {
+  .render-pin-label,
+  .render-pin-zoom {
     transition: none;
   }
 }

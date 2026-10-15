@@ -85,7 +85,6 @@ const CLICK_QUERY_LAYERS = [
   "project-points",
   "pending-project-points",
   "pending-project-shapes-fill",
-  "pending-project-shapes-proposed-fill",
   "pending-project-shapes",
   "pending-project-shapes-completed",
   "pending-project-shapes-proposed-dashed",
@@ -1218,28 +1217,10 @@ function getProjectShapeLayerSpecs(): ProjectShapeLayerSpec[] {
     {
       id: "project-shapes-fill",
       type: "fill",
-      // Exclude proposed: they get their own fill layer with reduced opacity
-      filter: [
-        "all",
-        ["==", ["geometry-type"], "Polygon"],
-        ["!=", ["get", "timeline_status"], "proposed"],
-      ],
+      filter: ["==", ["geometry-type"], "Polygon"],
       paint: {
         "fill-color": getProjectLineColorExpression(),
         "fill-opacity": withHoverState(["coalesce", ["get", "fillOpacity"], 0.2], 0.35),
-      },
-    },
-    {
-      id: "project-shapes-proposed-fill",
-      type: "fill",
-      filter: [
-        "all",
-        ["==", ["geometry-type"], "Polygon"],
-        isProposedFilterExpression,
-      ] as FilterSpecification,
-      paint: {
-        "fill-color": getProjectLineColorExpression(),
-        "fill-opacity": withHoverState(["coalesce", ["get", "fillOpacity"], 0.05], 0.35),
       },
     },
     {

@@ -385,7 +385,6 @@ export function setOverlayInFront(id: string, front: boolean): void {
 // makes the front/back toggle visually meaningful.
 const PROJECT_SHAPE_QUERY_LAYERS = [
   "project-shapes-fill",
-  "project-shapes-proposed-fill",
   "project-shapes",
   "project-shapes-completed",
   "project-shapes-proposed-dashed",

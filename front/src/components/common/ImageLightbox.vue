@@ -11,11 +11,15 @@
         class:
           'w-screen max-w-none m-0 rounded-none sm:w-auto sm:max-w-[90vw] sm:m-auto sm:rounded-xl',
       },
-      content: { class: 'p-0' },
+      content: {
+        class: 'flex min-h-0',
+        style: { overflow: 'hidden' },
+      },
     }"
   >
+    <!-- Shrink to the space below the header so the image's percentage height limit resolves. -->
     <div
-      class="overflow-hidden max-h-[80vh] w-full sm:w-auto sm:max-w-full flex items-center justify-center touch-none"
+      class="overflow-hidden min-h-0 w-full sm:w-auto sm:max-w-full flex items-center justify-center touch-none"
       @wheel.prevent="handleWheel"
       @pointerdown="handlePointerDown"
       @pointermove="handlePointerMove"
