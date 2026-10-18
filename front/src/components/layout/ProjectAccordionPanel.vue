@@ -144,7 +144,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, useTemplateRef } from "vue";
 import ProjectCard from "@/components/project/ProjectCard.vue";
 import PanelEmptyState from "@/components/common/PanelEmptyState.vue";
 
@@ -214,7 +214,9 @@ const emit = defineEmits<{
 
 const uiStore = useUiStore();
 
-const { showScrollFade } = useScrollFade();
+const scrollAreaRef = useTemplateRef<HTMLElement>("scrollAreaRef");
+const contentRef = useTemplateRef<HTMLElement>("contentRef");
+const { showScrollFade } = useScrollFade(scrollAreaRef, contentRef);
 
 // The selected project as it appears in the list, if it is one of `projects`. Lifted into the card.
 const selectedInListProject = computed(() =>

@@ -24,6 +24,7 @@ const latestContributions = shallowRef<LatestContribution[]>([]);
 const cursor = ref<FeedCursor>(null);
 const loading = ref(false);
 const loadingMore = ref(false);
+const loadMoreError = ref(false);
 const latestProjectCount = ref<number | null>(null);
 const countLoading = ref(false);
 
@@ -51,6 +52,7 @@ let countRequestToken = 0;
 export const contributions = computed(() => latestContributions.value);
 export const isLoading = computed(() => loading.value);
 export const isLoadingMore = computed(() => loadingMore.value);
+export const hasLoadMoreError = computed(() => loadMoreError.value);
 export const projectCount = computed(() => latestProjectCount.value);
 // The count survives a query change and is only replaced once the new one arrives, so narrowing the
 // feed never collapses the row it sits on. True while the shown count does not describe the live
@@ -138,6 +140,7 @@ async function refreshLatestContributions(): Promise<void> {
   requestToken += 1;
   const token = requestToken;
   loadingMore.value = false;
+  loadMoreError.value = false;
   const key = queryKey.value;
   requestedKey = key;
   // Alongside the page, not after it: the count is its own query and waiting on the list only
@@ -168,7 +171,12 @@ export async function loadMoreLatestContributions(): Promise<void> {
   loadingMore.value = true;
   try {
     const result = await fetchPage(pageCursor);
-    if (token !== requestToken || !result) return;
+    if (token !== requestToken) return;
+    if (!result) {
+      loadMoreError.value = true;
+      return;
+    }
+    loadMoreError.value = false;
     latestContributions.value = [...latestContributions.value, ...result.items];
     cursor.value = result.nextCursor;
   } finally {
@@ -215,6 +223,7 @@ function clearLoadedContributions(): void {
   loadedKey.value = null;
   requestedKey = null;
   loadingMore.value = false;
+  loadMoreError.value = false;
   invalidateContributionCount();
 }
 

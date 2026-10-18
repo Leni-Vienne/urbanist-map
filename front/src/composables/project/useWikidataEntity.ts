@@ -113,6 +113,9 @@ export function useWikidataEntity(externalProperties: Ref<JsonObject | null>) {
         return;
       }
 
+      // Never display a previous project's media or description while this key is loading.
+      entity.value = null;
+
       // Re-use an in-flight request for the same key
       const inflight = pending.get(cacheKey);
       if (inflight) {

@@ -1,20 +1,18 @@
-import { ref, watch, onBeforeUnmount, useTemplateRef } from "vue";
+import { ref, watch, onBeforeUnmount, type Ref } from "vue";
 
 // Sub-pixel slack so fractional scroll metrics still resolve as "at the bottom".
 const BOTTOM_EPSILON = 1;
 
-// Requires the scrolling element to carry ref="scrollAreaRef" and its inner wrapper
-// ref="contentRef"; both are picked up from the calling component's template.
-export function useScrollFade() {
-  const scrollAreaRef = useTemplateRef<HTMLElement>("scrollAreaRef");
-  const contentRef = useTemplateRef<HTMLElement>("contentRef");
+export function useScrollFade(
+  scrollAreaRef: Readonly<Ref<HTMLElement | null>>,
+  contentRef: Readonly<Ref<HTMLElement | null>>,
+) {
   const showScrollFade = ref(false);
 
   function updateScrollFade() {
     const el = scrollAreaRef.value;
-    if (el) {
-      showScrollFade.value = el.scrollHeight - el.clientHeight - el.scrollTop > BOTTOM_EPSILON;
-    }
+    showScrollFade.value =
+      el !== null && el.scrollHeight - el.clientHeight - el.scrollTop > BOTTOM_EPSILON;
   }
 
   const scrollObserver = new ResizeObserver(updateScrollFade);
@@ -49,9 +47,9 @@ export function useScrollFade() {
   }
 
   watch(scrollAreaRef, bindScrollArea, { immediate: true });
-  watch(contentRef, bindContent);
+  watch(contentRef, bindContent, { immediate: true });
 
   onBeforeUnmount(releaseScrollArea);
 
-  return { scrollAreaRef, contentRef, showScrollFade };
+  return { showScrollFade };
 }

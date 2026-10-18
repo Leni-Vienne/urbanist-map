@@ -1,5 +1,6 @@
 {
   "common": {
+    "retry": "Retry",
     "name": "Name",
     "back": "Back",
     "cancel": "Cancel",
@@ -72,6 +73,9 @@
     "unsavedOverlaysWarning": "You have unsaved images. Navigating will discard them. Continue?"
   },
   "project": {
+    "detailsTitle": "Project details",
+    "loadError": "Could not load project details. Please try again.",
+    "unavailable": "This project is unavailable. It may have been removed or you may not have access.",
     "create": "Create Project",
     "unnamed": "Unnamed project",
     "osmName": "OpenStreetMap project",
@@ -183,6 +187,8 @@
     }
   },
   "contribution": {
+    "projects": "Projects",
+    "loadMoreError": "Could not load more projects.",
     "noContributionsFound": "No contributions found.",
     "beFirstToAdd": "Be the first to add a project",
     "loadingContributions": "Loading contributions...",

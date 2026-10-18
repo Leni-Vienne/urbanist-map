@@ -16,7 +16,7 @@
     </template>
 
     <template #header>
-      <!-- Hidden while a detail is open so the detail takes over the drawer, matching desktop. -->
+      <!-- Hidden while a detail is open so the detail takes over the mobile drawer. -->
       <div v-if="!detailVisible" class="flex flex-col">
         <div
           class="grid transition-[grid-template-rows] duration-200 ease-in-out"
@@ -39,7 +39,7 @@
     </template>
 
     <!-- Tab content with the selected project/overlay detail layered above it as a slide-over,
-         independent of the active tab (matching the desktop SideMenu). Its own close button hides
+         independent of the active tab. Its own close button hides
          it again, revealing the tab content below. -->
     <div class="relative flex-1 flex flex-col min-h-0">
       <PanelContent content-container-class="flex-1 flex flex-col min-h-0" />

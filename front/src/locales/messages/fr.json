@@ -1,5 +1,6 @@
 {
   "common": {
+    "retry": "Réessayer",
     "name": "Nom",
     "back": "Retour",
     "cancel": "Annuler",
@@ -72,6 +73,9 @@
     "unsavedOverlaysWarning": "Vous avez des images non enregistrées. La navigation les supprimera. Continuer ?"
   },
   "project": {
+    "detailsTitle": "Détails du projet",
+    "loadError": "Impossible de charger les détails du projet. Veuillez réessayer.",
+    "unavailable": "Ce projet est indisponible. Il a peut-être été supprimé ou vous n’y avez pas accès.",
     "create": "Créer un projet",
     "unnamed": "Projet sans nom",
     "osmName": "Projet OpenStreetMap",
@@ -183,6 +187,8 @@
     }
   },
   "contribution": {
+    "projects": "Projets",
+    "loadMoreError": "Impossible de charger plus de projets.",
     "noContributionsFound": "Aucune contribution trouvée.",
     "beFirstToAdd": "Soyez le premier à ajouter un projet urbain",
     "loadingContributions": "Chargement des contributions...",

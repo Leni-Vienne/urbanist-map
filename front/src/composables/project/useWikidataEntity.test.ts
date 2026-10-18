@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, spyOn, test } from "bun:test";
-import { createRenderer, defineComponent, h, ref, type App } from "vue";
+import { createRenderer, defineComponent, h, nextTick, ref, type App } from "vue";
 import { createI18n } from "vue-i18n";
 import { useWikidataEntity, type WikidataEntity } from "./useWikidataEntity";
 
@@ -27,12 +27,12 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
-function mountLookup(id: string) {
+function mountLookup(id: string, properties = ref({ wikidata: id })) {
   let entity = ref<WikidataEntity | null>(null);
   const app = renderer.createApp(
     defineComponent({
       setup() {
-        entity = useWikidataEntity(ref({ wikidata: id })).entity;
+        entity = useWikidataEntity(properties).entity;
         return () => h("div");
       },
     }),
@@ -43,10 +43,10 @@ function mountLookup(id: string) {
   return entity;
 }
 
-function entityResponse(id: string) {
+function entityResponse(id: string, description = "Example project") {
   return Response.json({
     entities: {
-      [id]: { descriptions: { en: { value: "Example project" } }, claims: {} },
+      [id]: { descriptions: { en: { value: description } }, claims: {} },
     },
   });
 }
@@ -112,5 +112,44 @@ describe("useWikidataEntity", () => {
     await flushRequests();
     expect(header.value?.description).toBe("Example project");
     expect(metadata.value).toEqual(header.value);
+  });
+
+  test("clears the previous project's content while a new lookup is pending", async () => {
+    const firstId = "Q900000006";
+    const secondId = "Q900000007";
+    const properties = ref({ wikidata: firstId });
+    const pending = Promise.withResolvers<Response>();
+    spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(entityResponse(firstId, "First project"))
+      .mockReturnValueOnce(pending.promise);
+    const entity = mountLookup(firstId, properties);
+    await flushRequests();
+    expect(entity.value?.description).toBe("First project");
+
+    properties.value = { wikidata: secondId };
+    await nextTick();
+    expect(entity.value).toBeNull();
+
+    pending.resolve(entityResponse(secondId, "Second project"));
+    await flushRequests();
+    expect(entity.value?.description).toBe("Second project");
+  });
+
+  test("ignores a previous project's response after switching selection", async () => {
+    const firstId = "Q900000008";
+    const secondId = "Q900000009";
+    const properties = ref({ wikidata: firstId });
+    const pending = Promise.withResolvers<Response>();
+    spyOn(globalThis, "fetch")
+      .mockReturnValueOnce(pending.promise)
+      .mockResolvedValueOnce(entityResponse(secondId, "Current project"));
+    const entity = mountLookup(firstId, properties);
+    properties.value = { wikidata: secondId };
+    await flushRequests();
+    expect(entity.value?.description).toBe("Current project");
+
+    pending.resolve(entityResponse(firstId, "Old project"));
+    await flushRequests();
+    expect(entity.value?.description).toBe("Current project");
   });
 });

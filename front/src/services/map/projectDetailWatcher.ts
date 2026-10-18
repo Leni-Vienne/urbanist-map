@@ -3,37 +3,8 @@ import { closeDetail } from "@/services/overlay/selection";
 import { useUiStore } from "@/stores/uiStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useFocusStore } from "@/stores/focusStore";
-import { trpc } from "@/client";
-import { hydratedProjectFromWire } from "@/utils/typeFactories";
 import { syncModerationCountryFromMapClick } from "@/services/moderation/moderationCountrySync";
-import { loadOrNull } from "@/services/core/errorHandling";
-import type { HydratedProject } from "@/types/index";
-
-const detailHydrations = new Map<string, Promise<HydratedProject | null>>();
-
-async function fetchProjectDetail(projectId: string): Promise<HydratedProject | null> {
-  const fresh = await loadOrNull(async () => trpc.project.getById.query({ id: projectId }));
-  if (!fresh) return null;
-
-  const project = hydratedProjectFromWire(fresh);
-  return useProjectStore().upsertHydratedProject(project);
-}
-
-async function hydrateProjectDetail(projectId: string): Promise<HydratedProject | null> {
-  const cached = useProjectStore().getHydratedProject(projectId);
-  if (cached) return cached;
-
-  const inFlight = detailHydrations.get(projectId);
-  if (inFlight) return inFlight;
-
-  const request = fetchProjectDetail(projectId);
-  detailHydrations.set(projectId, request);
-  try {
-    return await request;
-  } finally {
-    detailHydrations.delete(projectId);
-  }
-}
+import { loadProjectDetail } from "@/services/project/projectDetail";
 
 // "/" and "/project/:slug" are the only paths that render the map, so they are the only ones whose
 // path describes the open project. On any other route (legal, contact, admin) a selection change
@@ -86,9 +57,7 @@ async function hydrateSelectedProject(projectId: string): Promise<void> {
 
   if (focus.selectedProjectId !== projectId) return;
   if (current) syncModerationCountryFromMapClick(current.countryCode);
-  if (current?.status === null || projectStore.getHydratedProject(projectId)) return;
-
-  const hydrated = await hydrateProjectDetail(projectId);
+  const hydrated = await loadProjectDetail(projectId);
   if (!hydrated || focus.selectedProjectId !== projectId) return;
   if (hydrated.countryCode !== current?.countryCode) {
     syncModerationCountryFromMapClick(hydrated.countryCode);

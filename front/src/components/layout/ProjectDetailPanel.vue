@@ -1,7 +1,50 @@
 <template>
   <div class="project-detail-panel flex flex-col h-full min-h-0">
-    <div v-if="!project" class="flex-1 flex justify-center items-center p-4">
-      <i class="pi pi-spin pi-spinner"></i>
+    <div v-if="!project || loadStatus === 'unavailable'" class="flex min-h-0 flex-1 flex-col">
+      <div
+        class="drawer-drag-handle flex shrink-0 items-center gap-2 pl-4 pr-2"
+        :class="isMobile ? 'pt-3 pb-2' : 'py-2.5'"
+      >
+        <div
+          v-if="loadStatus === 'loading'"
+          class="h-4 w-2/3 rounded bg-(--p-content-hover-background)"
+          aria-hidden="true"
+        ></div>
+        <span v-else class="font-semibold">{{ $t("project.detailsTitle") }}</span>
+        <button
+          type="button"
+          ref="closeButton"
+          :aria-label="$t('common.close')"
+          class="ml-auto w-8 h-8 shrink-0 rounded-md flex items-center justify-center cursor-pointer transition-colors duration-150 text-sm text-muted-color bg-transparent border-0 hover:text-color hover:bg-(--p-content-hover-background)"
+          @click="handleBack"
+        >
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+      <div
+        v-if="loadStatus === 'loading'"
+        role="status"
+        class="min-h-0 overflow-hidden px-4 pt-1 pb-3"
+      >
+        <span class="sr-only">{{ $t("common.loading") }}</span>
+        <div class="flex flex-col gap-3" aria-hidden="true">
+          <div class="h-3 w-3/4 rounded bg-(--p-content-hover-background)"></div>
+          <div class="h-3 w-full rounded bg-(--p-content-hover-background)"></div>
+          <div class="h-3 w-1/2 rounded bg-(--p-content-hover-background)"></div>
+          <div class="h-32 w-full rounded-lg bg-(--p-content-hover-background)"></div>
+        </div>
+      </div>
+      <div v-else role="status" class="min-h-0 overflow-y-auto px-4 pb-4 text-sm">
+        <p>{{ $t(loadStatus === "error" ? "project.loadError" : "project.unavailable") }}</p>
+        <Button
+          v-if="loadStatus === 'error'"
+          :label="$t('common.retry')"
+          icon="pi pi-refresh"
+          size="small"
+          severity="secondary"
+          @click="handleRetry"
+        />
+      </div>
     </div>
     <template v-else>
       <div class="flex flex-col flex-auto min-h-0">
@@ -53,6 +96,7 @@
               <!-- Close: returns to the panel's tab content -->
               <button
                 type="button"
+                ref="closeButton"
                 :aria-label="$t('common.close')"
                 class="w-8 h-8 rounded-md flex items-center justify-center cursor-pointer transition-colors duration-150 text-sm text-muted-color bg-transparent border-0 hover:text-color hover:bg-(--p-content-hover-background)"
                 @click="handleBack"
@@ -66,14 +110,24 @@
         <div class="relative flex-auto min-h-0">
           <div
             ref="scrollAreaRef"
-            :class="[
-              isMobile ? 'px-4 pt-3 pb-4' : 'px-4 pt-1 pb-3',
-              scrollable
-                ? 'h-full overflow-y-auto overscroll-contain scrollbar-none [&::-webkit-scrollbar]:hidden'
-                : '',
-            ]"
+            class="detail-scroll-area h-full overflow-y-auto overscroll-contain"
+            :class="isMobile ? 'px-4 pt-3 pb-4' : 'px-4 pt-1 pb-3'"
           >
             <div ref="contentRef">
+              <div
+                v-if="loadStatus === 'error'"
+                role="status"
+                class="mb-3 flex flex-col items-start gap-2 text-sm"
+              >
+                <p>{{ $t("project.loadError") }}</p>
+                <Button
+                  :label="$t('common.retry')"
+                  icon="pi pi-refresh"
+                  size="small"
+                  severity="secondary"
+                  @click="handleRetry"
+                />
+              </div>
               <ProjectMetadataCard
                 :project="project"
                 :wikidata-entity="wikidataEntity"
@@ -194,7 +248,7 @@
           <div
             v-if="showScrollFade"
             class="scroll-fade-overlay"
-            style="--scroll-fade-color: var(--detail-panel-background, var(--p-content-background))"
+            style="--scroll-fade-color: var(--p-content-background)"
           ></div>
         </div>
       </div>
@@ -215,6 +269,7 @@ import { useImageErrors } from "@/composables/ui/useImageErrors";
 import { isMobile } from "@/services/core/viewport";
 
 import { useUiStore } from "@/stores/uiStore";
+import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
 
 import { navigateToOverlay, viewOriginalOverlay } from "@/services/overlay/navigation";
@@ -241,12 +296,7 @@ interface DetailImage {
 
 const { t } = useI18n();
 
-withDefaults(
-  defineProps<{
-    scrollable?: boolean;
-  }>(),
-  { scrollable: true },
-);
+const closeButton = useTemplateRef<HTMLButtonElement>("closeButton");
 
 const lightbox = useTemplateRef<InstanceType<typeof ImageLightbox>>("lightbox");
 const mapImageScroll = useTemplateRef<HTMLElement>("mapImageScroll");
@@ -254,14 +304,17 @@ const canScrollMapImagesBackward = ref(false);
 const canScrollMapImagesForward = ref(false);
 let mapImageResizeObserver: ResizeObserver | null = null;
 
-// Hide the scrollbar on the fields area and fade its bottom edge while there's more to scroll.
-const { scrollAreaRef, contentRef, showScrollFade } = useScrollFade();
+// Fade the bottom edge while there is more content to scroll.
+const scrollAreaRef = useTemplateRef<HTMLElement>("scrollAreaRef");
+const contentRef = useTemplateRef<HTMLElement>("contentRef");
+const { showScrollFade } = useScrollFade(scrollAreaRef, contentRef);
 
 const uiStore = useUiStore();
+const focusStore = useFocusStore();
 const authStore = useAuthStore();
 const { imageErrors: thumbnailErrors, handleImageError: handleThumbnailError } = useImageErrors();
 
-const { project, overlay } = useDetailProject();
+const { project, overlay, loadStatus, retry } = useDetailProject();
 
 const mapOverlays = computed(() => project.value?.mapOverlays ?? []);
 
@@ -353,28 +406,16 @@ async function handleMapOverlayClick(mapOverlay: ProjectMapOverlay): Promise<voi
   await navigateToOverlay(mapOverlay.id);
 }
 
-// When another project is picked while the panel stays open, the content swaps in place with no
-// signal. Echo the open transition (short fade + slide-up) and scroll back to the top so the switch
-// reads clearly as new content.
-function replayContentRefresh() {
-  const content = contentRef.value;
-  if (scrollAreaRef.value) scrollAreaRef.value.scrollTop = 0;
-  if (!content) return;
-  content.classList.remove("detail-content-refresh");
-  void content.offsetWidth;
-  content.classList.add("detail-content-refresh");
-  content.addEventListener(
-    "animationend",
-    () => content.classList.remove("detail-content-refresh"),
-    { once: true },
-  );
+// Follow the selection rather than the resolved project: uncached projects temporarily resolve
+// to undefined. A post-render reset also covers the scroll area appearing after data arrives.
+function resetDetailScroll(): void {
+  scrollAreaRef.value?.scrollTo({ top: 0 });
 }
 
 watch(
-  () => project.value?.id,
-  (id, previousId) => {
-    if (id && previousId && id !== previousId) replayContentRefresh();
-  },
+  [() => focusStore.selectedProjectId, () => focusStore.selectedOverlayId, scrollAreaRef],
+  resetDetailScroll,
+  { flush: "post" },
 );
 
 // Recenter is only possible when the project carries a map location.
@@ -411,6 +452,20 @@ function handleEdit() {
   openProjectForEditing(target);
 }
 
+async function handleRetry(): Promise<void> {
+  const projectId = focusStore.selectedProjectId;
+  const restoreFocus = document.activeElement?.closest(".project-detail-panel") !== null;
+  await retry();
+  await nextTick();
+  if (
+    restoreFocus &&
+    focusStore.selectedProjectId === projectId &&
+    document.activeElement === document.body
+  ) {
+    closeButton.value?.focus();
+  }
+}
+
 // Back returns to the panel's tab list, closing whichever detail is open.
 function handleBack() {
   closeDetail();
@@ -419,12 +474,12 @@ function handleBack() {
 
 <style scoped>
 .project-detail-panel {
-  background: var(--detail-panel-background, var(--p-content-background));
+  background: var(--p-content-background);
 }
 
-/* Replayed when the panel stays open but switches to another project, signalling new content. */
-.detail-content-refresh {
-  animation: detail-content-refresh 0.28s ease-out;
+.detail-scroll-area {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--p-text-muted-color) 35%, transparent) transparent;
 }
 
 .map-image-scroll {
@@ -433,31 +488,5 @@ function handleBack() {
 
 .map-image-scroll::-webkit-scrollbar {
   display: none;
-}
-
-@keyframes detail-content-refresh {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .detail-content-refresh {
-    animation-name: detail-content-refresh-fade;
-  }
-
-  @keyframes detail-content-refresh-fade {
-    from {
-      opacity: 0.4;
-    }
-    to {
-      opacity: 1;
-    }
-  }
 }
 </style>
