@@ -455,21 +455,15 @@ async function handleContributionClick(contribution: LatestContribution) {
 
   if (contribution.type === "overlay" && contribution.kind === "map") {
     await handleOverlayClickNavigation(contribution);
-  } else if (
-    contribution.type === "overlay" &&
-    contribution.projectId &&
-    typeof contribution.lat === "number" &&
-    typeof contribution.lng === "number"
-  ) {
-    navigateToProject(contribution.lat, contribution.lng, contribution.projectId);
-  } else if (contribution.type === "standalone") {
+  } else {
+    const projectId = contribution.type === "overlay" ? contribution.projectId : contribution.id;
+    if (!projectId) return;
     if (contribution.geometryBbox) {
-      // Fly to the actual geometry bounds instead of the project center point.
       const { minLat, maxLat, minLng, maxLng } = contribution.geometryBbox;
       const bounds = new LngLatBounds([minLng, minLat], [maxLng, maxLat]);
-      navigateToProjectBounds(bounds, contribution.id);
+      navigateToProjectBounds(bounds, projectId);
     } else if (typeof contribution.lat === "number" && typeof contribution.lng === "number") {
-      navigateToProject(contribution.lat, contribution.lng, contribution.id);
+      navigateToProject(contribution.lat, contribution.lng, projectId);
     }
   }
 }

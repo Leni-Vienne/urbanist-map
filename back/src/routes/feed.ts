@@ -213,6 +213,21 @@ function standaloneConditions(
   return conditions;
 }
 
+// Both standalone and image rows navigate to the project's full geometry when available.
+function projectGeometryBbox() {
+  return sql<{
+    minLat: number;
+    maxLat: number;
+    minLng: number;
+    maxLng: number;
+  } | null>`CASE WHEN ${projects.geometry} IS NOT NULL AND NOT ST_IsEmpty(${projects.geometry}) THEN json_build_object(
+    'minLat', ST_YMin(ST_Envelope(${projects.geometry})),
+    'maxLat', ST_YMax(ST_Envelope(${projects.geometry})),
+    'minLng', ST_XMin(ST_Envelope(${projects.geometry})),
+    'maxLng', ST_XMax(ST_Envelope(${projects.geometry}))
+  ) ELSE NULL END`.as("geometryBbox");
+}
+
 // Builds the standalone-projects feed query (approved, no approved map overlay).
 // The candidate subquery keeps sorting and pagination independent from the recursive location and
 // geometry projections used to hydrate the selected page.
@@ -259,19 +274,7 @@ function buildStandaloneProjectsQuery(
       END`,
       lat: projects.lat,
       lng: projects.lng,
-      // Bounding box of project geometry for flying to the right area when clicked
-      geometryBboxMinLat: sql<
-        number | null
-      >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_YMin(ST_Envelope(${projects.geometry})) ELSE NULL END`,
-      geometryBboxMaxLat: sql<
-        number | null
-      >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_YMax(ST_Envelope(${projects.geometry})) ELSE NULL END`,
-      geometryBboxMinLng: sql<
-        number | null
-      >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_XMin(ST_Envelope(${projects.geometry})) ELSE NULL END`,
-      geometryBboxMaxLng: sql<
-        number | null
-      >`CASE WHEN ${projects.geometry} IS NOT NULL THEN ST_XMax(ST_Envelope(${projects.geometry})) ELSE NULL END`,
+      geometryBbox: projectGeometryBbox(),
     })
     .from(candidates)
     .innerJoin(projects, eq(projects.id, candidates.id))
@@ -295,19 +298,7 @@ function mapStandaloneProject(p: StandaloneProjectRow) {
     shape: p.shape,
     lat: p.lat,
     lng: p.lng,
-    // Geometry bbox for flying to the right bounds when the project has vector shapes
-    geometryBbox:
-      p.geometryBboxMinLat !== null &&
-      p.geometryBboxMaxLat !== null &&
-      p.geometryBboxMinLng !== null &&
-      p.geometryBboxMaxLng !== null
-        ? {
-            minLat: p.geometryBboxMinLat,
-            maxLat: p.geometryBboxMaxLat,
-            minLng: p.geometryBboxMinLng,
-            maxLng: p.geometryBboxMaxLng,
-          }
-        : null,
+    geometryBbox: p.geometryBbox,
   };
 }
 
@@ -358,6 +349,7 @@ function buildLatestImagesQuery(
       projectId: overlays.projectId,
       lat: projects.lat,
       lng: projects.lng,
+      geometryBbox: projectGeometryBbox(),
     })
     .from(overlays)
     .innerJoin(projects, eq(overlays.projectId, projects.id))
@@ -401,6 +393,7 @@ function mapImageContribution(o: LatestImageRow) {
     projectId: o.projectId,
     lat: o.lat,
     lng: o.lng,
+    geometryBbox: o.geometryBbox,
   };
 }
 
