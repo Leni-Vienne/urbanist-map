@@ -11,6 +11,7 @@ import {
 } from "../../db/schema";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "../../database";
+import { jsonObjectSql } from "../../db/jsonObject";
 import { TRPCError } from "@trpc/server";
 import * as z from "zod";
 
@@ -33,6 +34,9 @@ export const detachedProcedures = {
             allowed.map((c) => sql`${c}`),
             sql`, `,
           )}]::text[])`;
+
+      const orphanProperties = jsonObjectSql(sql`o.external_properties`);
+      const candidateProperties = jsonObjectSql(sql`cand.external_properties`);
 
       const rows = await db.execute<{
         id: string;
@@ -101,8 +105,8 @@ export const detachedProcedures = {
                 ST_Distance(cand.center_coordinate::geography, o.center_coordinate::geography) AS "distanceM",
                 (
                   SELECT COUNT(*)::int
-                  FROM jsonb_array_elements_text(o.external_properties->'osm_ids') a
-                  JOIN jsonb_array_elements_text(cand.external_properties->'osm_ids') b ON a.value = b.value
+                  FROM jsonb_array_elements_text((${orphanProperties})->'osm_ids') a
+                  JOIN jsonb_array_elements_text((${candidateProperties})->'osm_ids') b ON a.value = b.value
                 ) AS "sharedIds"
               FROM projects cand
               WHERE cand.id <> o.id
@@ -112,10 +116,10 @@ export const detachedProcedures = {
                 AND cand.center_coordinate IS NOT NULL
                 AND cand.country_code = o.country_code
                 AND (
-                  (o.external_properties ? 'osm_ids'
-                    AND cand.external_properties ? 'osm_ids'
-                    AND (cand.external_properties->'osm_ids') ?| ARRAY(
-                      SELECT jsonb_array_elements_text(o.external_properties->'osm_ids')
+                  ((${orphanProperties}) ? 'osm_ids'
+                    AND (${candidateProperties}) ? 'osm_ids'
+                    AND ((${candidateProperties})->'osm_ids') ?| ARRAY(
+                      SELECT jsonb_array_elements_text((${orphanProperties})->'osm_ids')
                     ))
                   OR ST_DWithin(cand.center_coordinate::geography, o.center_coordinate::geography, 1500)
                 )

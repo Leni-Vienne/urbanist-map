@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { db } from "../database";
+import { jsonObjectSql } from "./jsonObject";
 
 // Minimal shape both the app's shared and import script's Drizzle clients satisfy.
 type SqlExecutor = Pick<typeof db, "execute">;
@@ -13,6 +14,7 @@ type SqlExecutor = Pick<typeof db, "execute">;
 //
 // The fragment is reused verbatim by the bulk and per-project refresh so they can never drift.
 function indexableExpr(): ReturnType<typeof sql> {
+  const properties = jsonObjectSql(sql`projects.external_properties`);
   return sql`COALESCE((
     projects.name IS NOT NULL
     AND projects.status = 'approved'
@@ -21,8 +23,8 @@ function indexableExpr(): ReturnType<typeof sql> {
         SELECT 1 FROM overlays o
         WHERE o.project_id = projects.id AND o.status = 'approved'
       )
-      OR jsonb_exists(projects.external_properties, 'wikidata')
-      OR jsonb_exists(projects.external_properties, 'image')
+      OR jsonb_exists(${properties}, 'wikidata')
+      OR jsonb_exists(${properties}, 'image')
     )
   ), false)`;
 }
