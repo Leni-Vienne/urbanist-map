@@ -57,6 +57,21 @@ CATEGORY_BY_VALUE = {
     'warehouse': 'industrial',
 }
 
+# Future uses in scope for urban development. 'yes' identifies a project without
+# specifying its use; it must still pass the generic size/identity checks.
+DEVELOPMENT_LANDUSES = frozenset({
+    'construction', 'yes', 'residential', 'commercial', 'retail', 'industrial',
+    'education', 'institutional', 'civic_admin', 'religious',
+})
+TYPED_DEVELOPMENT_LANDUSES = DEVELOPMENT_LANDUSES - {'yes', 'construction'}
+PARK_TYPES = frozenset({
+    'park', 'garden', 'playground', 'recreation_ground', 'stadium', 'pitch',
+    'golf_course', 'sports_centre',
+})
+RECREATION_LANDUSES = PARK_TYPES | {'village_green'}
+PROJECT_LANDUSES = DEVELOPMENT_LANDUSES | RECREATION_LANDUSES
+LIFECYCLE_STATES = ('construction', 'proposed', 'planned')
+
 # Utility/industrial infrastructure out of scope regardless of areal context
 # (power plants, solar farms, telecom, man-made structures like pipelines).
 # UTILITY_KEYS catch key-based tagging (man_made=pipeline); UTILITY_VALUES catch
@@ -137,6 +152,24 @@ def create_display_name(props):
     return None
 
 
+def has_namespaced_area_target(tags):
+    """Future area targets describe the project rather than the current site."""
+    return any(
+        tags.get(f'{state}:{key}', '') not in ('', 'no')
+        for state in LIFECYCLE_STATES
+        for key in ('building', 'landuse', 'leisure')
+    )
+
+
+def has_namespaced_area_project(tags, state):
+    """Only recognized future area features supply a project stage."""
+    return (
+        tags.get(f'{state}:building', '') not in ('', 'no') or
+        tags.get(f'{state}:landuse', '') in PROJECT_LANDUSES or
+        tags.get(f'{state}:leisure', '') in PARK_TYPES
+    )
+
+
 def classify_feature(tags):
     """Tag-level qualification shared by closed areas and unclosed area-tagged ways.
     Returns 'park' or 'building' when the tags describe a proposed/construction
@@ -154,6 +187,8 @@ def classify_feature(tags):
     proposed_landuse = tags.get('proposed:landuse', '')
     planned_landuse = tags.get('planned:landuse', '')
     construction_landuse = tags.get('construction:landuse', '')
+    landuse_targets = (construction_landuse, proposed_landuse, planned_landuse)
+    has_landuse_target = any(value not in ('', 'no') for value in landuse_targets)
 
     if 'administrative' in (
         tags.get('boundary'), construction, proposed, planned,
@@ -181,7 +216,8 @@ def classify_feature(tags):
                          leisure in ('construction', 'proposed', 'planned') or
                          amenity in ('construction', 'proposed', 'planned') or
                          proposed_building != '' or planned_building != '' or construction_building != '' or
-                         proposed_landuse != '' or planned_landuse != '' or construction_landuse != '')
+                         proposed_landuse != '' or planned_landuse != '' or construction_landuse != '' or
+                         any(tags.get(f'{state}:leisure', '') in PARK_TYPES for state in LIFECYCLE_STATES))
 
     # Utility/industrial infrastructure is out of scope regardless of areal context,
     # whether tagged by key (man_made=pipeline) or as a lifecycle value (proposed=pipeline).
@@ -210,31 +246,37 @@ def classify_feature(tags):
     if not has_areal_context and any(v in INFRASTRUCTURE_VALUES for v in (construction, proposed, planned)):
         return None
 
-    park_values = ('park', 'garden', 'playground', 'recreation_ground', 'stadium', 'pitch', 'golf_course')
     if (
-        leisure in (*park_values, 'sports_centre') and
+        leisure in PARK_TYPES and
+        not has_namespaced_area_target(tags) and
         (construction or proposed or planned)
-    ) or any(v in park_values for v in (construction, proposed, planned)):
+    ) or any(v in PARK_TYPES for v in (construction, proposed, planned)) or any(
+        value in RECREATION_LANDUSES for value in landuse_targets
+    ) or any(tags.get(f'{state}:leisure', '') in PARK_TYPES for state in LIFECYCLE_STATES):
         return 'park'
 
-    # proposed=/planned= values are intentionally open-ended. Unsupported domains are
-    # excluded above so previously unseen development types can still enter the extract.
+    # Explicit building/site signals can qualify independently of a landuse tag.
+    # Generic lifecycle flags must not bypass an unsupported future landuse such
+    # as planned:landuse=grass + planned=yes.
     is_building_construction = (
         building in ('construction', 'proposed', 'planned') or
         landuse == 'construction' or
         leisure in ('construction', 'proposed', 'planned') or
         amenity in ('construction', 'proposed', 'planned') or
-        construction in NONHOUSE_TYPES or construction == 'yes' or
+        any(v in NONHOUSE_TYPES for v in (construction, proposed, planned)) or
         (proposed_building and proposed_building != 'no') or
         (planned_building and planned_building != 'no') or
         (construction_building and construction_building != 'no') or
-        proposed_landuse in ('construction', 'residential', 'commercial', 'retail', 'industrial') or
-        planned_landuse in ('construction', 'residential', 'commercial', 'retail', 'industrial') or
-        construction_landuse in ('construction', 'residential', 'commercial', 'retail', 'industrial') or
-        (proposed and proposed != 'no') or
-        (planned and planned != 'no')
+        any(value in DEVELOPMENT_LANDUSES for value in landuse_targets)
     )
-    return 'building' if is_building_construction else None
+    # Preserve the open-ended proposed=/planned= fallback when no future landuse
+    # was specified. Existing domain/type exclusions above still apply.
+    generic_project = not has_landuse_target and (
+        construction == 'yes' or
+        proposed not in ('', 'no') or
+        planned not in ('', 'no')
+    )
+    return 'building' if is_building_construction or generic_project else None
 
 
 class ArealExtractionHandler(osmium.SimpleHandler):
@@ -298,6 +340,13 @@ class ArealExtractionHandler(osmium.SimpleHandler):
         proposed_landuse = tags.get('proposed:landuse', '')
         planned_landuse = tags.get('planned:landuse', '')
         construction_landuse = tags.get('construction:landuse', '')
+        landuse_targets = (construction_landuse, proposed_landuse, planned_landuse)
+        future_values = [
+            construction, proposed, planned,
+            proposed_building, planned_building, construction_building,
+            proposed_landuse, planned_landuse, construction_landuse,
+        ]
+        has_future_area_target = has_namespaced_area_target(tags)
 
         lat = geom.centroid.y
         area_m2 = geom.area * (111320**2) * math.cos(math.radians(lat))
@@ -306,24 +355,20 @@ class ArealExtractionHandler(osmium.SimpleHandler):
         # construction is gated to drop houses. A bare landuse=construction (no target use,
         # no name) says nothing about what is being built, so it stays gated.
         has_nonhouse_signal = (
-            building in NONHOUSE_TYPES or construction in NONHOUSE_TYPES or
-            proposed in NONHOUSE_TYPES or planned in NONHOUSE_TYPES or
-            proposed_building in NONHOUSE_TYPES or planned_building in NONHOUSE_TYPES or
-            construction_building in NONHOUSE_TYPES or
-            landuse in ('commercial', 'retail', 'industrial', 'residential') or
-            proposed_landuse in ('commercial', 'retail', 'industrial', 'residential') or
-            planned_landuse in ('commercial', 'retail', 'industrial', 'residential') or
-            construction_landuse in ('commercial', 'retail', 'industrial', 'residential')
+            any(value in NONHOUSE_TYPES for value in future_values) or
+            any(value in TYPED_DEVELOPMENT_LANDUSES for value in landuse_targets) or
+            (not has_future_area_target and (
+                building in NONHOUSE_TYPES or
+                landuse in ('commercial', 'retail', 'industrial', 'residential')
+            ))
         )
 
         # Lifecycle target tags come first: on a redevelopment site (e.g. landuse=retail with
         # planned:landuse=residential), the future use defines the category, not the current one.
-        category = derive_building_category([
-            construction, proposed, planned,
-            proposed_building, planned_building, construction_building,
-            proposed_landuse, planned_landuse, construction_landuse,
-            building, landuse,
-        ])
+        # An unspecified future use must not inherit the current site's use.
+        category = derive_building_category(
+            future_values + ([] if has_future_area_target else [building, landuse])
+        )
 
         # Single size gate: untyped, unannotated construction below 400 m² of gross floor
         # area (footprint × building:levels) is dropped as a house-sized footprint.
@@ -347,11 +392,11 @@ class ArealExtractionHandler(osmium.SimpleHandler):
         # construction= is the strongest signal, check it first
         if construction and construction not in ('yes', 'no'):
             status_check = 'under_construction'
-        elif building == 'construction' or tags.get('landuse') == 'construction' or 'construction' in (leisure, amenity) or (construction_building and construction_building != 'no') or (construction_landuse and construction_landuse != 'no'):
+        elif building == 'construction' or landuse == 'construction' or 'construction' in (leisure, amenity) or has_namespaced_area_project(tags, 'construction'):
             status_check = 'under_construction'
-        elif building == 'proposed' or 'proposed' in (leisure, amenity) or (proposed and proposed != 'no') or (proposed_building and proposed_building != 'no') or (proposed_landuse and proposed_landuse != 'no'):
+        elif building == 'proposed' or 'proposed' in (leisure, amenity) or (proposed and proposed != 'no') or has_namespaced_area_project(tags, 'proposed'):
             status_check = 'proposed'
-        elif building == 'planned' or 'planned' in (leisure, amenity) or (planned and planned != 'no') or (planned_building and planned_building != 'no') or (planned_landuse and planned_landuse != 'no'):
+        elif building == 'planned' or 'planned' in (leisure, amenity) or (planned and planned != 'no') or has_namespaced_area_project(tags, 'planned'):
             status_check = 'planned'
         else:
             status_check = 'under_construction'

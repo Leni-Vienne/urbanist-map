@@ -57,6 +57,18 @@ Both files are written next to the PBF:
 | `*_proposed_linear.geojson` | Railways, roads, aerialways, waterways, cycling/pedestrian paths tagged as proposed, planned or under construction |
 | `*_proposed_areal.geojson`  | Buildings and development areas tagged as proposed, planned or under construction                                  |
 
+## Area selection policy
+
+Lifecycle land-use tags share a whitelist of development and recreation types,
+defined in [extract_areal_buildings.py](extract_areal_buildings.py).
+Generic `yes` values remain subject to size/identity checks and existing exclusions.
+Unsupported future uses such as `grass` and `brownfield` do not qualify on their
+own, even with a name or generic lifecycle flag; another supported project tag can.
+
+Current use is separate: `landuse=brownfield` with `planned:landuse=residential`
+qualifies as residential redevelopment. Unspecified future uses do not inherit the
+current site's category.
+
 ## Performance note
 
 If the source file is on a Windows drive (`/mnt/d/...`), the script works but WSL I/O through `/mnt/` is significantly slower than on the WSL native filesystem. For large files (country-level or planet), copying the source to the WSL filesystem first (`cp /mnt/d/... ~/`) can cut processing time substantially. WSL is installed on C: by default.

@@ -30,6 +30,7 @@ export const PRESENT_STATE_OSM_KEYS = new Set([
 
 const LIFECYCLE_VALUES = new Set(["proposed", "planned", "construction"]);
 const LIFECYCLE_PREFIX_RE = /^(?:proposed|planned|construction):/;
+const AREA_LIFECYCLE_KEY_RE = /^(?:proposed|planned|construction):(?:building|landuse|leisure)$/;
 const PLAIN_LIFECYCLE_KEYS = ["construction", "proposed", "planned"];
 const NON_DESCRIPTIVE_CONSTRUCTION_VALUES = new Set([
   "",
@@ -43,14 +44,29 @@ const NON_DESCRIPTIVE_CONSTRUCTION_VALUES = new Set([
 /**
  * True when the feature is an existing site whose project is expressed only through
  * lifecycle-namespaced keys. When the lifecycle signal sits on plain keys instead
- * (building=construction, railway=proposed, proposed=yes), the plain tags describe
- * the future feature and remain eligible for tag rules.
+ * (building=construction, railway=proposed), the plain tags describe the future
+ * feature and remain eligible for tag rules. A generic proposed=yes/planned=yes
+ * does not override an explicit namespaced future area target.
  */
 export function isRedevelopmentSite(props: JsonObject): boolean {
   if (!Object.keys(props).some(hasLifecyclePrefix)) return false;
+  const hasAreaTarget = Object.entries(props).some(
+    ([key, value]) =>
+      AREA_LIFECYCLE_KEY_RE.test(key) &&
+      typeof value === "string" &&
+      value !== "" &&
+      value !== "no",
+  );
   for (const key of PLAIN_LIFECYCLE_KEYS) {
     const val = props[key];
-    if (typeof val === "string" && val !== "" && val !== "no") return false;
+    if (
+      typeof val === "string" &&
+      val !== "" &&
+      val !== "no" &&
+      (val !== "yes" || !hasAreaTarget)
+    ) {
+      return false;
+    }
   }
   for (const key of PRESENT_STATE_OSM_KEYS) {
     const val = props[key];

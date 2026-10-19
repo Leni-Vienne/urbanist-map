@@ -69,6 +69,9 @@ export function extractTags(props: JsonObject): string[] {
     tags.splice(pedIdx, 0, "bike");
   }
   if (tags.length === 0 && hasConstructionSignal(props)) tags.push("construction");
+  // The area extractor has already qualified this as a development. New or
+  // unspecified future uses need no duplicated whitelist to remain filterable.
+  if (tags.length === 0 && props.transport_type === "building") tags.push("building");
   return tags;
 }
 
