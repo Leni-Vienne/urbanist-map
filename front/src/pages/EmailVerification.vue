@@ -48,8 +48,6 @@
 </template>
 
 <script setup lang="ts">
-import { toastSuccess } from "@/services/core/toast";
-
 import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
@@ -83,8 +81,6 @@ async function verifyEmail() {
 
     success.value = true;
     loading.value = false;
-
-    toastSuccess(t("pages.emailVerification.successDetail"));
 
     if (result.user) {
       signingIn.value = true;

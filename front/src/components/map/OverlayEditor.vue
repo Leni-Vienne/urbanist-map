@@ -37,6 +37,7 @@
       <Button
         :label="$t('forms.saveChanges')"
         icon="pi pi-check"
+        :disabled="!hasChanges"
         @click="saveChanges"
         class="p-button-primary"
       />
@@ -45,7 +46,7 @@
 </template>
 
 <script setup lang="ts">
-import { toastInfo, toastError } from "@/services/core/toast";
+import { toastError } from "@/services/core/toast";
 
 import { ref, computed } from "vue";
 
@@ -84,11 +85,7 @@ function saveChanges() {
     return;
   }
 
-  if (!hasChanges.value) {
-    toastInfo(t("overlay.noChangesToSave"));
-    closeDialog();
-    return;
-  }
+  if (!hasChanges.value) return;
 
   try {
     updateOverlayInfo(overlayId, {

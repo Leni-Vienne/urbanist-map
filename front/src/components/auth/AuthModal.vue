@@ -243,8 +243,6 @@
 </template>
 
 <script setup lang="ts">
-import { toastSuccess, toastInfo } from "@/services/core/toast";
-
 import { ref, reactive, computed, watch, nextTick } from "vue";
 import { useI18n } from "vue-i18n";
 import { useAuthStore } from "@/stores/authStore";
@@ -456,7 +454,6 @@ async function handleSubmit() {
     if (isLoginMode.value) {
       const result = await authStore.signIn(form.email, form.password, form.rememberMe);
       if (result.success) {
-        toastSuccess($t("auth.success.loggedIn"));
         visible.value = false;
         resetForm();
       } else {
@@ -467,7 +464,6 @@ async function handleSubmit() {
       if (result.success) {
         registrationSuccess.value = true;
         errorMessage.value = "";
-        toastSuccess($t("auth.success.registered"));
       } else {
         if (result.error === "auth.error.usernameTaken") {
           usernameError.value = $t("auth.error.usernameTaken");
@@ -498,7 +494,6 @@ async function handleOAuthSignIn(provider: "google") {
   try {
     const result = await authStore.signInWithOAuth(provider, form.rememberMe);
     if (result.success) {
-      toastSuccess($t("auth.success.googleAuthSuccess"));
       visible.value = false;
       resetForm();
     } else {
@@ -518,7 +513,6 @@ async function handleForgotPassword() {
     const result = await authStore.requestPasswordReset(forgotPasswordEmail.value);
     if (result.success) {
       resetLinkSent.value = true;
-      toastInfo($t("auth.resetLinkSent"), $t("auth.checkYourEmail"));
     } else {
       errorMessage.value = translateError(result.error) || $t("common.error");
     }

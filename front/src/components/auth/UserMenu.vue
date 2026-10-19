@@ -120,7 +120,7 @@
 </template>
 
 <script setup lang="ts">
-import { toastSuccess, toastError } from "@/services/core/toast";
+import { toastError } from "@/services/core/toast";
 
 import { ref, computed, defineAsyncComponent } from "vue";
 import { isSyntheticEmail } from "@shared/types";
@@ -180,9 +180,7 @@ async function handleSignOut() {
   }
 
   const result = await signOut();
-  if (result.success) {
-    toastSuccess(t("auth.signedOutMessage"), t("auth.signedOut"));
-  } else {
+  if (!result.success) {
     toastError(result.error ?? undefined, t("auth.error.signOutFailed"));
   }
   userPopover.value?.hide();

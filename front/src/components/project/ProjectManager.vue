@@ -35,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-import { toastSuccess, toastError } from "@/services/core/toast";
+import { toastError } from "@/services/core/toast";
 
 import { computed, ref, defineAsyncComponent, onUnmounted } from "vue";
 import { useI18n } from "vue-i18n";
@@ -130,7 +130,6 @@ function handleProjectSubmitted(project: Partial<Project>) {
       if (storedProject) {
         openProjectDetail(storedProject);
       }
-      toastSuccess($t("toasts.projectCreatedSuccess"));
     }
   } catch (error) {
     console.error("Error creating project:", error);

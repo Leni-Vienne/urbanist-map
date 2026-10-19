@@ -310,15 +310,12 @@
     "continueWithGoogle": "Continue with Google",
     "continueWithOpenStreetMap": "Continue with OpenStreetMap",
     "orContinueWithEmail": "or continue with email",
-    "signedOut": "Signed Out",
-    "signedOutMessage": "You have successfully signed out.",
     "openStreetMapAccount": "OpenStreetMap account",
     "resetPassword": "Reset Password",
     "forgotPasswordTitle": "Forgot your password?",
     "forgotPasswordMessage": "Enter your email and a link will be sent to reset your password.",
     "sendResetLink": "Send Reset Link",
     "backToSignIn": "Back to Sign In",
-    "checkYourEmail": "Check Your Email",
     "resetLinkSent": "If an account exists with this email, a password reset link will be sent.",
     "resetPasswordTitle": "Create New Password",
     "newPassword": "New Password",
@@ -352,7 +349,6 @@
       "signOutFailed": "Sign-out failed"
     },
     "success": {
-      "registered": "Account created successfully! Please check your email to verify your account.",
       "loggedIn": "Signed in successfully!",
       "googleAuthSuccess": "Google authentication successful!"
     },
@@ -381,14 +377,12 @@
     "newPosition": "(New position)",
     "removeChange": "Remove this change",
     "changesLabel": "Changes",
-    "noChangesToSubmit": "No changes to submit",
     "newOverlay": "New image",
     "overlayUnavailable": "An image in this submission is no longer available. Reopen and review your changes.",
     "projectUnavailable": "The project in this submission is no longer available. Reopen and review your changes."
   },
   "pages": {
     "home": {
-      "signInSuccess": "Successfully signed in!",
       "authenticationError": "Authentication Error",
       "loadingMapAndData": "Loading map and data...",
       "maintenance": {
@@ -410,7 +404,6 @@
       "signingIn": "Signing you in...",
       "verificationFailed": "Verification Failed",
       "backToApp": "Back to App",
-      "successDetail": "Email verified successfully!",
       "errors": {
         "noToken": "No verification token provided",
         "verificationFailed": "Verification failed. The token may be invalid or expired."
@@ -672,8 +665,6 @@
       "cacheNotice": "Map tiles are cached in your browser for up to 1 hour, so newly approved contributions may not appear on the map right away.",
       "noItems": "All your submissions are up to date!",
       "acknowledgeAll": "Clear All",
-      "acknowledgeSuccess": "Acknowledged",
-      "acknowledgeSuccessDetail": "Contribution updates have been cleared",
       "acknowledgeError": "Clearing failed",
       "acknowledgeErrorDetail": "Failed to clear contribution updates. Please try again.",
       "viewResults": "View Results"
@@ -720,7 +711,6 @@
   "toasts": {
     "replacementOverlayCreated": "Replacement Image Created",
     "replacementOverlayDetail": "Your replacement image has been created and is ready for editing",
-    "projectCreatedSuccess": "Project created successfully",
     "projectCreationFailed": "Project Creation Failed",
     "projectCreationFailedDetail": "Failed to create the project. Please try again."
   },

@@ -310,15 +310,12 @@
     "continueWithGoogle": "Continuer avec Google",
     "continueWithOpenStreetMap": "Continuer avec OpenStreetMap",
     "orContinueWithEmail": "ou continuer avec l'email",
-    "signedOut": "Déconnecté",
-    "signedOutMessage": "Vous vous êtes déconnecté avec succès.",
     "openStreetMapAccount": "Compte OpenStreetMap",
     "resetPassword": "Réinitialiser le mot de passe",
     "forgotPasswordTitle": "Mot de passe oublié ?",
     "forgotPasswordMessage": "Entrez votre email et un lien vous sera envoyé pour réinitialiser votre mot de passe.",
     "sendResetLink": "Envoyer le lien de réinitialisation",
     "backToSignIn": "Retour à la connexion",
-    "checkYourEmail": "Vérifiez votre email",
     "resetLinkSent": "Si un compte existe avec cet email, un lien vous sera envoyé pour réinitialiser votre mot de passe.",
     "resetPasswordTitle": "Créer un nouveau mot de passe",
     "newPassword": "Nouveau mot de passe",
@@ -352,7 +349,6 @@
       "signOutFailed": "Échec de la déconnexion"
     },
     "success": {
-      "registered": "Compte créé avec succès ! Veuillez vérifier votre email pour valider votre compte.",
       "loggedIn": "Connecté avec succès !",
       "googleAuthSuccess": "Authentification Google réussie !"
     },
@@ -381,14 +377,12 @@
     "newPosition": "(Nouvelle position)",
     "removeChange": "Retirer cette modification",
     "changesLabel": "Modifications",
-    "noChangesToSubmit": "Aucune modification à soumettre",
     "newOverlay": "Nouvelle image",
     "overlayUnavailable": "Une image de cet envoi n'est plus disponible. Rouvrez-le et vérifiez vos modifications.",
     "projectUnavailable": "Le projet de cet envoi n'est plus disponible. Rouvrez-le et vérifiez vos modifications."
   },
   "pages": {
     "home": {
-      "signInSuccess": "Connexion réussie !",
       "authenticationError": "Erreur d'authentification",
       "loadingMapAndData": "Chargement de la carte et des données...",
       "maintenance": {
@@ -410,7 +404,6 @@
       "signingIn": "Connexion en cours...",
       "verificationFailed": "Échec de la vérification",
       "backToApp": "Retour à l'application",
-      "successDetail": "Email vérifié avec succès !",
       "errors": {
         "noToken": "Aucun jeton de vérification fourni",
         "verificationFailed": "La vérification a échoué. Le jeton peut être invalide ou expiré."
@@ -672,8 +665,6 @@
       "cacheNotice": "Les tuiles de la carte sont mises en cache dans votre navigateur pendant 1 heure, vos contributions récemment approuvées peuvent donc ne pas apparaître immédiatement sur la carte.",
       "noItems": "Toutes vos contributions sont à jour !",
       "acknowledgeAll": "Tout effacer",
-      "acknowledgeSuccess": "Acquitté",
-      "acknowledgeSuccessDetail": "Les résultats de modération ont été effacés",
       "acknowledgeError": "Échec de l'effacement",
       "acknowledgeErrorDetail": "Échec de l'effacement des résultats de modération. Veuillez réessayer.",
       "viewResults": "Voir les résultats"
@@ -720,7 +711,6 @@
   "toasts": {
     "replacementOverlayCreated": "Image de remplacement créée",
     "replacementOverlayDetail": "Votre image de remplacement a été créée et est prête à être modifiée",
-    "projectCreatedSuccess": "Projet créé avec succès",
     "projectCreationFailed": "Échec de la création du projet",
     "projectCreationFailedDetail": "Échec de la création du projet. Veuillez réessayer."
   },

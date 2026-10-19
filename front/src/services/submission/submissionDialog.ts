@@ -19,7 +19,7 @@ import {
   type SubmissionDraft,
   type SubmissionSummary,
 } from "./submissionTypes";
-import { toastError, toastSuccess, toastInfo } from "@/services/core/toast";
+import { toastError, toastSuccess } from "@/services/core/toast";
 import { t } from "@/locales";
 import { buildThumbnailUrl } from "@/utils/imageUrl";
 import { deleteOverlayDirect } from "@/services/entity/entityRemoval";
@@ -333,6 +333,5 @@ export async function handleRemoveChange(
   const draft = buildSubmissionDraft();
   if (!draft || !hasSubmissionWork(draft)) {
     resetSubmissionState();
-    toastInfo(t("submission.noChangesToSubmit"));
   }
 }

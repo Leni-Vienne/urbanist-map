@@ -209,7 +209,6 @@ async function restoreSessionAndConsumeAuthParams() {
     if (route.query.provider === "osm") {
       authStore.setLastUsedMethod("osm");
     }
-    toastSuccess(t("pages.home.signInSuccess"));
   } else if (route.query.error) {
     const errorMessage = getErrorMessage(route.query.error as string);
     toastError(errorMessage, t("pages.home.authenticationError"));
