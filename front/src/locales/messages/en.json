@@ -74,6 +74,7 @@
   },
   "project": {
     "detailsTitle": "Project details",
+    "resizeDetails": "Resize project details (drag or use Up/Down arrows; double-click to reset)",
     "loadError": "Could not load project details. Please try again.",
     "unavailable": "This project is unavailable. It may have been removed or you may not have access.",
     "create": "Create Project",
@@ -189,6 +190,9 @@
   "contribution": {
     "projects": "Projects",
     "loadMoreError": "Could not load more projects.",
+    "loadError": "Could not load projects.",
+    "refreshError": "Could not update results. Previous results are still shown.",
+    "updatingResults": "Updating results…",
     "noContributionsFound": "No contributions found.",
     "beFirstToAdd": "Be the first to add a project",
     "loadingContributions": "Loading contributions...",

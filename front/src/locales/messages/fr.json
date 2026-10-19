@@ -74,6 +74,7 @@
   },
   "project": {
     "detailsTitle": "Détails du projet",
+    "resizeDetails": "Redimensionner les détails du projet (glisser ou utiliser les flèches haut/bas ; double-cliquer pour réinitialiser)",
     "loadError": "Impossible de charger les détails du projet. Veuillez réessayer.",
     "unavailable": "Ce projet est indisponible. Il a peut-être été supprimé ou vous n’y avez pas accès.",
     "create": "Créer un projet",
@@ -189,6 +190,9 @@
   "contribution": {
     "projects": "Projets",
     "loadMoreError": "Impossible de charger plus de projets.",
+    "loadError": "Impossible de charger les projets.",
+    "refreshError": "Impossible de mettre à jour les résultats. Les résultats précédents restent affichés.",
+    "updatingResults": "Mise à jour des résultats…",
     "noContributionsFound": "Aucune contribution trouvée.",
     "beFirstToAdd": "Soyez le premier à ajouter un projet urbain",
     "loadingContributions": "Chargement des contributions...",

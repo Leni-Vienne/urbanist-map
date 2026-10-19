@@ -7,7 +7,7 @@ import type { Project } from "@/types/index";
 // What is currently emphasized on the map and in the docked detail panel. A project target is a
 // standalone/project selection; an overlay target is a selected overlay (its parent project rides
 // along for the sister highlight, and is null for a project-less overlay).
-type FocusTarget =
+export type FocusTarget =
   | { kind: "project"; projectId: string }
   | { kind: "overlay"; overlayId: string; projectId: string | null };
 

@@ -1,9 +1,34 @@
 <template>
-  <div class="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
-    <!-- Details occupy a stable half of the sidebar while the results scroll independently. -->
-    <div v-if="showDesktopDetail" class="explore-detail-section border-b border-surface">
+  <div ref="explorePanel" class="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+    <div
+      v-if="showDesktopDetail"
+      id="explore-project-details"
+      class="explore-detail-section"
+      :style="{ flexBasis: `${detailHeight}px` }"
+    >
       <ProjectDetailPanel />
     </div>
+    <div
+      v-if="showDesktopDetail"
+      class="explore-detail-divider"
+      :style="{ flexBasis: `${DETAIL_DIVIDER_HEIGHT}px` }"
+      role="separator"
+      tabindex="0"
+      aria-orientation="horizontal"
+      aria-controls="explore-project-details"
+      :aria-label="t('project.resizeDetails')"
+      :aria-valuemin="Math.round(minDetailHeight)"
+      :aria-valuemax="Math.round(maxDetailHeight)"
+      :aria-valuenow="Math.round(detailHeight)"
+      :title="t('project.resizeDetails')"
+      @pointerdown="startDetailResize"
+      @pointermove="resizeDetail"
+      @pointerup="finishDetailResize"
+      @pointercancel="finishDetailResize"
+      @lostpointercapture="finishDetailResize"
+      @keydown="handleDetailResizeKey"
+      @dblclick="resetDetailHeight"
+    ></div>
 
     <div class="relative flex min-h-0 flex-1 flex-col">
       <!-- Controls. On desktop the filter surface opens in a popover here, so narrowing the list
@@ -58,13 +83,8 @@
 
         <!-- Applied filters, removable in place. Relaxing a filter is the common case and needs no
            trip back to the full palette. -->
-        <div v-if="hasChippedFilters" class="flex flex-wrap items-center gap-1.5 px-2 pb-2">
-          <button
-            v-if="mapArea"
-            type="button"
-            class="inline-flex items-center gap-1 pl-2 pr-1.5 py-0.5 rounded-full text-xs font-medium bg-(--p-content-hover-background) text-color border border-surface cursor-pointer transition-colors duration-150 hover:bg-black/5 dark:hover:bg-white/10"
-            @click="clearMapArea"
-          >
+        <div v-if="hasPopoverFilters" class="flex flex-wrap items-center gap-1.5 px-2 pb-2">
+          <button v-if="mapArea" type="button" :class="filterChipClass" @click="clearMapArea">
             {{ t("contribution.mapArea") }}
             <i class="pi pi-times text-[0.6rem] text-muted-color"></i>
           </button>
@@ -72,7 +92,7 @@
             v-for="filter in activeFilters"
             :key="filterKey(filter)"
             type="button"
-            class="inline-flex items-center gap-1 pl-2 pr-1.5 py-0.5 rounded-full text-xs font-medium bg-(--p-content-hover-background) text-color border border-surface cursor-pointer transition-colors duration-150 hover:bg-black/5 dark:hover:bg-white/10"
+            :class="filterChipClass"
             @click="clearActiveFilter(filter)"
           >
             {{ filterLabel(filter) }}
@@ -81,7 +101,42 @@
         </div>
       </div>
 
-      <div class="relative flex min-h-0 flex-1 flex-col">
+      <div
+        ref="feedResults"
+        class="relative flex min-h-0 flex-1 flex-col"
+        tabindex="-1"
+        role="region"
+        :aria-label="t('contribution.projects')"
+      >
+        <div
+          v-if="hasLoadError"
+          class="feed-load-error flex items-center gap-2 px-2 py-2 text-sm"
+          :class="
+            rows.length > 0
+              ? 'shrink-0 justify-between border-b border-surface'
+              : 'flex-1 flex-col justify-center text-center'
+          "
+          role="status"
+        >
+          <span>{{
+            t(rows.length > 0 ? "contribution.refreshError" : "contribution.loadError")
+          }}</span>
+          <Button
+            :label="t('common.retry')"
+            :loading="isLoading"
+            :disabled="isLoading"
+            severity="secondary"
+            size="small"
+            @click="retryFeed"
+          />
+        </div>
+        <div
+          v-else-if="isFeedStale && rows.length > 0"
+          class="shrink-0 border-b border-surface px-2 py-2 text-xs text-muted-color"
+          role="status"
+        >
+          {{ t("contribution.updatingResults") }}
+        </div>
         <Listbox
           v-if="rows.length > 0"
           ref="projectList"
@@ -101,7 +156,10 @@
           :pt="{
             listContainer: { class: 'min-h-0 flex-1 overflow-hidden!' },
             hiddenFirstFocusableEl: { class: 'project-list-entry' },
-            list: { class: 'w-full! min-w-0! p-0! gap-0!', 'aria-busy': isLoadingMore },
+            list: {
+              class: 'w-full! min-w-0! p-0! gap-0!',
+              'aria-busy': isLoading || (isFeedStale && !hasLoadError) || isLoadingMore,
+            },
             option: { class: 'p-0! rounded-none!', 'aria-setsize': hasMore ? -1 : rows.length },
             virtualScroller: {
               root: { class: 'contribution-scroll-area h-full! overscroll-contain' },
@@ -112,13 +170,12 @@
         >
           <template #option="{ option: row }">
             <div
+              :ref="(element) => setRowElement(row.contribution.id, element)"
               class="group flex h-full min-w-0 w-full items-center gap-3 px-2 py-2 transition-colors duration-150 hover:bg-black/5 dark:hover:bg-white/10"
               :class="{
                 'project-row-reference':
                   !detailVisible && row.contribution.id === lastSelectedRowId,
               }"
-              @click.stop="handleRowActivate($event, row.contribution)"
-              @touchend.stop
               @mouseenter="handleContributionHover(row.contribution, row.color)"
               @mouseleave="clearContributionHover(row.contribution.id)"
             >
@@ -174,21 +231,21 @@
           </template>
         </Listbox>
         <PanelEmptyState
-          v-else-if="!isLoading && hasNarrowedQuery"
+          v-else-if="!isFeedStale && hasNarrowedQuery"
           icon="filter-slash"
           :message="t('contribution.noMatchingContributions')"
           :sub-message="t('contribution.tryWideningFilters')"
         />
 
         <PanelEmptyState
-          v-else-if="!isLoading"
+          v-else-if="!isFeedStale"
           icon="image"
           :message="t('contribution.noContributionsFound')"
           :sub-message="t('contribution.beFirstToAdd')"
         />
 
         <div
-          v-if="isLoading && rows.length === 0"
+          v-if="isFeedStale && !hasLoadError && rows.length === 0"
           class="flex flex-col items-center justify-center p-12 text-center text-(--p-text-color-secondary)"
         >
           <i class="pi pi-spin pi-spinner text-2xl mb-4"></i>
@@ -199,7 +256,7 @@
 
       <div v-if="rows.length > 0" class="shrink-0">
         <div
-          v-if="hasLoadMoreError"
+          v-if="hasLoadMoreError && !isFeedStale"
           class="feed-load-error flex items-center justify-between gap-2 border-t border-surface px-2 py-1 text-xs"
           role="status"
         >
@@ -211,19 +268,17 @@
             severity="secondary"
             size="small"
             text
-            @click="retryLoadMore"
+            @click="retryFeed"
           />
         </div>
         <div
-          v-else-if="
-            !hasMore && source === 'community' && !hasPopoverFilters && !isLoading && !isFeedStale
-          "
+          v-else-if="!hasMore && !isOsmIncluded && !hasPopoverFilters && !isLoading && !isFeedStale"
           class="flex items-center justify-center border-t border-surface px-2 py-3"
         >
           <button
             type="button"
             class="rounded-md border-0 bg-transparent px-3 py-1.5 text-[13px] font-medium text-primary-color cursor-pointer hover:bg-black/5 hover:text-primary-hover-color dark:hover:bg-white/10"
-            @click="includeOsmProjects"
+            @click="isOsmIncluded = true"
           >
             {{ t("contribution.moreProjectsWithOsm") }}
           </button>
@@ -249,6 +304,7 @@ import {
   defineAsyncComponent,
   nextTick,
   onBeforeUnmount,
+  onMounted,
   ref,
   useTemplateRef,
   type ComponentPublicInstance,
@@ -261,12 +317,12 @@ import {
   contributions,
   isLoading,
   isLoadingMore,
+  hasLoadError,
   hasLoadMoreError,
   isCountStale,
   isFeedStale,
   projectCount,
   hasMore,
-  source,
   isOsmIncluded,
   mapArea,
   activateLatestContributions,
@@ -275,7 +331,6 @@ import {
 } from "@/services/feed/latestContributions";
 import {
   activeFilters,
-  activeFilterCount,
   clearActiveFilter,
   formatSizeM,
   type ActiveFilter,
@@ -289,7 +344,7 @@ import { formatRelativeTime } from "@/utils/dateFormat";
 import { boundaryLocationParts, formatBoundaryLocation } from "@/utils/locationDisplay";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
 import { useDetailPanel } from "@/composables/layout/useDetailPanel";
-import { useFocusStore } from "@/stores/focusStore";
+import { useFocusStore, type FocusTarget } from "@/stores/focusStore";
 import { useUiStore } from "@/stores/uiStore";
 import { isMobile } from "@/services/core/viewport";
 import { filtersSeen } from "@/services/core/settings";
@@ -314,23 +369,128 @@ const focusStore = useFocusStore();
 const { detailVisible } = useDetailPanel();
 const showDesktopDetail = computed(() => detailVisible.value && !isMobile.value);
 
+const DEFAULT_DETAIL_HEIGHT = 240;
+const DETAIL_HEIGHT_STORAGE_KEY = "explore-detail-height";
+const DETAIL_DIVIDER_HEIGHT = 8;
+const MIN_LIST_HEIGHT = 160;
+const explorePanel = useTemplateRef<HTMLElement>("explorePanel");
+const panelHeight = ref(0);
+const preferredDetailHeight = ref(loadDetailHeight());
+const availableHeight = computed(() => Math.max(0, panelHeight.value - DETAIL_DIVIDER_HEIGHT));
+// On very short windows, share the available space rather than overflowing the sidebar.
+const minDetailHeight = computed(() => Math.min(120, availableHeight.value / 2));
+const maxDetailHeight = computed(() =>
+  Math.max(minDetailHeight.value, availableHeight.value - MIN_LIST_HEIGHT),
+);
+// Clamp only the rendered height; a shorter window must not overwrite the user's preference.
+const detailHeight = computed(() =>
+  Math.min(maxDetailHeight.value, Math.max(minDetailHeight.value, preferredDetailHeight.value)),
+);
+let detailResize: { pointerId: number; startY: number; startHeight: number } | null = null;
+let panelObserver: ResizeObserver | null = null;
+
+function loadDetailHeight(): number {
+  try {
+    const stored = Number(localStorage.getItem(DETAIL_HEIGHT_STORAGE_KEY));
+    return Number.isFinite(stored) && stored > 0 ? stored : DEFAULT_DETAIL_HEIGHT;
+  } catch {
+    // Storage may be unavailable; resizing still works in memory.
+    return DEFAULT_DETAIL_HEIGHT;
+  }
+}
+
+function saveDetailHeight(): void {
+  try {
+    localStorage.setItem(DETAIL_HEIGHT_STORAGE_KEY, String(preferredDetailHeight.value));
+  } catch {
+    // Keep the in-memory preference when storage is unavailable.
+  }
+}
+
+function resetDetailHeight(): void {
+  preferredDetailHeight.value = DEFAULT_DETAIL_HEIGHT;
+  saveDetailHeight();
+}
+
+function observePanelHeight(): void {
+  const panel = explorePanel.value;
+  if (!panel) return;
+  panelHeight.value = panel.clientHeight;
+  panelObserver = new ResizeObserver(() => {
+    panelHeight.value = panel.clientHeight;
+  });
+  panelObserver.observe(panel);
+}
+
+function setDetailHeight(height: number): void {
+  preferredDetailHeight.value = Math.min(
+    maxDetailHeight.value,
+    Math.max(minDetailHeight.value, height),
+  );
+}
+
+function startDetailResize(event: PointerEvent): void {
+  if (!event.isPrimary || event.button !== 0 || !(event.currentTarget instanceof HTMLElement)) {
+    return;
+  }
+  event.preventDefault();
+  event.currentTarget.focus();
+  event.currentTarget.setPointerCapture(event.pointerId);
+  detailResize = {
+    pointerId: event.pointerId,
+    startY: event.clientY,
+    startHeight: detailHeight.value,
+  };
+}
+
+function resizeDetail(event: PointerEvent): void {
+  if (!detailResize || detailResize.pointerId !== event.pointerId) return;
+  setDetailHeight(detailResize.startHeight + event.clientY - detailResize.startY);
+}
+
+function finishDetailResize(event: PointerEvent): void {
+  if (!detailResize || detailResize.pointerId !== event.pointerId) return;
+  detailResize = null;
+  saveDetailHeight();
+}
+
+function handleDetailResizeKey(event: KeyboardEvent): void {
+  switch (event.key) {
+    case "ArrowUp":
+      setDetailHeight(detailHeight.value - 20);
+      break;
+    case "ArrowDown":
+      setDetailHeight(detailHeight.value + 20);
+      break;
+    case "Home":
+      setDetailHeight(minDetailHeight.value);
+      break;
+    case "End":
+      setDetailHeight(maxDetailHeight.value);
+      break;
+    default:
+      return;
+  }
+  event.preventDefault();
+  saveDetailHeight();
+}
+
+onMounted(observePanelHeight);
+
 const { imageErrors, handleImageError } = useImageErrors();
 
-// Drives the empty-state copy: an empty list means something different when the query was narrowed.
-const hasNarrowedQuery = computed(
-  () => activeFilterCount.value > 0 || source.value !== "all" || mapArea.value !== null,
-);
-
 // Everything reachable only through the popover, so the button can show that something is applied.
-const hasPopoverFilters = computed(() => activeFilterCount.value > 0 || mapArea.value !== null);
+const hasPopoverFilters = computed(() => activeFilters.value.length > 0 || mapArea.value !== null);
+// Drives the empty-state copy: an empty list means something different when the query was narrowed.
+// Leaving OSM out is itself a narrowing, so the default community-only view counts.
+const hasNarrowedQuery = computed(() => hasPopoverFilters.value || !isOsmIncluded.value);
 // Before the filter surface has ever been opened the dot is a discovery hint instead.
 const showFilterDot = computed(() => hasPopoverFilters.value || !filtersSeen.value);
-const hasChippedFilters = computed(() => activeFilters.value.length > 0 || mapArea.value !== null);
 const projectCountLabel = computed(formatProjectCount);
 
-function includeOsmProjects(): void {
-  isOsmIncluded.value = true;
-}
+// Applied-filter pill, shared by the map-area chip and the per-filter chips.
+const filterChipClass =
+  "inline-flex items-center gap-1 pl-2 pr-1.5 py-0.5 rounded-full text-xs font-medium bg-(--p-content-hover-background) text-color border border-surface cursor-pointer transition-colors duration-150 hover:bg-black/5 dark:hover:bg-white/10";
 
 function formatProjectCount(): string {
   const count = projectCount.value;
@@ -340,6 +500,8 @@ function formatProjectCount(): string {
   return t(key, { count: formatted });
 }
 
+// A shaped standalone that carries only the generic "construction" tag prefers its geometry over the
+// generic tag icon, so returning null lets the shape thumbnail render instead.
 function getThumbnailIcon(contribution: LatestContribution) {
   if (
     contribution.type === "standalone" &&
@@ -370,13 +532,13 @@ function getHeadings(contribution: LatestContribution) {
     return {
       title: place,
       isPlaceholder: false,
-      subtitle: trail && code ? `${trail} (${code})` : trail,
+      // The deepest place is the title, so the subtitle is the rest of the breadcrumb. Keep the
+      // country code even when no ancestor name is known, matching the named-project form.
+      subtitle: trail && code ? `${trail} (${code})` : trail || code || "",
     };
   }
   const fallback =
-    contribution.type === "overlay" && contribution.kind === "map"
-      ? "overlay.untitled"
-      : "project.unnamed";
+    targetOf(contribution)?.kind === "overlay" ? "overlay.untitled" : "project.unnamed";
   return { title: t(fallback), isPlaceholder: true, subtitle: t("project.noLocation") };
 }
 
@@ -448,34 +610,44 @@ function filterLabel(filter: ActiveFilter): string {
   }
 }
 
+// Where a feed row points: a standalone project (its own id is the project id), a map overlay
+// (navigated and highlighted as an overlay, with its parent project id alongside), or the project a
+// non-georeferenced render belongs to. Null when a render has no parent project.
+function targetOf(contribution: LatestContribution): FocusTarget | null {
+  if (contribution.type === "overlay" && contribution.kind === "map") {
+    return { kind: "overlay", overlayId: contribution.id, projectId: contribution.projectId };
+  }
+  const projectId = contribution.type === "overlay" ? contribution.projectId : contribution.id;
+  return projectId ? { kind: "project", projectId } : null;
+}
+
 async function handleContributionClick(contribution: LatestContribution) {
   if (isMobile.value) {
     clearContributionHover();
   }
 
-  if (contribution.type === "overlay" && contribution.kind === "map") {
+  const target = targetOf(contribution);
+  if (!target) return;
+  if (target.kind === "overlay") {
     await handleOverlayClickNavigation(contribution);
-  } else {
-    const projectId = contribution.type === "overlay" ? contribution.projectId : contribution.id;
-    if (!projectId) return;
-    if (contribution.geometryBbox) {
-      const { minLat, maxLat, minLng, maxLng } = contribution.geometryBbox;
-      const bounds = new LngLatBounds([minLng, minLat], [maxLng, maxLat]);
-      navigateToProjectBounds(bounds, projectId);
-    } else if (typeof contribution.lat === "number" && typeof contribution.lng === "number") {
-      navigateToProject(contribution.lat, contribution.lng, projectId);
-    }
+    return;
+  }
+  if (contribution.geometryBbox) {
+    const { minLat, maxLat, minLng, maxLng } = contribution.geometryBbox;
+    const bounds = new LngLatBounds([minLng, minLat], [maxLng, maxLat]);
+    navigateToProjectBounds(bounds, target.projectId);
+  } else if (typeof contribution.lat === "number" && typeof contribution.lng === "number") {
+    navigateToProject(contribution.lat, contribution.lng, target.projectId);
   }
 }
 
 // The row whose detail is shown above the list, so the list still says which one the panel
 // describes. An overlay selection carries its parent project id too, so match on the row's own kind.
 function isSelectedRow(contribution: LatestContribution): boolean {
-  if (contribution.type === "overlay" && contribution.kind === "map") {
-    return contribution.id === focusStore.selectedOverlayId;
-  }
-  const projectId = contribution.type === "overlay" ? contribution.projectId : contribution.id;
-  return projectId === focusStore.selectedProjectId;
+  const target = targetOf(contribution);
+  if (!target) return false;
+  if (target.kind === "overlay") return target.overlayId === focusStore.selectedOverlayId;
+  return target.projectId === focusStore.selectedProjectId;
 }
 
 let hoveredContributionId: string | null = null;
@@ -483,16 +655,7 @@ let locationBeacon: Marker | null = null;
 
 function handleContributionHover(contribution: LatestContribution, color: string): void {
   hoveredContributionId = contribution.id;
-  if (contribution.type === "overlay" && contribution.kind === "map") {
-    focusStore.setHoverTarget({
-      kind: "overlay",
-      overlayId: contribution.id,
-      projectId: contribution.projectId,
-    });
-  } else {
-    const projectId = contribution.type === "overlay" ? contribution.projectId : contribution.id;
-    focusStore.setHoverTarget(projectId ? { kind: "project", projectId } : null);
-  }
+  focusStore.setHoverTarget(targetOf(contribution));
 
   locationBeacon?.remove();
   locationBeacon = null;
@@ -509,6 +672,7 @@ function handleContributionHover(contribution: LatestContribution, color: string
 }
 
 function clearContributionHover(contributionId?: string): void {
+  if (!hoveredContributionId) return;
   if (contributionId && contributionId !== hoveredContributionId) return;
   hoveredContributionId = null;
   focusStore.setHoverTarget(null);
@@ -517,6 +681,21 @@ function clearContributionHover(contributionId?: string): void {
 }
 
 const projectList = useTemplateRef<ComponentPublicInstance>("projectList");
+const feedResults = useTemplateRef<HTMLElement>("feedResults");
+const rowElements = new Map<string, HTMLElement>();
+
+function setRowElement(
+  contributionId: string,
+  element: Element | ComponentPublicInstance | null,
+): void {
+  if (element instanceof HTMLElement) {
+    rowElements.set(contributionId, element);
+  } else {
+    rowElements.delete(contributionId);
+    clearContributionHover(contributionId);
+  }
+}
+
 const listElement = computed(() => {
   const element: unknown = projectList.value?.$el;
   return element instanceof HTMLElement ? element : null;
@@ -555,18 +734,11 @@ function handleRowChange(event: ListboxChangeEvent): void {
   }
   const row = rows.value.find((item) => item.contribution.id === event.value);
   if (!row) return;
-  handleRowActivate(event.originalEvent, row.contribution);
-}
-
-function handleRowActivate(event: Event, contribution: LatestContribution): void {
   if (!isMobile.value && !showDesktopDetail.value) {
-    const target = event.target;
-    const option =
-      (target instanceof Element ? target.closest<HTMLElement>("[role=option]") : null) ??
-      listElement.value?.querySelector<HTMLElement>("[data-p-focused=true]");
+    const option = rowElements.get(row.contribution.id);
     if (option) captureRow(option);
   }
-  void handleContributionClick(contribution);
+  void handleContributionClick(row.contribution);
 }
 
 function loadMoreForRange(range: VirtualScrollerLazyEvent): void {
@@ -576,20 +748,29 @@ function loadMoreForRange(range: VirtualScrollerLazyEvent): void {
 }
 
 function focusProjectList(): void {
-  listElement.value?.querySelector<HTMLElement>(".project-list-entry")?.focus();
+  const entry = listElement.value?.querySelector<HTMLElement>(".project-list-entry");
+  (entry ?? feedResults.value)?.focus();
 }
 
-async function retryLoadMore(): Promise<void> {
-  const restoreFocus = document.activeElement?.closest(".feed-load-error") !== null;
-  await loadMoreLatestContributions();
+async function retryFeed(): Promise<void> {
+  const restoreFocus = Boolean(document.activeElement?.closest(".feed-load-error"));
+  if (hasLoadError.value) {
+    await activateLatestContributions();
+  } else {
+    await loadMoreLatestContributions();
+  }
   await nextTick();
   if (
     restoreFocus &&
-    !hasLoadMoreError.value &&
+    !isLoading.value &&
+    !isLoadingMore.value &&
     uiStore.activeTab === "explore" &&
     document.activeElement === document.body
   ) {
-    focusProjectList();
+    const retryButton =
+      explorePanel.value?.querySelector<HTMLButtonElement>(".feed-load-error button");
+    if (retryButton) retryButton.focus();
+    else focusProjectList();
   }
 }
 
@@ -621,7 +802,7 @@ function restoreListFocus(visible: boolean): void {
   if (
     !visible &&
     uiStore.activeTab === "explore" &&
-    document.activeElement?.closest(".project-detail-panel")
+    document.activeElement?.closest(".project-detail-panel, .explore-detail-divider")
   ) {
     // Enter through Listbox's focus entry so its internal Tab sentinels are reset as well.
     void nextTick().then(focusProjectList);
@@ -630,13 +811,9 @@ function restoreListFocus(visible: boolean): void {
 
 watch(detailVisible, restoreListFocus);
 
-function readActiveTab() {
-  return uiStore.activeTab;
-}
-
 function handleActiveTabChange(activeTab: typeof uiStore.activeTab): void {
   if (activeTab === "explore") {
-    activateLatestContributions();
+    void activateLatestContributions();
   } else {
     clearAnchor();
     filterPopover.value?.hide();
@@ -645,18 +822,58 @@ function handleActiveTabChange(activeTab: typeof uiStore.activeTab): void {
 }
 
 function teardownExplorePanel(): void {
+  panelObserver?.disconnect();
   clearContributionHover();
 }
 
-watch(readActiveTab, handleActiveTabChange, { immediate: true });
+watch(() => uiStore.activeTab, handleActiveTabChange, { immediate: true });
 onBeforeUnmount(teardownExplorePanel);
 </script>
 
 <style scoped>
 .explore-detail-section {
-  flex: 0 0 50%;
+  flex: 0 0 auto;
   min-height: 0;
   overflow: hidden;
+}
+
+.explore-detail-divider {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-grow: 0;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  cursor: row-resize;
+  touch-action: none;
+  user-select: none;
+  background: var(--p-content-hover-background);
+}
+
+.explore-detail-divider::before {
+  content: "";
+  position: absolute;
+  /* Extend the grab area 8px on each side without changing the visible bar. */
+  inset: -8px 0;
+}
+
+.explore-detail-divider::after {
+  content: "";
+  width: 2rem;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--p-text-muted-color);
+}
+
+.explore-detail-divider:hover::after,
+.explore-detail-divider:focus-visible::after {
+  background: var(--p-primary-color);
+}
+
+.explore-detail-divider:focus-visible {
+  outline: 2px solid var(--p-primary-color);
+  outline-offset: -2px;
 }
 
 :deep(.contribution-scroll-area) {

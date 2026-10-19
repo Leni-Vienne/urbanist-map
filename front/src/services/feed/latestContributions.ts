@@ -24,9 +24,9 @@ const latestContributions = shallowRef<LatestContribution[]>([]);
 const cursor = ref<FeedCursor>(null);
 const loading = ref(false);
 const loadingMore = ref(false);
+const failedKey = ref<string | null>(null);
 const loadMoreError = ref(false);
 const latestProjectCount = ref<number | null>(null);
-const countLoading = ref(false);
 
 export const isOsmIncluded = ref(false);
 export const mapArea = ref<MapArea | null>(null);
@@ -52,6 +52,7 @@ let countRequestToken = 0;
 export const contributions = computed(() => latestContributions.value);
 export const isLoading = computed(() => loading.value);
 export const isLoadingMore = computed(() => loadingMore.value);
+export const hasLoadError = computed(() => failedKey.value === queryKey.value);
 export const hasLoadMoreError = computed(() => loadMoreError.value);
 export const projectCount = computed(() => latestProjectCount.value);
 // The count survives a query change and is only replaced once the new one arrives, so narrowing the
@@ -82,16 +83,14 @@ function buildQueryInput(pageCursor: FeedCursor) {
 }
 
 async function fetchPage(pageCursor: FeedCursor) {
-  return loadOrNull(
-    async () => trpc.feed.getLatestContributions.query(buildQueryInput(pageCursor)),
-    {
-      errorMessage: "Failed to load latest contributions. Please refresh the page.",
-    },
+  // Errors are shown beside the results with a retry action.
+  return loadOrNull(async () =>
+    trpc.feed.getLatestContributions.query(buildQueryInput(pageCursor)),
   );
 }
 
 function ensureContributionCount(key: string): void {
-  if (loadedCountKey.value === key || (countLoading.value && requestedCountKey === key)) return;
+  if (loadedCountKey.value === key || requestedCountKey === key) return;
   void refreshContributionCount(key);
 }
 
@@ -99,7 +98,6 @@ function invalidateContributionCount(): void {
   countRequestToken += 1;
   loadedCountKey.value = null;
   requestedCountKey = null;
-  countLoading.value = false;
 }
 
 async function refreshContributionCount(key: string): Promise<void> {
@@ -107,7 +105,6 @@ async function refreshContributionCount(key: string): Promise<void> {
   const token = countRequestToken;
   requestedCountKey = key;
   loadedCountKey.value = null;
-  countLoading.value = true;
   try {
     const result = await loadOrNull(async () =>
       // Out of the batch: counting is far slower than fetching a page, and the list must not wait
@@ -116,12 +113,11 @@ async function refreshContributionCount(key: string): Promise<void> {
         context: { skipBatch: true },
       }),
     );
-    if (token !== countRequestToken || !result) return;
+    if (token !== countRequestToken || key !== queryKey.value || !result) return;
     latestProjectCount.value = result.count;
     loadedCountKey.value = key;
   } finally {
     if (token === countRequestToken) {
-      countLoading.value = false;
       requestedCountKey = null;
     }
   }
@@ -129,27 +125,27 @@ async function refreshContributionCount(key: string): Promise<void> {
 
 // Loads page one unless the live query is already shown or already on its way, so a query change, a
 // tab switch and a panel activation cannot each start the same request.
-function ensureLatestContributions(): void {
+export async function activateLatestContributions(): Promise<void> {
   const key = queryKey.value;
+  // The count is independent: retry it even if this query's rows are already loaded.
+  ensureContributionCount(key);
   if (loadedKey.value === key || requestedKey === key) return;
-  void refreshLatestContributions();
-}
 
-// Discards the current list and loads page one for the live query.
-async function refreshLatestContributions(): Promise<void> {
+  // Keep the previous results until page one for the live query succeeds.
   requestToken += 1;
   const token = requestToken;
   loadingMore.value = false;
   loadMoreError.value = false;
-  const key = queryKey.value;
   requestedKey = key;
-  // Alongside the page, not after it: the count is its own query and waiting on the list only
-  // widens the window where the shown count is stale.
-  ensureContributionCount(key);
   loading.value = true;
   try {
     const result = await fetchPage(null);
-    if (token !== requestToken || !result) return;
+    if (token !== requestToken || key !== queryKey.value) return;
+    if (!result) {
+      failedKey.value = key;
+      return;
+    }
+    failedKey.value = null;
     latestContributions.value = result.items;
     cursor.value = result.nextCursor;
     loadedKey.value = key;
@@ -171,7 +167,7 @@ export async function loadMoreLatestContributions(): Promise<void> {
   loadingMore.value = true;
   try {
     const result = await fetchPage(pageCursor);
-    if (token !== requestToken) return;
+    if (token !== requestToken || key !== queryKey.value) return;
     if (!result) {
       loadMoreError.value = true;
       return;
@@ -186,14 +182,17 @@ export async function loadMoreLatestContributions(): Promise<void> {
   }
 }
 
-// The on-screen edge of the feed: it catches up with any query change made while the tab was away.
-export function activateLatestContributions(): void {
-  ensureLatestContributions();
-  ensureContributionCount(queryKey.value);
-}
-
 export function invalidateLatestContributions(): void {
-  clearLoadedContributions();
+  requestToken += 1;
+  latestContributions.value = [];
+  cursor.value = null;
+  loadedKey.value = null;
+  requestedKey = null;
+  loading.value = false;
+  loadingMore.value = false;
+  failedKey.value = null;
+  loadMoreError.value = false;
+  invalidateContributionCount();
 }
 
 // Bounding the feed to a viewport asks what is in that place, so include OSM projects too.
@@ -208,23 +207,11 @@ export function clearMapArea(): void {
   changeMapArea(null);
 }
 
-// Picking an area is a map gesture, so the list is fetched even with the tab closed: the user is
-// about to open it, and the wait is spent on the map instead of on an empty panel.
+// Fetch immediately after a map gesture, even with the tab closed, so the results can be ready
+// when the user opens it. Keep the previous results until the replacement succeeds.
 function changeMapArea(bounds: MapArea | null): void {
-  clearLoadedContributions();
   mapArea.value = bounds;
-  ensureLatestContributions();
-}
-
-function clearLoadedContributions(): void {
-  requestToken += 1;
-  latestContributions.value = [];
-  cursor.value = null;
-  loadedKey.value = null;
-  requestedKey = null;
-  loadingMore.value = false;
-  loadMoreError.value = false;
-  invalidateContributionCount();
+  void activateLatestContributions();
 }
 
 function sameMapArea(left: MapArea | null, right: MapArea): boolean {
@@ -244,7 +231,7 @@ const FILTER_SETTLE_MS = 300;
 
 const scheduleFilteredRefresh = debounce(() => {
   if (isFeedActive.value) {
-    ensureLatestContributions();
+    void activateLatestContributions();
   }
 }, FILTER_SETTLE_MS);
 
