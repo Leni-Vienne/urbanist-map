@@ -537,8 +537,9 @@ export const userReports = pgTable(
 );
 
 // Tombstones for hard-deleted projects, written by the OSM prune step immediately before deletion.
-// A minimal record (not a full copy) so the SEO route can answer HTTP 410 for an indexed URL whose
-// project is gone, and the SPA can still center the map on the last known location. Soft-detached
+// A minimal record (not a full copy) so the SEO route can answer HTTP 410 for a public URL whose
+// project is gone, and the SPA can still center the map on the last known location. Indexability
+// does not gate preservation: a public URL may have been shared even when noindex. Soft-detached
 // projects keep their row and never get a tombstone. Because slugs are deterministic, a reappearing
 // OSM feature regenerates the same slug; the live row then wins (the resolver checks projects first).
 export const deletedProjects = pgTable(

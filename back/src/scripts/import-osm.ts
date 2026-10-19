@@ -784,16 +784,16 @@ async function main() {
 
   if (pruneSafe) {
     try {
-      // Tombstone the rows about to be hard-deleted so an indexed /project/:slug URL can answer 410
-      // and the SPA can still center the map on the last known location. A proposed/under-construction
-      // feature leaving the OSM extract most often means it got built, so default the status to
-      // 'completed'. Skip rows without a slug; ON CONFLICT refreshes coords + timestamp
-      // in case a slug recurs. Done immediately before the delete so it covers exactly that set.
+      // Preserve every public /project/:slug link before deletion: return 410 and let the SPA
+      // center on its last known location. Indexability is a current SEO decision, not a history
+      // of which URLs were public or shared, so it must not gate link preservation. Only approved
+      // projects get a public fallback. A feature leaving the extract most often got built,
+      // so retain the existing 'completed' default. ON CONFLICT refreshes a recurring slug.
       await db.execute(sql`
         INSERT INTO deleted_projects (slug, lat, lng, status, deleted_at)
         SELECT slug, lat, lng, 'completed', NOW()
         FROM projects
-        WHERE ${staleCondition} AND NOT (${hasOverlays}) AND slug IS NOT NULL AND indexable
+        WHERE ${staleCondition} AND NOT (${hasOverlays}) AND slug IS NOT NULL AND status = 'approved'
         ON CONFLICT (slug) DO UPDATE
           SET lat = EXCLUDED.lat, lng = EXCLUDED.lng, status = EXCLUDED.status, deleted_at = NOW()
       `);
