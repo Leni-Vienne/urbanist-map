@@ -6,9 +6,15 @@ import { useFocusStore } from "./focusStore";
 import { useModerationStore } from "./moderationStore";
 import { useContributionStore } from "./contributionStore";
 import { useAuthStore } from "./authStore";
+import { useUiStore } from "./uiStore";
+import { useChangeRequestStore } from "./changeRequestStore";
 import { useUserContributions } from "@/composables/project/useUserContributions";
-import { createLocalProject } from "@/utils/typeFactories";
+import { createLocalProject, overlayWireToData } from "@/utils/typeFactories";
 import { openProjectDetailById } from "@/services/core/projectSelection";
+import { getStagedOverlayModifications, isOverlayUnsaved } from "@/services/overlay/unsavedState";
+import { getEditModeRestingCorners, hasOpenChangeRequest } from "@/services/overlay/positionState";
+import { resolveOverlayCorners } from "@/services/overlay/data";
+import { buildOwnOverlayProposal } from "../../../back/src/db/overlayProposal";
 import type {
   BackendOverlayData,
   Overlay,
@@ -87,12 +93,12 @@ function makePanelOverlay(id: string, projectId: string): Overlay {
   };
 }
 
-function authenticateTestUser(): void {
+function authenticateTestUser(role: "admin" | null = null): void {
   useAuthStore().user = {
     id: "user-1",
     email: "user@example.com",
     username: "user",
-    role: null,
+    role,
     moderatedCountries: [],
     emailVerified: true,
   };
@@ -183,6 +189,117 @@ function projectStateOwnership() {
 function overlayStateOwnership() {
   test("replaces viewport projections without promoting them to persisted state", tileTest);
   test("preserves a draft across backend refresh and drops it after replacement", overlayDraftTest);
+  test("keeps a submitted caption removal through wire decoding and backend refresh", () => {
+    const store = useOverlayStore();
+    const baseline = makeBackendOverlay("Server caption");
+    store.ingestBackendOverlay(baseline);
+    store.updateOverlayDraft(baseline.id, { caption: null });
+    expect(isOverlayUnsaved(baseline)).toBe(true);
+
+    const { baselineCorners, baselineCaption: _baselineCaption, ...wire } = baseline;
+    const submitted = store.ingestBackendOverlay(
+      overlayWireToData({
+        ...wire,
+        corners: baselineCorners ?? [],
+        ownProposal: buildOwnOverlayProposal([{ fieldName: "caption", newValue: null }]),
+      }),
+      false,
+    );
+    expect(store.liveOverlays[baseline.id]?.caption).toBeNull();
+    expect(store.liveOverlays[baseline.id]?.positionState).toBe("suggested");
+    expect(hasOpenChangeRequest(submitted)).toBe(true);
+    expect(isOverlayUnsaved(baseline)).toBe(false);
+    expect(getStagedOverlayModifications("project-1")).toEqual([]);
+
+    store.ingestBackendOverlay({ ...baseline, ownProposal: { caption: null } });
+    expect(store.liveOverlays[baseline.id]?.caption).toBeNull();
+  });
+  test("a corners-only proposal leaves the caption at its baseline", () => {
+    const store = useOverlayStore();
+    const baseline = makeBackendOverlay("Server caption");
+    store.ingestBackendOverlay({
+      ...baseline,
+      ownProposal: { corners: baseline.baselineCorners ?? [] },
+    });
+    expect(store.liveOverlays[baseline.id]?.caption).toBe("Server caption");
+    expect(isOverlayUnsaved(baseline)).toBe(false);
+  });
+  test.each([undefined, "Local caption"])(
+    "clears a caption removal proposal while preserving a subsequent edit: %s",
+    (localCaption) => {
+      const store = useOverlayStore();
+      const baseline = makeBackendOverlay("Server caption");
+      store.ingestBackendOverlay({ ...baseline, ownProposal: { caption: null } });
+      if (localCaption !== undefined) {
+        store.updateOverlayDraft(baseline.id, { caption: localCaption });
+      }
+      store.clearPendingChangeRequest(baseline.id);
+      const overlay = store.getOverlayById(baseline.id);
+      expect(overlay?.ownProposal).toBeUndefined();
+      expect(overlay?.caption).toBe(localCaption ?? baseline.caption);
+      expect(overlay?.positionState).toBe("baseline");
+      expect(isOverlayUnsaved(baseline)).toBe(localCaption !== undefined);
+    },
+  );
+  test("keeps moderation geometry previews separate from the user's own proposal", () => {
+    authenticateTestUser("admin");
+    const store = useOverlayStore();
+    const ui = useUiStore();
+    const baseline = makeBackendOverlay("Server caption");
+    const ownCorners = makeTileOverlay("own").baselineCorners.map((c) => ({
+      lat: c.lat + 1,
+      lng: c.lng,
+    }));
+    const foreignCorners = ownCorners.map((c) => ({ lat: c.lat + 1, lng: c.lng }));
+    const overlay = store.ingestBackendOverlay({
+      ...baseline,
+      ownProposal: { corners: ownCorners, caption: null },
+    });
+    ui.setMode("edit");
+    expect(resolveOverlayCorners(overlay)).toEqual(ownCorners);
+    expect(getEditModeRestingCorners(overlay)).toEqual(ownCorners);
+    expect(getEditModeRestingCorners({ ...overlay, positionState: "approved-toggled" })).toEqual(
+      baseline.baselineCorners,
+    );
+
+    useModerationStore().setModerationData({
+      projectIds: [],
+      overlaysById: {},
+      changeRequests: [
+        {
+          id: "foreign-change",
+          entityType: "overlay",
+          entityId: baseline.id,
+          fieldName: "corners",
+          oldValue: baseline.baselineCorners,
+          newValue: foreignCorners,
+          changeReason: null,
+          status: "pending",
+          requestedBy: "another-user",
+          requestedByUsername: "another-user",
+          requestedByReportCount: 0,
+          createdAt: new Date(0),
+          hasConflict: false,
+        },
+      ],
+    });
+    useFocusStore().setSelectionTarget({
+      kind: "overlay",
+      overlayId: baseline.id,
+      projectId: baseline.projectId,
+    });
+    useChangeRequestStore().previewIntent = { changeId: "foreign-change", side: "suggested" };
+    ui.setMode("moderation");
+    expect(resolveOverlayCorners(overlay)).toEqual(foreignCorners);
+    ui.setMode("view");
+    expect(resolveOverlayCorners(overlay)).toEqual(baseline.baselineCorners);
+    ui.setMode("edit");
+    expect(resolveOverlayCorners(overlay)).toEqual(ownCorners);
+    expect(store.persistedOverlays[baseline.id]?.ownProposal).toEqual({
+      corners: ownCorners,
+      caption: null,
+    });
+  });
   test("projects local overlay edits into contribution rows without dropping list metadata", () => {
     authenticateTestUser();
     const projectStore = useProjectStore();

@@ -20,7 +20,7 @@ type OverlayDraft = Partial<
 > & { base?: RuntimeOverlayData };
 
 function restingPositionState(overlay: OverlayObject): OverlayPositionState {
-  return overlay.hasPendingChanges === true ? "suggested" : "baseline";
+  return overlay.ownProposal !== undefined ? "suggested" : "baseline";
 }
 
 function toRuntimeOverlayData(overlay: OverlayObject): RuntimeOverlayData {
@@ -45,7 +45,7 @@ function materializeOverlay(data: RuntimeOverlayData): OverlayObject {
     imageUrl,
     history: [],
     redoStack: [],
-    positionState: data.hasPendingChanges === true ? "suggested" : "baseline",
+    positionState: data.ownProposal !== undefined ? "suggested" : "baseline",
   };
 }
 
@@ -157,12 +157,9 @@ export const useOverlayStore = defineStore("overlay", () => {
     const overlay = getOverlayById(overlayId);
     const persisted = persistedOverlays.value[overlayId];
     if (!overlay || !persisted) return;
-    const defaultBeforeRefresh = overlay.suggestedCaption ?? overlay.baselineCaption;
-    const captionWasUntouched = overlay.caption === defaultBeforeRefresh;
+    const captionWasUntouched = overlay.caption === getEditModeDefaultCaption(overlay);
     updatePersistedOverlay(overlayId, {
-      hasPendingChanges: false,
-      suggestedCorners: undefined,
-      suggestedCaption: undefined,
+      ownProposal: undefined,
     });
     const nextState = overlay.positionState === "staged" ? "staged" : "baseline";
     const draftUpdate: OverlayDraft = { positionState: nextState };

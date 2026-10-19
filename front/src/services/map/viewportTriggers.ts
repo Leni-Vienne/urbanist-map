@@ -54,7 +54,7 @@ function clearResolvedChangeRequestState(sessionOverlayIds: string[]): void {
   const overlayStore = useOverlayStore();
 
   for (const overlay of Object.values(overlayStore.liveOverlays)) {
-    if (overlay.hasPendingChanges === true && !sessionIds.has(overlay.id)) {
+    if (overlay.ownProposal !== undefined && !sessionIds.has(overlay.id)) {
       overlayStore.clearPendingChangeRequest(overlay.id);
     }
   }

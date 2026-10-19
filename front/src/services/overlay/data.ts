@@ -1,18 +1,13 @@
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useModerationStore } from "@/stores/moderationStore";
 import { useUiStore } from "@/stores/uiStore";
-import type { OverlayHistoryState, OverlayPositionState, LatLng } from "@/types/index";
+import type { OverlayObject, LatLng } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import { isValidQuad, parseQuadValue } from "@/services/overlay/transform";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 
-type OverlayPositionInput = {
-  id: string;
-  baselineCorners: LatLng[] | null;
-  suggestedCorners?: LatLng[];
-  history?: OverlayHistoryState[];
-  positionState?: OverlayPositionState;
-};
+type OverlayPositionInput = Pick<OverlayObject, "id" | "baselineCorners" | "ownProposal"> &
+  Partial<Pick<OverlayObject, "history" | "positionState">>;
 
 export function updateOverlayInfo(id: string, info: { caption?: string }): void {
   const overlayStore = useOverlayStore();
@@ -43,7 +38,7 @@ function getModerationPreviewCorners(overlayId: string): LatLng[] | null {
 function getSuggestedDisplayCorners(overlay: OverlayPositionInput, mode: AppMode): LatLng[] | null {
   if (mode === "edit") {
     const rests = overlay.positionState === "suggested";
-    return rests && isValidQuad(overlay.suggestedCorners) ? overlay.suggestedCorners : null;
+    return rests && isValidQuad(overlay.ownProposal?.corners) ? overlay.ownProposal.corners : null;
   }
   if (mode === "moderation") return getModerationPreviewCorners(overlay.id);
   return null;

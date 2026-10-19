@@ -149,10 +149,7 @@ type ApiOverlayData =
 // Frontend overlay data type - extends API type with:
 // - null status for local overlays not yet submitted to the backend
 // - optional fields that are absent on locally-constructed overlays
-export type OverlayData = Omit<
-  ApiOverlayData,
-  "status" | "corners" | "suggestedCorners" | "suggestedCaption" | "hasPendingChanges"
-> & {
+export type OverlayData = Omit<ApiOverlayData, "status" | "corners" | "ownProposal"> & {
   status: ApprovalStatus | null;
   // The immutable backend/approved corners, or null when the overlay has no placed footprint
   // (an un-placed local upload before its corners are computed, or a render with null corners).
@@ -161,11 +158,9 @@ export type OverlayData = Omit<
   // The immutable backend/approved caption, copied from the wire `caption` at ingest and never
   // overwritten by edits (the mirror of baselineCorners). The live edited caption stays on `caption`.
   baselineCaption: string | null;
-  // The current user's own open change request on this overlay: whether one exists, and the
-  // corners/caption they proposed. Never another requester's, in any mode.
-  suggestedCorners?: LatLng[];
-  suggestedCaption?: string | null;
-  hasPendingChanges?: boolean;
+  // The current user's own open proposal, absent when none exists. Missing fields are unchanged;
+  // caption: null clears the caption. Never another requester's proposal, in any mode.
+  ownProposal?: NonNullable<ApiOverlayData["ownProposal"]>;
 };
 
 export type BackendOverlayData = OverlayData & {

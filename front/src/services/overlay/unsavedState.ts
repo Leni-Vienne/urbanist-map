@@ -24,10 +24,7 @@ function getStagedCornersDelta(
 
 // Staged (unsubmitted) caption delta, derived: the live caption differs from the edit-mode default.
 function getStagedCaptionDelta(
-  overlay: Pick<
-    OverlayObject,
-    "status" | "caption" | "hasPendingChanges" | "suggestedCaption" | "baselineCaption"
-  >,
+  overlay: Pick<OverlayObject, "status" | "caption" | "ownProposal" | "baselineCaption">,
 ): { current: string | null; original: string | null } | null {
   if (overlay.status === null) return null; // new overlays: caption lives on the object, not a delta
   const current = overlay.caption;
