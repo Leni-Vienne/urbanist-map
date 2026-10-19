@@ -1,14 +1,11 @@
 <template>
-  <div
-    class="hidden md:flex flex-col rounded-lg overflow-hidden border border-surface bg-content-background/95 backdrop-blur-sm shadow-[0_2px_8px_rgba(0,0,0,0.2)] pointer-events-auto"
-    @dblclick.stop
-  >
+  <div class="hidden md:flex flex-col" @dblclick.stop>
     <button
       type="button"
       class="w-9 h-9 flex items-center justify-center text-color cursor-pointer transition-colors hover:bg-(--p-content-hover-background) disabled:opacity-40 disabled:cursor-default disabled:hover:bg-transparent"
       :disabled="atMaxZoom"
       :aria-label="t('map.zoomIn')"
-      :title="t('map.zoomIn')"
+      v-tooltip.left="t('map.zoomIn')"
       @click="zoomIn"
     >
       <i class="pi pi-plus text-sm"></i>
@@ -21,7 +18,7 @@
       class="w-9 h-9 flex items-center justify-center text-color cursor-pointer transition-colors hover:bg-(--p-content-hover-background) disabled:opacity-40 disabled:cursor-default disabled:hover:bg-transparent"
       :disabled="atMinZoom"
       :aria-label="t('map.zoomOut')"
-      :title="t('map.zoomOut')"
+      v-tooltip.left="t('map.zoomOut')"
       @click="zoomOut"
     >
       <i class="pi pi-minus text-sm"></i>

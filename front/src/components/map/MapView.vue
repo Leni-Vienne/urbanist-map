@@ -33,9 +33,15 @@
         </div>
       </div>
 
-      <!-- Right column: Zoom + compass, stacked below the top controls -->
+      <!-- Map controls, stacked below the top controls -->
       <div class="absolute top-18 right-4 z-1000 flex flex-col items-end gap-3 pointer-events-none">
-        <ZoomControls />
+        <div
+          class="flex flex-col rounded-lg overflow-hidden border border-surface bg-content-background/95 backdrop-blur-sm shadow-[0_2px_8px_rgba(0,0,0,0.2)] pointer-events-auto"
+        >
+          <ZoomControls />
+          <div class="hidden md:block h-px bg-content-border-color"></div>
+          <LocateControl />
+        </div>
         <CompassControl />
       </div>
 
@@ -68,6 +74,7 @@ import { useFocusStore } from "@/stores/focusStore";
 
 import SatellitePreview from "@/components/map/SatellitePreview.vue";
 import ZoomControls from "@/components/map/ZoomControls.vue";
+import LocateControl from "@/components/map/LocateControl.vue";
 import CompassControl from "@/components/map/CompassControl.vue";
 import RenderImageMarkers from "@/components/map/RenderImageMarkers.vue";
 

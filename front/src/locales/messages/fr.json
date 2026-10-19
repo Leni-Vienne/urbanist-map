@@ -242,6 +242,16 @@
     "zoomIn": "Zoom avant",
     "zoomOut": "Zoom arrière",
     "resetNorth": "Réorienter au nord",
+    "location": {
+      "label": "Afficher ma position",
+      "hide": "Masquer ma position",
+      "blocked": "L’accès à votre position est bloqué dans votre navigateur",
+      "locating": "Recherche de votre position…",
+      "accuracy": "Votre position (précision : {distance})",
+      "unsupported": "La géolocalisation n’est pas disponible dans ce navigateur.",
+      "timeout": "La recherche de votre position a pris trop de temps. Veuillez réessayer.",
+      "unavailable": "Impossible de déterminer votre position. Veuillez réessayer."
+    },
     "clusterProjects": "{count} projets",
     "clusterProjectsPlus": "(+{count} projets)",
     "controls": {
@@ -277,7 +287,8 @@
       "label": "Bâtiments 3D"
     },
     "rotation": {
-      "label": "Rotation de la carte"
+      "label": "Rotation de la carte",
+      "hint": "Clic droit + glisser pour tourner."
     }
   },
   "search": {

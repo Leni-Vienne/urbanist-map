@@ -19,7 +19,13 @@
     />
   </SettingsMenuRow>
 
-  <SettingsMenuRow :label="$t('map.rotation.label')">
+  <SettingsMenuRow
+    :label="$t('map.rotation.label')"
+    v-tooltip.left="{
+      value: $t('map.rotation.hint'),
+      disabled: isMobile,
+    }"
+  >
     <template #icon>
       <CompassRose :size="18" />
     </template>
@@ -37,6 +43,7 @@ import MapLanguageMenu from "@/components/map/MapLanguageMenu.vue";
 import SettingsMenuRow from "@/components/map/SettingsMenuRow.vue";
 import CompassRose from "@/components/map/CompassRose.vue";
 import { useTheme } from "@/composables/core/useTheme";
+import { isMobile } from "@/services/core/viewport";
 import {
   show3DBuildings,
   toggle3DBuildings,

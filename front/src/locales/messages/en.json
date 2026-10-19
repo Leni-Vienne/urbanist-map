@@ -242,6 +242,16 @@
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",
     "resetNorth": "Reset to north",
+    "location": {
+      "label": "Show my location",
+      "hide": "Hide my location",
+      "blocked": "Location access is blocked in your browser",
+      "locating": "Finding your location…",
+      "accuracy": "Your location (accuracy: {distance})",
+      "unsupported": "Location is not available in this browser.",
+      "timeout": "Finding your location took too long. Please try again.",
+      "unavailable": "Could not determine your location. Please try again."
+    },
     "clusterProjects": "{count} projects",
     "clusterProjectsPlus": "(+{count} projects)",
     "controls": {
@@ -277,7 +287,8 @@
       "label": "3D buildings"
     },
     "rotation": {
-      "label": "Map rotation"
+      "label": "Map rotation",
+      "hint": "Right-click + drag to rotate."
     }
   },
   "search": {

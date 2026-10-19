@@ -6,6 +6,7 @@ import { ref } from "vue";
 const BUILDINGS_3D_KEY = "show-3d-buildings";
 const ROTATION_KEY = "map-rotation-enabled";
 const FILTERS_SEEN_KEY = "filters-seen";
+const USER_LOCATION_KEY = "show-user-location";
 
 function loadSetting(storageKey: string, fallback: boolean): boolean {
   try {
@@ -37,6 +38,14 @@ export const mapRotationEnabled = ref(loadSetting(ROTATION_KEY, true));
 export function toggleMapRotation(): void {
   mapRotationEnabled.value = !mapRotationEnabled.value;
   saveSetting(ROTATION_KEY, mapRotationEnabled.value);
+}
+
+// Remember the opt-in, never the coordinates. Browser permission is checked before restoring it.
+export const showUserLocation = ref(loadSetting(USER_LOCATION_KEY, false));
+
+export function setShowUserLocation(value: boolean): void {
+  showUserLocation.value = value;
+  saveSetting(USER_LOCATION_KEY, value);
 }
 
 // Whether the filter surface has ever been opened, so its entry point can wear a hint dot until it

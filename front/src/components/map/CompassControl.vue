@@ -4,7 +4,7 @@
     type="button"
     class="w-9 h-9 flex items-center justify-center rounded-lg border border-surface bg-content-background/95 backdrop-blur-sm shadow-[0_2px_8px_rgba(0,0,0,0.2)] text-color cursor-pointer transition-colors hover:bg-(--p-content-hover-background) pointer-events-auto"
     :aria-label="t('map.resetNorth')"
-    :title="t('map.resetNorth')"
+    v-tooltip.left="{ value: t('map.resetNorth'), disabled: isMobile }"
     @click.stop="resetNorth"
     @dblclick.stop
   >
@@ -18,6 +18,7 @@ import { useI18n } from "vue-i18n";
 import CompassRose from "@/components/map/CompassRose.vue";
 import { getMap, currentBearing, currentPitch } from "@/services/core/map";
 import { mapRotationEnabled } from "@/services/core/settings";
+import { isMobile } from "@/services/core/viewport";
 
 const { t } = useI18n();
 
