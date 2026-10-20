@@ -138,7 +138,7 @@ export const projectRouter = router({
         // If image deletion fails, DB is still consistent (orphaned images are less critical)
         for (const overlay of projectOverlays) {
           try {
-            await deleteLocalImages(overlay.filename, "both");
+            await deleteLocalImages(overlay.filename);
             console.log(`Deleted local images for overlay ${overlay.id}`);
           } catch (error) {
             console.error(`Failed to delete images for overlay ${overlay.id}:`, error);

@@ -9,7 +9,7 @@ import { t } from "@/locales";
 import { getStagedRender } from "@/services/submission/stagedRenderState";
 import type { Project, ProjectPanelOverlay } from "@/types/index";
 
-type ContributionFilter = "all" | "pending" | "approved";
+type ContributionFilter = "all" | "pending" | "reviewed";
 
 export function useUserContributions() {
   const projectStore = useProjectStore();
@@ -125,12 +125,12 @@ export function useUserContributions() {
   }
 
   const pendingCount = computed(() => allContributions.value.filter(isContributionPending).length);
-  const approvedCount = computed(() => allContributions.value.length - pendingCount.value);
+  const reviewedCount = computed(() => allContributions.value.length - pendingCount.value);
 
   const filterTabs = computed<{ key: ContributionFilter; label: string; count: number }[]>(() => [
     { key: "all", label: t("contribute.filterAll"), count: allContributions.value.length },
     { key: "pending", label: t("approvalStatus.pending"), count: pendingCount.value },
-    { key: "approved", label: t("approvalStatus.approved"), count: approvedCount.value },
+    { key: "reviewed", label: t("contribute.filterReviewed"), count: reviewedCount.value },
   ]);
 
   const filteredProjects = computed(() => {

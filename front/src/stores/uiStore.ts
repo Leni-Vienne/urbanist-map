@@ -22,7 +22,6 @@ export const useUiStore = defineStore("ui", () => {
   const authModalVisible = ref(false);
   const authModalInitialMode = ref<"login" | "signup">("login");
   const markerPlacementBarVisible = ref(false);
-  const moderatedContributionsDialogVisible = ref(false);
 
   const projectCreationSeed = ref<Pick<Project, "lat" | "lng"> | null>(null);
   const projectEditTargetId = ref<string | null>(null);
@@ -100,7 +99,6 @@ export const useUiStore = defineStore("ui", () => {
   function clearAllState() {
     activeTab.value = "explore";
     markerPlacementBarVisible.value = false;
-    moderatedContributionsDialogVisible.value = false;
     activeAccordionPanels.value = [];
     closeProjectDialog();
     closeProjectEditForm();
@@ -113,7 +111,6 @@ export const useUiStore = defineStore("ui", () => {
     authModalVisible,
     authModalInitialMode,
     markerPlacementBarVisible,
-    moderatedContributionsDialogVisible,
     projectCreationSeed,
     projectEditTargetId,
     overlayEditTargetId,

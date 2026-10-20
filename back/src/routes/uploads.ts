@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod'
 import { eq } from "drizzle-orm";
 import {
@@ -7,6 +8,7 @@ import {
   readPublicR2File,
   getThumbnailFilename,
   compressImageIfNeeded,
+  generateThumbnail,
 } from "../lib/storage";
 import { exceedsPendingStorageQuota } from "../lib/storageQuota";
 import { MAX_UPLOAD_FILE_SIZE_BYTES, MAX_UPLOAD_FILE_SIZE_MB } from "@shared/uploadLimits";
@@ -19,7 +21,11 @@ import { logger } from "../services/logger";
 import { db } from "../database";
 import { overlays, projects, uploadedFiles } from "../db/schema";
 
-export const uploadsApp = new Hono<AppEnv>();
+export const uploadsApp = new Hono<AppEnv & { Variables: { uploadUser: SessionUser } }>();
+
+// One backend owns these uploads. Serialize processing and quota checks; the browser
+// sends a submission's images sequentially. Reading a slow request must not hold this slot.
+let uploadInProgress = false;
 
 // Always use local storage for initial uploads - images migrate to R2 on approval
 const storage = new LocalFileStorage();
@@ -101,132 +107,173 @@ const imageFileSchema = z.object({
 });
 
 // File upload endpoint
-uploadsApp.post("/api/upload-image", async (c) => {
-  try {
-    // Rate limit: 10 uploads per IP per minute
-    const ip = getClientIp(c);
-    if (!rateLimit.check(ip, 10, 60 * 1000)) {
-      return c.json({ error: "auth.error.tooManyRequests" }, 429);
-    }
-
-    // Require authentication
-    // Uploads are only allowed for logged-in users to prevent anonymous spam
-    const session = c.get("session");
-    const user = await resolveSessionUser(session);
-    if (!user) {
-      return c.json({ error: "Authentication required" }, 401);
-    }
-
-    const body = await c.req.formData();
-    const file = body.get("image");
-
-    if (!(file instanceof File)) {
-      logger.warn({ fileType: typeof file }, "Upload failed: No file provided");
-      return c.json({ error: "No file provided" }, 400);
-    }
-
-    const validationResult = imageFileSchema.safeParse({
-      size: file.size,
-      type: file.type,
-      name: file.name,
-    });
-
-    if (!validationResult.success) {
-      const errorMessage = validationResult.error.issues.map((err) => err.message).join(", ");
-      logger.warn(
-        { fileName: file.name, fileType: file.type, fileSize: file.size, errors: errorMessage },
-        "Upload failed: Zod validation error",
-      );
-      return c.json({ error: errorMessage }, 400);
-    }
-
-    // Extract file extension for filename generation
-    const lastDot = file.name.lastIndexOf(".");
-    const fileExtension =
-      lastDot !== -1 && lastDot !== file.name.length - 1
-        ? file.name.slice(lastDot + 1).toLowerCase()
-        : null;
-
-    // Ensure we have a valid extension (this should not fail due to Zod validation)
-    if (!fileExtension) {
-      logger.warn({ fileName: file.name }, "Upload failed: Invalid file extension");
-      return c.json({ error: "Invalid file extension" }, 400);
-    }
-
-    const originalBuffer = await file.arrayBuffer();
-
-    // Smart compression: convert to WebP at quality 90, but keep original if it's smaller
-    // This prevents double-compression artifacts on already-optimized images
-    const compressionResult = await compressImageIfNeeded(originalBuffer, fileExtension);
-
-    // Both the compressed file and the uncapped original land in local storage until moderation,
-    // so weigh both against the user's pending quota before writing anything to disk.
-    const incomingBytes = compressionResult.finalSize + originalBuffer.byteLength;
-    if (await exceedsPendingStorageQuota(user.id, incomingBytes)) {
-      return c.json({ error: "upload.error.storageQuotaExceeded" }, 413);
-    }
-
-    const timestamp = Date.now();
-    const randomString = Math.random().toString(36).slice(2, 15);
-    const filename = `${timestamp}-${randomString}.${compressionResult.extension}`;
-    const originalFilename = `${timestamp}-${randomString}.${fileExtension}`;
-
-    // Claim the filenames before writing them, so bytes that reach disk are always attributable to
-    // an uploader even if the request dies mid-write. Recorded here rather than at overlay creation
-    // because an upload that is never submitted still occupies local storage.
-    await db.insert(uploadedFiles).values({ filename, originalFilename, uploaderId: user.id });
-
-    // Log compression results for monitoring (structured logging for Grafana)
-    const savings = compressionResult.originalSize - compressionResult.finalSize;
-    const savingsPercent =
-      compressionResult.originalSize > 0
-        ? ((savings / compressionResult.originalSize) * 100).toFixed(1)
-        : "0";
-
-    logger.info(
-      {
-        event: "image_compression",
-        originalName: file.name,
-        originalFormat: fileExtension,
-        finalFormat: compressionResult.extension,
-        originalSize: compressionResult.originalSize,
-        finalSize: compressionResult.finalSize,
-        savedBytes: savings,
-        savingsPercent: Number.parseFloat(savingsPercent),
-        wasCompressed: compressionResult.wasCompressed,
-      },
-      compressionResult.wasCompressed
-        ? `Image compressed: ${file.name} (${fileExtension}) → WebP, saved ${(savings / 1024).toFixed(1)}KB (${savingsPercent}%)`
-        : `Image kept original: ${file.name} (${compressionResult.extension}), compressed version was not smaller`,
-    );
-
-    // Save to local storage - images are not uploaded to R2 until moderator approval
-    // LocalFileStorage.put also automatically generates 120x120 thumbnail
-    await storage.put(filename, compressionResult.buffer);
-
-    // Keep the pre-compression original locally (never migrated to R2) so approved
-    // content retains a full-quality, uncapped source. Removed on rejection/deletion.
+uploadsApp.post(
+  "/api/upload-image",
+  async (c, next) => {
     try {
-      await storage.putOriginal(originalFilename, originalBuffer);
+      // Rate limit: 10 uploads per IP per minute
+      const ip = getClientIp(c);
+      if (!rateLimit.check(ip, 10, 60 * 1000)) {
+        return c.json({ error: "auth.error.tooManyRequests" }, 429);
+      }
+
+      // Require authentication
+      // Uploads are only allowed for logged-in users to prevent anonymous spam
+      const session = c.get("session");
+      const user = await resolveSessionUser(session);
+      if (!user) {
+        return c.json({ error: "Authentication required" }, 401);
+      }
+
+      if (uploadInProgress) return c.json({ error: "upload.error.busy" }, 429);
+      c.set("uploadUser", user);
+      await next();
+      return c.res;
     } catch (error) {
-      console.error("Failed to store original image:", error);
+      logger.error({ error }, "Failed to authorize image upload");
+      return c.json({ error: "upload.error.uploadFailed" }, 500);
     }
+  },
+  bodyLimit({
+    // Allow multipart headers/boundaries in addition to one maximum-size file.
+    maxSize: MAX_UPLOAD_FILE_SIZE_BYTES + 64 * 1024,
+    onError: (c) => c.json({ error: "upload.error.fileTooLarge" }, 413),
+  }),
+  async (c) => {
+    let ownsUploadSlot = false;
+    try {
+      const user = c.get("uploadUser");
 
-    // Always return local URL - images stay in local storage until approved
-    const imageUrl = `/uploads/${filename}`;
-    const thumbnailUrl = `/uploads/${getThumbnailFilename(filename)}`;
+      const body = await c.req.formData();
+      const file = body.get("image");
 
-    return c.json({
-      success: true,
-      filename,
-      url: imageUrl,
-      thumbnailUrl,
-    } as FileUploadResult);
-  } catch (error) {
-    console.error("Error uploading file:", error);
-    return c.json({ error: "Failed to upload file" }, 500);
-  }
-});
+      if (!(file instanceof File)) {
+        logger.warn({ fileType: typeof file }, "Upload failed: No file provided");
+        return c.json({ error: "No file provided" }, 400);
+      }
+
+      const validationResult = imageFileSchema.safeParse({
+        size: file.size,
+        type: file.type,
+        name: file.name,
+      });
+
+      if (!validationResult.success) {
+        const errorMessage = validationResult.error.issues.map((err) => err.message).join(", ");
+        logger.warn(
+          { fileName: file.name, fileType: file.type, fileSize: file.size, errors: errorMessage },
+          "Upload failed: Zod validation error",
+        );
+        return c.json({ error: errorMessage }, 400);
+      }
+
+      // Another request may have entered processing while this one was receiving its body.
+      if (uploadInProgress) return c.json({ error: "upload.error.busy" }, 429);
+      uploadInProgress = true;
+      ownsUploadSlot = true;
+
+      // The original alone must fit before any image decoding/compression is attempted.
+      if (await exceedsPendingStorageQuota(user.id, file.size)) {
+        return c.json({ error: "upload.error.storageQuotaExceeded" }, 413);
+      }
+
+      const originalBuffer = await file.arrayBuffer();
+
+      // Reject malformed or excessive pixel dimensions before allocating decoded pixel buffers.
+      // 64 MP permits an 8000x8000 plan; encoded file size alone does not bound decoding cost.
+      const imageOptions = { maxPixels: 64_000_000 };
+      // oxlint-disable-next-line init-declarations
+      let metadata: Bun.Image.Metadata;
+      try {
+        metadata = await new Bun.Image(originalBuffer, imageOptions).metadata();
+      } catch {
+        return c.json({ error: "upload.error.invalidImage" }, 400);
+      }
+      const format = metadata.format;
+      if (format !== "jpeg" && format !== "png" && format !== "webp") {
+        return c.json({ error: "upload.error.invalidImage" }, 400);
+      }
+      // Derive stored names from the actual format, never an untrusted filename extension.
+      const fileExtension = format === "jpeg" ? "jpg" : format;
+      const compressionResult = await compressImageIfNeeded(
+        originalBuffer,
+        fileExtension,
+        imageOptions,
+      );
+      const thumbnailBuffer = await generateThumbnail(compressionResult.buffer);
+
+      // Account for every byte to be stored, including the thumbnail. The upload slot keeps
+      // this check and the following writes from racing another upload's quota check.
+      const incomingBytes =
+        compressionResult.finalSize + originalBuffer.byteLength + thumbnailBuffer.byteLength;
+      if (await exceedsPendingStorageQuota(user.id, incomingBytes)) {
+        return c.json({ error: "upload.error.storageQuotaExceeded" }, 413);
+      }
+
+      const timestamp = Date.now();
+      const randomString = Math.random().toString(36).slice(2, 15);
+      const filename = `${timestamp}-${randomString}.${compressionResult.extension}`;
+      const originalFilename = `${timestamp}-${randomString}.${fileExtension}`;
+
+      // Claim the filenames before writing them, so bytes that reach disk are always attributable to
+      // an uploader even if the request dies mid-write. Recorded here rather than at overlay creation
+      // because an upload that is never submitted still occupies local storage.
+      await db.insert(uploadedFiles).values({ filename, originalFilename, uploaderId: user.id });
+
+      // Log compression results for monitoring (structured logging for Grafana)
+      const savings = compressionResult.originalSize - compressionResult.finalSize;
+      const savingsPercent =
+        compressionResult.originalSize > 0
+          ? ((savings / compressionResult.originalSize) * 100).toFixed(1)
+          : "0";
+
+      logger.info(
+        {
+          event: "image_compression",
+          originalName: file.name,
+          originalFormat: fileExtension,
+          finalFormat: compressionResult.extension,
+          originalSize: compressionResult.originalSize,
+          finalSize: compressionResult.finalSize,
+          savedBytes: savings,
+          savingsPercent: Number.parseFloat(savingsPercent),
+          wasCompressed: compressionResult.wasCompressed,
+        },
+        compressionResult.wasCompressed
+          ? `Image compressed: ${file.name} (${fileExtension}) → WebP, saved ${(savings / 1024).toFixed(1)}KB (${savingsPercent}%)`
+          : `Image kept original: ${file.name} (${compressionResult.extension}), compressed version was not smaller`,
+      );
+
+      // The thumbnail was generated above so quota accounting uses its actual size.
+      await storage.put(filename, compressionResult.buffer, { skipThumbnail: true });
+      await storage.put(getThumbnailFilename(filename), thumbnailBuffer, { skipThumbnail: true });
+
+      // Keep the pre-compression original locally (never migrated to R2) so approved
+      // content retains a full-quality source. Rejected files follow the same retention policy.
+      try {
+        await storage.putOriginal(originalFilename, originalBuffer);
+      } catch (error) {
+        console.error("Failed to store original image:", error);
+      }
+
+      // Always return local URL - images stay in local storage until approved
+      const imageUrl = `/uploads/${filename}`;
+      const thumbnailUrl = `/uploads/${getThumbnailFilename(filename)}`;
+
+      return c.json({
+        success: true,
+        filename,
+        url: imageUrl,
+        thumbnailUrl,
+      } as FileUploadResult);
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      return c.json({ error: "Failed to upload file" }, 500);
+    } finally {
+      if (ownsUploadSlot) uploadInProgress = false;
+    }
+  },
+);
 
 // Serve uploaded files with authorization
 // Pending images are only accessible to: author, country moderators, and admins

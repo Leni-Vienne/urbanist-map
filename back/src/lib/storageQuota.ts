@@ -1,13 +1,11 @@
 import { db } from "../database";
 import { overlays, uploadedFiles } from "../db/schema";
-import { and, eq, isNull, or } from "drizzle-orm";
+import { and, eq, inArray, isNull, or } from "drizzle-orm";
 import { stat } from "node:fs/promises";
 import { getThumbnailFilename } from "./storage";
 
-// Cap the on-disk footprint a single user can stage while their uploads await moderation.
-// Pending images (compressed file + thumbnail + uncapped pre-compression original) live only in
-// local storage until approval, so this bounds local disk per user independently of the per-file
-// size cap and the pending-count limit. Tune freely; it is a safety ceiling, not a product limit.
+// Count pending, abandoned and retained rejected uploads, including their originals and thumbnails.
+// Rejection must not free the allowance while its files still occupy disk.
 const MAX_PENDING_STORAGE_BYTES = 200 * 1024 * 1024;
 
 const UPLOADS_DIR = "./uploads";
@@ -17,13 +15,14 @@ async function fileSize(path: string): Promise<number> {
   try {
     const info = await stat(path);
     return info.size;
-  } catch {
-    // Missing file (already deleted, or thumbnail/original never written): contributes nothing.
-    return 0;
+  } catch (error) {
+    // Only a missing file contributes nothing. Other filesystem errors must block the upload.
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return 0;
+    throw error;
   }
 }
 
-// Files an upload is charged for: everything still local and awaiting a moderation decision.
+// Files an upload is charged for: unreviewed uploads and retained rejected submissions.
 // A row with no overlay is an upload that was stored but never submitted; it occupies disk just
 // the same. Approved overlays are excluded because their compressed image and thumbnail have
 // migrated to R2 and their retained original is permanent — charging it would let a contributor's
@@ -42,7 +41,7 @@ async function chargeableUploads(
       .where(
         and(
           eq(uploadedFiles.uploaderId, userId),
-          or(isNull(overlays.id), eq(overlays.status, "pending")),
+          or(isNull(overlays.id), inArray(overlays.status, ["pending", "rejected"])),
         ),
       )
       // A filename can be referenced by more than one overlay row (replacement chains); collapse so
@@ -66,17 +65,11 @@ async function pendingStorageUsed(userId: string): Promise<number> {
 }
 
 // True when storing `incomingBytes` more would push the user past their pending storage quota.
-// Fails open (returns false) on any error so a transient DB/FS fault never blocks a legitimate
-// upload; the rate limit and pending-count limit still apply as independent backstops.
+// Failure to read usage must fail the upload rather than silently bypassing the quota.
 export async function exceedsPendingStorageQuota(
   userId: string,
   incomingBytes: number,
 ): Promise<boolean> {
-  try {
-    const used = await pendingStorageUsed(userId);
-    return used + incomingBytes > MAX_PENDING_STORAGE_BYTES;
-  } catch (error) {
-    console.error("Failed to evaluate pending storage quota:", error);
-    return false;
-  }
+  const used = await pendingStorageUsed(userId);
+  return used + incomingBytes > MAX_PENDING_STORAGE_BYTES;
 }

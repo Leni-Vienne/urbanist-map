@@ -4,7 +4,7 @@ import { eq, sql, and, inArray } from "drizzle-orm";
 import { db } from "../database";
 import { captureProjectMapState } from "../db/projectMapState";
 import { reconcileProjectChanges } from "../services/projectEffects";
-import { deleteImagesEverywhere, executePendingDeletions } from "../lib/imageCleanup";
+import { deleteImagesEverywhere } from "../lib/imageCleanup";
 import { TRPCError } from "@trpc/server";
 import * as z from "zod";
 import { countryNameSql } from "../db/helpers";
@@ -168,7 +168,7 @@ export const adminRouter = router({
         // Clean up overlay images
         for (const overlay of projectOverlays) {
           try {
-            await deleteImagesEverywhere(overlay.filename, "both");
+            await deleteImagesEverywhere(overlay.filename);
           } catch (error) {
             console.error(`Failed to delete images for overlay ${overlay.id}:`, error);
             // Continue - don't fail if image cleanup fails
@@ -183,19 +183,4 @@ export const adminRouter = router({
         });
       }
     }),
-
-  // Manually trigger execution of all due scheduled image deletions
-  // Replaces the cron-based cleanup-images.ts script with an on-demand admin action
-  pruneScheduledDeletions: adminProcedure.mutation(async () => {
-    try {
-      const result = await executePendingDeletions();
-      return result;
-    } catch (error) {
-      console.error("Error running scheduled deletions:", error);
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to run scheduled deletions",
-      });
-    }
-  }),
 });

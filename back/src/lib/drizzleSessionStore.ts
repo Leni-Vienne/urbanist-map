@@ -1,12 +1,8 @@
 import { db } from "../database";
 import { sessions } from "../db/schema";
-import { eq, lt, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { SessionData } from "hono-sessions";
 import { prepareSessionForPersistence } from "./sessionPolicy";
-
-const CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
-
-let cleanupInterval: NodeJS.Timeout | null = null;
 
 async function getSessionById(sessionId?: string) {
   if (!sessionId) return null;
@@ -60,7 +56,7 @@ async function persistSessionData(sessionId: string, sessionData: SessionData): 
     }
 
     // UPSERT covers the case where persistSessionData lands before createSession,
-    // or after a row was reaped by cleanupExpiredSessions.
+    // or after a row was removed by the daily cleanup job.
     await db
       .insert(sessions)
       .values({
@@ -97,24 +93,6 @@ export async function deleteUserSessions(userId: string): Promise<void> {
   } catch (error) {
     console.error("Failed to delete user sessions:", error);
   }
-}
-
-async function cleanupExpiredSessions(): Promise<void> {
-  try {
-    await db.delete(sessions).where(lt(sessions.expiresAt, new Date()));
-  } catch (error) {
-    console.error("Failed to cleanup expired sessions:", error);
-  }
-}
-
-export function startSessionCleanup(): void {
-  if (cleanupInterval) return;
-
-  // Run once on startup to clear sessions left over from previous runs.
-  void cleanupExpiredSessions();
-  cleanupInterval = setInterval(() => {
-    void cleanupExpiredSessions();
-  }, CLEANUP_INTERVAL_MS);
 }
 
 // Object form consumed by hono-sessions' sessionMiddleware.

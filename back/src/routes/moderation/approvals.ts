@@ -3,10 +3,6 @@ import { checkModeratorCountryPermission, checkModeratorOverlayPermission } from
 import { projects, overlays, changeRequests, users } from "../../db/schema";
 import { and, eq, or, sql, inArray, ne } from "drizzle-orm";
 import { db, type Transaction } from "../../database";
-import {
-  cleanupRejectedPendingOverlay,
-  cleanupReplacedApprovedOverlay,
-} from "../../lib/imageCleanup";
 import { TRPCError } from "@trpc/server";
 import { queueR2Migration } from "../../services/r2MigrationService";
 import { captureProjectMapState } from "../../db/projectMapState";
@@ -83,22 +79,21 @@ export const approvalProcedures = {
           const ownerId = updatedProject.ownerId;
           if (input.status === "approved") {
             await incrementApprovedCount(tx, ownerId);
-            return { before, rejectedOverlays: [] };
+            return before;
           }
 
           await incrementRejectedCount(tx, ownerId);
-          if (!input.rejectAllOverlays) return { before, rejectedOverlays: [] };
+          if (!input.rejectAllOverlays) return before;
 
           const pendingOverlays = await tx
             .select({
               id: overlays.id,
-              filename: overlays.filename,
               authorId: overlays.authorId,
             })
             .from(overlays)
             .where(and(eq(overlays.projectId, input.id), eq(overlays.status, "pending")));
 
-          if (pendingOverlays.length === 0) return { before, rejectedOverlays: [] };
+          if (pendingOverlays.length === 0) return before;
 
           await tx
             .update(overlays)
@@ -109,19 +104,10 @@ export const approvalProcedures = {
             await incrementRejectedCount(tx, overlay.authorId);
           }
 
-          return { before, rejectedOverlays: pendingOverlays };
+          return before;
         });
 
-        // Committed: nothing below may fail the request, or the moderator retries an action that
-        // already succeeded. Indexing has the daily import pass as its safety net.
-        for (const overlay of committed.rejectedOverlays) {
-          try {
-            await cleanupRejectedPendingOverlay(overlay.id, overlay.filename);
-          } catch (error) {
-            console.error(`Failed to cleanup rejected overlay: ${overlay.filename}`, error);
-          }
-        }
-        await reconcileProjectChanges(committed.before);
+        await reconcileProjectChanges(committed);
 
         return { success: true };
       } catch (error) {
@@ -145,7 +131,7 @@ export const approvalProcedures = {
 
       try {
         if (input.status === "rejected") {
-          const rejectedOverlay = await db.transaction(async (tx) => {
+          await db.transaction(async (tx) => {
             const overlay = await getOverlayForModeration(tx, input.id);
             await rejectOverlay(
               tx,
@@ -154,15 +140,7 @@ export const approvalProcedures = {
               overlay.authorId,
               input.rejectionReason,
             );
-            return overlay;
           });
-
-          // Committed: cleanup must not fail the request.
-          try {
-            await cleanupRejectedPendingOverlay(input.id, rejectedOverlay.filename);
-          } catch (error) {
-            console.error(`Failed to cleanup rejected overlay ${input.id}:`, error);
-          }
 
           return { success: true };
         }
@@ -170,19 +148,19 @@ export const approvalProcedures = {
         const approval = await db.transaction(async (tx) => {
           const overlay = await getOverlayForModeration(tx, input.id);
           const before = await captureProjectMapState(tx, [overlay.projectId]);
-          const replacement = overlay.replacesOverlayId
-            ? await resolveReplacementConflicts(
-                tx,
-                overlay.replacesOverlayId,
-                input.id,
-                overlay.projectId,
-                ctx.user.id,
-              )
-            : null;
+          if (overlay.replacesOverlayId) {
+            await resolveReplacementConflicts(
+              tx,
+              overlay.replacesOverlayId,
+              input.id,
+              overlay.projectId,
+              ctx.user.id,
+            );
+          }
 
           await approveOverlay(tx, input.id, input.expectedVersion, overlay.authorId);
 
-          return { overlay, replacement, before };
+          return { overlay, before };
         });
 
         // Queue the approved image before optional cleanup work. Each post-commit side effect has
@@ -192,17 +170,6 @@ export const approvalProcedures = {
             queueR2Migration(approval.overlay.filename);
           } catch (error) {
             console.error(`Failed to queue R2 migration for overlay ${input.id}:`, error);
-          }
-        }
-
-        if (approval.replacement) {
-          try {
-            await cleanupReplacementImages(
-              approval.replacement.competingReplacements,
-              approval.replacement.originalOverlay,
-            );
-          } catch (error) {
-            console.error(`Failed to cleanup replacement images for overlay ${input.id}:`, error);
           }
         }
 
@@ -273,18 +240,15 @@ async function rejectOverlay(
   await incrementRejectedCount(tx, authorId);
 }
 
-// Retires the overlay being replaced and rejects the other pending candidates for it, returning
-// those losers so their images can be cleaned up once the transaction commits.
+// Retire the original and reject competing candidates. Their images follow the same
+// retention policy as their database rows.
 async function resolveReplacementConflicts(
   tx: Transaction,
   replacesOverlayId: string,
   newOverlayId: string,
   projectId: string,
   moderatorId: string,
-): Promise<{
-  originalOverlay: { id: string; filename: string };
-  competingReplacements: { id: string; filename: string }[];
-}> {
+): Promise<void> {
   const originalOverlays = await tx
     .update(overlays)
     .set({
@@ -299,7 +263,7 @@ async function resolveReplacementConflicts(
         eq(overlays.status, "approved"),
       ),
     )
-    .returning({ id: overlays.id, filename: overlays.filename });
+    .returning({ id: overlays.id });
 
   const originalOverlay = originalOverlays[0];
   if (!originalOverlay) {
@@ -324,7 +288,7 @@ async function resolveReplacementConflicts(
     );
 
   const competingReplacements = await tx
-    .select({ id: overlays.id, filename: overlays.filename, authorId: overlays.authorId })
+    .select({ id: overlays.id, authorId: overlays.authorId })
     .from(overlays)
     .where(
       and(
@@ -353,8 +317,6 @@ async function resolveReplacementConflicts(
       await incrementRejectedCount(tx, competing.authorId);
     }
   }
-
-  return { originalOverlay, competingReplacements };
 }
 
 async function approveOverlay(
@@ -395,19 +357,4 @@ async function approveOverlay(
   }
 
   await incrementApprovedCount(tx, authorId);
-}
-
-async function cleanupReplacementImages(
-  competingReplacements: { id: string; filename: string }[],
-  originalOverlay: { id: string; filename: string },
-): Promise<void> {
-  for (const competing of competingReplacements) {
-    try {
-      await cleanupRejectedPendingOverlay(competing.id, competing.filename);
-    } catch (error) {
-      console.error(`Failed to cleanup competing replacement ${competing.id}:`, error);
-    }
-  }
-
-  await cleanupReplacedApprovedOverlay(originalOverlay.id, originalOverlay.filename);
 }

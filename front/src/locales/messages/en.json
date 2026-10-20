@@ -168,6 +168,7 @@
     "selectedProject": "Selected project",
     "yourContributions": "Your contributions",
     "filterAll": "All",
+    "filterReviewed": "Reviewed",
     "deleteOverlay": "Delete image",
     "deleteProject": "Delete project",
     "deleteChangeRequest": "Delete change request",
@@ -529,7 +530,11 @@
     "maximumSizeOnMap": "Maximum size is 1km × 1km",
     "fileTooLarge": "File is too large. Maximum size is {maxSize}MB.",
     "error": {
-      "uploadFailed": "Failed to upload image to server."
+      "uploadFailed": "Failed to upload image to server.",
+      "busy": "Another image upload is in progress. Please try again shortly.",
+      "fileTooLarge": "The upload exceeds the 25 MB limit.",
+      "invalidImage": "Use a valid JPEG, PNG or WebP image with no more than 64 million pixels.",
+      "storageQuotaExceeded": "Your pending and rejected images have reached the 200 MB storage limit. Wait for review or for rejected images to expire."
     }
   },
   "imageUpload": {
@@ -659,16 +664,6 @@
       "competingWillBeRejected": "These competing replacement submissions will be automatically rejected.",
       "approveAndResolve": "Approve & Resolve Conflicts"
     },
-    "moderatedContributions": {
-      "title": "Contribution Update",
-      "description": "The following contributions have been processed:",
-      "cacheNotice": "Map tiles are cached in your browser for up to 1 hour, so newly approved contributions may not appear on the map right away.",
-      "noItems": "All your submissions are up to date!",
-      "acknowledgeAll": "Clear All",
-      "acknowledgeError": "Clearing failed",
-      "acknowledgeErrorDetail": "Failed to clear contribution updates. Please try again.",
-      "viewResults": "View Results"
-    },
     "userStats": {
       "contributorStats": "Contributor Statistics",
       "submittedBy": "Contributor",
@@ -786,13 +781,6 @@
         "overlayDeleted": "Image deleted successfully",
         "deleteError": "Failed to delete"
       }
-    },
-    "pruneImages": {
-      "button": "Prune Images",
-      "success": "Images Pruned",
-      "successDetail": "{deleted} deleted, {failed} failed",
-      "failed": "Prune Failed",
-      "failedDetail": "Failed to run scheduled image deletions"
     },
     "detached": {
       "title": "Detached Projects",

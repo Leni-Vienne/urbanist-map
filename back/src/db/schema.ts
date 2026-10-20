@@ -142,11 +142,6 @@ export const users = pgTable(
     bannedAt: timestamp("banned_at", { withTimezone: true }),
     bannedBy: uuid("banned_by").references((): AnyPgColumn => users.id, { onDelete: "set null" }),
     banReason: text("ban_reason"),
-    // Track when user last acknowledged approved contributions
-    // Used to highlight new approvals in the UI without modifying content tables
-    lastApprovalAcknowledgementAt: timestamp("last_approval_acknowledgement_at", {
-      withTimezone: true,
-    }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
@@ -483,26 +478,6 @@ export const uploadedFiles = pgTable(
   ],
 );
 
-// Scheduled deletions table for managing timed cleanup of replaced/rejected overlay images
-export const scheduledDeletions = pgTable(
-  "scheduled_deletions",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    overlayId: uuid("overlay_id").references(() => overlays.id, {
-      onDelete: "cascade",
-      onUpdate: "cascade",
-    }),
-    filename: text("filename").notNull(),
-    deletionDate: timestamp("deletion_date", { withTimezone: true }).notNull(),
-    deletionType: text("deletion_type").notNull(), // 'full', 'thumbnail', or 'both'
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  },
-  (table) => [
-    index("idx_scheduled_deletions_date").on(table.deletionDate),
-    index("idx_scheduled_deletions_overlay").on(table.overlayId),
-  ],
-);
-
 // Config table for application-wide settings (single row with id=1)
 export const config = pgTable("config", {
   id: integer("id").primaryKey().default(1),
@@ -562,7 +537,6 @@ export type DBOverlay = InferSelectModel<typeof overlays>;
 export type DBUser = InferSelectModel<typeof users>;
 export type DBChangeRequest = InferSelectModel<typeof changeRequests>;
 export type DBChangeHistory = InferSelectModel<typeof changeHistory>;
-export type DBScheduledDeletion = InferSelectModel<typeof scheduledDeletions>;
 export type DBConfig = InferSelectModel<typeof config>;
 export type DBUserReport = InferSelectModel<typeof userReports>;
 export type DBImportSource = InferSelectModel<typeof importSources>;

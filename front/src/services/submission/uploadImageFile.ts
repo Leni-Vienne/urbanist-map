@@ -7,6 +7,7 @@ const uploadedFiles = new WeakMap<
   File,
   { epoch: number; userId?: string; request: Promise<string> }
 >();
+let uploadQueue = Promise.resolve();
 
 // Upload an image file to local storage and return its stored filename. Images migrate to R2
 // only after moderator approval, mirroring the overlay flow. Throws a translated Error on failure.
@@ -16,7 +17,18 @@ export async function uploadImageFile(file: File): Promise<string> {
   const userId = auth.user?.id;
   const cached = uploadedFiles.get(file);
   if (cached?.epoch === epoch && cached.userId === userId) return cached.request;
-  const request = upload(file);
+  // The single backend processes one upload at a time. Preserve batch submissions without
+  // sending competing uploads, and never send queued file bytes after an account switch.
+  const request = uploadQueue.then(async () => {
+    if (auth.getSessionEpoch() !== epoch || auth.user?.id !== userId) {
+      throw new Error(t("upload.error.uploadFailed"));
+    }
+    return upload(file);
+  });
+  uploadQueue = request.then(
+    () => undefined,
+    () => undefined,
+  );
   uploadedFiles.set(file, { epoch, userId, request });
   try {
     return await request;

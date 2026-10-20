@@ -13,7 +13,7 @@ import { isAllowedCorsOrigin } from "./lib/corsConfig";
 import type { AppEnv } from "./lib/types";
 import { config as appConfig } from "./config";
 import { generateMissingThumbnails } from "./lib/startup";
-import { sessionStore, startSessionCleanup } from "./lib/drizzleSessionStore";
+import { sessionStore } from "./lib/drizzleSessionStore";
 import { createSessionMiddleware } from "./lib/sessionPolicy";
 import { resolveSessionUser } from "./lib/currentUser";
 import { requestLogger } from "./middleware/requestLogger";
@@ -135,7 +135,6 @@ if (process.env.NODE_ENV !== "development" || process.env.WARM_TILE_CACHE === "t
 
 startCleanupJob();
 startR2MigrationService();
-startSessionCleanup();
 
 export type { AppRouter } from "./routes";
 

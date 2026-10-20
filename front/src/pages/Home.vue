@@ -82,7 +82,6 @@ import { stopShapeEditing } from "@/services/shape/shapeEditorLazy";
 import { showSubmissionDialog } from "@/services/submission/submissionState";
 
 import { handleProjectDeepLink } from "@/services/project/projectDeepLink";
-import { useModeratedContributionsStore } from "@/stores/moderatedContributionsStore";
 import { isMobile } from "@/services/core/viewport";
 
 import MapView from "@/components/map/MapView.vue";
@@ -159,23 +158,6 @@ watch(
     }
   },
 );
-
-const moderatedContributionsStore = useModeratedContributionsStore();
-
-watch(readAuthenticatedUser, openModeratedContributionsAutomatically, { immediate: true });
-
-function readAuthenticatedUser() {
-  return authStore.user;
-}
-
-async function openModeratedContributionsAutomatically(user: typeof authStore.user) {
-  if (!user) return;
-  const loaded = await moderatedContributionsStore.fetchModeratedContributions();
-  if (!loaded || authStore.user?.id !== user.id) return;
-  if (moderatedContributionsStore.moderatedContributions.length > 0) {
-    uiStore.moderatedContributionsDialogVisible = true;
-  }
-}
 
 async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
   const projectId = uiStore.shapeEditorProjectId;

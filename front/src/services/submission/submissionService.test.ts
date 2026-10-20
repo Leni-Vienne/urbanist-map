@@ -123,6 +123,7 @@ function receipt(status: "pending" | "approved" = "pending"): SubmissionResult {
           authorRejectedCount: 0,
           replacesOverlayId: null,
           replacedByOverlayId: null,
+          rejectionReason: null,
           updatedAt: new Date(1),
           countryCode: "FRA",
           countryName: "France",

@@ -48,9 +48,9 @@
       >
         <i class="pi pi-pencil"></i>
       </button>
-      <!-- Show delete for drafts (null/undefined), pending, or rejected overlays -->
+      <!-- Reviewed submissions expire through the retention job. -->
       <button
-        v-if="!overlay.status || overlay.status === 'pending' || overlay.status === 'rejected'"
+        v-if="!overlay.status || overlay.status === 'pending'"
         class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center cursor-pointer transition-all duration-150 text-sm text-red-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-400/12 hover:border-red-200 dark:hover:border-red-400/40"
         @click.stop="handleDeleteOverlayClick(overlay)"
         v-tooltip.top="$t('contribute.deleteOverlay')"

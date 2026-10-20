@@ -17,14 +17,6 @@
         class="ml-auto"
         @click="$router.push('/admin/detached')"
       />
-      <Button
-        :label="t('admin.pruneImages.button')"
-        icon="pi pi-trash"
-        severity="secondary"
-        size="small"
-        :loading="isPruning"
-        @click="handlePruneImages"
-      />
     </div>
 
     <div v-if="isLoading" class="flex justify-center items-center min-h-100">
@@ -225,34 +217,11 @@ const { t } = useI18n();
 
 const reportedUsers = ref<ReportedUser[]>([]);
 const isLoading = ref(true);
-const isPruning = ref(false);
 const showBanDialog = ref(false);
 const selectedUser = ref<ReportedUser | null>(null);
 const banReason = ref("");
 const deleteContent = ref(false);
 const isBanning = ref(false);
-
-async function handlePruneImages() {
-  isPruning.value = true;
-  try {
-    const result = await trpc.admin.pruneScheduledDeletions.mutate();
-    toastSuccess(
-      t("admin.pruneImages.successDetail", {
-        deleted: result.deleted,
-        failed: result.failed,
-      }),
-      t("admin.pruneImages.success"),
-    );
-  } catch (error) {
-    console.error("Failed to prune scheduled deletions:", error);
-    toastError(
-      error instanceof Error ? error.message : t("admin.pruneImages.failedDetail"),
-      t("admin.pruneImages.failed"),
-    );
-  } finally {
-    isPruning.value = false;
-  }
-}
 
 async function loadReportedUsers() {
   isLoading.value = true;

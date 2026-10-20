@@ -87,6 +87,7 @@ function makePanelOverlay(id: string, projectId: string): Overlay {
     authorRejectedCount: 0,
     replacesOverlayId: null,
     replacedByOverlayId: null,
+    rejectionReason: null,
     updatedAt: new Date(0),
     countryCode: "FRA",
     countryName: "France",
@@ -187,6 +188,49 @@ function projectStateOwnership() {
 }
 
 function overlayStateOwnership() {
+  test("keeps rejected and replaced feedback in Reviewed while pending work stays separate", () => {
+    authenticateTestUser();
+    const projects = useProjectStore();
+    projects.upsertProjectSummary({
+      ...makePersistedProject("Rejected project", "Description"),
+      ownerId: "user-1",
+      status: "rejected",
+      rejectionReason: "insufficient_info",
+    });
+    projects.upsertProjectSummary({
+      ...makePersistedProject("Pending project", "Description"),
+      id: "pending-project",
+      ownerId: "user-1",
+      status: "pending",
+    });
+    useContributionStore().setData({
+      projectIds: ["project-1", "pending-project"],
+      overlaysById: {
+        rejected: {
+          ...makePanelOverlay("rejected", "project-1"),
+          status: "rejected",
+          rejectionReason: "low_quality",
+        },
+        replaced: { ...makePanelOverlay("replaced", "project-1"), status: "replaced" },
+      },
+    });
+
+    const contributions = useUserContributions();
+    contributions.activeFilter.value = "reviewed";
+    expect(contributions.filteredProjects.value.map((project) => project.id)).toEqual([
+      "project-1",
+    ]);
+    expect(contributions.filteredProjects.value[0]?.rejectionReason).toBe("insufficient_info");
+    expect(contributions.overlaysById.value.rejected?.rejectionReason).toBe("low_quality");
+    expect(contributions.overlaysById.value.replaced?.status).toBe("replaced");
+    expect(contributions.filterTabs.value.map((tab) => tab.count)).toEqual([2, 1, 1]);
+
+    contributions.activeFilter.value = "pending";
+    expect(contributions.filteredProjects.value.map((project) => project.id)).toEqual([
+      "pending-project",
+    ]);
+  });
+
   test("replaces viewport projections without promoting them to persisted state", tileTest);
   test("preserves a draft across backend refresh and drops it after replacement", overlayDraftTest);
   test("keeps a submitted caption removal through wire decoding and backend refresh", () => {

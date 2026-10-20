@@ -1,13 +1,13 @@
 import { db } from "../database";
 import { sessions, users, projects, overlays, uploadedFiles } from "../db/schema";
-import { lt, and, eq, isNull } from "drizzle-orm";
-import { deleteLocalImages } from "../lib/imageCleanup";
+import { lt, and, eq, isNull, inArray, or } from "drizzle-orm";
+import { deleteImagesEverywhere } from "../lib/imageCleanup";
 import { logger } from "./logger";
 
 const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
-// Keep rejected submissions for 90 days to allow appeals/review
-const REJECTED_RETENTION_DAYS = 90;
+// One week to review rejection/replacement feedback. Approved contributions do not expire.
+const REVIEWED_RETENTION_DAYS = 7;
 
 // How long an uploaded image may sit on disk without an overlay referencing it. Submission follows
 // upload within one form session, so anything past this was abandoned (or never intended to be
@@ -28,7 +28,9 @@ async function reapOrphanedUploads(): Promise<number> {
   let reaped = 0;
   for (const orphan of orphans) {
     try {
-      await deleteLocalImages(orphan.filename, "both");
+      // Replaced images may have lived in R2; the same sweep also retries cleanup after a
+      // reviewed row was removed but its file deletion failed.
+      await deleteImagesEverywhere(orphan.filename);
       await db.delete(uploadedFiles).where(eq(uploadedFiles.id, orphan.id));
       reaped += 1;
     } catch (error) {
@@ -36,6 +38,37 @@ async function reapOrphanedUploads(): Promise<number> {
     }
   }
   return reaped;
+}
+
+export async function pruneReviewedSubmissions(cutoff: Date): Promise<void> {
+  const removedImages = await db.transaction(async (tx) => {
+    // Lock the parents so a resubmission cannot race their cascading deletion. Collect the
+    // child filenames before deleting projects, including children removed by that cascade.
+    const expiredProjects = await tx
+      .select({ id: projects.id })
+      .from(projects)
+      .where(and(eq(projects.status, "rejected"), lt(projects.updatedAt, cutoff)))
+      .for("update");
+    const expiredProjectIds = expiredProjects.map((project) => project.id);
+    const expiredImages = and(
+      inArray(overlays.status, ["rejected", "replaced"]),
+      lt(overlays.updatedAt, cutoff),
+    );
+    const removed = await tx
+      .delete(overlays)
+      .where(or(expiredImages, inArray(overlays.projectId, expiredProjectIds)))
+      .returning({ filename: overlays.filename });
+    await tx.delete(projects).where(inArray(projects.id, expiredProjectIds));
+    return removed;
+  });
+
+  for (const image of removedImages) {
+    try {
+      await deleteImagesEverywhere(image.filename);
+    } catch (error) {
+      logger.error({ error, filename: image.filename }, "Failed to clean up reviewed image");
+    }
+  }
 }
 
 export function startCleanupJob() {
@@ -68,21 +101,12 @@ async function runCleanup() {
       .delete(users)
       .where(and(eq(users.emailVerified, false), lt(users.createdAt, oneDayAgo)));
 
-    // 3. Clean up rejected projects older than 90 days
-    // Keep recent rejections in case user wants to appeal/resubmit
-    const rejectedCutoff = new Date();
-    rejectedCutoff.setDate(rejectedCutoff.getDate() - REJECTED_RETENTION_DAYS);
+    // 3. Expire rejected/replaced submissions and their full images and thumbnails together.
+    const reviewedCutoff = new Date();
+    reviewedCutoff.setDate(reviewedCutoff.getDate() - REVIEWED_RETENTION_DAYS);
+    await pruneReviewedSubmissions(reviewedCutoff);
 
-    const deletedProjects = await db
-      .delete(projects)
-      .where(and(eq(projects.status, "rejected"), lt(projects.updatedAt, rejectedCutoff)));
-
-    // 4. Clean up rejected overlays older than 90 days
-    const deletedOverlays = await db
-      .delete(overlays)
-      .where(and(eq(overlays.status, "rejected"), lt(overlays.updatedAt, rejectedCutoff)));
-
-    // 5. Delete uploaded images that were never attached to an overlay
+    // 4. Delete abandoned uploads and finish file cleanup for rows removed above.
     const reapedUploads = await reapOrphanedUploads();
 
     logger.info(
@@ -91,8 +115,6 @@ async function runCleanup() {
         sessions: deletedSessions,
         orphanedUploads: reapedUploads,
         unverifiedUsers: deletedUsers,
-        rejectedProjects: deletedProjects,
-        rejectedOverlays: deletedOverlays,
       },
       "Cleanup complete",
     );

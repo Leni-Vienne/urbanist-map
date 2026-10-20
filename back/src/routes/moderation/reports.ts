@@ -229,7 +229,7 @@ export const reportProcedures = {
 
             for (const overlay of overlaysToDelete) {
               try {
-                await deleteLocalImages(overlay.filename, "both");
+                await deleteLocalImages(overlay.filename);
               } catch (error) {
                 console.error(`Failed to delete images for ${overlay.filename}:`, error);
               }
@@ -301,7 +301,7 @@ export const reportProcedures = {
         await reconcileProjectChanges(before);
 
         try {
-          await deleteImagesEverywhere(overlay.filename, "both");
+          await deleteImagesEverywhere(overlay.filename);
         } catch (error) {
           console.error(`Failed to delete images for overlay ${input.id}:`, error);
         }

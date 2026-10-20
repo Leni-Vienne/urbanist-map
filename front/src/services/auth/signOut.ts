@@ -5,7 +5,6 @@ import { useFocusStore } from "@/stores/focusStore";
 import { useModerationStore } from "@/stores/moderationStore";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useContributionStore } from "@/stores/contributionStore";
-import { useModeratedContributionsStore } from "@/stores/moderatedContributionsStore";
 import { useUiStore } from "@/stores/uiStore";
 import { clearOverlayDisplayPrefs } from "@/services/overlay/mapLayers";
 import { clearAllStagedRenders } from "@/services/submission/stagedRenderState";
@@ -26,7 +25,6 @@ export async function signOut() {
   useModerationStore().clearAllState();
   useContributionStore().clearAllState();
   useChangeRequestStore().clearAllState();
-  useModeratedContributionsStore().clearAllState();
   useFocusStore().clearAllState();
 
   resetMapSessionState();

@@ -168,6 +168,7 @@
     "selectedProject": "Projet sélectionné",
     "yourContributions": "Vos contributions",
     "filterAll": "Tout",
+    "filterReviewed": "Examinées",
     "deleteOverlay": "Supprimer l'image",
     "deleteProject": "Supprimer le projet",
     "deleteChangeRequest": "Supprimer la suggestion",
@@ -529,7 +530,11 @@
     "maximumSizeOnMap": "La taille maximale est de 1km × 1km",
     "fileTooLarge": "Le fichier est trop volumineux. La taille maximale est de {maxSize} Mo.",
     "error": {
-      "uploadFailed": "Échec de l'envoi de l'image au serveur."
+      "uploadFailed": "Échec de l'envoi de l'image au serveur.",
+      "busy": "Un autre envoi d’image est en cours. Réessayez dans un instant.",
+      "fileTooLarge": "L’envoi dépasse la limite de 25 Mo.",
+      "invalidImage": "Utilisez une image JPEG, PNG ou WebP valide ne dépassant pas 64 millions de pixels.",
+      "storageQuotaExceeded": "Vos images en attente et rejetées ont atteint la limite de stockage de 200 Mo. Attendez leur examen ou l’expiration des images rejetées."
     }
   },
   "imageUpload": {
@@ -659,16 +664,6 @@
       "competingWillBeRejected": "Ces contributions de remplacement concurrentes seront automatiquement rejetées.",
       "approveAndResolve": "Approuver et résoudre les conflits"
     },
-    "moderatedContributions": {
-      "title": "Mise à jour des contributions",
-      "description": "Les contributions suivantes ont été traitées :",
-      "cacheNotice": "Les tuiles de la carte sont mises en cache dans votre navigateur pendant 1 heure, vos contributions récemment approuvées peuvent donc ne pas apparaître immédiatement sur la carte.",
-      "noItems": "Toutes vos contributions sont à jour !",
-      "acknowledgeAll": "Tout effacer",
-      "acknowledgeError": "Échec de l'effacement",
-      "acknowledgeErrorDetail": "Échec de l'effacement des résultats de modération. Veuillez réessayer.",
-      "viewResults": "Voir les résultats"
-    },
     "userStats": {
       "contributorStats": "Statistiques du contributeur",
       "submittedBy": "Contributeur",
@@ -786,13 +781,6 @@
         "overlayDeleted": "Image supprimée avec succès",
         "deleteError": "Échec de la suppression"
       }
-    },
-    "pruneImages": {
-      "button": "Purger les images",
-      "success": "Images purgées",
-      "successDetail": "{deleted} supprimées, {failed} échouées",
-      "failed": "Échec de la purge",
-      "failedDetail": "Échec de l'exécution des suppressions d'images planifiées"
     },
     "detached": {
       "title": "Projets détachés",

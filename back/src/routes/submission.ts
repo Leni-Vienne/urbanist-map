@@ -588,7 +588,7 @@ export const submissionRouter = router({
       if (committed.before.projectIds.length > 0) await reconcileProjectChanges(committed.before);
       for (const filename of committed.supersededFilenames) {
         try {
-          await deleteLocalImages(filename, "both");
+          await deleteLocalImages(filename);
         } catch (error) {
           console.error("Failed to delete superseded submission image:", filename, error);
         }

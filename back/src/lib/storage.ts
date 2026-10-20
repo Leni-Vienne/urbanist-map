@@ -60,71 +60,52 @@ const MAX_DIMENSION_PX = 4096;
 export async function compressImageIfNeeded(
   buffer: ArrayBuffer,
   originalExtension: string,
+  imageOptions?: Bun.Image.ConstructorOptions,
 ): Promise<CompressionResult> {
   const originalSize = buffer.byteLength;
   const ext = originalExtension.toLowerCase();
 
-  try {
-    // Format is sniffed from the bytes, so a wrong extension (e.g. a PNG named
-    // .webp) is decoded transparently without any mismatch error.
-    const { width, height } = await new Bun.Image(buffer).metadata();
-    const oversized = width > MAX_DIMENSION_PX || height > MAX_DIMENSION_PX;
+  // Format is sniffed from the bytes, so a wrong extension (e.g. a PNG named
+  // .webp) is decoded transparently without any mismatch error.
+  const { width, height } = await new Bun.Image(buffer, imageOptions).metadata();
+  const oversized = width > MAX_DIMENSION_PX || height > MAX_DIMENSION_PX;
 
-    // A Bun.Image pipeline is consumed by its terminal op, so each encode
-    // starts from a fresh decode bounded to the dimension cap. Lossy uses a
-    // smooth resampler (best for photos); lossless uses nearest, which keeps the
-    // flat colour palette that makes lossless WebP small on graphics / line-art
-    // (smooth resamplers add gradients that bloat the lossless stream).
-    function base(filter: "lanczos3" | "nearest") {
-      const image = new Bun.Image(buffer);
-      return oversized
-        ? image.resize(MAX_DIMENSION_PX, MAX_DIMENSION_PX, { fit: "inside", filter })
-        : image;
-    }
+  // A Bun.Image pipeline is consumed by its terminal op, so each encode
+  // starts from a fresh decode bounded to the dimension cap. Lossy uses a
+  // smooth resampler (best for photos); lossless uses nearest, which keeps the
+  // flat colour palette that makes lossless WebP small on graphics / line-art
+  // (smooth resamplers add gradients that bloat the lossless stream).
+  function base(filter: "lanczos3" | "nearest") {
+    const image = new Bun.Image(buffer, imageOptions);
+    return oversized
+      ? image.resize(MAX_DIMENSION_PX, MAX_DIMENSION_PX, { fit: "inside", filter })
+      : image;
+  }
 
-    // Race lossy against lossless WebP: lossy wins on photos, while lossless
-    // often beats the source on flat-colour / line-art graphics.
-    const [lossy, lossless] = await Promise.all([
-      base("lanczos3").webp({ quality: 90 }).bytes(),
-      base("nearest").webp({ lossless: true }).bytes(),
-    ]);
-    const bestWebp = lossless.byteLength <= lossy.byteLength ? lossless : lossy;
+  // Race lossy against lossless WebP: lossy wins on photos, while lossless
+  // often beats the source on flat-colour / line-art graphics.
+  const [lossy, lossless] = await Promise.all([
+    base("lanczos3").webp({ quality: 90 }).bytes(),
+    base("nearest").webp({ lossless: true }).bytes(),
+  ]);
+  const bestWebp = lossless.byteLength <= lossy.byteLength ? lossless : lossy;
 
-    // Keep the source only when it is within the cap and nothing beats it on
-    // size. An oversized source must be re-encoded to enforce the dimension cap
-    // (large textures render black on GPUs whose max texture size is 4096).
-    const keepOriginal = !oversized && originalSize <= bestWebp.byteLength;
+  // Keep the source only when it is within the cap and nothing beats it on
+  // size. An oversized source must be re-encoded to enforce the dimension cap
+  // (large textures render black on GPUs whose max texture size is 4096).
+  const keepOriginal = !oversized && originalSize <= bestWebp.byteLength;
 
-    let chosenType = "lossy-webp";
-    if (keepOriginal) chosenType = "original";
-    else if (bestWebp === lossless) chosenType = "lossless-webp";
+  let chosenType = "lossy-webp";
+  if (keepOriginal) chosenType = "original";
+  else if (bestWebp === lossless) chosenType = "lossless-webp";
 
-    console.log(
-      `[compressImage] ${width}x${height}${oversized ? ` -> cap ${MAX_DIMENSION_PX}` : ""} | ` +
-        `original ${(originalSize / 1024).toFixed(1)}KB lossy ${(lossy.byteLength / 1024).toFixed(1)}KB lossless ${(lossless.byteLength / 1024).toFixed(1)}KB | ` +
-        `chose ${chosenType}`,
-    );
+  console.log(
+    `[compressImage] ${width}x${height}${oversized ? ` -> cap ${MAX_DIMENSION_PX}` : ""} | ` +
+      `original ${(originalSize / 1024).toFixed(1)}KB lossy ${(lossy.byteLength / 1024).toFixed(1)}KB lossless ${(lossless.byteLength / 1024).toFixed(1)}KB | ` +
+      `chose ${chosenType}`,
+  );
 
-    if (keepOriginal) {
-      return {
-        buffer,
-        extension: ext,
-        wasCompressed: false,
-        originalSize,
-        finalSize: originalSize,
-      };
-    }
-
-    return {
-      buffer: toArrayBuffer(bestWebp),
-      extension: "webp",
-      wasCompressed: true,
-      originalSize,
-      finalSize: bestWebp.byteLength,
-    };
-  } catch (error) {
-    // If compression fails, return original unchanged
-    console.error("Image compression failed, keeping original:", error);
+  if (keepOriginal) {
     return {
       buffer,
       extension: ext,
@@ -133,6 +114,14 @@ export async function compressImageIfNeeded(
       finalSize: originalSize,
     };
   }
+
+  return {
+    buffer: toArrayBuffer(bestWebp),
+    extension: "webp",
+    wasCompressed: true,
+    originalSize,
+    finalSize: bestWebp.byteLength,
+  };
 }
 
 // Local filesystem storage implementation for development.
@@ -166,7 +155,7 @@ export class LocalFileStorage implements StorageInterface {
 
   // Persists the pre-compression original locally under uploads/originals/.
   // Originals are never migrated to R2 and never get a thumbnail; they are a
-  // full-quality, uncapped archival copy kept only while the overlay is approved.
+  // full-quality archival copy retained with its submission.
   public async putOriginal(filename: string, buffer: ArrayBuffer): Promise<void> {
     await mkdir("./uploads/originals", { recursive: true });
     await Bun.write(`./uploads/originals/${filename}`, buffer);
@@ -201,8 +190,8 @@ export class LocalFileStorage implements StorageInterface {
     try {
       await unlink(`./uploads/${filename}`);
     } catch (error) {
-      // Log but don't throw - file might already be deleted
-      console.warn(`Failed to delete file ${filename}:`, error);
+      if (error instanceof Error && "code" in error && error.code === "ENOENT") return;
+      throw error;
     }
   }
 }
@@ -299,8 +288,8 @@ export class R2StorageS3 implements StorageInterface {
     try {
       await this.client.delete(filename);
     } catch (error) {
-      // Log but don't throw - file might already be deleted
-      console.warn(`Failed to delete file ${filename} from R2:`, error);
+      if (error instanceof Error && "code" in error && error.code === "NoSuchKey") return;
+      throw error;
     }
   }
 }

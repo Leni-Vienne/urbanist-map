@@ -31,11 +31,6 @@
           class="relative w-6 h-6 rounded-full bg-primary-color/10 flex items-center justify-center text-primary-color text-xs"
         >
           <i class="pi pi-user"></i>
-          <!-- Red dot on avatar if there are unread notifications -->
-          <span
-            v-if="hasUnacknowledgedModeratedContributions"
-            class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-content-background"
-          ></span>
         </span>
         <span class="text-sm font-medium text-color flex-1">{{ authStore.user?.username }}</span>
         <i
@@ -53,11 +48,6 @@
           @click.stop="toggleMenu"
           @dblclick.stop
         />
-        <!-- Red dot if there are unread notifications -->
-        <span
-          v-if="hasUnacknowledgedModeratedContributions"
-          class="absolute top-0.5 right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-content-background pointer-events-none"
-        ></span>
       </span>
     </template>
 
@@ -72,26 +62,6 @@
             {{ $t("auth.openStreetMapAccount") }}
           </div>
         </div>
-
-        <!-- Moderation Results as list item -->
-        <button
-          type="button"
-          class="appearance-none bg-transparent border-none text-left flex items-center gap-[0.35rem] px-2 py-[0.35rem] w-full cursor-pointer rounded text-color transition-colors duration-200 text-[0.9rem] hover:bg-black/5 dark:hover:bg-white/10"
-          @click="openModerationResults"
-        >
-          <div class="flex items-center gap-2">
-            <i class="pi pi-bell"></i>
-            <span>{{ $t("moderation.moderatedContributions.viewResults") }}</span>
-          </div>
-          <Badge
-            v-if="hasUnacknowledgedModeratedContributions"
-            severity="danger"
-            class="ml-auto"
-            value="!"
-          />
-        </button>
-
-        <div class="h-px bg-content-border-color my-1"></div>
 
         <button
           type="button"
@@ -110,12 +80,6 @@
       v-model:visible="uiStore.authModalVisible"
       :initial-mode="uiStore.authModalInitialMode"
     />
-
-    <!-- Moderated Contributions Dialog, same pattern as AuthModal -->
-    <ModeratedContributionsDialog
-      v-if="uiStore.moderatedContributionsDialogVisible"
-      v-model:visible="uiStore.moderatedContributionsDialogVisible"
-    />
   </div>
 </template>
 
@@ -126,7 +90,6 @@ import { ref, computed, defineAsyncComponent } from "vue";
 import { isSyntheticEmail } from "@shared/types";
 import { hasUnsavedChanges } from "@/services/overlay/unsavedState";
 import { useAuthStore } from "@/stores/authStore";
-import { useModeratedContributionsStore } from "@/stores/moderatedContributionsStore";
 import { useUiStore } from "@/stores/uiStore";
 
 import { signOut } from "@/services/auth/signOut";
@@ -134,20 +97,8 @@ import { useI18n } from "vue-i18n";
 
 // Lazy-load AuthModal for chunk splitting, avoids pulling primevue's password
 const AuthModal = defineAsyncComponent(() => import("./AuthModal.vue"));
-const ModeratedContributionsDialog = defineAsyncComponent(
-  () => import("@/components/moderation/ModeratedContributionsDialog.vue"),
-);
-
 const authStore = useAuthStore();
 const uiStore = useUiStore();
-const moderatedContributionsStore = useModeratedContributionsStore();
-
-// The endpoint only returns items the user has not acknowledged yet, and acknowledging
-// removes them from the collection.
-const hasUnacknowledgedModeratedContributions = computed(
-  () => moderatedContributionsStore.moderatedContributions.length > 0,
-);
-
 const { t } = useI18n();
 const userPopover = ref<{
   visible: boolean;
@@ -184,15 +135,5 @@ async function handleSignOut() {
     toastError(result.error ?? undefined, t("auth.error.signOutFailed"));
   }
   userPopover.value?.hide();
-}
-
-// Handle opening moderation results (closes menu)
-async function openModerationResults() {
-  const userId = authStore.user?.id;
-  if (!userId) return;
-  userPopover.value?.hide();
-  const loaded = await moderatedContributionsStore.fetchModeratedContributions();
-  if (!loaded || authStore.user?.id !== userId) return;
-  uiStore.moderatedContributionsDialogVisible = true;
 }
 </script>

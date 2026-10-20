@@ -73,6 +73,8 @@ interface ProjectFields extends Omit<
   // Joined import source details (null for user-created projects)
   importSource?: DBImportSource | null;
   hasImage?: boolean;
+  // Included by the contributor's list so moderation feedback stays with the submission.
+  rejectionReason?: string | null;
 
   // Denormalized country name, populated by location-aware queries (resolved from admin boundaries).
   countryName?: string | null;

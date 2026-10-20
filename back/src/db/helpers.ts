@@ -183,6 +183,7 @@ export function buildProjectWithLocationQuery(database: Database, requestLanguag
   return database
     .select({
       ...PROJECT_COLUMNS,
+      rejectionReason: projects.rejectionReason,
       countryName: countryNameSql,
       boundaryPath: boundaryPathSql(requestLanguage),
       importSource: importSources,
@@ -211,6 +212,7 @@ export function buildOverlayModerationQuery(database: DatabaseExecutor) {
       authorRejectedCount: users.rejectedCount,
       replacesOverlayId: overlays.replacesOverlayId,
       replacedByOverlayId: overlays.replacedByOverlayId,
+      rejectionReason: overlays.rejectionReason,
       updatedAt: overlays.updatedAt,
       countryCode: projects.countryCode,
       countryName: countryNameSql,

@@ -57,6 +57,14 @@
         <div class="flex-1 min-w-0">
           <ProjectMetadataCard :project="project" show-wikidata-media />
 
+          <p
+            v-if="isContributePanel && project.status === 'rejected' && project.rejectionReason"
+            class="mt-3 text-sm text-red-600 dark:text-red-400"
+          >
+            {{ $t("moderation.rejectionReason.label") }}:
+            {{ $t(`moderation.rejectionReason.${project.rejectionReason}`) }}
+          </p>
+
           <!-- Contributor line: accordion-only context the metadata card omits -->
           <div
             v-if="contributorDate"
@@ -210,6 +218,13 @@
                 {{ $t("overlay.replaces") }}
               </button>
             </div>
+            <p
+              v-if="isContributePanel && overlay.status === 'rejected' && overlay.rejectionReason"
+              class="mt-2 text-sm text-red-600 dark:text-red-400"
+            >
+              {{ $t("moderation.rejectionReason.label") }}:
+              {{ $t(`moderation.rejectionReason.${overlay.rejectionReason}`) }}
+            </p>
           </div>
 
           <div class="flex flex-col gap-2" @click.stop>
@@ -352,7 +367,7 @@ async function handleCardClick() {
     return;
   }
   const firstOverlay = props.overlays[0];
-  if (firstOverlay) {
+  if (firstOverlay && firstOverlay.status !== "rejected" && firstOverlay.status !== "replaced") {
     await props.onOverlayClick(firstOverlay);
   } else {
     handleProjectClick(project);
@@ -409,7 +424,7 @@ function getChangeRequestOverlay(overlay: ProjectPanelOverlay): Overlay | null {
 }
 
 async function handleOverlayCardClick(overlay: ProjectPanelOverlay) {
-  if (overlay.kind === "render") {
+  if (overlay.kind === "render" || overlay.status === "rejected" || overlay.status === "replaced") {
     openOverlayImage(overlay);
     return;
   }
@@ -422,7 +437,7 @@ function getOverlayChangeRequests(overlayId: string): PendingChangeRequest[] {
 }
 
 function getOverlayImageUrl(filename: string, status?: string | null): string {
-  const forceBackendUrl = status === "pending" || status === null;
+  const forceBackendUrl = status !== "approved" && status !== "replaced";
   return buildThumbnailUrl(filename, forceBackendUrl);
 }
 
@@ -431,7 +446,7 @@ const lightbox = useTemplateRef<InstanceType<typeof ImageLightbox>>("lightbox");
 function openOverlayImage(overlay: ProjectPanelOverlay): void {
   const fullImageUrl =
     overlay.imageUrl ||
-    buildImageUrl(overlay.filename, overlay.status === "pending" || overlay.status === null);
+    buildImageUrl(overlay.filename, overlay.status !== "approved" && overlay.status !== "replaced");
   lightbox.value?.open({
     url: fullImageUrl,
     header:
