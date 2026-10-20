@@ -21,8 +21,8 @@
       :id="inputId"
       v-model="projectName"
       :class="inputClass"
-      required
-      minlength="8"
+      :required="!originalData || showChange('name')"
+      :minlength="!originalData || showChange('name') ? 7 : undefined"
       autocomplete="off"
       dir="auto"
       @blur="validateFieldHelper('name')"
@@ -226,7 +226,7 @@ const emit = defineEmits<{ "update:formData": [value: ProjectFormData] }>();
 
 const { t, te } = useI18n();
 
-const { getFieldError, validateField } = useFieldValidation(projectSchema);
+const { getFieldError, validateField, clearFieldError } = useFieldValidation(projectSchema);
 
 // formData is owned by the parent: reads come from the prop, writes emit a merged snapshot.
 function patchFormData(patch: Partial<ProjectFormData>) {
@@ -335,7 +335,11 @@ const flexibleEndDate = computed({
   },
 });
 
-function validateFieldHelper(fieldPath: string) {
+function validateFieldHelper(fieldPath: keyof ProjectFormData) {
+  if (props.originalData && !showChange(fieldPath)) {
+    clearFieldError(fieldPath);
+    return;
+  }
   const validationData = prepareProjectValidationData(props.formData);
   validateField(fieldPath, validationData);
 }

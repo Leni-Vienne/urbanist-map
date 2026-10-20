@@ -49,7 +49,16 @@ function submittedOverlay(projectId = PROJECT_ID) {
 }
 
 function parseInput(values: {
-  project?: ReturnType<typeof submittedProject>;
+  project?: {
+    id: string;
+    patch: {
+      name?: string;
+      description?: string;
+      startDate?: Date;
+      endDate?: Date;
+      sourceUrl?: string | null;
+    };
+  };
   overlays?: ReturnType<typeof submittedOverlay>[];
 }): SubmissionBatchInput {
   return submissionBatchSchema.parse({
@@ -94,7 +103,7 @@ function policyState(
 
 function approvedProjectIntent() {
   const plan = classifySubmission(
-    parseInput({ project: submittedProject() }),
+    parseInput({ project: { id: PROJECT_ID, patch: { name: "New project" } } }),
     policyState(existingProject("approved")),
   );
 
@@ -118,10 +127,10 @@ function approvedProjectIntent() {
 }
 
 function pendingProjectIntent() {
-  const input = parseInput({ project: submittedProject() });
+  const input = parseInput({ project: { id: PROJECT_ID, patch: { name: "New project" } } });
   const plan = classifySubmission(input, policyState(existingProject("pending")));
 
-  expect(plan.project).toEqual(input.project);
+  expect(plan.project).toMatchObject({ id: PROJECT_ID, name: "New project", tags: ["rail"] });
   expect(plan.changeRequests).toEqual([]);
 }
 
@@ -141,7 +150,7 @@ function approvedOverlayIntent() {
 }
 
 function noOpApprovedChange() {
-  const input = parseInput({ project: submittedProject("Old project") });
+  const input = parseInput({ project: { id: PROJECT_ID, patch: { name: "Old project" } } });
   const state = policyState(existingProject("approved"));
 
   function classifyNoOp() {
@@ -171,3 +180,62 @@ function submissionPolicy() {
 }
 
 describe("submission policy", submissionPolicy);
+
+describe("project patch validation", () => {
+  test.each([null, "Short", "A much longer imported project name than the creation form permits"])(
+    "allows a description request with unchanged imported name %p",
+    (name) => {
+      const existing = { ...existingProject("approved"), name, sourceUrl: "legacy invalid URL" };
+      const plan = classifySubmission(
+        parseInput({
+          project: { id: PROJECT_ID, patch: { description: "Corrected description" } },
+        }),
+        policyState(existing),
+      );
+      expect(plan.project).toBeUndefined();
+      expect(plan.changeRequests[0]?.changes).toEqual([
+        {
+          fieldName: "description",
+          oldValue: null,
+          newValue: "Corrected description",
+          changeReason: "Source correction",
+        },
+      ]);
+    },
+  );
+
+  test("checks a changed end date against the persisted start date", () => {
+    const existing = { ...existingProject("approved"), startDate: new Date("2026-06-01") };
+    const input = parseInput({
+      project: { id: PROJECT_ID, patch: { endDate: new Date("2026-01-01") } },
+    });
+    expect(() => classifySubmission(input, policyState(existing))).toThrow(
+      "validation.endDateBeforeStartDate",
+    );
+  });
+
+  test("leaves an unrelated imported date inconsistency alone", () => {
+    const existing = {
+      ...existingProject("approved"),
+      startDate: new Date("2026-06-01"),
+      endDate: new Date("2026-01-01"),
+    };
+    const plan = classifySubmission(
+      parseInput({ project: { id: PROJECT_ID, patch: { description: "Corrected description" } } }),
+      policyState(existing),
+    );
+    expect(plan.changeRequests).toHaveLength(1);
+  });
+
+  test("records explicit field clearing without changing unrelated fields", () => {
+    const existing = { ...existingProject("approved"), sourceUrl: "https://example.com" };
+    const plan = classifySubmission(
+      parseInput({ project: { id: PROJECT_ID, patch: { sourceUrl: null } } }),
+      policyState(existing),
+    );
+    expect(plan.changeRequests[0]?.changes[0]).toMatchObject({
+      fieldName: "sourceUrl",
+      newValue: null,
+    });
+  });
+});

@@ -195,7 +195,7 @@ export function buildProjectWithLocationQuery(database: Database, requestLanguag
  * Build overlay query with minimal fields for moderation lists
  * Includes location data but not full geometry extraction
  */
-export function buildOverlayModerationQuery(database: Database) {
+export function buildOverlayModerationQuery(database: DatabaseExecutor) {
   return database
     .select({
       id: overlays.id,
@@ -352,9 +352,10 @@ async function fetchOverlayLocationRows(database: DatabaseExecutor, whereConditi
 async function fetchOwnOverlayChangeRequests(
   database: DatabaseExecutor,
   user: UserContext,
+  overlayIds: string[],
 ): Promise<Map<string, OverlayChangeValue[]>> {
   const changeRequestsByOverlay = new Map<string, OverlayChangeValue[]>();
-  if (!user) return changeRequestsByOverlay;
+  if (!user || overlayIds.length === 0) return changeRequestsByOverlay;
 
   const changeRequestsData = await database
     .select({
@@ -367,6 +368,7 @@ async function fetchOwnOverlayChangeRequests(
       and(
         eq(changeRequests.requestedBy, user.id),
         eq(changeRequests.entityType, "overlay"),
+        inArray(changeRequests.entityId, overlayIds),
         eq(changeRequests.status, "pending"),
       ),
     );
@@ -398,7 +400,11 @@ export async function fetchOverlaysForMap(
   user: UserContext,
 ) {
   const overlaysData = await fetchOverlayLocationRows(database, whereConditions);
-  const changeRequestsByOverlay = await fetchOwnOverlayChangeRequests(database, user);
+  const changeRequestsByOverlay = await fetchOwnOverlayChangeRequests(
+    database,
+    user,
+    overlaysData.map((row) => row.overlay.id),
+  );
 
   const mapOverlays: MapOverlayRow[] = [];
   const projectsById = new Map<string, MapProjectRow>();

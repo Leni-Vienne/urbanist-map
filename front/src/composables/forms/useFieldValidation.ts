@@ -34,6 +34,7 @@ export function useFieldValidation<T>(schema: z.ZodType<T>) {
   }
 
   return {
+    clearFieldError,
     validateField,
     getFieldError,
   };

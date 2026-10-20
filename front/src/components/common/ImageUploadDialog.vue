@@ -340,7 +340,7 @@ async function confirmOverlay(targetProjectId: string) {
   handleClose();
 
   try {
-    await creation;
+    if (!(await creation)) return;
 
     if (replacementId) {
       toastSuccess(t("toasts.replacementOverlayDetail"), t("toasts.replacementOverlayCreated"));

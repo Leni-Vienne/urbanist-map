@@ -42,10 +42,6 @@ async function handleDeleteOverlayClick(overlay: ProjectPanelOverlay): Promise<v
   await confirmAndDeleteOverlay(overlay.id, overlay.caption);
 }
 
-function handleDeleteStagedRender(projectId: string): void {
-  clearStagedRender(projectId);
-}
-
 export function useContributeActions(projectOverlayIds: ComputedRef<Record<string, string[]>>) {
   const { t } = useI18n();
 
@@ -134,7 +130,7 @@ export function useContributeActions(projectOverlayIds: ComputedRef<Record<strin
     isProjectModified,
     handleNewProjectClick,
     handleDeleteOverlayClick,
-    handleDeleteStagedRender,
+    handleDeleteStagedRender: clearStagedRender,
     handleDeleteProjectClick,
     handleDeleteChangeRequestClick,
     handleEditOverlayClick,

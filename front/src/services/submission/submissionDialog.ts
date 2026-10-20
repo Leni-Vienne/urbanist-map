@@ -1,5 +1,5 @@
 import { computed, ref } from "vue";
-import { showSubmissionDialog, isSubmitting } from "@/services/submission/submissionDialogState";
+import { showSubmissionDialog, isSubmitting } from "@/services/submission/submissionState";
 import { getStagedRender, clearStagedRender } from "@/services/submission/stagedRenderState";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
@@ -248,7 +248,6 @@ export async function confirmSubmission(reason: string): Promise<void> {
   if (!draft || isSubmitting.value) return;
 
   try {
-    isSubmitting.value = true;
     const outcome = await submitDraft(draft, reason);
     closeDetail();
     toastSuccess(getSuccessMessage(outcome));
@@ -259,12 +258,11 @@ export async function confirmSubmission(reason: string): Promise<void> {
       error instanceof Error ? error.message : t("errors.submissionFailed"),
       t("toast.submissionFailed"),
     );
-  } finally {
-    isSubmitting.value = false;
   }
 }
 
 export function cancelSubmission(): void {
+  if (isSubmitting.value) return;
   resetSubmissionState();
 }
 
@@ -319,6 +317,7 @@ export async function handleRemoveChange(
   field: RemovableChange,
   overlayId?: string,
 ): Promise<void> {
+  if (isSubmitting.value) return;
   const pending = pendingSubmission.value;
   if (!pending) return;
 

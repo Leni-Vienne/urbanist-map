@@ -34,6 +34,8 @@ import { makeHistoryState, commitOverlayEdit } from "@/services/overlay/history"
 import { watch } from "vue";
 import { toastWarn } from "@/services/core/toast";
 import { resolveOverlayCorners } from "@/services/overlay/data";
+import { isSubmitting } from "@/services/submission/submissionState";
+import { isCroppingOverlay } from "@/services/overlay/cropHandles";
 
 // Overlay editing operations
 
@@ -86,7 +88,8 @@ export async function createLocalOverlay(
   imageUrl: string,
   projectId: string,
   replacesOverlayId?: string,
-): Promise<void> {
+): Promise<boolean> {
+  if (isSubmitting.value) return false;
   const target = getMap();
   const overlayStore = useOverlayStore();
   const project = useProjectStore().projects[projectId];
@@ -116,6 +119,9 @@ export async function createLocalOverlay(
   }
 
   const aspect = await loadImageAspect(imageUrl);
+  // Submission can start while the image is being decoded.
+  // oxlint-disable-next-line typescript/no-unnecessary-condition
+  if (isSubmitting.value) return false;
   if (getMapOrNull() !== target) throw new Error("Map closed while creating an overlay");
 
   const corners = defaultCorners(placementCenter, aspect);
@@ -124,6 +130,7 @@ export async function createLocalOverlay(
 
   overlayStore.addLocalOverlay(id, overlay);
   openOverlayDetail(id);
+  return true;
 }
 
 interface CornerDragState {
@@ -420,6 +427,7 @@ function wireSurfaceDrag(s: EditSession): void {
  * transparent whole-surface drag layer, and 4 aspect-locked corner handles.
  */
 export function showEditHandles(overlayObject: OverlayObject): void {
+  if (isSubmitting.value || isCroppingOverlay(overlayObject.id)) return;
   if (session?.id === overlayObject.id) return;
 
   const mlMap = getMap();
@@ -557,18 +565,16 @@ export function hideEditHandles(): void {
 /**
  * Converge the edit handles to the (selection, mode) pair: handles exist only for the selected
  * overlay in edit mode. hideEditHandles() no-ops when nothing is shown, and the image may not be
- * on the map yet, so the show is deferred until it is (and re-checks the mode by then).
+ * on the map yet, so the show is deferred until it is, using the current overlay and mode.
  */
 function syncEditHandles(selectedId: string | null, mode: AppMode): void {
   hideEditHandles();
 
   if (!selectedId || mode !== "edit") return;
 
-  const overlay = useOverlayStore().liveOverlays[selectedId];
-  if (!overlay) return;
-
   whenImageReadyIfSelected(selectedId, () => {
-    if (useUiStore().mode === "edit") showEditHandles(overlay);
+    const overlay = useOverlayStore().liveOverlays[selectedId];
+    if (overlay && useUiStore().mode === "edit") showEditHandles(overlay);
   });
 }
 
@@ -591,10 +597,11 @@ export function watchEditHandles(): () => void {
   const focus = useFocusStore();
 
   const stopSelectionWatch = watch(
-    () => focus.selectedOverlayId,
-    (selectedId) => {
+    [() => focus.selectedOverlayId, isSubmitting],
+    ([selectedId]) => {
       syncEditHandles(selectedId, uiStore.mode);
     },
+    { flush: "sync" },
   );
   const stopStyleSwitchWatch = onStyleSwitch(reattachEditHandlesAfterStyleSwitch);
 

@@ -23,6 +23,7 @@ import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import type { OverlayObject } from "@/types/index";
 import { resolveOverlayCorners } from "@/services/overlay/data";
 import { useOverlayStore } from "@/stores/overlayStore";
+import { isSubmitting } from "@/services/submission/submissionState";
 
 type Edge = "top" | "bottom" | "left" | "right";
 
@@ -53,6 +54,10 @@ const MIN_FRAC = 0.05;
 const EDGES: Edge[] = ["top", "bottom", "left", "right"];
 
 let session: CropSession | null = null;
+
+export function isCroppingOverlay(overlayId: string): boolean {
+  return session?.id === overlayId;
+}
 
 function clamp(value: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, value));
@@ -170,6 +175,7 @@ function wireHandle(edge: Edge): void {
  * image, with one draggable handle per edge. Mutually exclusive with the edit (resize) handles.
  */
 export function showCropHandles(overlayObject: OverlayObject): void {
+  if (isSubmitting.value) return;
   const mlMap = getMap();
   // eslint-disable-next-line no-unnecessary-condition
   if (!getImageHandle(overlayObject.id)) return;
@@ -294,7 +300,7 @@ async function cropImageToDataUrl(url: string, bounds: CropBounds): Promise<stri
  * window is still the full image or when the image can't be read.
  */
 export async function applyCrop(): Promise<boolean> {
-  if (!session) return false;
+  if (!session || isSubmitting.value) return false;
   const { overlayObject: overlay, baseTransform: t, bounds } = session;
   const { u0, u1, v0, v1 } = bounds;
 
@@ -314,7 +320,9 @@ export async function applyCrop(): Promise<boolean> {
     console.error("Failed to crop overlay image:", error);
     return null;
   });
-  if (!dataUrl) return false;
+  // Submission can start while the image is being decoded.
+  // oxlint-disable-next-line typescript/no-unnecessary-condition
+  if (!dataUrl || isSubmitting.value) return false;
 
   const centerLL = normToLngLat(t, (u0 + u1) / 2, (v0 + v1) / 2);
   const newTransform: OverlayTransform = {

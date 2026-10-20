@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 import type { Project, HydratedProject, LocalProject } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import { hasProjectDetailFields } from "@/utils/typeFactories";
+import { isSubmitting } from "@/services/submission/submissionState";
 
 type ProjectDraft = Partial<Project> & Pick<Project, "id">;
 type ProjectIndex = Record<string, Project>;
@@ -81,11 +82,13 @@ export const useProjectStore = defineStore("project", () => {
   }
 
   function addLocalProject(project: LocalProject) {
+    if (isSubmitting.value) return;
     if (getProjectById(project.id)) return;
     projectDrafts.value[project.id] = { ...project };
   }
 
   function updateProjectDraft(projectId: string, updates: Partial<Project>) {
+    if (isSubmitting.value) return;
     const current = getProjectById(projectId);
     if (!current) return;
     projectDrafts.value[projectId] = {
@@ -102,6 +105,7 @@ export const useProjectStore = defineStore("project", () => {
   }
 
   function resetProjectField(projectId: string, fieldName: keyof Project): boolean {
+    if (isSubmitting.value) return false;
     const draft = projectDrafts.value[projectId];
     if (!draft || !(fieldName in draft)) return false;
     // oxlint-disable-next-line no-dynamic-delete

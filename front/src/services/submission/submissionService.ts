@@ -2,15 +2,19 @@ import { useProjectStore } from "@/stores/projectStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { trpc, type RouterOutput } from "@/client";
 import { uploadImageFile } from "@/services/submission/uploadImageFile";
-import { clearStagedRender } from "@/services/submission/stagedRenderState";
+import { useAuthStore } from "@/stores/authStore";
+import { isSubmitting } from "./submissionState";
 import type { Project, OverlayObject, PendingOverlayModification } from "@/types/index";
 import {
   projectSchema,
+  projectPatchSchema,
+  validateProjectPatch,
   overlayClientSchema,
   getValidationErrors,
   type OverlayFieldName,
   type OverlayCorners,
   type SubmissionBatchInput,
+  type ProjectPatch,
 } from "@shared/validation/schemas";
 import { t } from "@/locales";
 import {
@@ -18,7 +22,7 @@ import {
   prepareOverlayValidationData,
 } from "@/utils/validationHelpers";
 import { resolveOverlaySubmissionCorners } from "@/services/overlay/data";
-import { refreshUserContributions } from "@/services/project/userContributions";
+import { acknowledgeSubmission } from "./submissionReceipt";
 import {
   PROJECT_CHANGE_FIELDS,
   type ProjectFieldChange,
@@ -57,7 +61,11 @@ function zodErrorsToMessages(zodError: Parameters<typeof getValidationErrors>[0]
   return getValidationErrors(zodError).map((e) => t(e.key, e.params ?? {}));
 }
 
-function validateProject(project: Project): string[] {
+function validateProject(project: Project, changes: ProjectFieldChange[]): string[] {
+  if (project.status !== null) {
+    const result = validateProjectPatch(buildProjectPatch(changes), project);
+    return result.success ? [] : zodErrorsToMessages(result.error);
+  }
   const errors = getProjectValidationErrors(project, { lat: project.lat, lng: project.lng });
   if (!errors) return [];
   return errors.map((e) => t(e.key, e.params ?? {}));
@@ -102,6 +110,9 @@ function validateOverlay(overlay: OverlayObject, proposed: ProposedOverlayValues
 
 async function prepareImageForServer(overlay: OverlayObject): Promise<string> {
   if (overlay.imageUrl.startsWith("data:")) {
+    const store = useOverlayStore();
+    const uploaded = store.overlayDrafts[overlay.id]?.uploadedImage;
+    if (uploaded?.imageUrl === overlay.imageUrl) return uploaded.filename;
     const response = await fetch(overlay.imageUrl);
     const blob = await response.blob();
 
@@ -114,7 +125,9 @@ async function prepareImageForServer(overlay: OverlayObject): Promise<string> {
     else if (type === "image/jpeg") extension = "jpg";
     const file = new File([blob], `overlay-image.${extension}`, { type });
 
-    return uploadImageFile(file);
+    const filename = await uploadImageFile(file);
+    store.rememberUploadedImage(overlay.id, overlay.imageUrl, filename);
+    return filename;
   }
 
   const urlParts = overlay.imageUrl.split("/");
@@ -194,7 +207,7 @@ function validateSubmission(draft: SubmissionDraft, project: Project | null): vo
     if (!project) {
       errors.add(t("submission.projectUnavailable"));
     } else {
-      for (const error of validateProject(project)) errors.add(error);
+      for (const error of validateProject(project, draft.projectChanges)) errors.add(error);
     }
   }
 
@@ -218,15 +231,15 @@ async function buildSubmissionBatch(
 
   let submittedProject: SubmissionBatchInput["project"] = undefined;
   if (draft.projectChanges && project) {
-    submittedProject = {
-      ...projectSchema.parse(project),
-      id: project.id,
-      changedFields: draft.projectChanges.map(getProjectChangeField),
-    };
+    submittedProject =
+      project.status === null
+        ? { id: project.id, create: projectSchema.parse(project) }
+        : { id: project.id, patch: buildProjectPatch(draft.projectChanges) };
   }
 
   async function buildOverlayIntent(overlayId: string) {
-    return buildSubmittedOverlay(getOverlayOrThrow(overlayId), overlayFields.get(overlayId) ?? []);
+    const overlay = getOverlayOrThrow(overlayId);
+    return buildSubmittedOverlay(overlay, overlayFields.get(overlayId) ?? []);
   }
 
   const [overlays, renderFilename] = await Promise.all([
@@ -245,29 +258,35 @@ async function buildSubmissionBatch(
   };
 }
 
-function getProjectChangeField(change: ProjectFieldChange) {
-  return change.fieldName;
+function buildProjectPatch(changes: ProjectFieldChange[]) {
+  const patch: ProjectPatch = {};
+  for (const change of changes) Object.assign(patch, { [change.fieldName]: change.newValue });
+  return projectPatchSchema.parse(patch);
 }
 
 export async function submitDraft(
   draft: SubmissionDraft,
   reason: string,
 ): Promise<RouterOutput["submission"]["submit"]["outcome"]> {
-  const projectStore = useProjectStore();
-  const project = projectStore.getProjectById(draft.projectId);
-  validateSubmission(draft, project);
-  const batch = await buildSubmissionBatch(draft, project, reason);
-  const { render, outcome } = await trpc.submission.submit.mutate(batch);
-  const submittedOverlayIds = new Set<string>();
-  for (const overlay of batch.overlays) submittedOverlayIds.add(overlay.id);
-  await refreshUserContributions(submittedOverlayIds);
-
-  if (draft.projectChanges) projectStore.discardProjectDraft(draft.projectId);
-  if (render) {
-    projectStore.updatePersistedProject(draft.projectId, {
-      render: { filename: render.filename, caption: null, status: render.status },
-    });
-    clearStagedRender(draft.projectId);
+  if (isSubmitting.value) throw new Error(t("errors.submissionFailed"));
+  isSubmitting.value = true;
+  try {
+    const projectStore = useProjectStore();
+    const authStore = useAuthStore();
+    const epoch = authStore.getSessionEpoch();
+    const userId = authStore.user?.id;
+    const project = projectStore.getProjectById(draft.projectId);
+    validateSubmission(draft, project);
+    const batch = await buildSubmissionBatch(draft, project, reason);
+    if (epoch !== authStore.getSessionEpoch() || userId !== authStore.user?.id) {
+      throw new Error(t("errors.submissionFailed"));
+    }
+    const result = await trpc.submission.submit.mutate(batch);
+    if (epoch === authStore.getSessionEpoch() && userId === authStore.user?.id) {
+      acknowledgeSubmission(result, batch);
+    }
+    return result.outcome;
+  } finally {
+    isSubmitting.value = false;
   }
-  return outcome;
 }

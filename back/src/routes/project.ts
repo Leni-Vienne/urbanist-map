@@ -21,7 +21,7 @@ import {
 import { deleteLocalImages } from "../lib/imageCleanup";
 import { resolveBoundaryPath } from "../db/boundaryAssignment";
 import { getEditSessionData } from "../services/editSession";
-import { getMyChangeRequests } from "./changes";
+import { getMyChangeRequests } from "../db/changeRequests";
 import type { SessionUser } from "../lib/types";
 
 function requestLanguageCode(acceptLanguage: string | undefined): string {

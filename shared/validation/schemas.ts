@@ -15,60 +15,102 @@ const uploadedFilenameSchema = z
   .max(255, "validation.filenameTooLong")
   .regex(/^[0-9]+-[a-z0-9]+\.[a-z0-9]+$/, "validation.filenameInvalid");
 
-export const projectSchema = z
-  .object({
-    id: z.uuid().optional(),
-    name: z.string().min(7, "validation.nameTooShort").max(35, "validation.nameTooLong"),
-    description: z
-      .string()
-      .max(2000, "validation.descriptionTooLong")
-      .or(z.literal(""))
-      .transform((val) => (val === "" ? undefined : val))
-      .nullish()
-      .transform((val) => val ?? undefined),
-    lat: z
-      .number({ message: "validation.invalidLatitude" })
-      .min(-90, "validation.invalidLatitude")
-      .max(90, "validation.invalidLatitude"),
-    lng: z
-      .number({ message: "validation.invalidLongitude" })
-      .min(-180, "validation.invalidLongitude")
-      .max(180, "validation.invalidLongitude"),
-    proposalDate: z.date({ message: "validation.invalidDate" }).nullable().optional(),
-    proposalDatePrecision: z.enum(["year", "month", "day"]).nullable().optional(),
-    startDate: z.date({ message: "validation.invalidDate" }).nullable().optional(),
-    startDatePrecision: z.enum(["year", "month", "day"]).nullable().optional(),
-    endDate: z.date({ message: "validation.invalidDate" }).nullable().optional(),
-    endDatePrecision: z.enum(["year", "month", "day"]).nullable().optional(),
-    timelineStatus: z
-      .enum(["proposed", "planned", "under_construction", "completed", "canceled"])
-      .optional()
-      .default("proposed"),
-    sourceUrl: safeUrl
-      .or(z.literal(""))
-      .transform((val) => (val === "" ? undefined : val))
-      .nullish()
-      .transform((val) => val ?? undefined),
-    geometry: GeoJSONGeometryCollectionSchema.nullable().optional(),
-    tags: z.array(z.string().max(50)).max(20).optional(),
-  })
-  .superRefine((data, ctx) => {
-    if (data.proposalDate && data.proposalDate > new Date()) {
-      ctx.addIssue({
-        code: "custom",
-        message: "validation.proposalDateFuture",
-        path: ["proposalDate"],
-      });
-    }
+const projectFieldsSchema = z.object({
+  id: z.uuid().optional(),
+  name: z.string().min(7, "validation.nameTooShort").max(35, "validation.nameTooLong"),
+  description: z
+    .string()
+    .max(2000, "validation.descriptionTooLong")
+    .or(z.literal(""))
+    .transform((val) => (val === "" ? undefined : val))
+    .nullish()
+    .transform((val) => val ?? undefined),
+  lat: z
+    .number({ message: "validation.invalidLatitude" })
+    .min(-90, "validation.invalidLatitude")
+    .max(90, "validation.invalidLatitude"),
+  lng: z
+    .number({ message: "validation.invalidLongitude" })
+    .min(-180, "validation.invalidLongitude")
+    .max(180, "validation.invalidLongitude"),
+  proposalDate: z.date({ message: "validation.invalidDate" }).nullable().optional(),
+  proposalDatePrecision: z.enum(["year", "month", "day"]).nullable().optional(),
+  startDate: z.date({ message: "validation.invalidDate" }).nullable().optional(),
+  startDatePrecision: z.enum(["year", "month", "day"]).nullable().optional(),
+  endDate: z.date({ message: "validation.invalidDate" }).nullable().optional(),
+  endDatePrecision: z.enum(["year", "month", "day"]).nullable().optional(),
+  timelineStatus: z
+    .enum(["proposed", "planned", "under_construction", "completed", "canceled"])
+    .optional(),
+  sourceUrl: safeUrl
+    .or(z.literal(""))
+    .transform((val) => (val === "" ? undefined : val))
+    .nullish()
+    .transform((val) => val ?? undefined),
+  geometry: GeoJSONGeometryCollectionSchema.nullable().optional(),
+  tags: z.array(z.string().max(50)).max(20).optional(),
+});
 
-    if (data.startDate && data.endDate && data.endDate <= data.startDate) {
-      ctx.addIssue({
-        code: "custom",
-        message: "validation.endDateBeforeStartDate",
-        path: ["endDate"],
-      });
+type ProjectDates = {
+  proposalDate?: Date | null;
+  startDate?: Date | null;
+  endDate?: Date | null;
+};
+
+function checkProjectDates(data: ProjectDates, ctx: z.RefinementCtx): void {
+  if (data.proposalDate && data.proposalDate > new Date()) {
+    ctx.addIssue({
+      code: "custom",
+      message: "validation.proposalDateFuture",
+      path: ["proposalDate"],
+    });
+  }
+
+  if (data.startDate && data.endDate && data.endDate <= data.startDate) {
+    ctx.addIssue({
+      code: "custom",
+      message: "validation.endDateBeforeStartDate",
+      path: ["endDate"],
+    });
+  }
+}
+
+export const projectSchema = projectFieldsSchema
+  .extend({ timelineStatus: projectFieldsSchema.shape.timelineStatus.default("proposed") })
+  .superRefine(checkProjectDates);
+
+// Existing projects may carry imported values outside creation rules. Only supplied fields are
+// validated; the server checks date relationships against the persisted project as well.
+export const projectPatchSchema = projectFieldsSchema
+  .omit({ id: true, lat: true, lng: true })
+  .partial()
+  .strict()
+  .refine((patch) => Object.keys(patch).length > 0, "validation.changesRequired")
+  .superRefine((patch, ctx) => {
+    // These fields cannot be cleared. Optional means omitted, not undefined becoming a null write.
+    for (const field of ["name", "timelineStatus", "tags"] as const) {
+      if (field in patch && patch[field] === undefined) {
+        ctx.addIssue({ code: "custom", message: "validation.fieldNameInvalid", path: [field] });
+      }
     }
-  });
+  })
+  .superRefine(checkProjectDates);
+
+export type ProjectPatch = z.input<typeof projectPatchSchema>;
+export type SubmittedProject = z.infer<typeof projectSchema> & { id: string };
+
+export function validateProjectPatch(patch: unknown, baseline: ProjectDates) {
+  return projectPatchSchema
+    .superRefine((changes, ctx) => {
+      if ("startDate" in changes || "endDate" in changes) {
+        checkProjectDates(
+          { startDate: baseline.startDate, endDate: baseline.endDate, ...changes },
+          ctx,
+        );
+      }
+    })
+    .safeParse(patch);
+}
 
 const overlayBaseSchema = z.object({
   id: z.uuid(),
@@ -174,19 +216,15 @@ function hasUniqueValues(values: readonly string[]): boolean {
   return new Set(values).size === values.length;
 }
 
-const changedProjectFieldsSchema = z
-  .array(z.enum(PROJECT_CHANGE_FIELDS))
-  .max(PROJECT_CHANGE_FIELDS.length)
-  .refine(hasUniqueValues, "validation.fieldNameInvalid");
-
 const changedOverlayFieldsSchema = z
   .array(z.enum(OVERLAY_CHANGE_FIELDS))
   .max(OVERLAY_CHANGE_FIELDS.length)
   .refine(hasUniqueValues, "validation.fieldNameInvalid");
 
-const submittedProjectSchema = projectSchema.and(
-  z.object({ id: z.uuid(), changedFields: changedProjectFieldsSchema }),
-);
+const submittedProjectSchema = z.union([
+  z.strictObject({ id: z.uuid(), create: projectSchema }),
+  z.strictObject({ id: z.uuid(), patch: projectPatchSchema }),
+]);
 
 const submittedOverlaySchema = overlaySchema.and(
   z.object({ changedFields: changedOverlayFieldsSchema }),

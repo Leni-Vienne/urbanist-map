@@ -2,6 +2,7 @@ import { defineStore, acceptHMRUpdate } from "pinia";
 import { computed, ref } from "vue";
 import { buildImageUrl } from "@/utils/imageUrl";
 import { getEditModeDefaultCaption } from "@/services/overlay/defaultState";
+import { isSubmitting } from "@/services/submission/submissionState";
 import type {
   BackendOverlayData,
   LatLng,
@@ -17,7 +18,10 @@ type OverlayDraft = Partial<
     OverlayObject,
     "caption" | "filename" | "imageUrl" | "history" | "redoStack" | "isTooBig" | "positionState"
   >
-> & { base?: RuntimeOverlayData };
+> & {
+  base?: RuntimeOverlayData;
+  uploadedImage?: { imageUrl: string; filename: string };
+};
 
 function restingPositionState(overlay: OverlayObject): OverlayPositionState {
   return overlay.ownProposal !== undefined ? "suggested" : "baseline";
@@ -71,7 +75,7 @@ export const useOverlayStore = defineStore("overlay", () => {
     const overlay = materializeOverlay(data);
     overlay.caption = getEditModeDefaultCaption(overlay);
     if (!draft) return overlay;
-    const { base: _base, ...updates } = draft;
+    const { base: _base, uploadedImage: _uploadedImage, ...updates } = draft;
     return Object.assign(overlay, updates);
   }
 
@@ -93,6 +97,7 @@ export const useOverlayStore = defineStore("overlay", () => {
   const liveOverlays = computed<Record<string, OverlayObject>>(getEffectiveOverlays);
 
   function addLocalOverlay(overlayId: string, overlay: OverlayObject) {
+    if (isSubmitting.value) return;
     overlayDrafts.value[overlayId] = {
       base: toRuntimeOverlayData(overlay),
       caption: overlay.caption,
@@ -106,6 +111,7 @@ export const useOverlayStore = defineStore("overlay", () => {
   }
 
   function updateOverlayDraft(overlayId: string, updates: OverlayDraft) {
+    if (isSubmitting.value) return;
     const overlay = getOverlayById(overlayId);
     if (!overlay) return;
     let existing = overlayDrafts.value[overlayId];
@@ -116,6 +122,12 @@ export const useOverlayStore = defineStore("overlay", () => {
       ...existing,
       ...updates,
     };
+  }
+
+  // Upload bookkeeping may complete while user edits are frozen.
+  function rememberUploadedImage(overlayId: string, imageUrl: string, filename: string): void {
+    const draft = overlayDrafts.value[overlayId];
+    if (draft) draft.uploadedImage = { imageUrl, filename };
   }
 
   function hasFullOverlayData(overlayId: string): boolean {
@@ -205,6 +217,7 @@ export const useOverlayStore = defineStore("overlay", () => {
   }
 
   function undoHistory(overlayId: string): OverlayHistoryState | null {
+    if (isSubmitting.value) return null;
     const overlay = getOverlayById(overlayId);
     if (!overlay || overlay.history.length <= 1) return null;
     const history = overlay.history.slice(0, -1);
@@ -220,6 +233,7 @@ export const useOverlayStore = defineStore("overlay", () => {
   }
 
   function redoHistory(overlayId: string): OverlayHistoryState | null {
+    if (isSubmitting.value) return null;
     const overlay = getOverlayById(overlayId);
     const target = overlay?.redoStack.at(-1);
     if (!overlay || !target) return null;
@@ -271,6 +285,7 @@ export const useOverlayStore = defineStore("overlay", () => {
     hasFullOverlayData,
     addLocalOverlay,
     updateOverlayDraft,
+    rememberUploadedImage,
     updatePersistedOverlay,
     ingestBackendOverlay,
     replaceTileOverlays,

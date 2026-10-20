@@ -22,6 +22,15 @@ export function clearMapSessionSnapshot(): void {
   activeMapSession = null;
 }
 
+export function mergeEditSession(projectId: string, overlayIds: string[]): void {
+  const current = activeMapSession?.mode === "edit" ? activeMapSession : null;
+  activeMapSession = {
+    mode: "edit",
+    projectIds: [...new Set([...(current?.projectIds ?? []), projectId])],
+    overlayIds: [...new Set([...(current?.overlayIds ?? []), ...overlayIds])],
+  };
+}
+
 export function removeMapSessionOverlay(overlayId: string): void {
   if (!activeMapSession) return;
   activeMapSession = {

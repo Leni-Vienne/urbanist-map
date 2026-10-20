@@ -11,9 +11,13 @@ import { overlayWireToData, projectFromWire } from "@/utils/typeFactories";
 
 let loadToken = 0;
 
-export async function refreshUserContributions(
-  replaceOverlayIds?: ReadonlySet<string>,
-): Promise<void> {
+// A submission receipt is newer than any contributions request already in flight.
+export function invalidateContributionRequests(): void {
+  loadToken += 1;
+  useContributionStore().setLoading(false);
+}
+
+export async function refreshUserContributions(): Promise<void> {
   const authStore = useAuthStore();
   const changeRequestStore = useChangeRequestStore();
   const contributionStore = useContributionStore();
@@ -47,7 +51,6 @@ export async function refreshUserContributions(
           "edit",
           result.editSession.projects,
           result.editSession.overlays.map(overlayWireToData),
-          replaceOverlayIds,
         );
       }
       for (const project of Object.values(result.projectsById)) {

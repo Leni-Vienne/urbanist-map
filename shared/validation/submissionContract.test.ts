@@ -41,7 +41,7 @@ function validOverlay() {
 function acceptsIntent() {
   const result = submissionBatchSchema.safeParse({
     projectId: PROJECT_ID,
-    project: validProject(),
+    project: { id: PROJECT_ID, patch: { name: "Updated project" } },
     overlays: [validOverlay()],
     reason: "Correct the published data",
   });
@@ -66,20 +66,62 @@ function rejectsOldBucket() {
 }
 
 function rejectsDuplicateFields() {
-  const project = { ...validProject(), changedFields: ["name", "name"] };
+  const overlay = { ...validOverlay(), changedFields: ["caption", "caption"] };
   const result = submissionBatchSchema.safeParse({
     projectId: PROJECT_ID,
-    project,
-    overlays: [],
+    overlays: [overlay],
   });
 
   expect(result.success).toBeFalse();
 }
 
 function submissionIntentContract() {
-  test("accepts effective values plus user-touched fields", acceptsIntent);
+  test("accepts project patches and overlay intents", acceptsIntent);
   test("rejects the removed frontend-classified change-request bucket", rejectsOldBucket);
   test("rejects duplicate changed fields", rejectsDuplicateFields);
 }
 
 describe("submission intent contract", submissionIntentContract);
+
+describe("project create and edit contract", () => {
+  test("accepts a complete new project", () => {
+    const result = submissionBatchSchema.safeParse({
+      projectId: PROJECT_ID,
+      project: { id: PROJECT_ID, create: validProject() },
+      overlays: [],
+    });
+    expect(result.success).toBeTrue();
+  });
+  test.each(["Short", "", null])("rejects invalid name %p when creating", (name) => {
+    const result = submissionBatchSchema.safeParse({
+      projectId: PROJECT_ID,
+      project: { id: PROJECT_ID, create: { ...validProject(), name } },
+      overlays: [],
+    });
+    expect(result.success).toBeFalse();
+  });
+  test.each([
+    { name: "Short" },
+    { name: "" },
+    { description: "x".repeat(2001) },
+    { sourceUrl: "ftp://example.com" },
+    { name: undefined },
+    {},
+    { lat: 48 },
+  ])("rejects invalid edit %p", (patch) => {
+    const result = submissionBatchSchema.safeParse({
+      projectId: PROJECT_ID,
+      project: { id: PROJECT_ID, patch },
+      overlays: [],
+    });
+    expect(result.success).toBeFalse();
+  });
+  test("does not inject defaults or untouched fields into patches", () => {
+    const result = submissionBatchSchema.parse({
+      projectId: PROJECT_ID,
+      project: { id: PROJECT_ID, patch: { description: "A correction" } },
+      overlays: [],
+    });
+    expect(result.project).toEqual({ id: PROJECT_ID, patch: { description: "A correction" } });
+  });
+});

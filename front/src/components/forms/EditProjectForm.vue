@@ -1,6 +1,6 @@
 <template>
   <div class="pt-0 p-6 max-sm:p-4">
-    <form @submit.prevent="submitChanges" class="flex flex-col gap-4">
+    <form @submit.prevent="submitChanges" class="flex flex-col gap-4" novalidate>
       <ProjectFormFields
         :form-data="formData"
         :original-data="originalData"
@@ -45,7 +45,10 @@ import { computed, reactive } from "vue";
 import { t } from "@/locales";
 import { useProjectStore } from "@/stores/projectStore";
 import { toastError } from "@/services/core/toast";
-import { getProjectValidationErrors } from "@/utils/validationHelpers";
+import {
+  getProjectValidationErrors,
+  getProjectEditValidationErrors,
+} from "@/utils/validationHelpers";
 import type { Project, ProjectFormData } from "@/types/index";
 import { projectToFormData, projectFormFieldsDiffer } from "@/utils/projectFormHelpers";
 
@@ -77,10 +80,14 @@ function submitChanges() {
 
   const projectId = props.project.id;
   const currentProject = projectStore.getProjectById(projectId);
-  const errors = getProjectValidationErrors(formData, {
-    lat: currentProject?.lat,
-    lng: currentProject?.lng,
-  });
+  const patch: Partial<ProjectFormData> = {};
+  for (const field of fields) {
+    if (fieldDiffersFromOriginal(field)) Object.assign(patch, { [field]: formData[field] });
+  }
+  const errors =
+    props.project.status === null
+      ? getProjectValidationErrors(formData, { lat: currentProject?.lat, lng: currentProject?.lng })
+      : getProjectEditValidationErrors(patch, originalData);
   if (errors) {
     const firstError = errors[0];
     if (firstError)
@@ -94,15 +101,10 @@ function submitChanges() {
     else projectStore.upsertProjectSummary(props.project);
   }
 
-  const changedFields: Partial<Project> = {};
   for (const field of fields) {
-    if (fieldDiffersFromOriginal(field)) {
-      Object.assign(changedFields, { [field]: formData[field] });
-    } else {
-      projectStore.resetProjectField(projectId, field);
-    }
+    if (!fieldDiffersFromOriginal(field)) projectStore.resetProjectField(projectId, field);
   }
-  projectStore.updateProjectDraft(projectId, changedFields);
+  projectStore.updateProjectDraft(projectId, patch);
 
   emit("close");
 }

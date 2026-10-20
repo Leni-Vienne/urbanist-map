@@ -1,12 +1,16 @@
 import { TRPCError } from "@trpc/server";
-import type {
-  OverlayFieldName,
-  ProjectFieldName,
-  SubmissionBatchInput,
+import {
+  projectSchema,
+  PROJECT_CHANGE_FIELDS,
+  validateProjectPatch,
+  type ProjectPatch,
+  type SubmittedProject,
+  type OverlayFieldName,
+  type ProjectFieldName,
+  type SubmissionBatchInput,
 } from "@shared/validation/schemas";
 import type { ApprovalStatus } from "../db/schema";
 
-type SubmittedProject = NonNullable<SubmissionBatchInput["project"]>;
 type SubmittedOverlay = SubmissionBatchInput["overlays"][number];
 
 type ExistingProjectValues = {
@@ -72,22 +76,16 @@ function valuesDiffer(oldValue: unknown, newValue: unknown): boolean {
   return JSON.stringify(oldValue) !== JSON.stringify(newValue);
 }
 
-function submittedProjectValue(project: SubmittedProject, field: ProjectFieldName) {
-  if (field === "tags") return project.tags ?? [];
-  if (field === "name" || field === "timelineStatus") return project[field];
-  return project[field] ?? null;
-}
-
 function buildProjectChangeRequest(
-  project: SubmittedProject,
+  patch: ProjectPatch,
   existing: ExistingSubmissionProject,
   reason: string | undefined,
 ): ClassifiedChangeRequest {
-  requireChangedFields(project.changedFields, "approved project");
   const changes: ClassifiedChange[] = [];
-  for (const fieldName of project.changedFields) {
+  for (const fieldName of PROJECT_CHANGE_FIELDS) {
+    if (!(fieldName in patch)) continue;
     const oldValue = fieldName === "tags" ? (existing.tags ?? []) : existing[fieldName];
-    const newValue = submittedProjectValue(project, fieldName);
+    const newValue = patch[fieldName] ?? null;
     if (valuesDiffer(oldValue, newValue)) {
       changes.push({ fieldName, oldValue, newValue, changeReason: reason });
     }
@@ -95,7 +93,7 @@ function buildProjectChangeRequest(
   requireChangedFields(changes, "approved project");
   return {
     entityType: "project",
-    entityId: project.id,
+    entityId: existing.id,
     changes,
     lat: existing.lat,
     lng: existing.lng,
@@ -136,13 +134,27 @@ export function classifySubmission(
 
   const plan: SubmissionPlan = { overlays: [], changeRequests: [] };
   if (input.project) {
-    if (state.existingProject?.status === "approved") {
-      plan.changeRequests.push(
-        buildProjectChangeRequest(input.project, state.existingProject, input.reason),
-      );
+    const existing = state.existingProject;
+    if ("create" in input.project) {
+      if (existing) {
+        throw new TRPCError({ code: "CONFLICT", message: "Project already exists" });
+      }
+      plan.project = { ...input.project.create, id: input.project.id };
     } else {
-      if (state.existingProject) requireChangedFields(input.project.changedFields, "project");
-      plan.project = input.project;
+      if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
+      const result = validateProjectPatch(input.project.patch, existing);
+      if (!result.success) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: result.error.issues[0]?.message });
+      }
+      if (existing.status === "approved") {
+        plan.changeRequests.push(buildProjectChangeRequest(result.data, existing, input.reason));
+      } else {
+        const project = projectSchema.safeParse({ ...existing, ...result.data });
+        if (!project.success) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: project.error.issues[0]?.message });
+        }
+        plan.project = { ...project.data, id: existing.id };
+      }
     }
   }
 

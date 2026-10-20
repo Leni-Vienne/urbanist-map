@@ -1,5 +1,9 @@
 import { and, eq, inArray, ne, or, sql } from "drizzle-orm";
-import { submissionBatchSchema, type SubmissionBatchInput } from "@shared/validation/schemas";
+import {
+  submissionBatchSchema,
+  type SubmissionBatchInput,
+  type SubmittedProject,
+} from "@shared/validation/schemas";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { buildProjectSlug } from "@shared/projectSlug";
 import { db, type Transaction } from "../database";
@@ -17,6 +21,7 @@ import { reconcileProjectChanges } from "../services/projectEffects";
 import { deleteLocalImages } from "../lib/imageCleanup";
 import * as rateLimit from "../lib/rateLimit";
 import { notifyNewSubmission } from "../services/discordNotifier";
+import { getSubmissionReceipt } from "../services/submissionReceipt";
 import {
   classifySubmission,
   type ClassifiedChangeRequest,
@@ -170,7 +175,7 @@ function submissionOutcome(
 
 async function writeProject(
   tx: Transaction,
-  project: NonNullable<SubmissionBatchInput["project"]>,
+  project: SubmittedProject,
   countryCode: string,
   slug: string | null,
   user: SessionUser,
@@ -571,6 +576,7 @@ export const submissionRouter = router({
         }
 
         return {
+          receipt: await getSubmissionReceipt(tx, input, ctx.user),
           notifications,
           supersededFilenames,
           render,
@@ -590,6 +596,7 @@ export const submissionRouter = router({
       for (const notification of committed.notifications) void notifyNewSubmission(notification);
 
       return {
+        receipt: committed.receipt,
         render: committed.render,
         outcome: committed.outcome,
       };

@@ -1,4 +1,9 @@
-import { projectSchema, getValidationErrors } from "@shared/validation/schemas";
+import {
+  projectSchema,
+  validateProjectPatch,
+  getValidationErrors,
+  type ProjectPatch,
+} from "@shared/validation/schemas";
 import type { ProjectFormData } from "@/types/index";
 
 const DUMMY_UUID = "00000000-0000-0000-0000-000000000000";
@@ -23,6 +28,11 @@ export function getProjectValidationErrors(
   options?: Parameters<typeof prepareProjectValidationData>[1],
 ) {
   const result = projectSchema.safeParse(prepareProjectValidationData(formData, options));
+  return result.success ? null : getValidationErrors(result.error);
+}
+
+export function getProjectEditValidationErrors(patch: ProjectPatch, baseline: ProjectPatch) {
+  const result = validateProjectPatch(patch, baseline);
   return result.success ? null : getValidationErrors(result.error);
 }
 

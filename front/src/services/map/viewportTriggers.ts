@@ -26,15 +26,9 @@ import { clearMapSessionSnapshot, replaceMapSessionSnapshot } from "@/services/m
 import type { BackendOverlayData } from "@/types/index";
 import type { AppMode } from "@shared/types";
 
-function cacheMapSessionOverlays(
-  overlaysData: BackendOverlayData[],
-  replaceOverlayIds?: ReadonlySet<string>,
-): string[] {
+function cacheMapSessionOverlays(overlaysData: BackendOverlayData[]): string[] {
   const overlayStore = useOverlayStore();
-  return overlaysData.map(
-    (overlayData) =>
-      overlayStore.ingestBackendOverlay(overlayData, !replaceOverlayIds?.has(overlayData.id)).id,
-  );
+  return overlaysData.map((overlayData) => overlayStore.ingestBackendOverlay(overlayData).id);
 }
 
 function cacheMapSessionProjects(projects: ProjectWire[]): string[] {
@@ -65,10 +59,9 @@ export function applyMapSessionRows(
   mode: "edit" | "moderation",
   projects: ProjectWire[],
   overlays: BackendOverlayData[],
-  replaceOverlayIds?: ReadonlySet<string>,
 ): string[] {
   const projectIds = cacheMapSessionProjects(projects);
-  const overlayIds = cacheMapSessionOverlays(overlays, replaceOverlayIds);
+  const overlayIds = cacheMapSessionOverlays(overlays);
   if (mode === "edit") clearResolvedChangeRequestState(overlayIds);
   replaceMapSessionSnapshot({ mode, overlayIds, projectIds });
   renderMapSessionPendingSources();

@@ -1,4 +1,5 @@
 import { reactive } from "vue";
+import { isSubmitting } from "./submissionState";
 
 // A render image staged in the project form, awaiting submission. The file bytes only upload
 // once the user confirms in the submission dialog, like every other contribution. Keyed by
@@ -12,6 +13,7 @@ interface StagedRender {
 const stagedRenders = reactive(new Map<string, StagedRender>());
 
 export function setStagedRender(projectId: string, render: StagedRender): void {
+  if (isSubmitting.value) return;
   stagedRenders.set(projectId, render);
 }
 
@@ -28,6 +30,12 @@ export function hasStagedRenders(): boolean {
 }
 
 export function clearStagedRender(projectId: string): void {
+  if (isSubmitting.value) return;
+  stagedRenders.delete(projectId);
+}
+
+// Receipt cleanup runs while editing is still locked.
+export function acknowledgeStagedRender(projectId: string): void {
   stagedRenders.delete(projectId);
 }
 

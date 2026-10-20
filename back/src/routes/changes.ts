@@ -7,11 +7,10 @@ import {
   changeHistory,
   type EntityType,
   users,
-  userReports,
 } from "../db/schema";
-import { eq, and, inArray, sql, or, isNull, isNotNull } from "drizzle-orm";
+import { eq, and, inArray, sql, isNull, isNotNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { db, type DatabaseExecutor } from "../database";
+import { db } from "../database";
 import {
   overlayGeometryValues,
   parseCoordinate,
@@ -146,43 +145,6 @@ async function authorizeChangeRequestBatch(
   }
 
   return user.id;
-}
-
-// Common select fields for change requests with user info
-const changeRequestSelectFields = {
-  id: changeRequests.id,
-  entityType: changeRequests.entityType,
-  entityId: changeRequests.entityId,
-  fieldName: changeRequests.fieldName,
-  oldValue: changeRequests.oldValue,
-  newValue: changeRequests.newValue,
-  changeReason: changeRequests.changeReason,
-  status: changeRequests.status,
-  requestedBy: changeRequests.requestedBy,
-  requestedByUsername: users.username,
-  requestedByReportCount:
-    sql<number>`(SELECT COUNT(DISTINCT ${userReports.reportedBy})::int FROM ${userReports} WHERE ${userReports.reportedUserId} = ${changeRequests.requestedBy})`.as(
-      "requestedByReportCount",
-    ),
-  createdAt: changeRequests.createdAt,
-} as const;
-
-export async function getMyChangeRequests(database: DatabaseExecutor, userId: string) {
-  const rows = await database
-    .select(changeRequestSelectFields)
-    .from(changeRequests)
-    .leftJoin(users, eq(changeRequests.requestedBy, users.id))
-    .where(
-      and(
-        eq(changeRequests.requestedBy, userId),
-        or(eq(changeRequests.status, "pending"), eq(changeRequests.status, "conflicted")),
-      ),
-    )
-    .orderBy(changeRequests.createdAt);
-
-  return rows.map((change) =>
-    Object.assign({}, change, { hasConflict: change.status === "conflicted" }),
-  );
 }
 
 export const changesRouter = router({
