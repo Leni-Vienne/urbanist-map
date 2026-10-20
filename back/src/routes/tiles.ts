@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { tilesSqlClientLowZoom, tilesSqlClientHighZoom, db } from "../database";
-import { sql } from "drizzle-orm";
+import { tilesSqlClientLowZoom, tilesSqlClientHighZoom } from "../database";
+import type { TileBounds } from "../db/projectMapState";
 
 // Tile cache tuning, shared by every tile variant.
 //   low-zoom  (z0-z6): ~5.5k tiles total, pre-warmed at startup and effectively permanent.
@@ -85,6 +85,7 @@ function createTileService(
   // In-flight tile generations, keyed by `${z}/${x}/${y}`. Concurrent requests for the same uncached
   // tile share one promise so the expensive query runs once.
   const inFlightTiles = new Map<string, Promise<Uint8Array | null>>();
+  let cacheRevision = 0;
 
   // Summed bytes of highZoomCache entries (null entries count as 0).
   // Must be kept in sync by routing all writes/deletes through the helpers below.
@@ -102,6 +103,8 @@ function createTileService(
   }
 
   function clearCache() {
+    cacheRevision += 1;
+    inFlightTiles.clear();
     lowZoomCache.clear();
     highZoomCache.clear();
     highZoomCacheBytes = 0;
@@ -112,6 +115,8 @@ function createTileService(
   // within the 64-unit MVT buffer of a tile edge also render in the neighbouring tile.
   // A bbox spanning an implausibly large tile range falls back to a full cache clear.
   function invalidateBbox(minLng: number, minLat: number, maxLng: number, maxLat: number) {
+    cacheRevision += 1;
+    inFlightTiles.clear();
     for (let z = 0; z <= HIGH_ZOOM_MAX; z += 1) {
       const n = 2 ** z;
       const [xA, yA] = lngLatToTileXY(minLng, minLat, z);
@@ -182,11 +187,15 @@ function createTileService(
     const existing = inFlightTiles.get(cacheKey);
     if (existing !== undefined) return existing;
 
+    const revision = cacheRevision;
     const promise = (async () => {
       const data = await generateTile(z, x, y);
-      if (useCache) setCachedTile(cache, cacheKey, data);
+      // A query started before invalidation must not repopulate the cache with stale bytes.
+      if (useCache && revision === cacheRevision) setCachedTile(cache, cacheKey, data);
       return data;
-    })().finally(() => inFlightTiles.delete(cacheKey));
+    })().finally(() => {
+      if (inFlightTiles.get(cacheKey) === promise) inFlightTiles.delete(cacheKey);
+    });
 
     inFlightTiles.set(cacheKey, promise);
     return promise;
@@ -216,8 +225,9 @@ function createTileService(
         if (coord === undefined) continue;
         const [z, x, y] = coord;
         try {
+          const revision = cacheRevision;
           const tile = await generateTile(z, x, y);
-          setCachedTile(lowZoomCache, `${z}/${x}/${y}`, tile);
+          if (revision === cacheRevision) setCachedTile(lowZoomCache, `${z}/${x}/${y}`, tile);
           warmed += 1;
         } catch (error) {
           console.error(`Tile cache warm failed for ${sqlFileName} ${z}/${x}/${y}:`, error);
@@ -336,58 +346,18 @@ export async function warmLowZoomTileCache(): Promise<void> {
   console.log(`Low-zoom tile cache warmed in ${Date.now() - started}ms`);
 }
 
-type BboxRow = { min_lng: number; min_lat: number; max_lng: number; max_lat: number };
-
-// Invalidates the tile caches, since an approval/edit changes the underlying data. Falls back to a
-// full clear when the bbox row is missing or any extent is not a number.
-
-function invalidateAllFromBboxRow(row: Partial<BboxRow> | undefined) {
-  if (
-    row !== undefined &&
-    typeof row.min_lng === "number" &&
-    typeof row.min_lat === "number" &&
-    typeof row.max_lng === "number" &&
-    typeof row.max_lat === "number"
-  ) {
-    tileService.invalidateBbox(row.min_lng, row.min_lat, row.max_lng, row.max_lat);
-  } else {
+// null means the post-commit spatial read failed; an empty list means no public geometry.
+// Callers pass captured bounds, so deletion never requires looking up a row that is gone.
+export function invalidateTileBounds(bounds: readonly TileBounds[] | null): void {
+  if (bounds === null) {
     tileService.clearCache();
+    return;
   }
-}
-
-export async function invalidateProjectTiles(projectId: string) {
-  try {
-    const rows = await db.execute<Partial<BboxRow>>(sql`
-      SELECT ST_XMin(g) AS min_lng, ST_YMin(g) AS min_lat,
-             ST_XMax(g) AS max_lng, ST_YMax(g) AS max_lat
-      FROM (
-        SELECT COALESCE(geometry, center_coordinate) AS g
-        FROM projects
-        WHERE id = ${projectId}
-      ) s
-      WHERE g IS NOT NULL
-    `);
-    invalidateAllFromBboxRow(rows[0]);
-  } catch {
-    tileService.clearCache();
-  }
-}
-
-export async function invalidateOverlayTiles(overlayId: string) {
-  try {
-    const rows = await db.execute<Partial<BboxRow>>(sql`
-      SELECT ST_XMin(g) AS min_lng, ST_YMin(g) AS min_lat,
-             ST_XMax(g) AS max_lng, ST_YMax(g) AS max_lat
-      FROM (
-        SELECT COALESCE(o.corners, p.center_coordinate) AS g
-        FROM overlays o
-        JOIN projects p ON p.id = o.project_id
-        WHERE o.id = ${overlayId}
-      ) s
-      WHERE g IS NOT NULL
-    `);
-    invalidateAllFromBboxRow(rows[0]);
-  } catch {
-    tileService.clearCache();
+  for (const bbox of bounds) {
+    if (![bbox.minLng, bbox.minLat, bbox.maxLng, bbox.maxLat].every(Number.isFinite)) {
+      tileService.clearCache();
+      return;
+    }
+    tileService.invalidateBbox(bbox.minLng, bbox.minLat, bbox.maxLng, bbox.maxLat);
   }
 }

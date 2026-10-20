@@ -11,6 +11,7 @@ import {
 } from "./schema";
 import type { AppMode } from "@shared/types";
 import { buildOwnOverlayProposal } from "./overlayProposal";
+import { overlayCornersJsonSql } from "./geometry";
 
 // Country display name resolved from the level-2 (country) admin boundary matching a project's
 // country_code. Replaces the former join to the dropped `countries` table.
@@ -127,11 +128,7 @@ const OVERLAY_COLUMNS = {
   replacesOverlayId: overlays.replacesOverlayId,
   replacedByOverlayId: overlays.replacedByOverlayId,
   // Extract corners from polygon geometry as array of {lat, lng}
-  corners: sql<{ lat: number; lng: number }[]>`
-    (SELECT json_agg(json_build_object('lat', ST_Y(geom), 'lng', ST_X(geom)) ORDER BY path[2])
-     FROM ST_DumpPoints(${overlays.corners}) AS dump(path, geom)
-     WHERE path[2] <= 4)
-  `,
+  corners: overlayCornersJsonSql(overlays.corners),
   centroid: sql<{ lat: number; lng: number }>`
     json_build_object('lat', ST_Y(${overlays.centroid}), 'lng', ST_X(${overlays.centroid}))
   `,

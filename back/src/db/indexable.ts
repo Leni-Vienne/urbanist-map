@@ -43,8 +43,8 @@ export async function refreshAllIndexable(executor: SqlExecutor = db): Promise<v
   }
 }
 
-// Recompute indexable for a single project. Called on moderation approval (project or overlay) so a
-// freshly-approved page becomes (de-)indexable immediately rather than waiting for the daily pass.
+// Recompute indexable after app mutations (approval, edits, re-linking, deletion of images), so a
+// page becomes (de-)indexable immediately rather than waiting for the daily import pass.
 export async function refreshProjectIndexable(projectId: string): Promise<void> {
   try {
     await db.execute(sql`

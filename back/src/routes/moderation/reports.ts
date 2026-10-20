@@ -4,7 +4,8 @@ import { projects, overlays, users, userReports } from "../../db/schema";
 import { and, eq, or, sql, inArray } from "drizzle-orm";
 import { deleteImagesEverywhere, deleteLocalImages } from "../../lib/imageCleanup";
 import { deleteUserSessions } from "../../lib/drizzleSessionStore";
-import { assignProjectBoundary } from "../../db/boundaryAssignment";
+import { captureProjectMapState } from "../../db/projectMapState";
+import { reconcileProjectChanges } from "../../services/projectEffects";
 import { TRPCError } from "@trpc/server";
 import * as z from "zod";
 
@@ -264,7 +265,6 @@ export const reportProcedures = {
             status: overlays.status,
             authorId: overlays.authorId,
             projectId: overlays.projectId,
-            kind: overlays.kind,
           })
           .from(overlays)
           .where(eq(overlays.id, input.id))
@@ -275,7 +275,11 @@ export const reportProcedures = {
           throw new TRPCError({ code: "NOT_FOUND", message: "Overlay not found" });
         }
 
-        await db.transaction(async (tx) => {
+        const before = await db.transaction(async (tx) => {
+          const state = await captureProjectMapState(
+            tx,
+            overlay.projectId ? [overlay.projectId] : [],
+          );
           // Sever replacement-chain pointers first so no sibling row is left referencing
           // the deleted overlay (these columns have no FK to cascade the cleanup).
           await tx
@@ -287,17 +291,14 @@ export const reportProcedures = {
             .set({ replacedByOverlayId: null })
             .where(eq(overlays.replacedByOverlayId, input.id));
           await tx.delete(overlays).where(eq(overlays.id, input.id));
+          return state;
         });
 
         console.log(
           `Admin ${ctx.user.id} deleted overlay ${input.id} (status: ${overlay.status})${input.reason ? ` - Reason: ${input.reason}` : ""}`,
         );
 
-        // Removing an approved map overlay shrinks the project's footprint, so re-derive its
-        // boundary. Only approved map overlays ever counted toward it. Best-effort, post-commit.
-        if (overlay.kind === "map" && overlay.status === "approved" && overlay.projectId) {
-          await assignProjectBoundary(overlay.projectId);
-        }
+        await reconcileProjectChanges(before);
 
         try {
           await deleteImagesEverywhere(overlay.filename, "both");

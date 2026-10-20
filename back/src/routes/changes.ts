@@ -1,6 +1,5 @@
 import { moderatorProcedure, loggedInProcedure, router } from "../trpc";
 import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
-import { GeoJSONGeometryCollectionSchema } from "zod-geojson";
 import {
   projects,
   overlays,
@@ -13,9 +12,14 @@ import {
 import { eq, and, inArray, sql, or, isNull, isNotNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db, type DatabaseExecutor } from "../database";
-import { scalarGeometrySizeMSql } from "../db/geometrySize";
-import { invalidateProjectTiles, invalidateOverlayTiles } from "./tiles";
-import { invalidateLatestContributionsCache } from "./feed";
+import {
+  overlayGeometryValues,
+  parseCoordinate,
+  pointSql,
+  projectGeometryValues,
+} from "../db/geometry";
+import { captureProjectMapState } from "../db/projectMapState";
+import { reconcileProjectChanges } from "../services/projectEffects";
 
 const approveChangeRequestSchema = z.object({
   changeRequestIds: z.array(z.uuid()),
@@ -25,131 +29,36 @@ const rejectChangeRequestSchema = z.object({
   changeRequestIds: z.array(z.uuid()),
 });
 
-// Helper to validate and parse a GeoJSON GeometryCollection, throwing on invalid input
-function parseGeometryCollection(value: unknown): GeoJSON.GeometryCollection {
-  const parsed = GeoJSONGeometryCollectionSchema.safeParse(value);
-  if (!parsed.success) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: "Invalid geometry: must be a valid GeoJSON GeometryCollection",
-    });
-  }
-  return parsed.data;
-}
-
 // Helper to check if entity type is supported
 function isSupportedEntityType(type: string): type is EntityType {
   return type === "project" || type === "overlay";
-}
-
-type Coord = { lat: number; lng: number };
-
-// Type guard for a single coordinate object
-function isCoord(obj: unknown): obj is Coord {
-  return (
-    obj !== null &&
-    typeof obj === "object" &&
-    "lat" in obj &&
-    "lng" in obj &&
-    Number.isFinite(obj.lat) &&
-    Number.isFinite(obj.lng)
-  );
-}
-
-// Type guard for an array of exactly 4 coordinates
-function isCornersArray(value: unknown): value is [Coord, Coord, Coord, Coord] {
-  return Array.isArray(value) && value.length === 4 && value.every(isCoord);
-}
-
-// Helper function to convert corners JSON array to PostGIS polygon geometry
-function convertCornersToGeometry(cornersValue: unknown) {
-  if (!isCornersArray(cornersValue)) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: "Corners must be an array of 4 coordinate objects",
-    });
-  }
-
-  // Build polygon using parameterized PostGIS functions to prevent SQL injection
-  // SECURITY: Do NOT use sql.raw() with string concatenation - it bypasses parameterization
-  const [topLeft, topRight, bottomRight, bottomLeft] = cornersValue;
-  return sql`ST_SetSRID(ST_MakePolygon(
-    ST_MakeLine(ARRAY[
-      ST_MakePoint(${topLeft.lng}, ${topLeft.lat}),
-      ST_MakePoint(${topRight.lng}, ${topRight.lat}),
-      ST_MakePoint(${bottomRight.lng}, ${bottomRight.lat}),
-      ST_MakePoint(${bottomLeft.lng}, ${bottomLeft.lat}),
-      ST_MakePoint(${topLeft.lng}, ${topLeft.lat})
-    ])
-  ), 4326)`;
-}
-
-function parseCoordinate(coordValue: unknown): Coord {
-  if (!isCoord(coordValue)) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: "Coordinate must be an object with lat and lng properties",
-    });
-  }
-
-  return coordValue;
-}
-
-// Helper function to convert coordinate object to PostGIS point geometry
-function convertCoordinateToGeometry(coordinate: Coord) {
-  return sql`ST_SetSRID(ST_MakePoint(${coordinate.lng}, ${coordinate.lat}), 4326)`;
 }
 
 // Project fields backed by timestamp columns. Stored in jsonb as ISO strings,
 // so they need coercion back to Date before Drizzle serializes them.
 const PROJECT_DATE_FIELDS = new Set(["proposalDate", "startDate", "endDate"]);
 
-// Helper function to build update data with proper geometry handling
-function buildUpdateData(change: { entityType: string; fieldName: string; newValue: unknown }) {
-  const isOverlayCornersField = change.entityType === "overlay" && change.fieldName === "corners";
-  const isOverlayCentroidField = change.entityType === "overlay" && change.fieldName === "centroid";
-  const isProjectCenterCoordinateField =
-    change.entityType === "project" && change.fieldName === "centerCoordinate";
-
-  if (isOverlayCornersField) {
-    return { corners: convertCornersToGeometry(change.newValue) };
+// Geometry writes keep their dependent columns together; legacy coordinate requests still work.
+function buildOverlayUpdateData(change: { fieldName: string; newValue: unknown }) {
+  if (change.fieldName === "corners") return overlayGeometryValues(change.newValue);
+  if (change.fieldName === "centroid") {
+    return { centroid: pointSql(parseCoordinate(change.newValue)) };
   }
+  return { [change.fieldName]: change.newValue };
+}
 
-  if (isOverlayCentroidField) {
+function buildProjectUpdateData(change: { fieldName: string; newValue: unknown }) {
+  if (change.fieldName === "centerCoordinate") {
     const coordinate = parseCoordinate(change.newValue);
-    return { centroid: convertCoordinateToGeometry(coordinate) };
+    return { centerCoordinate: pointSql(coordinate), lat: coordinate.lat, lng: coordinate.lng };
   }
-
-  if (isProjectCenterCoordinateField) {
-    const coordinate = parseCoordinate(change.newValue);
-    return {
-      centerCoordinate: convertCoordinateToGeometry(coordinate),
-      lat: coordinate.lat,
-      lng: coordinate.lng,
-    };
-  }
-
-  const isProjectGeometryField = change.entityType === "project" && change.fieldName === "geometry";
-  if (isProjectGeometryField) {
-    if (change.newValue === null || change.newValue === undefined) {
-      return { geometry: null, geometrySizeM: null };
-    }
-    const collection = parseGeometryCollection(change.newValue);
-    // ST_MakeValid normalizes the client-drawn shape (same as the submission write path) so a
-    // self-intersecting or malformed collection is stored valid rather than as-drawn.
-    const geometryExpr = sql`ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(collection)}), 4326))`;
-    // geometry_size_m is derived from the shape, so it moves with it in the same UPDATE.
-    return { geometry: geometryExpr, geometrySizeM: scalarGeometrySizeMSql(geometryExpr) };
-  }
-
-  if (change.entityType === "project" && PROJECT_DATE_FIELDS.has(change.fieldName)) {
+  if (change.fieldName === "geometry") return projectGeometryValues(change.newValue);
+  if (PROJECT_DATE_FIELDS.has(change.fieldName)) {
     const value = change.newValue;
     // oxlint-disable-next-line no-unsafe-type-assertion
     const date = value === null || value === undefined ? null : new Date(value as string | number);
     return { [change.fieldName]: date };
   }
-
-  // For non-geometry fields, use the value directly
   return { [change.fieldName]: change.newValue };
 }
 
@@ -351,7 +260,23 @@ export const changesRouter = router({
           });
         }
 
-        await db.transaction(async (tx) => {
+        const before = await db.transaction(async (tx) => {
+          const projectIds: string[] = [];
+          const overlayIds: string[] = [];
+          for (const change of changesToApprove) {
+            if (change.entityType === "project") projectIds.push(change.entityId);
+            else overlayIds.push(change.entityId);
+          }
+          if (overlayIds.length > 0) {
+            const parents = await tx
+              .select({ projectId: overlays.projectId })
+              .from(overlays)
+              .where(inArray(overlays.id, overlayIds));
+            for (const parent of parents) {
+              if (parent.projectId) projectIds.push(parent.projectId);
+            }
+          }
+          const state = await captureProjectMapState(tx, projectIds);
           for (const change of changesToApprove) {
             const claimedRequests = await tx
               .update(changeRequests)
@@ -370,11 +295,11 @@ export const changesRouter = router({
               });
             }
 
-            // Build update data with proper handling for geometry fields
-            const updateData = buildUpdateData(change);
-
             if (change.entityType === "project") {
-              await tx.update(projects).set(updateData).where(eq(projects.id, change.entityId));
+              await tx
+                .update(projects)
+                .set(buildProjectUpdateData(change))
+                .where(eq(projects.id, change.entityId));
               // Lock imported projects so the next OSM sync can't overwrite this approved edit.
               await tx
                 .update(projects)
@@ -387,7 +312,10 @@ export const changesRouter = router({
                   ),
                 );
             } else {
-              await tx.update(overlays).set(updateData).where(eq(overlays.id, change.entityId));
+              await tx
+                .update(overlays)
+                .set(buildOverlayUpdateData(change))
+                .where(eq(overlays.id, change.entityId));
             }
 
             await tx.insert(changeHistory).values({
@@ -429,25 +357,10 @@ export const changesRouter = router({
                 ),
               );
           }
+          return state;
         });
 
-        const seen = new Set<string>();
-        for (const change of changesToApprove) {
-          const key = `${change.entityType}:${change.entityId}`;
-          if (seen.has(key)) continue;
-          seen.add(key);
-          if (change.entityType === "project") {
-            await invalidateProjectTiles(change.entityId);
-          } else {
-            await invalidateOverlayTiles(change.entityId);
-          }
-        }
-
-        // Always invalidate the latest contributions cache when change requests are approved
-        // because it might change the project/overlay details shown in the feed
-        if (changesToApprove.length > 0) {
-          invalidateLatestContributionsCache();
-        }
+        await reconcileProjectChanges(before);
       } catch (error) {
         if (error instanceof TRPCError) throw error;
         console.error("Error approving change requests:", error);

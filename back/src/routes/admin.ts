@@ -2,6 +2,8 @@ import { adminProcedure, router } from "../trpc";
 import { projects, overlays, users } from "../db/schema";
 import { eq, sql, and, inArray } from "drizzle-orm";
 import { db } from "../database";
+import { captureProjectMapState } from "../db/projectMapState";
+import { reconcileProjectChanges } from "../services/projectEffects";
 import { deleteImagesEverywhere, executePendingDeletions } from "../lib/imageCleanup";
 import { TRPCError } from "@trpc/server";
 import * as z from "zod";
@@ -148,12 +150,15 @@ export const adminRouter = router({
           .where(eq(overlays.projectId, input.projectId));
 
         // Overlays first to satisfy the FK; both deletes must succeed or roll back together.
-        await db.transaction(async (tx) => {
+        const before = await db.transaction(async (tx) => {
+          const state = await captureProjectMapState(tx, [input.projectId]);
           if (projectOverlays.length > 0) {
             await tx.delete(overlays).where(eq(overlays.projectId, input.projectId));
           }
           await tx.delete(projects).where(eq(projects.id, input.projectId));
+          return state;
         });
+        await reconcileProjectChanges(before);
 
         // Log deletion for audit trail
         console.log(

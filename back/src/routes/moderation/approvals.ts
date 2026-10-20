@@ -1,21 +1,17 @@
 import { moderatorProcedure } from "../../trpc";
 import { checkModeratorCountryPermission, checkModeratorOverlayPermission } from "./shared";
-import { invalidateProjectTiles, invalidateOverlayTiles } from "../tiles";
-import { invalidateLatestContributionsCache } from "../feed";
 import { projects, overlays, changeRequests, users } from "../../db/schema";
 import { and, eq, or, sql, inArray, ne } from "drizzle-orm";
-import { db, type Database } from "../../database";
+import { db, type Transaction } from "../../database";
 import {
   cleanupRejectedPendingOverlay,
   cleanupReplacedApprovedOverlay,
 } from "../../lib/imageCleanup";
 import { TRPCError } from "@trpc/server";
 import { queueR2Migration } from "../../services/r2MigrationService";
-import { assignProjectBoundary } from "../../db/boundaryAssignment";
-import { refreshProjectIndexable } from "../../db/indexable";
+import { captureProjectMapState } from "../../db/projectMapState";
+import { reconcileProjectChanges } from "../../services/projectEffects";
 import * as z from "zod";
-
-type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
 // A moderation attempt that lost a race (row gone, version moved, already processed). Thrown
 // rather than returned so the enclosing transaction rolls back instead of committing.
@@ -61,7 +57,8 @@ export const approvalProcedures = {
             ? or(eq(projects.status, "pending"), eq(projects.status, "approved"))
             : eq(projects.status, "pending");
 
-        const rejectedOverlays = await db.transaction(async (tx) => {
+        const committed = await db.transaction(async (tx) => {
+          const before = await captureProjectMapState(tx, [input.id]);
           const updateResult = await tx
             .update(projects)
             .set({
@@ -86,11 +83,11 @@ export const approvalProcedures = {
           const ownerId = updatedProject.ownerId;
           if (input.status === "approved") {
             await incrementApprovedCount(tx, ownerId);
-            return [];
+            return { before, rejectedOverlays: [] };
           }
 
           await incrementRejectedCount(tx, ownerId);
-          if (!input.rejectAllOverlays) return [];
+          if (!input.rejectAllOverlays) return { before, rejectedOverlays: [] };
 
           const pendingOverlays = await tx
             .select({
@@ -101,7 +98,7 @@ export const approvalProcedures = {
             .from(overlays)
             .where(and(eq(overlays.projectId, input.id), eq(overlays.status, "pending")));
 
-          if (pendingOverlays.length === 0) return [];
+          if (pendingOverlays.length === 0) return { before, rejectedOverlays: [] };
 
           await tx
             .update(overlays)
@@ -112,26 +109,19 @@ export const approvalProcedures = {
             await incrementRejectedCount(tx, overlay.authorId);
           }
 
-          return pendingOverlays;
+          return { before, rejectedOverlays: pendingOverlays };
         });
 
         // Committed: nothing below may fail the request, or the moderator retries an action that
         // already succeeded. Indexing has the daily import pass as its safety net.
-        try {
-          for (const overlay of rejectedOverlays) {
-            try {
-              await cleanupRejectedPendingOverlay(overlay.id, overlay.filename);
-            } catch (error) {
-              console.error(`Failed to cleanup rejected overlay: ${overlay.filename}`, error);
-            }
+        for (const overlay of committed.rejectedOverlays) {
+          try {
+            await cleanupRejectedPendingOverlay(overlay.id, overlay.filename);
+          } catch (error) {
+            console.error(`Failed to cleanup rejected overlay: ${overlay.filename}`, error);
           }
-
-          await invalidateProjectTiles(input.id);
-          invalidateLatestContributionsCache();
-          await refreshProjectIndexable(input.id);
-        } catch (error) {
-          console.error(`Post-moderation side effects failed for project ${input.id}:`, error);
         }
+        await reconcileProjectChanges(committed.before);
 
         return { success: true };
       } catch (error) {
@@ -179,6 +169,7 @@ export const approvalProcedures = {
 
         const approval = await db.transaction(async (tx) => {
           const overlay = await getOverlayForModeration(tx, input.id);
+          const before = await captureProjectMapState(tx, [overlay.projectId]);
           const replacement = overlay.replacesOverlayId
             ? await resolveReplacementConflicts(
                 tx,
@@ -191,7 +182,7 @@ export const approvalProcedures = {
 
           await approveOverlay(tx, input.id, input.expectedVersion, overlay.authorId);
 
-          return { overlay, replacement };
+          return { overlay, replacement, before };
         });
 
         // Queue the approved image before optional cleanup work. Each post-commit side effect has
@@ -215,24 +206,7 @@ export const approvalProcedures = {
           }
         }
 
-        await invalidateOverlayTiles(input.id);
-        if (approval.replacement) {
-          await invalidateOverlayTiles(approval.replacement.originalOverlay.id);
-        }
-
-        try {
-          invalidateLatestContributionsCache();
-        } catch (error) {
-          console.error(`Failed to invalidate contribution caches for overlay ${input.id}:`, error);
-        }
-
-        // A newly approved map overlay extends the project's footprint, so re-derive its boundary.
-        if (approval.overlay.kind === "map") {
-          await assignProjectBoundary(approval.overlay.projectId);
-        }
-
-        // An approved overlay can make its project newly indexable (visual content gate).
-        await refreshProjectIndexable(approval.overlay.projectId);
+        await reconcileProjectChanges(approval.before);
 
         return { success: true };
       } catch (error) {
@@ -256,7 +230,6 @@ async function getOverlayForModeration(tx: Transaction, overlayId: string) {
       replacesOverlayId: overlays.replacesOverlayId,
       authorId: overlays.authorId,
       projectId: overlays.projectId,
-      kind: overlays.kind,
     })
     .from(overlays)
     .where(eq(overlays.id, overlayId))

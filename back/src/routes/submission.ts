@@ -5,8 +5,15 @@ import { buildProjectSlug } from "@shared/projectSlug";
 import { db, type Transaction } from "../database";
 import { changeRequests, overlays, projects } from "../db/schema";
 import { isUserBlocked } from "../db/helpers";
-import { resolveCountryCode, assignProjectBoundary } from "../db/boundaryAssignment";
-import { scalarGeometrySizeMSql } from "../db/geometrySize";
+import { resolveCountryCode } from "../db/boundaryAssignment";
+import {
+  overlayCornersJsonSql,
+  overlayGeometryValues,
+  pointSql,
+  projectGeometryValues,
+} from "../db/geometry";
+import { captureProjectMapState } from "../db/projectMapState";
+import { reconcileProjectChanges } from "../services/projectEffects";
 import { deleteLocalImages } from "../lib/imageCleanup";
 import * as rateLimit from "../lib/rateLimit";
 import { notifyNewSubmission } from "../services/discordNotifier";
@@ -27,19 +34,6 @@ function normalizePrecisionForStorage(
   precision: "year" | "month" | "day" | null | undefined,
 ) {
   return date ? (precision ?? "day") : null;
-}
-
-function overlayCornersSql(corners: { lat: number; lng: number }[]) {
-  const [topLeft, topRight, bottomRight, bottomLeft] = corners;
-  return sql`ST_SetSRID(ST_MakePolygon(
-    ST_MakeLine(ARRAY[
-      ST_MakePoint(${topLeft?.lng}, ${topLeft?.lat}),
-      ST_MakePoint(${topRight?.lng}, ${topRight?.lat}),
-      ST_MakePoint(${bottomRight?.lng}, ${bottomRight?.lat}),
-      ST_MakePoint(${bottomLeft?.lng}, ${bottomLeft?.lat}),
-      ST_MakePoint(${topLeft?.lng}, ${topLeft?.lat})
-    ])
-  ), 4326)`;
 }
 
 const PROJECT_SUBMISSION_COLUMNS = {
@@ -70,11 +64,7 @@ const OVERLAY_SUBMISSION_COLUMNS = {
   caption: overlays.caption,
   kind: overlays.kind,
   projectId: overlays.projectId,
-  corners: sql<{ lat: number; lng: number }[]>`(
-    SELECT json_agg(json_build_object('lat', ST_Y(geom), 'lng', ST_X(geom)) ORDER BY path[2])
-    FROM ST_DumpPoints(${overlays.corners}) AS dump(path, geom)
-    WHERE path[2] <= 4
-  )`,
+  corners: overlayCornersJsonSql(overlays.corners),
   lat: sql<number>`ST_Y(${overlays.centroid})`,
   lng: sql<number>`ST_X(${overlays.centroid})`,
 } as const;
@@ -199,9 +189,6 @@ async function writeProject(
     }
   }
 
-  const geometry = project.geometry
-    ? sql`ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON(${JSON.stringify(project.geometry)}), 4326))`
-    : null;
   const values = {
     name: project.name,
     description: project.description ?? null,
@@ -209,7 +196,7 @@ async function writeProject(
     timelineStatus: project.timelineStatus,
     lat: project.lat,
     lng: project.lng,
-    centerCoordinate: sql`ST_SetSRID(ST_MakePoint(${project.lng}, ${project.lat}), 4326)`,
+    centerCoordinate: pointSql(project),
     proposalDate: project.proposalDate ?? null,
     proposalDatePrecision: normalizePrecisionForStorage(
       project.proposalDate,
@@ -220,8 +207,7 @@ async function writeProject(
     endDate: project.endDate ?? null,
     endDatePrecision: normalizePrecisionForStorage(project.endDate, project.endDatePrecision),
     sourceUrl: project.sourceUrl ?? null,
-    geometry,
-    geometrySizeM: geometry ? scalarGeometrySizeMSql(geometry) : null,
+    ...projectGeometryValues(project.geometry),
     tags: project.tags,
   };
 
@@ -324,8 +310,7 @@ async function writeOverlay(
     projectId,
     authorId: user.id,
     replacesOverlayId: overlay.replacesOverlayId ?? null,
-    corners: overlayCornersSql(overlay.corners),
-    centroid: sql`ST_SetSRID(ST_MakePoint(${centroid.lng}, ${centroid.lat}), 4326)`,
+    ...overlayGeometryValues(overlay.corners),
   };
   if (existing) {
     const updated = await tx
@@ -543,6 +528,7 @@ export const submissionRouter = router({
 
         const notifications: Parameters<typeof notifyNewSubmission>[0][] = [];
         const supersededFilenames: string[] = [];
+        const before = await captureProjectMapState(tx, plan.project ? [plan.project.id] : []);
 
         if (plan.project && countryCode) {
           await writeProject(
@@ -588,12 +574,12 @@ export const submissionRouter = router({
           notifications,
           supersededFilenames,
           render,
-          directProjectId: plan.project?.id,
+          before,
           outcome,
         };
       });
 
-      if (committed.directProjectId) await assignProjectBoundary(committed.directProjectId);
+      if (committed.before.projectIds.length > 0) await reconcileProjectChanges(committed.before);
       for (const filename of committed.supersededFilenames) {
         try {
           await deleteLocalImages(filename, "both");

@@ -1,7 +1,7 @@
 import { moderatorProcedure } from "../../trpc";
 import { checkModeratorCountryPermission } from "./shared";
-import { invalidateProjectTiles, invalidateOverlayTiles } from "../tiles";
-import { invalidateLatestContributionsCache } from "../feed";
+import { captureProjectMapState } from "../../db/projectMapState";
+import { reconcileProjectChanges } from "../../services/projectEffects";
 import {
   projects,
   overlays,
@@ -191,6 +191,7 @@ export const detachedProcedures = {
           if (!targetRows[0]) {
             throw new TRPCError({ code: "NOT_FOUND", message: "Target project not found" });
           }
+          const before = await captureProjectMapState(tx, [input.orphanId, input.targetProjectId]);
 
           const movedOverlays = await tx
             .update(overlays)
@@ -234,16 +235,12 @@ export const detachedProcedures = {
           await tx.delete(projects).where(eq(projects.id, input.orphanId));
 
           return {
+            before,
             movedOverlayIds: movedOverlays.map((o) => o.id),
           };
         });
 
-        await invalidateProjectTiles(input.orphanId);
-        await invalidateProjectTiles(input.targetProjectId);
-        for (const overlayId of result.movedOverlayIds) {
-          await invalidateOverlayTiles(overlayId);
-        }
-        invalidateLatestContributionsCache();
+        await reconcileProjectChanges(result.before);
 
         return { movedOverlays: result.movedOverlayIds.length };
       } catch (error) {
@@ -263,14 +260,19 @@ export const detachedProcedures = {
     .mutation(async ({ input, ctx }) => {
       try {
         await checkModeratorCountryPermission(input.projectId, ctx.user);
-        const updated = await db
-          .update(projects)
-          .set({ detachedAt: null })
-          .where(and(eq(projects.id, input.projectId), sql`${projects.detachedAt} IS NOT NULL`))
-          .returning({ id: projects.id });
-        if (!updated[0]) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Detached project not found" });
-        }
+        const before = await db.transaction(async (tx) => {
+          const state = await captureProjectMapState(tx, [input.projectId]);
+          const updated = await tx
+            .update(projects)
+            .set({ detachedAt: null })
+            .where(and(eq(projects.id, input.projectId), sql`${projects.detachedAt} IS NOT NULL`))
+            .returning({ id: projects.id });
+          if (!updated[0]) {
+            throw new TRPCError({ code: "NOT_FOUND", message: "Detached project not found" });
+          }
+          return state;
+        });
+        await reconcileProjectChanges(before);
       } catch (error) {
         console.error("Error dismissing detached project:", error);
         if (error instanceof TRPCError) throw error;
