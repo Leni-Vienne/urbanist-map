@@ -1,4 +1,5 @@
 import type { Map as MaplibreMap } from "maplibre-gl";
+import { getProjectTagColor } from "@/constants/projectTags";
 
 // Gray shades for road types, replacing Liberty's yellow/orange major roads.
 // Minor roads and paths are already white/gray in Liberty and are left unchanged.
@@ -64,9 +65,9 @@ export function applySky(mlMap: MaplibreMap): void {
 }
 
 /**
- * Applies overrides to the Liberty basemap's railway styling to visually
- * differentiate it from our tram project geometries.
- * Makes existing railways orange and semi-transparent.
+ * Uses project tag colors for Liberty's railways. Transit layers mix subway,
+ * tram and other rail types, so their colors are selected by feature subclass.
+ * Raises railways above the basemap; project layers and overlays are added afterward.
  */
 export function applyRailStyleOverrides(mlMap: MaplibreMap): void {
   const layers = mlMap.getStyle().layers;
@@ -75,13 +76,21 @@ export function applyRailStyleOverrides(mlMap: MaplibreMap): void {
     if (layer.type !== "line") continue;
 
     const id = layer.id;
-    if (id.includes("road_major_rail") || id.includes("bridge_major_rail")) {
-      mlMap.setPaintProperty(id, "line-color", "#f97316");
-      mlMap.setPaintProperty(id, "line-opacity", 0.7);
-    }
-    if (id.includes("tunnel_major_rail")) {
-      mlMap.setPaintProperty(id, "line-color", "#f97316");
-      mlMap.setPaintProperty(id, "line-opacity", 0.5);
+    if (id.includes("major_rail")) {
+      mlMap.setPaintProperty(id, "line-color", getProjectTagColor(["rail"]));
+      mlMap.setPaintProperty(id, "line-opacity", id.startsWith("tunnel_") ? 0.5 : 0.7);
+      mlMap.moveLayer(id);
+    } else if (id.includes("transit_rail")) {
+      mlMap.setPaintProperty(id, "line-color", [
+        "match",
+        ["get", "subclass"],
+        "subway",
+        getProjectTagColor(["subway"]),
+        "tram",
+        getProjectTagColor(["tram"]),
+        "#bbb", // Liberty's default for other transit subclasses.
+      ]);
+      mlMap.moveLayer(id);
     }
   }
 }
