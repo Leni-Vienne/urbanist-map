@@ -65,9 +65,10 @@ def create_display_name(props):
 
 
 class ArealExtractionHandler(osmium.SimpleHandler):
-    def __init__(self):
+    def __init__(self, defer_geometry=False):
         super().__init__()
         self.wkbfab = osmium.geom.WKBFactory()
+        self.defer_geometry = defer_geometry
         self.features = []
         self.geometries = {}  # feature_id -> shapely geometry, for containment checks
 
@@ -142,7 +143,7 @@ class ArealExtractionHandler(osmium.SimpleHandler):
         self.features.append({
             'type': 'Feature',
             'id': feature_id,
-            'geometry': mapping(geom),
+            'geometry': geom if self.defer_geometry else mapping(geom),
             'properties': props
         })
         self.geometries[feature_id] = geom
@@ -226,7 +227,7 @@ def main():
     OUTPUT_FILE = args.output
 
     with timed_step(LOGGER, 'read', input=str(SOURCE_FILE)):
-        handler = ArealExtractionHandler()
+        handler = ArealExtractionHandler(defer_geometry=True)
         # locations=True feeds coordinates to way() for unclosed area-tagged ways.
         handler.apply_file(SOURCE_FILE, locations=True)
     LOGGER.info("Read geometries", extra={"fields": {"event": "geometry_read", "features": len(handler.features)}})
@@ -235,7 +236,9 @@ def main():
         features, nest_stats = filter_nested_buildings(handler.features, handler.geometries)
 
     with timed_step(LOGGER, 'write', output=str(OUTPUT_FILE)):
-        write_feature_collection(features, OUTPUT_FILE)
+        encoded = ({**feature, 'geometry': mapping(feature['geometry'])}
+                   for feature in features)
+        write_feature_collection(encoded, OUTPUT_FILE)
 
     LOGGER.info("Wrote GeoJSON", extra={'fields': {
         'event': 'features_written', 'output': str(OUTPUT_FILE),

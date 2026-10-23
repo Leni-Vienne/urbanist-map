@@ -1,11 +1,16 @@
+import json
 import tempfile
 import unittest
+from argparse import Namespace
 from pathlib import Path
+from unittest.mock import patch
 from xml.etree import ElementTree
 
 from shapely.geometry import Polygon
 
+import extract_areal_buildings as areal
 from extract_areal_buildings import ArealExtractionHandler
+from osm_io import write_feature_collection
 from osm_policy import classify_areal_feature
 
 
@@ -128,6 +133,37 @@ class LifecycleLanduseTest(unittest.TestCase):
                 feature = handler.features[0]
                 self.assertEqual('relation/456' if is_relation else 'way/123', feature['id'])
                 self.assertEqual('planned', feature['properties']['project_status'])
+
+
+class AreaOutputTest(unittest.TestCase):
+    def test_main_preserves_each_shape_when_feature_ids_repeat(self):
+        shapes = [
+            Polygon([(2, 48), (2.001, 48), (2.001, 48.001), (2, 48.001)]),
+            Polygon([(3, 48), (3.002, 48), (3.002, 48.002), (3, 48.002)]),
+        ]
+
+        def read_features(handler, *args, **kwargs):
+            for i, geom in enumerate(shapes):
+                handler.emit_feature(
+                    {'planned:building': 'apartments', 'name': f'Building {i}'},
+                    'building', geom, 'way/123', '2026-10-19T00:00:00Z',
+                )
+
+        reference = ArealExtractionHandler()
+        read_features(reference)
+        with tempfile.TemporaryDirectory() as directory:
+            expected = Path(directory) / 'expected.geojson'
+            actual = Path(directory) / 'actual.geojson'
+            write_feature_collection(reference.features, expected)
+            args = Namespace(source='unused.osm.pbf', output=str(actual))
+            with patch.object(areal, '_parse_args', return_value=args), \
+                    patch.object(ArealExtractionHandler, 'apply_file', read_features):
+                areal.main()
+
+            self.assertEqual(expected.read_bytes(), actual.read_bytes())
+            features = json.loads(actual.read_text())['features']
+            self.assertEqual(['way/123', 'way/123'], [f['id'] for f in features])
+            self.assertNotEqual(features[0]['geometry'], features[1]['geometry'])
 
 
 if __name__ == '__main__':
