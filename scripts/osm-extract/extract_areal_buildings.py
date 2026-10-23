@@ -14,7 +14,6 @@ import math
 import re
 import argparse
 from shapely.geometry import mapping, Polygon
-from shapely.strtree import STRtree
 
 from osm_log import get_logger, timed_step
 from osm_io import write_feature_collection
@@ -22,7 +21,6 @@ from osm_policy import (
     classify_areal_feature,
     get_areal_building_category,
     get_areal_project_status,
-    has_identity,
     passes_areal_size_gate,
 )
 
@@ -70,7 +68,6 @@ class ArealExtractionHandler(osmium.SimpleHandler):
         self.wkbfab = osmium.geom.WKBFactory()
         self.defer_geometry = defer_geometry
         self.features = []
-        self.geometries = {}  # feature_id -> shapely geometry, for containment checks
 
     def area(self, a):
         tags = {t.k: t.v for t in a.tags}
@@ -140,85 +137,15 @@ class ArealExtractionHandler(osmium.SimpleHandler):
         if timestamp:
             props['osm_last_modified'] = timestamp
 
+        # Production keeps the Shapely shape until output. Eager mapping() here
+        # retains Python coordinate objects for every feature at once; streaming
+        # conversion saved about 747 MiB of peak RAM on the production PBF.
         self.features.append({
             'type': 'Feature',
             'id': feature_id,
             'geometry': geom if self.defer_geometry else mapping(geom),
             'properties': props
         })
-        self.geometries[feature_id] = geom
-
-
-def filter_nested_buildings(features, geometries):
-    """
-    Remove redundant unidentified container polygons:
-    - A large area with no identifying tags (name, wikidata, description, website) that
-      contains smaller buildings is removed, keeping the individual buildings inside.
-    - An identified area (a development) is kept alongside the buildings within it, so
-      individually-mapped buildings are never hidden under a development boundary.
-
-    Returns (filtered_features, stats_dict).
-    """
-    buildings = [f for f in features if f['properties'].get('transport_type') == 'building']
-    non_buildings = [f for f in features if f['properties'].get('transport_type') != 'building']
-
-    if len(buildings) < 2:
-        return features, {'checked': 0, 'removed_containers': 0}
-
-    # Build spatial index
-    building_geoms = []
-    building_map = {}  # geom index -> feature
-    for f in buildings:
-        fid = f['id']
-        if fid in geometries:
-            idx = len(building_geoms)
-            building_geoms.append(geometries[fid])
-            building_map[idx] = f
-
-    if not building_geoms:
-        return features, {'checked': 0, 'removed_containers': 0}
-
-    tree = STRtree(building_geoms)
-
-    to_remove = set()
-    removed_containers = 0
-
-    for i, geom in enumerate(building_geoms):
-        if i in to_remove:
-            continue
-
-        feature = building_map[i]
-        props = feature['properties']
-        identified = has_identity(props)
-        area = props.get('area_sqm', 0)
-
-        candidates = tree.query(geom)
-
-        for j in candidates:
-            if i == j or j in to_remove:
-                continue
-
-            other_feature = building_map[j]
-            other_area = other_feature['properties'].get('area_sqm', 0)
-            other_geom = building_geoms[j]
-
-            # Only an unidentified container is removed (keeping the smaller buildings inside
-            # it). An identified area is kept alongside the buildings within it. The case where
-            # j is the larger container is handled when j is itself processed as i.
-            if area > other_area * 1.5 and not identified:  # i is an unidentified container of j
-                if geom.contains(other_geom.centroid):
-                    to_remove.add(i)
-                    removed_containers += 1
-                    break  # this container is removed, stop checking
-
-    kept_buildings = [building_map[i] for i in range(len(building_geoms)) if i not in to_remove]
-
-    stats = {
-        'checked': len(buildings),
-        'removed_containers': removed_containers
-    }
-    
-    return non_buildings + kept_buildings, stats
 
 
 def main():
@@ -232,19 +159,17 @@ def main():
         handler.apply_file(SOURCE_FILE, locations=True)
     LOGGER.info("Read geometries", extra={"fields": {"event": "geometry_read", "features": len(handler.features)}})
 
-    with timed_step(LOGGER, 'nesting_filter'):
-        features, nest_stats = filter_nested_buildings(handler.features, handler.geometries)
-
     with timed_step(LOGGER, 'write', output=str(OUTPUT_FILE)):
+        # Keep this a generator: convert and write one feature at a time. A list
+        # comprehension or conversion during reading would undo the RAM saving.
+        # Use each feature's own shape; repeated IDs can have different shapes.
         encoded = ({**feature, 'geometry': mapping(feature['geometry'])}
-                   for feature in features)
+                   for feature in handler.features)
         write_feature_collection(encoded, OUTPUT_FILE)
 
     LOGGER.info("Wrote GeoJSON", extra={'fields': {
         'event': 'features_written', 'output': str(OUTPUT_FILE),
-        'features_read': len(handler.features), 'features': len(features),
-        'buildings_checked': nest_stats['checked'],
-        'removed_containers': nest_stats['removed_containers'],
+        'features_read': len(handler.features), 'features': len(handler.features),
     }})
 
 

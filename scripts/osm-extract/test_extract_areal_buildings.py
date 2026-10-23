@@ -136,6 +136,32 @@ class LifecycleLanduseTest(unittest.TestCase):
 
 
 class AreaOutputTest(unittest.TestCase):
+    def test_main_keeps_unnamed_enclosing_area_and_inner_building(self):
+        shapes = [
+            Polygon([(2, 48), (2.01, 48), (2.01, 48.01), (2, 48.01)]),
+            Polygon([(2.001, 48.001), (2.002, 48.001),
+                     (2.002, 48.002), (2.001, 48.002)]),
+        ]
+
+        def read_features(handler, *args, **kwargs):
+            for i, geom in enumerate(shapes):
+                handler.emit_feature(
+                    {'planned:building': 'apartments'},
+                    'building', geom, f'way/{i + 1}', None,
+                )
+
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / 'areas.geojson'
+            args = Namespace(source='unused.osm.pbf', output=str(output))
+            with patch.object(areal, '_parse_args', return_value=args), \
+                    patch.object(ArealExtractionHandler, 'apply_file', read_features):
+                areal.main()
+
+            features = json.loads(output.read_text())['features']
+            self.assertEqual(['way/1', 'way/2'], [f['id'] for f in features])
+            for feature, geom in zip(features, shapes):
+                self.assertEqual(json.loads(json.dumps(areal.mapping(geom))), feature['geometry'])
+
     def test_main_preserves_each_shape_when_feature_ids_repeat(self):
         shapes = [
             Polygon([(2, 48), (2.001, 48), (2.001, 48.001), (2, 48.001)]),
