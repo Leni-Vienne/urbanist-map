@@ -12,7 +12,7 @@ Must be run inside WSL (Windows Subsystem for Linux) or a native Linux environme
 
 **Python packages**
 
-- `osmium`, `pip install osmium`
+- `osmium` >= 4.0, `pip install 'osmium>=4.0'` (native relation-member filtering)
 - `shapely`, `pip install shapely`
 
 ## Usage
@@ -60,7 +60,8 @@ Both files are written next to the PBF:
 ## Area selection policy
 
 Lifecycle land-use tags share a whitelist of development and recreation types,
-defined in [extract_areal_buildings.py](extract_areal_buildings.py).
+defined in [osm_policy.py](osm_policy.py), alongside Python eligibility,
+category, lifecycle, and size-gate rules for both extractors.
 Generic `yes` values remain subject to size/identity checks and existing exclusions.
 Unsupported future uses such as `grass` and `brownfield` do not qualify on their
 own, even with a name or generic lifecycle flag; another supported project tag can.

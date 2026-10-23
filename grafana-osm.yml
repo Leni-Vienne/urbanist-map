@@ -1,0 +1,1070 @@
+# Grafana dashboard resource. Setup and query limitations: docs/GRAFANA_OSM.md
+apiVersion: dashboard.grafana.app/v2
+kind: Dashboard
+metadata:
+  name: levfnhb
+spec:
+  annotations: []
+  cursorSync: "Off"
+  description:
+    Daily OSM updates from existing plain-text systemd journal messages. Requires the grafanacloud-logs
+    Loki data source and JOURNAL_UNIT=osm-update.service on one Alloy stack. Resource and duration charts show the last reported value in each display interval; they do not join lines into
+    runs. See docs/GRAFANA_OSM.md for setup and limitations.
+  editable: true
+  elements:
+    panel-4:
+      kind: Panel
+      spec:
+        data:
+          kind: QueryGroup
+          spec:
+            queries:
+              - kind: PanelQuery
+                spec:
+                  hidden: false
+                  query:
+                    datasource:
+                      name: grafanacloud-logs
+                    group: loki
+                    kind: DataQuery
+                    spec:
+                      direction: backward
+                      editorMode: code
+                      expr: |-
+                        last_over_time(
+                          {service="osm-update"}
+                          |= "Done! Total:"
+                          | regexp `\[(?P<component>linear|areal)\] \[[0-9:]+\] Done! Total: (?P<elapsed>[0-9]+m[0-9]+s)`
+                          | component!=""
+                          | unwrap duration_seconds(elapsed)
+                          | __error__="" [$__interval]
+                        ) by (component)
+                      instant: false
+                      legendFormat: "{{component}}"
+                      queryType: range
+                      range: true
+                    version: v0
+                  refId: A
+            queryOptions:
+              interval: 1h
+            transformations: []
+        description:
+          Last reported total duration per extractor in each display interval (minimum one hour). Points
+          are placed at collection time; buffering delays their appearance but does not change the parsed duration.
+        id: 4
+        links: []
+        title: Extraction durations
+        vizConfig:
+          group: timeseries
+          kind: VizConfig
+          spec:
+            fieldConfig:
+              defaults:
+                unit: s
+                noValue: No matching logs
+                color:
+                  mode: palette-classic
+                custom:
+                  drawStyle: points
+                  pointSize: 6
+                  showPoints: always
+                  spanNulls: false
+                  axisCenteredZero: false
+                  axisPlacement: auto
+                  fillOpacity: 0
+              overrides: []
+            options:
+              legend:
+                calcs:
+                  - lastNotNull
+                displayMode: table
+                placement: right
+                showLegend: true
+              tooltip:
+                mode: multi
+                sort: desc
+          version: 13.2.0-29316898481
+    panel-6:
+      kind: Panel
+      spec:
+        data:
+          kind: QueryGroup
+          spec:
+            queries:
+              - kind: PanelQuery
+                spec:
+                  hidden: false
+                  query:
+                    datasource:
+                      name: grafanacloud-logs
+                    group: loki
+                    kind: DataQuery
+                    spec:
+                      direction: backward
+                      editorMode: code
+                      expr: |-
+                        last_over_time(
+                          {service="osm-update"}
+                          |= "Finished " |= ".geojson. Inserted:"
+                          | regexp `Finished (?P<file>[^/ ]+[.]geojson)[.] Inserted: (?P<inserted>[0-9]+), unchanged: (?P<unchanged>[0-9]+), skipped: (?P<skipped>[0-9]+)`
+                          | file!=""
+                          | unwrap inserted
+                          | __error__="" [$__interval]
+                        ) by (file)
+                      instant: false
+                      legendFormat: "{{file}} / new or changed"
+                      queryType: range
+                      range: true
+                    version: v0
+                  refId: A
+              - kind: PanelQuery
+                spec:
+                  hidden: false
+                  query:
+                    datasource:
+                      name: grafanacloud-logs
+                    group: loki
+                    kind: DataQuery
+                    spec:
+                      direction: backward
+                      editorMode: code
+                      expr: |-
+                        last_over_time(
+                          {service="osm-update"}
+                          |= "Finished " |= ".geojson. Inserted:"
+                          | regexp `Finished (?P<file>[^/ ]+[.]geojson)[.] Inserted: (?P<inserted>[0-9]+), unchanged: (?P<unchanged>[0-9]+), skipped: (?P<skipped>[0-9]+)`
+                          | file!=""
+                          | unwrap unchanged
+                          | __error__="" [$__interval]
+                        ) by (file)
+                      instant: false
+                      legendFormat: "{{file}} / unchanged"
+                      queryType: range
+                      range: true
+                    version: v0
+                  refId: B
+              - kind: PanelQuery
+                spec:
+                  hidden: false
+                  query:
+                    datasource:
+                      name: grafanacloud-logs
+                    group: loki
+                    kind: DataQuery
+                    spec:
+                      direction: backward
+                      editorMode: code
+                      expr: |-
+                        last_over_time(
+                          {service="osm-update"}
+                          |= "Finished " |= ".geojson. Inserted:"
+                          | regexp `Finished (?P<file>[^/ ]+[.]geojson)[.] Inserted: (?P<inserted>[0-9]+), unchanged: (?P<unchanged>[0-9]+), skipped: (?P<skipped>[0-9]+)`
+                          | file!=""
+                          | unwrap skipped
+                          | __error__="" [$__interval]
+                        ) by (file)
+                      instant: false
+                      legendFormat: "{{file}} / skipped"
+                      queryType: range
+                      range: true
+                    version: v0
+                  refId: C
+            queryOptions:
+              interval: 1h
+            transformations: []
+        description:
+          Last reported file summary in each display interval. Inserted is the importer's label for upserts
+          of new or changed features, not strictly newly created projects. Duplicate IDs can be processed repeatedly;
+          successful file processing does not prove final import completion.
+        id: 6
+        links: []
+        title: Import results per file
+        vizConfig:
+          group: timeseries
+          kind: VizConfig
+          spec:
+            fieldConfig:
+              defaults:
+                unit: short
+                noValue: No matching logs
+                color:
+                  mode: palette-classic
+                custom:
+                  drawStyle: points
+                  pointSize: 6
+                  showPoints: always
+                  spanNulls: false
+                  axisCenteredZero: false
+                  axisPlacement: auto
+                  fillOpacity: 0
+              overrides: []
+            options:
+              legend:
+                calcs:
+                  - lastNotNull
+                displayMode: table
+                placement: right
+                showLegend: true
+              tooltip:
+                mode: multi
+                sort: desc
+          version: 13.2.0-29316898481
+    panel-7:
+      kind: Panel
+      spec:
+        data:
+          kind: QueryGroup
+          spec:
+            queries:
+              - kind: PanelQuery
+                spec:
+                  hidden: false
+                  query:
+                    datasource:
+                      name: grafanacloud-logs
+                    group: loki
+                    kind: DataQuery
+                    spec:
+                      direction: backward
+                      editorMode: code
+                      expr: |-
+                        last_over_time(
+                          {service="osm-update"}
+                          |~ `(Hard-deleted|Soft-detached) [0-9]+ stale projects`
+                          | regexp `(?P<action>Hard-deleted|Soft-detached) (?P<projects>[0-9]+) stale projects`
+                          | action!=""
+                          | unwrap projects
+                          | __error__="" [$__interval]
+                        ) by (action)
+                      instant: false
+                      legendFormat: "{{action}}"
+                      queryType: range
+                      range: true
+                    version: v0
+                  refId: A
+            queryOptions:
+              interval: 1h
+            transformations: []
+        description:
+          Last reported number of hard-deleted and soft-detached projects per display interval. Zero is
+          a reported value. Missing points mean no matching cleanup message, not zero deletions.
+        id: 7
+        links: []
+        title: Stale project cleanup
+        vizConfig:
+          group: timeseries
+          kind: VizConfig
+          spec:
+            fieldConfig:
+              defaults:
+                unit: short
+                noValue: No matching logs
+                color:
+                  mode: palette-classic
+                custom:
+                  drawStyle: points
+                  pointSize: 6
+                  showPoints: always
+                  spanNulls: false
+                  axisCenteredZero: false
+                  axisPlacement: auto
+                  fillOpacity: 0
+              overrides: []
+            options:
+              legend:
+                calcs:
+                  - lastNotNull
+                displayMode: table
+                placement: right
+                showLegend: true
+              tooltip:
+                mode: multi
+                sort: desc
+          version: 13.2.0-29316898481
+    panel-8:
+      kind: Panel
+      spec:
+        data:
+          kind: QueryGroup
+          spec:
+            queries:
+              - kind: PanelQuery
+                spec:
+                  hidden: false
+                  query:
+                    datasource:
+                      name: grafanacloud-logs
+                    group: loki
+                    kind: DataQuery
+                    spec:
+                      direction: backward
+                      editorMode: code
+                      expr: |-
+                        last_over_time(
+                          {service="osm-update"}
+                          |~ `(peak memory used|min memory available|peak swap used)`
+                          | regexp `(?P<measure>peak memory used|min memory available|peak swap used)[ ]*:[ ]*(?P<megabytes>[0-9]+)MB`
+                          | measure!=""
+                          | unwrap megabytes
+                          | __error__="" [$__interval]
+                        ) by (measure)
+                      instant: false
+                      legendFormat: "{{measure}}"
+                      queryType: range
+                      range: true
+                    version: v0
+                  refId: A
+            queryOptions:
+              interval: 1h
+            transformations: []
+        description:
+          "Optional resource_monitor.sh summary: last reported host peak memory used, minimum memory available,
+          and peak swap used per display interval. MB is shown as logged. This is host-wide usage during the update,
+          not the extractor's own memory. Empty when that external monitor is not installed."
+        id: 8
+        links: []
+        title: Host memory during updates
+        vizConfig:
+          group: timeseries
+          kind: VizConfig
+          spec:
+            fieldConfig:
+              defaults:
+                unit: "suffix: MB"
+                noValue: No matching logs
+                color:
+                  mode: palette-classic
+                custom:
+                  drawStyle: points
+                  pointSize: 6
+                  showPoints: always
+                  spanNulls: false
+                  axisCenteredZero: false
+                  axisPlacement: auto
+                  fillOpacity: 0
+              overrides: []
+            options:
+              legend:
+                calcs:
+                  - lastNotNull
+                displayMode: table
+                placement: right
+                showLegend: true
+              tooltip:
+                mode: multi
+                sort: desc
+          version: 13.2.0-29316898481
+    panel-9:
+      kind: Panel
+      spec:
+        data:
+          kind: QueryGroup
+          spec:
+            queries:
+              - kind: PanelQuery
+                spec:
+                  hidden: false
+                  query:
+                    datasource:
+                      name: grafanacloud-logs
+                    group: loki
+                    kind: DataQuery
+                    spec:
+                      direction: backward
+                      editorMode: code
+                      expr: '{service="osm-update"} |~ `(?i)(\berror\b|\bwarn(ing)?\b|\bfailed\b|traceback|out of memory|oom-kill)`'
+                      instant: false
+                      legendFormat: ""
+                      queryType: range
+                      range: true
+                      maxLines: 1000
+                    version: v0
+                  refId: A
+            queryOptions: {}
+            transformations: []
+        description:
+          Matching diagnostic lines, not a count of failed runs. Some scripts can print errors while exiting
+          successfully. PID 1 diagnostics about this unit are included when the osm_manager Alloy source is deployed.
+          Literal OOM KILLS summary headings are not considered errors.
+        id: 9
+        links: []
+        title: Warnings and errors
+        vizConfig:
+          group: logs
+          kind: VizConfig
+          spec:
+            fieldConfig:
+              defaults: {}
+              overrides: []
+            options:
+              dedupStrategy: none
+              enableLogDetails: true
+              prettifyLogMessage: false
+              showCommonLabels: false
+              showLabels: false
+              showTime: true
+              sortOrder: Descending
+              wrapLogMessage: true
+          version: 13.2.0-29316898481
+    panel-11:
+      kind: Panel
+      spec:
+        data:
+          kind: QueryGroup
+          spec:
+            queries:
+              - kind: PanelQuery
+                spec:
+                  hidden: false
+                  query:
+                    datasource:
+                      name: grafanacloud-logs
+                    group: loki
+                    kind: DataQuery
+                    spec:
+                      direction: backward
+                      editorMode: code
+                      expr: |-
+                        last_over_time(
+                          {service="osm-update"}
+                          |~ `\] (Pass [12]|Read|Nesting filter|Build|Write) done in `
+                          | regexp `\[(?P<component>linear|areal)\] \[[0-9:]+\] (?P<stage>Pass [12]|Read|Nesting filter|Build|Write) done in (?P<elapsed>[0-9]+m[0-9]+s)`
+                          | elapsed!=""
+                          | unwrap duration_seconds(elapsed)
+                          | __error__="" [$__interval]
+                        ) by (component, stage)
+                      instant: false
+                      legendFormat: "{{component}} / {{stage}}"
+                      queryType: range
+                      range: true
+                    version: v0
+                  refId: A
+              - kind: PanelQuery
+                spec:
+                  hidden: false
+                  query:
+                    datasource:
+                      name: grafanacloud-logs
+                    group: loki
+                    kind: DataQuery
+                    spec:
+                      direction: backward
+                      editorMode: code
+                      expr: |-
+                        last_over_time(
+                          {service="osm-update"}
+                          |= "Derive done in "
+                          | regexp `Derive done in (?P<elapsed>[0-9]+m[0-9]+s)`
+                          | elapsed!=""
+                          | unwrap duration_seconds(elapsed)
+                          | __error__="" [$__interval]
+                        ) by ()
+                      instant: false
+                      legendFormat: Sub-PBF derivation
+                      queryType: range
+                      range: true
+                    version: v0
+                  refId: B
+            queryOptions:
+              interval: 1h
+            transformations: []
+        description:
+          "Stacked explicit stage durations per display interval: sub-PBF derivation, linear way/relation
+          reads and feature building, areal geometry reading/nesting filtering, and both GeoJSON writes. Linear and
+          areal work runs in parallel, so the stack height represents reported stage work, not service elapsed time.
+          Lines connect reported observations across gaps; markers identify the actual samples.
+          Download/apply, backfill and database import durations are not inferred from neighboring lines."
+        id: 11
+        links: []
+        title: Reported step durations
+        vizConfig:
+          group: timeseries
+          kind: VizConfig
+          spec:
+            fieldConfig:
+              defaults:
+                unit: s
+                noValue: No matching logs
+                color:
+                  mode: palette-classic
+                custom:
+                  drawStyle: line
+                  lineInterpolation: linear
+                  showPoints: always
+                  pointSize: 4
+                  spanNulls: true
+                  axisCenteredZero: false
+                  axisPlacement: auto
+                  fillOpacity: 60
+                  lineWidth: 1
+                  stacking:
+                    mode: normal
+                    group: A
+                min: 0
+              overrides: []
+            options:
+              legend:
+                calcs:
+                  - lastNotNull
+                displayMode: table
+                placement: right
+                showLegend: true
+              tooltip:
+                mode: multi
+                sort: desc
+          version: 13.2.0-29316898481
+    panel-12:
+      kind: Panel
+      spec:
+        data:
+          kind: QueryGroup
+          spec:
+            queries:
+              - kind: PanelQuery
+                spec:
+                  hidden: false
+                  query:
+                    datasource:
+                      name: grafanacloud-logs
+                    group: loki
+                    kind: DataQuery
+                    spec:
+                      direction: backward
+                      editorMode: code
+                      expr: |-
+                        last_over_time(
+                          {service="osm-update"}
+                          |= "Consumed " |= " CPU time"
+                          | regexp `Consumed (?P<elapsed>.+?) CPU time`
+                          | elapsed!=""
+                          | label_format elapsed=`{{ .elapsed | replace "min" "m" | replace " " "" }}`
+                          | unwrap duration_seconds(elapsed)
+                          | __error__="" [$__interval]
+                        ) by ()
+                      instant: false
+                      legendFormat: CPU time
+                      queryType: range
+                      range: true
+                    version: v0
+                  refId: A
+              - kind: PanelQuery
+                spec:
+                  hidden: false
+                  query:
+                    datasource:
+                      name: grafanacloud-logs
+                    group: loki
+                    kind: DataQuery
+                    spec:
+                      direction: backward
+                      editorMode: code
+                      expr: |-
+                        last_over_time(
+                          {service="osm-update"}
+                          |= "Consumed " |= " CPU time"
+                          | regexp `CPU time over (?P<elapsed>.+?) wall clock time`
+                          | elapsed!=""
+                          | label_format elapsed=`{{ .elapsed | replace "min" "m" | replace " " "" }}`
+                          | unwrap duration_seconds(elapsed)
+                          | __error__="" [$__interval]
+                        ) by ()
+                      instant: false
+                      legendFormat: Elapsed time
+                      queryType: range
+                      range: true
+                    version: v0
+                  refId: B
+            queryOptions:
+              interval: 1h
+            transformations: []
+        description:
+          Systemd end-of-run accounting, including backend restart. CPU time is cumulative across the service
+          cgroup and can exceed elapsed time when work runs in parallel; it is not CPU utilization percent. Requires
+          the osm_manager Alloy journal source. Failed runs can also report accounting values.
+        id: 12
+        links: []
+        title: Service CPU and elapsed time
+        vizConfig:
+          group: timeseries
+          kind: VizConfig
+          spec:
+            fieldConfig:
+              defaults:
+                unit: s
+                noValue: No matching logs
+                color:
+                  mode: palette-classic
+                custom:
+                  drawStyle: points
+                  pointSize: 6
+                  showPoints: always
+                  spanNulls: false
+                  axisCenteredZero: false
+                  axisPlacement: auto
+                  fillOpacity: 0
+                min: 0
+              overrides: []
+            options:
+              legend:
+                calcs:
+                  - lastNotNull
+                displayMode: table
+                placement: right
+                showLegend: true
+              tooltip:
+                mode: multi
+                sort: desc
+          version: 13.2.0-29316898481
+    panel-13:
+      kind: Panel
+      spec:
+        data:
+          kind: QueryGroup
+          spec:
+            queries:
+              - kind: PanelQuery
+                spec:
+                  hidden: false
+                  query:
+                    datasource:
+                      name: grafanacloud-logs
+                    group: loki
+                    kind: DataQuery
+                    spec:
+                      direction: backward
+                      editorMode: code
+                      expr: |-
+                        last_over_time(
+                          {service="osm-update"}
+                          |= "Consumed " |= " CPU time"
+                          | regexp `(?P<peak>[0-9]+(?:[.][0-9]+)?(?:[KMGTPE](?:i?B)?|B)?) memory peak`
+                          | peak!=""
+                          | label_format peak=`{{ regexReplaceAll "([KMGTPE])$" .peak "${1}iB" }}`
+                          | unwrap bytes(peak)
+                          | __error__="" [$__interval]
+                        ) by ()
+                      instant: false
+                      legendFormat: Memory peak
+                      queryType: range
+                      range: true
+                    version: v0
+                  refId: A
+              - kind: PanelQuery
+                spec:
+                  hidden: false
+                  query:
+                    datasource:
+                      name: grafanacloud-logs
+                    group: loki
+                    kind: DataQuery
+                    spec:
+                      direction: backward
+                      editorMode: code
+                      expr: |-
+                        last_over_time(
+                          {service="osm-update"}
+                          |= "Consumed " |= " CPU time"
+                          | regexp `(?P<peak>[0-9]+(?:[.][0-9]+)?(?:[KMGTPE](?:i?B)?|B)?) memory swap peak`
+                          | peak!=""
+                          | label_format peak=`{{ regexReplaceAll "([KMGTPE])$" .peak "${1}iB" }}`
+                          | unwrap bytes(peak)
+                          | __error__="" [$__interval]
+                        ) by ()
+                      instant: false
+                      legendFormat: Swap peak
+                      queryType: range
+                      range: true
+                    version: v0
+                  refId: B
+            queryOptions:
+              interval: 1h
+            transformations: []
+        description:
+          Systemd cgroup memory/swap peaks. Values such as 5.2G are rounded human-readable accounting values,
+          interpreted as binary units. These describe the OSM service, unlike the host-wide memory panel. Requires the
+          osm_manager Alloy source.
+        id: 13
+        links: []
+        title: Service peak memory and swap
+        vizConfig:
+          group: timeseries
+          kind: VizConfig
+          spec:
+            fieldConfig:
+              defaults:
+                unit: bytes
+                noValue: No matching logs
+                color:
+                  mode: palette-classic
+                custom:
+                  drawStyle: points
+                  pointSize: 6
+                  showPoints: always
+                  spanNulls: false
+                  axisCenteredZero: false
+                  axisPlacement: auto
+                  fillOpacity: 0
+                min: 0
+              overrides: []
+            options:
+              legend:
+                calcs:
+                  - lastNotNull
+                displayMode: table
+                placement: right
+                showLegend: true
+              tooltip:
+                mode: multi
+                sort: desc
+          version: 13.2.0-29316898481
+    panel-14:
+      kind: Panel
+      spec:
+        data:
+          kind: QueryGroup
+          spec:
+            queries:
+              - kind: PanelQuery
+                spec:
+                  hidden: false
+                  query:
+                    datasource:
+                      name: grafanacloud-logs
+                    group: loki
+                    kind: DataQuery
+                    spec:
+                      direction: backward
+                      editorMode: code
+                      expr: |-
+                        last_over_time(
+                          {service="osm-update"}
+                          |= "peak PSI mem "
+                          | regexp `peak PSI mem (?P<pressure>some10|full10)[ ]*:[ ]*(?P<percent>[0-9]+(?:[.][0-9]+)?)%`
+                          | pressure!=""
+                          | unwrap percent
+                          | __error__="" [$__interval]
+                        ) by (pressure)
+                      instant: false
+                      legendFormat: "{{pressure}}"
+                      queryType: range
+                      range: true
+                    version: v0
+                  refId: A
+            queryOptions:
+              interval: 1h
+            transformations: []
+        description:
+          "Optional resource monitor: peak reported 10-second PSI memory some/full percentages during each
+          update window. These measure memory stalls, not memory capacity consumed. Values are host-wide, and the two
+          peaks need not occur together."
+        id: 14
+        links: []
+        title: Host memory pressure during updates
+        vizConfig:
+          group: timeseries
+          kind: VizConfig
+          spec:
+            fieldConfig:
+              defaults:
+                unit: percent
+                noValue: No matching logs
+                color:
+                  mode: palette-classic
+                custom:
+                  drawStyle: points
+                  pointSize: 6
+                  showPoints: always
+                  spanNulls: false
+                  axisCenteredZero: false
+                  axisPlacement: auto
+                  fillOpacity: 0
+                min: 0
+                max: 100
+              overrides: []
+            options:
+              legend:
+                calcs:
+                  - lastNotNull
+                displayMode: table
+                placement: right
+                showLegend: true
+              tooltip:
+                mode: multi
+                sort: desc
+          version: 13.2.0-29316898481
+    panel-15:
+      kind: Panel
+      spec:
+        data:
+          kind: QueryGroup
+          spec:
+            queries:
+              - kind: PanelQuery
+                spec:
+                  hidden: false
+                  query:
+                    datasource:
+                      name: grafanacloud-logs
+                    group: loki
+                    kind: DataQuery
+                    spec:
+                      direction: backward
+                      editorMode: code
+                      expr: |-
+                        last_over_time(
+                          {service="osm-update"}
+                          |= "min disk available"
+                          | regexp `min disk available[ ]*:[ ]*(?P<gigabytes>[0-9]+(?:[.][0-9]+)?)GB`
+                          | gigabytes!=""
+                          | unwrap gigabytes
+                          | __error__="" [$__interval]
+                        ) by ()
+                      instant: false
+                      legendFormat: Minimum available
+                      queryType: range
+                      range: true
+                    version: v0
+                  refId: A
+            queryOptions:
+              interval: 1h
+            transformations: []
+        description:
+          "Optional resource monitor: minimum free disk space during the update, in GB as logged. This is
+          not input/output file size or disk I/O throughput."
+        id: 15
+        links: []
+        title: Minimum disk space during updates
+        vizConfig:
+          group: timeseries
+          kind: VizConfig
+          spec:
+            fieldConfig:
+              defaults:
+                unit: "suffix: GB"
+                noValue: No matching logs
+                color:
+                  mode: palette-classic
+                custom:
+                  drawStyle: points
+                  pointSize: 6
+                  showPoints: always
+                  spanNulls: false
+                  axisCenteredZero: false
+                  axisPlacement: auto
+                  fillOpacity: 0
+                min: 0
+              overrides: []
+            options:
+              legend:
+                calcs:
+                  - lastNotNull
+                displayMode: table
+                placement: right
+                showLegend: true
+              tooltip:
+                mode: multi
+                sort: desc
+          version: 13.2.0-29316898481
+    panel-17:
+      kind: Panel
+      spec:
+        data:
+          kind: QueryGroup
+          spec:
+            queries:
+              - kind: PanelQuery
+                spec:
+                  hidden: false
+                  query:
+                    datasource:
+                      name: grafanacloud-logs
+                    group: loki
+                    kind: DataQuery
+                    spec:
+                      direction: backward
+                      editorMode: code
+                      expr: |-
+                        last_over_time(
+                          {service="osm-update"}
+                          | regexp `^\s*(?P<process>python3|bun|osmium|postgres|java)\s+(?P<megabytes>[0-9]+)MB$`
+                          | process!=""
+                          | unwrap megabytes
+                          | __error__="" [$__interval]
+                        ) by (process)
+                      instant: false
+                      legendFormat: "{{process}}"
+                      queryType: range
+                      range: true
+                    version: v0
+                  refId: A
+            queryOptions:
+              interval: 1h
+            transformations: []
+        description:
+          Optional resource monitor RSS summary for Python, Bun, osmium, Postgres and Java. Names identify
+          processes across the host, not a particular extractor or container. Stacked lines connect reported peaks;
+          markers identify actual samples. Peaks need not occur together, so the stack height is not a measured
+          simultaneous memory total.
+        id: 17
+        links: []
+        title: Reported process RSS peaks
+        vizConfig:
+          group: timeseries
+          kind: VizConfig
+          spec:
+            fieldConfig:
+              defaults:
+                unit: "suffix: MB"
+                noValue: No matching logs
+                color:
+                  mode: palette-classic
+                custom:
+                  drawStyle: line
+                  lineInterpolation: linear
+                  pointSize: 4
+                  showPoints: always
+                  spanNulls: true
+                  axisCenteredZero: false
+                  axisPlacement: auto
+                  fillOpacity: 60
+                  lineWidth: 1
+                  stacking:
+                    mode: normal
+                    group: A
+                min: 0
+              overrides: []
+            options:
+              legend:
+                calcs:
+                  - lastNotNull
+                displayMode: table
+                placement: right
+                showLegend: true
+              tooltip:
+                mode: multi
+                sort: desc
+          version: 13.2.0-29316898481
+  layout:
+    kind: GridLayout
+    spec:
+      items:
+        - kind: GridLayoutItem
+          spec:
+            element:
+              kind: ElementReference
+              name: panel-11
+            height: 10
+            width: 24
+            x: 0
+            y: 0
+        - kind: GridLayoutItem
+          spec:
+            element:
+              kind: ElementReference
+              name: panel-12
+            height: 8
+            width: 12
+            x: 0
+            y: 10
+        - kind: GridLayoutItem
+          spec:
+            element:
+              kind: ElementReference
+              name: panel-4
+            height: 8
+            width: 12
+            x: 12
+            y: 10
+        - kind: GridLayoutItem
+          spec:
+            element:
+              kind: ElementReference
+              name: panel-13
+            height: 8
+            width: 12
+            x: 0
+            y: 18
+        - kind: GridLayoutItem
+          spec:
+            element:
+              kind: ElementReference
+              name: panel-8
+            height: 8
+            width: 12
+            x: 12
+            y: 18
+        - kind: GridLayoutItem
+          spec:
+            element:
+              kind: ElementReference
+              name: panel-17
+            height: 8
+            width: 12
+            x: 0
+            y: 26
+        - kind: GridLayoutItem
+          spec:
+            element:
+              kind: ElementReference
+              name: panel-14
+            height: 8
+            width: 12
+            x: 12
+            y: 26
+        - kind: GridLayoutItem
+          spec:
+            element:
+              kind: ElementReference
+              name: panel-15
+            height: 8
+            width: 12
+            x: 0
+            y: 34
+        - kind: GridLayoutItem
+          spec:
+            element:
+              kind: ElementReference
+              name: panel-7
+            height: 8
+            width: 12
+            x: 12
+            y: 34
+        - kind: GridLayoutItem
+          spec:
+            element:
+              kind: ElementReference
+              name: panel-6
+            height: 8
+            width: 24
+            x: 0
+            y: 42
+        - kind: GridLayoutItem
+          spec:
+            element:
+              kind: ElementReference
+              name: panel-9
+            height: 9
+            width: 24
+            x: 0
+            y: 50
+
+  links: []
+  liveNow: false
+  preload: false
+  tags:
+    - osm
+    - logs
+  timeSettings:
+    autoRefresh: 5m
+    autoRefreshIntervals:
+      - 1m
+      - 5m
+      - 15m
+      - 1h
+    fiscalYearStartMonth: 0
+    from: now-7d
+    hideTimepicker: false
+    timezone: browser
+    to: now
+  title: OSM daily updates
+  variables: []

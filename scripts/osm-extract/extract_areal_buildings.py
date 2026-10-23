@@ -11,13 +11,22 @@ import osmium
 import osmium.geom
 import shapely.wkb
 import math
-import json
 import re
 import argparse
 import time
 from datetime import datetime
 from shapely.geometry import mapping, Polygon
 from shapely.strtree import STRtree
+
+from osm_io import write_feature_collection
+from osm_policy import (
+    classify_areal_feature,
+    get_areal_building_category,
+    get_areal_project_status,
+    has_identity,
+    passes_areal_size_gate,
+)
+
 
 def _parse_args():
     parser = argparse.ArgumentParser(description='Extract proposed/construction areal features from OSM.')
@@ -29,105 +38,6 @@ def _parse_args():
 
 
 URL_RE = re.compile(r'https?://\S+')
-
-# Tags that indicate small/residential structures filtered out by type regardless of area.
-# 'terrace' is NOT excluded: a terrace is a multi-dwelling row (a real residential development).
-EXCLUDE_BUILDINGS = {
-    'house', 'detached', 'semidetached_house', 'garage', 'garages',
-    'shed', 'hut', 'cabin', 'roof', 'carport'
-}
-
-# Building/landuse types that mark a definite non-house development. These are exempt from
-# the size gate; generic untyped construction is gated since it is more likely a house.
-NONHOUSE_TYPES = {
-    'apartments', 'commercial', 'office', 'retail', 'industrial', 'hospital', 'school',
-    'hotel', 'university', 'warehouse', 'public', 'civic', 'college', 'kindergarten',
-    'church', 'dormitory', 'clinic', 'sports_centre', 'train_station', 'transportation',
-    'education', 'government', 'farm', 'terrace'
-}
-
-# Maps an OSM building/landuse type value to a coarse project category surfaced as a filter tag.
-CATEGORY_BY_VALUE = {
-    'apartments': 'residential', 'residential': 'residential', 'dormitory': 'residential',
-    'terrace': 'residential',
-    'commercial': 'commercial',
-    'retail': 'retail',
-    'office': 'office',
-    'industrial': 'industrial',
-    'warehouse': 'industrial',
-}
-
-# Future uses in scope for urban development. 'yes' identifies a project without
-# specifying its use; it must still pass the generic size/identity checks.
-DEVELOPMENT_LANDUSES = frozenset({
-    'construction', 'yes', 'residential', 'commercial', 'retail', 'industrial',
-    'education', 'institutional', 'civic_admin', 'religious',
-})
-TYPED_DEVELOPMENT_LANDUSES = DEVELOPMENT_LANDUSES - {'yes', 'construction'}
-PARK_TYPES = frozenset({
-    'park', 'garden', 'playground', 'recreation_ground', 'stadium', 'pitch',
-    'golf_course', 'sports_centre',
-})
-RECREATION_LANDUSES = PARK_TYPES | {'village_green'}
-PROJECT_LANDUSES = DEVELOPMENT_LANDUSES | RECREATION_LANDUSES
-LIFECYCLE_STATES = ('construction', 'proposed', 'planned')
-
-# Utility/industrial infrastructure out of scope regardless of areal context
-# (power plants, solar farms, telecom, man-made structures like pipelines).
-# UTILITY_KEYS catch key-based tagging (man_made=pipeline); UTILITY_VALUES catch
-# the same infrastructure tagged as a lifecycle value (proposed=pipeline).
-UTILITY_KEYS = ('power', 'telecom', 'man_made')
-UTILITY_VALUES = frozenset({
-    'pipeline', 'line', 'minor_line', 'cable',
-    'power', 'power_plant', 'generator', 'substation', 'solar_plant', 'wind_farm',
-})
-
-# Transport infrastructure keys; polygons carrying them (railway yard, road junction
-# area, etc.) are excluded unless the primary identity is a construction-site area.
-TRANSPORT_KEYS = ('highway', 'railway', 'waterway', 'public_transport', 'aerialway', 'aeroway')
-
-# Highway values that are always linear; excluded even with areal context
-# (e.g. a bridge deck mapped as building=construction + highway=cycleway).
-# Area-capable values (pedestrian, platform, rest_area, services, footway, path)
-# are kept so pedestrian plazas and transit platforms under construction survive.
-LINEAR_HIGHWAY_VALUES = frozenset({
-    'motorway', 'motorway_link', 'trunk', 'trunk_link',
-    'primary', 'primary_link', 'secondary', 'secondary_link',
-    'tertiary', 'tertiary_link', 'residential', 'unclassified',
-    'service', 'living_street', 'road', 'bus_guideway', 'busway', 'cycleway',
-})
-
-# Transport infrastructure types as construction=/proposed=/planned= values.
-INFRASTRUCTURE_VALUES = frozenset({
-    'tram', 'rail', 'railway', 'light_rail', 'subway', 'metro', 'narrow_gauge', 'train',
-    'monorail', 'funicular', 'miniature',
-    'highway', 'motorway', 'motorway_link', 'trunk', 'trunk_link', 'primary', 'primary_link',
-    'secondary', 'secondary_link', 'tertiary', 'tertiary_link', 'unclassified', 'residential',
-    'service', 'living_street', 'road', 'bridge', 'tunnel', 'minor',
-    'cycleway', 'cyclepath', 'footway', 'pedestrian', 'path', 'track', 'steps', 'bridleway',
-    'corridor', 'sidewalk',
-    'aerialway', 'cable_car', 'gondola', 'chair_lift', 'zip_line',
-    'aeroway', 'runway', 'taxiway', 'airstrip',
-    'canal', 'river', 'stream', 'ditch', 'drain', 'waterway',
-})
-
-LIFECYCLE_PREFIXES = ('', 'construction:', 'proposed:', 'planned:')
-
-IDENTITY_KEYS = ('name', 'wikidata', 'description', 'website')
-
-
-def has_identity(tags):
-    """True when a mapper identified the feature (name, wikidata, description, website)."""
-    return any(tags.get(k, '').strip() for k in IDENTITY_KEYS)
-
-
-def derive_building_category(values):
-    """First recognised type among the given tag values wins; None if untyped."""
-    for v in values:
-        cat = CATEGORY_BY_VALUE.get(v)
-        if cat:
-            return cat
-    return None
 
 
 def clean_description(desc):
@@ -152,133 +62,6 @@ def create_display_name(props):
     return None
 
 
-def has_namespaced_area_target(tags):
-    """Future area targets describe the project rather than the current site."""
-    return any(
-        tags.get(f'{state}:{key}', '') not in ('', 'no')
-        for state in LIFECYCLE_STATES
-        for key in ('building', 'landuse', 'leisure')
-    )
-
-
-def has_namespaced_area_project(tags, state):
-    """Only recognized future area features supply a project stage."""
-    return (
-        tags.get(f'{state}:building', '') not in ('', 'no') or
-        tags.get(f'{state}:landuse', '') in PROJECT_LANDUSES or
-        tags.get(f'{state}:leisure', '') in PARK_TYPES
-    )
-
-
-def classify_feature(tags):
-    """Tag-level qualification shared by closed areas and unclosed area-tagged ways.
-    Returns 'park' or 'building' when the tags describe a proposed/construction
-    development, or None when they don't qualify."""
-    building = tags.get('building', '')
-    landuse = tags.get('landuse', '')
-    leisure = tags.get('leisure', '')
-    amenity = tags.get('amenity', '')
-    construction = tags.get('construction', '')
-    proposed = tags.get('proposed', '')
-    planned = tags.get('planned', '')
-    proposed_building = tags.get('proposed:building', '')
-    planned_building = tags.get('planned:building', '')
-    construction_building = tags.get('construction:building', '')
-    proposed_landuse = tags.get('proposed:landuse', '')
-    planned_landuse = tags.get('planned:landuse', '')
-    construction_landuse = tags.get('construction:landuse', '')
-    landuse_targets = (construction_landuse, proposed_landuse, planned_landuse)
-    has_landuse_target = any(value not in ('', 'no') for value in landuse_targets)
-
-    if 'administrative' in (
-        tags.get('boundary'), construction, proposed, planned,
-        tags.get('construction:boundary'), tags.get('proposed:boundary'),
-        tags.get('planned:boundary'),
-    ):
-        return None
-
-    # Exclude small residential building types regardless of area. The target use is read
-    # from the most specific lifecycle key first, falling back to the current building type;
-    # yes/no values carry no type information and are skipped.
-    for key in ('construction', 'construction:building', 'proposed', 'planned',
-                'proposed:building', 'planned:building', 'building:use', 'building'):
-        value = tags.get(key, '')
-        if value and value not in ('yes', 'no'):
-            if value in EXCLUDE_BUILDINGS:
-                return None
-            break
-
-    # When the primary identity is a construction site (landuse=construction, building tag,
-    # lifecycle building/landuse keys) the feature is an area, not transport infrastructure;
-    # the transport exclusions below are relaxed in that context so construction:railway/highway
-    # etc. don't wrongly exclude a subway station or road tunnel construction site.
-    has_areal_context = (landuse == 'construction' or building != '' or
-                         leisure in ('construction', 'proposed', 'planned') or
-                         amenity in ('construction', 'proposed', 'planned') or
-                         proposed_building != '' or planned_building != '' or construction_building != '' or
-                         proposed_landuse != '' or planned_landuse != '' or construction_landuse != '' or
-                         any(tags.get(f'{state}:leisure', '') in PARK_TYPES for state in LIFECYCLE_STATES))
-
-    # Utility/industrial infrastructure is out of scope regardless of areal context,
-    # whether tagged by key (man_made=pipeline) or as a lifecycle value (proposed=pipeline).
-    if any(f'{prefix}{k}' in tags for k in UTILITY_KEYS for prefix in LIFECYCLE_PREFIXES):
-        return None
-    if any(v in UTILITY_VALUES for v in (construction, proposed, planned)):
-        return None
-
-    # Transport infrastructure mapped as polygons (railway yard, road junction area, etc.)
-    # is excluded unless the primary identity is a construction-site area: a subway station
-    # or road tunnel under construction with landuse=construction + construction:railway
-    # is a valid areal project, not a transport-infrastructure polygon.
-    if not has_areal_context and any(f'{prefix}{k}' in tags
-                                     for k in TRANSPORT_KEYS
-                                     for prefix in LIFECYCLE_PREFIXES):
-        return None
-
-    # Always-linear highway values are excluded even with areal context
-    # (e.g. a bridge deck mapped as building=construction + highway=cycleway).
-    if has_areal_context and tags.get('highway', '') in LINEAR_HIGHWAY_VALUES:
-        return None
-
-    # Exclude features whose construction/proposed/planned value is a transport infrastructure
-    # type. With landuse=construction or a building tag, the value names the future land use
-    # (e.g. construction=residential -> landuse=residential), not a road class, so keep it.
-    if not has_areal_context and any(v in INFRASTRUCTURE_VALUES for v in (construction, proposed, planned)):
-        return None
-
-    if (
-        leisure in PARK_TYPES and
-        not has_namespaced_area_target(tags) and
-        (construction or proposed or planned)
-    ) or any(v in PARK_TYPES for v in (construction, proposed, planned)) or any(
-        value in RECREATION_LANDUSES for value in landuse_targets
-    ) or any(tags.get(f'{state}:leisure', '') in PARK_TYPES for state in LIFECYCLE_STATES):
-        return 'park'
-
-    # Explicit building/site signals can qualify independently of a landuse tag.
-    # Generic lifecycle flags must not bypass an unsupported future landuse such
-    # as planned:landuse=grass + planned=yes.
-    is_building_construction = (
-        building in ('construction', 'proposed', 'planned') or
-        landuse == 'construction' or
-        leisure in ('construction', 'proposed', 'planned') or
-        amenity in ('construction', 'proposed', 'planned') or
-        any(v in NONHOUSE_TYPES for v in (construction, proposed, planned)) or
-        (proposed_building and proposed_building != 'no') or
-        (planned_building and planned_building != 'no') or
-        (construction_building and construction_building != 'no') or
-        any(value in DEVELOPMENT_LANDUSES for value in landuse_targets)
-    )
-    # Preserve the open-ended proposed=/planned= fallback when no future landuse
-    # was specified. Existing domain/type exclusions above still apply.
-    generic_project = not has_landuse_target and (
-        construction == 'yes' or
-        proposed not in ('', 'no') or
-        planned not in ('', 'no')
-    )
-    return 'building' if is_building_construction or generic_project else None
-
-
 class ArealExtractionHandler(osmium.SimpleHandler):
     def __init__(self):
         super().__init__()
@@ -288,7 +71,7 @@ class ArealExtractionHandler(osmium.SimpleHandler):
 
     def area(self, a):
         tags = {t.k: t.v for t in a.tags}
-        kind = classify_feature(tags)
+        kind = classify_areal_feature(tags)
         if kind is None:
             return
 
@@ -309,7 +92,7 @@ class ArealExtractionHandler(osmium.SimpleHandler):
         if w.is_closed():
             return
         tags = {t.k: t.v for t in w.tags}
-        kind = classify_feature(tags)
+        kind = classify_areal_feature(tags)
         if kind is None:
             return
         try:
@@ -327,80 +110,17 @@ class ArealExtractionHandler(osmium.SimpleHandler):
         self.emit_feature(tags, kind, geom, f"way/{w.id}", timestamp)
 
     def emit_feature(self, tags, kind, geom, feature_id, timestamp):
-        building = tags.get('building', '')
-        landuse = tags.get('landuse', '')
-        leisure = tags.get('leisure', '')
-        amenity = tags.get('amenity', '')
-        construction = tags.get('construction', '')
-        proposed = tags.get('proposed', '')
-        planned = tags.get('planned', '')
-        proposed_building = tags.get('proposed:building', '')
-        planned_building = tags.get('planned:building', '')
-        construction_building = tags.get('construction:building', '')
-        proposed_landuse = tags.get('proposed:landuse', '')
-        planned_landuse = tags.get('planned:landuse', '')
-        construction_landuse = tags.get('construction:landuse', '')
-        landuse_targets = (construction_landuse, proposed_landuse, planned_landuse)
-        future_values = [
-            construction, proposed, planned,
-            proposed_building, planned_building, construction_building,
-            proposed_landuse, planned_landuse, construction_landuse,
-        ]
-        has_future_area_target = has_namespaced_area_target(tags)
-
         lat = geom.centroid.y
         area_m2 = geom.area * (111320**2) * math.cos(math.radians(lat))
-
-        # A definite non-house type is exempt from the size gate; only generic untyped
-        # construction is gated to drop houses. A bare landuse=construction (no target use,
-        # no name) says nothing about what is being built, so it stays gated.
-        has_nonhouse_signal = (
-            any(value in NONHOUSE_TYPES for value in future_values) or
-            any(value in TYPED_DEVELOPMENT_LANDUSES for value in landuse_targets) or
-            (not has_future_area_target and (
-                building in NONHOUSE_TYPES or
-                landuse in ('commercial', 'retail', 'industrial', 'residential')
-            ))
-        )
-
-        # Lifecycle target tags come first: on a redevelopment site (e.g. landuse=retail with
-        # planned:landuse=residential), the future use defines the category, not the current one.
-        # An unspecified future use must not inherit the current site's use.
-        category = derive_building_category(
-            future_values + ([] if has_future_area_target else [building, landuse])
-        )
-
-        # Single size gate: untyped, unannotated construction below 400 m² of gross floor
-        # area (footprint × building:levels) is dropped as a house-sized footprint.
-        # Everything else is kept regardless of size: parks, typed developments (category or
-        # non-house signal), and features a mapper identified (name, wikidata, description,
-        # website). Type exclusions in classify_feature still apply first.
-        if kind == 'building' and category is None and not has_nonhouse_signal and not has_identity(tags):
-            try:
-                levels = max(float(tags.get('building:levels', '')), 1.0)
-            except ValueError:
-                levels = 1.0
-            if area_m2 * levels < 400:
-                return
-        feature_kind = kind
+        category = get_areal_building_category(tags)
+        if not passes_areal_size_gate(tags, kind, category, area_m2):
+            return
 
         props = dict(tags)
-        props['transport_type'] = feature_kind
-        if feature_kind == 'building' and category:
+        props['transport_type'] = kind
+        if kind == 'building' and category:
             props['building_category'] = category
-
-        # construction= is the strongest signal, check it first
-        if construction and construction not in ('yes', 'no'):
-            status_check = 'under_construction'
-        elif building == 'construction' or landuse == 'construction' or 'construction' in (leisure, amenity) or has_namespaced_area_project(tags, 'construction'):
-            status_check = 'under_construction'
-        elif building == 'proposed' or 'proposed' in (leisure, amenity) or (proposed and proposed != 'no') or has_namespaced_area_project(tags, 'proposed'):
-            status_check = 'proposed'
-        elif building == 'planned' or 'planned' in (leisure, amenity) or (planned and planned != 'no') or has_namespaced_area_project(tags, 'planned'):
-            status_check = 'planned'
-        else:
-            status_check = 'under_construction'
-        props['project_status'] = status_check
+        props['project_status'] = get_areal_project_status(tags)
 
         props['display_name'] = create_display_name(props)
 
@@ -533,9 +253,7 @@ def main():
 
     print(f"\n[areal] [{_ts()}] Writing {OUTPUT_FILE}...")
     t = time.time()
-    collection = {'type': 'FeatureCollection', 'features': features}
-    with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
-        json.dump(collection, f, ensure_ascii=False, separators=(',', ':'))
+    write_feature_collection(features, OUTPUT_FILE)
     print(f"[areal] [{_ts()}] Write done in {_fmt(time.time() - t)}")
 
     print("\n[areal] Sample features:")

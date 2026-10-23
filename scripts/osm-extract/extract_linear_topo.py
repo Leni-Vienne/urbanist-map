@@ -12,7 +12,6 @@ This is safe worldwide: ref=1 in Berlin won't merge with ref=1 in Shanghai.
 
 import math
 import re
-import json
 import argparse
 import time
 import osmium
@@ -21,6 +20,16 @@ from datetime import datetime
 from shapely.geometry import LineString, mapping, box
 from shapely.ops import linemerge
 from shapely.strtree import STRtree
+
+from osm_io import write_feature_collection
+from osm_policy import (
+    aggregate_project_status,
+    broad_group,
+    get_linear_project_status,
+    get_transport_type,
+    is_linear_project_relation,
+    is_transport_way,
+)
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -36,68 +45,6 @@ def _parse_args():
                         help='Output GeoJSON file path')
     return parser.parse_args()
 
-
-# Transport type mappings (single source of truth)
-TRANSPORT_TYPES = {
-    # Rail family
-    'rail': ('rail', 'railway'),
-    'tram': ('tram',),
-    'subway': ('subway', 'metro'),
-    'light_rail': ('light_rail',),
-    'narrow_gauge': ('narrow_gauge',),
-    'monorail': ('monorail',),
-    'miniature': ('miniature',),
-    # Aerial family
-    'funicular': ('funicular',),
-    'gondola': ('gondola',),
-    'cable_car': ('cable_car', 'chair_lift', 'mixed_lift', 'drag_lift', 
-                  'j-bar', 't-bar', 'platter', 'rope_tow', 'zip_line'),
-    # Road family ('highway' is the class-less umbrella value, e.g. proposed=highway)
-    'road': ('motorway', 'trunk', 'primary', 'secondary', 'tertiary',
-             'residential', 'unclassified', 'service', 'living_street', 'road', 'highway'),
-    'bus': ('bus_guideway', 'busway'),
-    # Active mobility
-    'bike': ('cycleway', 'bicycle'),
-    'pedestrian': ('pedestrian', 'footway', 'path', 'steps'),
-    # Water ('waterway' is the class-less umbrella value, e.g. proposed=waterway)
-    'waterway': ('canal', 'river', 'stream', 'waterway'),
-    # Air
-    'airport': ('runway', 'taxiway', 'airstrip'),
-}
-
-# Build reverse lookup: value -> canonical type
-_VALUE_TO_TYPE = {}
-for canonical, values in TRANSPORT_TYPES.items():
-    for v in values:
-        _VALUE_TO_TYPE[v] = canonical
-
-# Broad transport groups for safe merging
-BROAD_GROUPS = {
-    'rail': ('rail', 'light_rail', 'subway', 'tram', 'narrow_gauge', 'monorail', 'miniature'),
-    'road': ('road', 'bus'),
-    'bike': ('bike',),
-    'pedestrian': ('pedestrian',),
-    'aerial': ('cable_car', 'gondola', 'funicular'),
-    'waterway': ('waterway',),
-    'airport': ('airport',),
-}
-
-_TYPE_TO_GROUP = {}
-for group, types in BROAD_GROUPS.items():
-    for t in types:
-        _TYPE_TO_GROUP[t] = group
-
-TYPE_LABELS = {
-    'rail': 'Railway', 'light_rail': 'Light Rail', 'subway': 'Metro',
-    'tram': 'Tram', 'narrow_gauge': 'Narrow Gauge Railway', 'monorail': 'Monorail',
-    'miniature': 'Miniature Railway', 'cable_car': 'Cable Car', 'gondola': 'Gondola',
-    'funicular': 'Funicular', 'road': 'Road', 'bus': 'Bus Infrastructure',
-    'bike': 'Cycling Path', 'pedestrian': 'Pedestrian Path', 'waterway': 'Waterway',
-    'airport': 'Airport Infrastructure',
-}
-
-# All valid transport values for filtering ways
-TRANSPORT_VALUES = set(_VALUE_TO_TYPE.keys())
 
 URL_RE = re.compile(r'https?://\S+')
 
@@ -181,189 +128,6 @@ def bearing_diff(b1, b2):
 def meters_to_degrees(meters):
     """Approximate conversion at mid-latitudes."""
     return meters / 111320
-
-
-# ---------------------------------------------------------------------------
-# Transport type detection
-# ---------------------------------------------------------------------------
-
-def get_transport_type(tags):
-    """Derive canonical transport type from OSM tags."""
-    # Check construction=/proposed=/planned= sub-type keys.
-    # Collect all matched types first so bike can take priority over pedestrian.
-    lifecycle_types = []
-    for key in ('construction', 'proposed', 'planned'):
-        val = tags.get(key, '')
-        if val and val not in ('yes', 'no') and val in _VALUE_TO_TYPE:
-            lifecycle_types.append(_VALUE_TO_TYPE[val])
-    if lifecycle_types:
-        return 'bike' if 'bike' in lifecycle_types else lifecycle_types[0]
-
-    # Check lifecycle prefix keys: proposed:railway=subway, planned:highway=primary, etc.
-    for key, fallback in [('construction:aerialway', 'cable_car'), ('construction:railway', 'rail'),
-                          ('construction:highway', 'road'), ('construction:waterway', 'waterway'),
-                          ('construction:aeroway', 'airport'),
-                          ('proposed:aerialway', 'cable_car'), ('proposed:railway', 'rail'),
-                          ('proposed:highway', 'road'), ('proposed:waterway', 'waterway'),
-                          ('proposed:aeroway', 'airport'),
-                          ('planned:aerialway', 'cable_car'), ('planned:railway', 'rail'),
-                          ('planned:highway', 'road'), ('planned:waterway', 'waterway'),
-                          ('planned:aeroway', 'airport')]:
-        val = tags.get(key, '')
-        if val:
-            if val in _VALUE_TO_TYPE:
-                return _VALUE_TO_TYPE[val]
-            return fallback
-
-    # Check boolean flags for specific rail types
-    for rail_type in ('subway', 'tram', 'light_rail', 'narrow_gauge', 'monorail', 'miniature'):
-        if tags.get(rail_type) == 'yes':
-            return _VALUE_TO_TYPE[rail_type]
-
-    # A proposed cycle lane rides on a road with a live highway tag, so the cycleway
-    # keys must win over the primary-key fallback (which would return 'road').
-    if (not any(tags.get(k) in _LIFECYCLE_STATUSES for k in _PRIMARY_TRANSPORT_KEYS) and
-            any(tags.get(k) in _LIFECYCLE_STATUSES for k in _CYCLEWAY_KEYS)):
-        return 'bike'
-
-    # Check primary keys
-    for key, fallback in [('aerialway', 'cable_car'), ('railway', 'rail'),
-                          ('highway', 'road'), ('waterway', 'waterway'),
-                          ('aeroway', 'airport')]:
-        val = tags.get(key, '')
-        if val:
-            # For X=proposed/construction/planned, check the matching lifecycle sub-type key
-            if val in ('proposed', 'construction', 'planned'):
-                specific = (tags.get(f'proposed:{key}', '') or
-                            tags.get(f'construction:{key}', '') or
-                            tags.get(f'planned:{key}', ''))
-                if specific in _VALUE_TO_TYPE:
-                    return _VALUE_TO_TYPE[specific]
-            if val in _VALUE_TO_TYPE:
-                return _VALUE_TO_TYPE[val]
-            return fallback
-
-    return ''  # fallback: unknown transport type
-
-
-def broad_group(transport_type):
-    """Map transport type to broad family (rail/road/active/aerial/waterway)."""
-    return _TYPE_TO_GROUP.get(transport_type, 'other')
-
-
-def get_project_status(tags):
-    """Return 'under_construction', 'planned', or 'proposed'."""
-    if any(tags.get(k) == 'construction' for k in ('railway', 'highway', 'waterway', 'aerialway', 'aeroway',
-                                                   'cycleway', 'cycleway:left', 'cycleway:right', 'cycleway:both', 'state')):
-        return 'under_construction'
-    if tags.get('construction', '') not in ('', 'no'):
-        return 'under_construction'
-    if any(tags.get(k) for k in ('construction:railway', 'construction:highway', 'construction:waterway', 'construction:aerialway', 'construction:aeroway')):
-        return 'under_construction'
-    if tags.get('railway') in ('subway', 'tram', 'light_rail', 'monorail', 'miniature') and \
-            any(tags.get(k) for k in ('construction:electrified', 'construction:voltage',
-                                      'construction:frequency', 'construction:tracks')):
-        return 'under_construction'
-    if any(tags.get(k) == 'planned' for k in ('railway', 'highway', 'waterway', 'aerialway', 'aeroway',
-                                              'cycleway', 'cycleway:left', 'cycleway:right', 'cycleway:both', 'state')):
-        return 'planned'
-    if tags.get('planned', '') not in ('', 'no'):
-        return 'planned'
-    if any(tags.get(k) for k in ('planned:railway', 'planned:highway', 'planned:waterway', 'planned:aerialway', 'planned:aeroway')):
-        return 'planned'
-    return 'proposed'
-
-
-def aggregate_project_status(statuses):
-    """Majority vote across way statuses; ties prefer the less certain status
-    (proposed > planned > under_construction)."""
-    counts = {'under_construction': 0, 'planned': 0, 'proposed': 0}
-    for s in statuses:
-        counts[s] += 1
-    if counts['proposed'] >= counts['under_construction'] and counts['proposed'] >= counts['planned']:
-        return 'proposed'
-    if counts['planned'] >= counts['under_construction']:
-        return 'planned'
-    return 'under_construction'
-
-
-_LIFECYCLE_STATUSES = ('proposed', 'construction', 'planned')
-_PRIMARY_TRANSPORT_KEYS = ('railway', 'highway', 'waterway', 'aerialway', 'aeroway')
-_CYCLEWAY_KEYS = ('cycleway', 'cycleway:left', 'cycleway:right', 'cycleway:both')
-_LIFECYCLE_PREFIX_KEYS = tuple(
-    f'{status}:{key}'
-    for status in _LIFECYCLE_STATUSES
-    for key in _PRIMARY_TRANSPORT_KEYS
-)
-_URBAN_RAIL_VALUES = ('subway', 'tram', 'light_rail', 'monorail', 'miniature')
-_URBAN_RAIL_CONSTRUCTION_KEYS = (
-    'construction:electrified', 'construction:voltage',
-    'construction:frequency', 'construction:tracks',
-)
-
-
-def has_relation_lifecycle(tags):
-    """Return whether relation tags explicitly describe future infrastructure."""
-    if any(tags.get(key, '') not in ('', 'no')
-           for key in ('construction', 'proposed', 'planned')):
-        return True
-    if any(tags.get(key) in _LIFECYCLE_STATUSES
-           for key in (*_PRIMARY_TRANSPORT_KEYS, *_CYCLEWAY_KEYS, 'state')):
-        return True
-    if any(tags.get(key, '') not in ('', 'no') for key in _LIFECYCLE_PREFIX_KEYS):
-        return True
-    return (
-        tags.get('railway') in _URBAN_RAIL_VALUES
-        and any(tags.get(key, '') not in ('', 'no')
-                for key in _URBAN_RAIL_CONSTRUCTION_KEYS)
-    )
-
-
-def is_transport_way(tags):
-    """Return True if way represents proposed/construction/planned transport infrastructure."""
-    # landuse/building ways are areas handled by the areal extractor; exclude them first
-    # so lifecycle prefix keys like construction:railway don't accidentally pull them in.
-    if 'landuse' in tags or tags.get('building', 'no') != 'no':
-        return False
-
-    # Explicit lifecycle status as primary key value: railway=proposed, highway=planned, etc.
-    if any(tags.get(k) in _LIFECYCLE_STATUSES for k in _PRIMARY_TRANSPORT_KEYS):
-        return True
-
-    # Lifecycle prefix keys: proposed:railway=subway, planned:highway=primary, etc.
-    if any(tags.get(k) for k in _LIFECYCLE_PREFIX_KEYS):
-        return True
-
-    # Lifecycle modifier (planned=yes / proposed=yes) on a typed transport way.
-    # e.g. aerialway=chairlift + planned=yes, highway=primary + proposed=yes
-    if any(tags.get(lc) == 'yes' for lc in ('planned', 'proposed')):
-        if any(tags.get(k) and tags.get(k) not in _LIFECYCLE_STATUSES
-               for k in _PRIMARY_TRANSPORT_KEYS):
-            return True
-
-    # Cycle lane proposed/under construction along an existing road:
-    # highway=tertiary + cycleway=proposed (or cycleway:left/right/both)
-    if any(tags.get(k) in _LIFECYCLE_STATUSES for k in _CYCLEWAY_KEYS):
-        return True
-
-    # Legacy state=proposed/construction/planned scheme on a typed transport way:
-    # highway=secondary + state=proposed
-    if tags.get('state') in _LIFECYCLE_STATUSES:
-        if any(tags.get(k) and tags.get(k) not in _LIFECYCLE_STATUSES
-               for k in _PRIMARY_TRANSPORT_KEYS):
-            return True
-
-    # Partially-built urban transit: track bed done but operational systems still
-    # under construction (e.g. railway=subway + construction:electrified=contact_line).
-    # Restricted to urban/transit rail types -- mainline rail electrification retrofits
-    # are ongoing operations on existing lines, not new projects.
-    if tags.get('railway') in _URBAN_RAIL_VALUES and any(
-            tags.get(k) for k in _URBAN_RAIL_CONSTRUCTION_KEYS):
-        return True
-
-    return (tags.get('construction', '') in TRANSPORT_VALUES or
-            tags.get('proposed', '') in TRANSPORT_VALUES or
-            tags.get('planned', '') in TRANSPORT_VALUES)
 
 
 # ---------------------------------------------------------------------------
@@ -508,50 +272,14 @@ class RelationHandler(osmium.SimpleHandler):
 
     def relation(self, r):
         tags = {t.k: t.v for t in r.tags}
-        # Skip relations that document past infrastructure, not future projects
-        _PAST_VALUES = ('historic', 'abandoned', 'razed', 'dismantled', 'disused', 'removed')
-        if any(tags.get(k, '') in _PAST_VALUES
-               for k in ('railway', 'highway', 'waterway', 'aerialway', 'aeroway')):
-            return
-        if tags.get('historic') or tags.get('abandoned'):
-            return
-        # Multipolygon relations are areas; linearizing their member ways changes their geometry.
-        if tags.get('type') == 'multipolygon':
-            return
         member_way_ids = [m.ref for m in r.members if m.type == 'w']
-        # Skip route relations that aren't themselves proposed/construction projects
-        if tags.get('type') == 'route':
-            has_lifecycle = has_relation_lifecycle(tags)
+        candidate_member_count = sum(
+            wid in self.candidate_ways or wid in self.unrenderable_way_ids
+            for wid in member_way_ids
+        )
+        if not is_linear_project_relation(tags, candidate_member_count, len(member_way_ids)):
+            return
 
-            # Road-service route types run on existing roads and are never themselves
-            # infrastructure being built. A bus detour through a construction zone doesn't
-            # make the route a project, require an explicit lifecycle tag on the relation.
-            _ROAD_SERVICE_ROUTE_TYPES = ('bus', 'coach', 'trolleybus', 'share_taxi')
-            if tags.get('route', '') in _ROAD_SERVICE_ROUTE_TYPES:
-                if not has_lifecycle:
-                    return
-
-            # The relations PBF contains the complete member ID list but no ordinary-way
-            # geometry. Use candidate member count over total member count so both sides
-            # of the ratio come from populations this pass actually knows.
-            elif not has_lifecycle:
-                if member_way_ids:
-                    construction_member_count = sum(
-                        wid in self.candidate_ways or wid in self.unrenderable_way_ids
-                        for wid in member_way_ids
-                    )
-                    construction_member_ratio = (
-                        construction_member_count / len(member_way_ids)
-                    )
-
-                    # Infrastructure routes must be at least 75% candidate members;
-                    # service routes may include existing connections and require 50%.
-                    threshold = 0.75 if tags.get('route', '') == 'tracks' else 0.50
-                    if construction_member_ratio < threshold:
-                        return
-                else:
-                    return
-        
         # Keep only relations with at least one proposed/construction member way.
         # Routes tagged state=proposed over fully existing roads (e.g. cycle-node
         # networks awaiting signposting) have none and are dropped: no new
@@ -575,12 +303,20 @@ class ComponentSet:
     
     def __init__(self, orphan_ways):
         self.ways = orphan_ways
+        self._way_geometries = {}
         self.components = {}  # rep_id -> [way_ids]
         self._cache = {}  # (rep_id, prop) -> value
     
     def set_components(self, components):
+        unchanged = {
+            rep_id for rep_id, way_ids in components.items()
+            if self.components.get(rep_id) == way_ids
+        }
+        self._cache = {
+            key: value for key, value in self._cache.items()
+            if key[0] in unchanged
+        }
         self.components = components
-        self._cache.clear()
     
     def bbox(self, rep_id):
         key = (rep_id, 'bbox')
@@ -630,13 +366,18 @@ class ComponentSet:
         key = (rep_id, 'status')
         if key not in self._cache:
             self._cache[key] = aggregate_project_status(
-                get_project_status(self.ways[wid]['tags']) for wid in self.components[rep_id])
+                get_linear_project_status(self.ways[wid]['tags']) for wid in self.components[rep_id])
         return self._cache[key]
+
+    def way_geometry(self, way_id):
+        if way_id not in self._way_geometries:
+            self._way_geometries[way_id] = LineString(self.ways[way_id]['coords'])
+        return self._way_geometries[way_id]
 
     def geometry(self, rep_id):
         key = (rep_id, 'geom')
         if key not in self._cache:
-            lines = [LineString(self.ways[wid]['coords']) 
+            lines = [self.way_geometry(wid)
                     for wid in self.components[rep_id] 
                     if wid in self.ways and len(self.ways[wid]['coords']) >= 2]
             try:
@@ -680,7 +421,7 @@ def merge_by_topology(cs):
     for wid, way in cs.ways.items():
         tags = way['tags']
         way_info[wid] = (broad_group(get_transport_type(tags)),
-                         get_project_status(tags),
+                         get_linear_project_status(tags),
                          tags.get('name', '').strip())
         endpoint_to_ways[snap_coord(way['coords'][0])].add(wid)
         endpoint_to_ways[snap_coord(way['coords'][-1])].add(wid)
@@ -1075,7 +816,7 @@ def make_relation_feature(rel_id, rel, ways):
     props['osm_ids_count'] = len(member_ids)
     props['member_way_count'] = len(member_geoms)
 
-    props['project_status'] = aggregate_project_status(get_project_status(t) for t in member_tags)
+    props['project_status'] = aggregate_project_status(get_linear_project_status(t) for t in member_tags)
     props['transport_type'] = transport
     props['display_name'] = create_display_name(props)
     
@@ -1115,10 +856,7 @@ def make_orphan_features(orphan_ways):
         ways_data = [orphan_ways[wid] for wid in way_ids]
         tags_list = [w['tags'] for w in ways_data]
         
-        try:
-            merged = linemerge([LineString(w['coords']) for w in ways_data])
-        except Exception:
-            merged = LineString(ways_data[0]['coords'])
+        merged = cs.geometry(rep_id)
         
         props = {}
         for w in ways_data:
@@ -1279,7 +1017,7 @@ def _relation_broad_type(member_way_ids, ways):
 def _relation_status(member_way_ids, ways):
     """Aggregated project status across a relation's member ways."""
     return aggregate_project_status(
-        get_project_status(ways[wid]['tags']) for wid in member_way_ids if wid in ways)
+        get_linear_project_status(ways[wid]['tags']) for wid in member_way_ids if wid in ways)
 
 
 def merge_coincident_relations(relations, ways, buffer_m=25,
@@ -1446,7 +1184,19 @@ def main():
     print(f"\n[linear] [{_ts()}] Pass 2: Scanning relations in {SOURCE_FILE}...")
     t = time.time()
     rel_handler = RelationHandler(way_handler.ways, way_handler.unrenderable_way_ids)
-    rel_handler.apply_file(SOURCE_FILE)
+    # Only relations with a renderable candidate way can reach the output.
+    # Filter native members before creating Python tags and member objects.
+    tracker = None
+    filters = []
+    # IdTracker stores unsigned IDs. Preserve the original scan for temporary
+    # negative OSM IDs rather than rejecting or silently omitting them.
+    if all(wid >= 0 for wid in way_handler.ways):
+        tracker = osmium.IdTracker()
+        for wid in way_handler.ways:
+            tracker.add_way(wid)
+        filters.append(tracker.contains_filter())
+    rel_handler.apply_file(SOURCE_FILE, filters=filters)
+    del filters, tracker
     relations = rel_handler.relations
     relation_count = len(relations)
     del rel_handler
@@ -1474,8 +1224,7 @@ def main():
 
     print(f"\n[linear] [{_ts()}] Writing {OUTPUT_FILE}...")
     t = time.time()
-    with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
-        json.dump({'type': 'FeatureCollection', 'features': features}, f, ensure_ascii=False, separators=(',', ':'))
+    write_feature_collection(features, OUTPUT_FILE)
     print(f"[linear] [{_ts()}] Write done in {_fmt(time.time() - t)}")
 
     print("\n[linear] Sample features:")
