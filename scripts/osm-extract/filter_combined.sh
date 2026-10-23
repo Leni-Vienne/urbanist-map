@@ -16,40 +16,34 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/osm_log.sh"
+
 SOURCE="${1:?Usage: $0 <source.osm.pbf>}"
 if [ ! -f "$SOURCE" ]; then
-    echo "Error: source file not found: $SOURCE"
+    log_error "source file not found: $SOURCE"
     exit 1
 fi
 # Suffix-anchored: a name not ending in .osm.pbf would otherwise make
 # OUTPUT == SOURCE and osmium --overwrite would destroy the source.
 if [[ "$SOURCE" != *.osm.pbf ]]; then
-    echo "Error: source file must end in .osm.pbf: $SOURCE"
+    log_error "source file must end in .osm.pbf: $SOURCE"
     exit 1
 fi
 OUTPUT="${SOURCE%.osm.pbf}_proposed.osm.pbf"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NPROC=$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 4)
 
-function ts() { date '+%H:%M:%S'; }
-function elapsed() { local s=$1; printf "%dm%02ds" $((s / 60)) $((s % 60)); }
-function filesize() { du -sh "$1" 2>/dev/null | cut -f1; }
-
-echo ""
-echo "[$(ts)] Filtering planet to construction subset (ways + areas + route relations)"
-echo "  Input:  $SOURCE  ($(filesize "$SOURCE"))"
-echo "  Output: $OUTPUT"
-echo "  Threads: $NPROC  |  Output compression: lz4"
-echo "  Reading the full planet PBF, osmium produces no intermediate output."
-echo "----------------------------------------------------------"
-T=$SECONDS
+log_info "Filter configuration" "input=$SOURCE" "output=$OUTPUT" \
+    "input_size_bytes=$(wc -c < "$SOURCE" | tr -d '[:space:]')" \
+    "threads=$NPROC" "compression=lz4"
+osm_step_start filter
 
 COMBINED_FILTERS="$(dirname "$OUTPUT")/.osmium_filters_$$.txt"
-trap 'rm -f "$COMBINED_FILTERS"' EXIT
+trap 'rc=$?; rm -f "$COMBINED_FILTERS"; osm_log_exit "$rc"' EXIT
 "$SCRIPT_DIR/build_combined_filters.sh" > "$COMBINED_FILTERS"
 
-osmium tags-filter \
+osm_run osmium tags-filter \
     --overwrite \
     --input-format=pbf,num_threads="$NPROC" \
     --output-format=pbf,pbf_compression=lz4 \
@@ -58,5 +52,7 @@ osmium tags-filter \
     -e "$COMBINED_FILTERS"
 
 rm -f "$COMBINED_FILTERS"
-trap - EXIT
-echo "[$(ts)] Filter done in $(elapsed $((SECONDS - T))), output: $(filesize "$OUTPUT")"
+trap 'osm_log_exit "$?"' EXIT
+osm_step_end
+log_info "Wrote subset PBF" "event=artifact_written" "output=$OUTPUT" \
+    "size_bytes=$(wc -c < "$OUTPUT" | tr -d '[:space:]')"

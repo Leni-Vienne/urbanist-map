@@ -13,14 +13,13 @@ This is safe worldwide: ref=1 in Berlin won't merge with ref=1 in Shanghai.
 import math
 import re
 import argparse
-import time
 import osmium
 from collections import defaultdict
-from datetime import datetime
 from shapely.geometry import LineString, mapping, box
 from shapely.ops import linemerge
 from shapely.strtree import STRtree
 
+from osm_log import get_logger, timed_step
 from osm_io import write_feature_collection
 from osm_policy import (
     aggregate_project_status,
@@ -30,6 +29,9 @@ from osm_policy import (
     is_linear_project_relation,
     is_transport_way,
 )
+
+
+LOGGER = get_logger('linear')
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -839,17 +841,17 @@ def make_orphan_features(orphan_ways):
     cs = ComponentSet(orphan_ways)
 
     b, a = merge_by_topology(cs)
-    print(f"  [{_ts()}] merge_by_topology:    {b:,} → {a:,} components ({b - a:,} merged)")
+    LOGGER.debug(f"  merge_by_topology:    {b:,} → {a:,} components ({b - a:,} merged)")
     b, a = merge_by_ref(cs)
-    print(f"  [{_ts()}] merge_by_ref:         {b:,} → {a:,} components ({b - a:,} merged)")
+    LOGGER.debug(f"  merge_by_ref:         {b:,} → {a:,} components ({b - a:,} merged)")
     b, a = absorb_anonymous(cs)
-    print(f"  [{_ts()}] absorb_anonymous:     {b:,} → {a:,} components ({b - a:,} absorbed)")
+    LOGGER.debug(f"  absorb_anonymous:     {b:,} → {a:,} components ({b - a:,} absorbed)")
     b, a = merge_parallel_tracks(cs)
-    print(f"  [{_ts()}] merge_parallel_tracks: {b:,} → {a:,} components ({b - a:,} merged)")
+    LOGGER.debug(f"  merge_parallel_tracks: {b:,} → {a:,} components ({b - a:,} merged)")
     b, a = cluster_anonymous(cs, max_distance_km=0.2)
-    print(f"  [{_ts()}] cluster_anonymous:    {b:,} → {a:,} components ({b - a:,} merged)")
+    LOGGER.debug(f"  cluster_anonymous:    {b:,} → {a:,} components ({b - a:,} merged)")
     b, a = merge_by_name_proximity(cs, max_distance_m=100)
-    print(f"  [{_ts()}] merge_by_name_prox:   {b:,} → {a:,} components ({b - a:,} merged)")
+    LOGGER.debug(f"  merge_by_name_prox:   {b:,} → {a:,} components ({b - a:,} merged)")
 
     features = []
     for rep_id, way_ids in cs.components.items():
@@ -1130,12 +1132,12 @@ def build_features(ways, relations):
     """Build all features from ways and relations."""
     before_prune = len(relations)
     relations = prune_overlapping_relations(relations, ways)
-    print(f"  [{_ts()}] prune_overlapping_relations: {before_prune:,} → {len(relations):,} relations")
+    LOGGER.debug(f"  prune_overlapping_relations: {before_prune:,} → {len(relations):,} relations")
     relations = assign_unique_relation_members(relations, ways)
-    print(f"  [{_ts()}] assign_unique_relation_members: {len(relations):,} relations with owned ways")
+    LOGGER.debug(f"  assign_unique_relation_members: {len(relations):,} relations with owned ways")
     before_coincident = len(relations)
     relations = merge_coincident_relations(relations, ways)
-    print(f"  [{_ts()}] merge_coincident_relations: {before_coincident:,} → {len(relations):,} relations "
+    LOGGER.debug(f"  merge_coincident_relations: {before_coincident:,} → {len(relations):,} relations "
           f"({before_coincident - len(relations):,} directional pairs merged)")
 
     features = []
@@ -1146,7 +1148,7 @@ def build_features(ways, relations):
         if feat:
             processed_ways.update(wid for wid in rel['member_way_ids'] if wid in ways)
             features.append(feat)
-    print(f"  [{_ts()}] relation features built: {len(features):,}")
+    LOGGER.debug(f"  relation features built: {len(features):,}")
 
     orphans = {wid: way for wid, way in ways.items() if wid not in processed_ways}
     features.extend(make_orphan_features(orphans))
@@ -1154,87 +1156,71 @@ def build_features(ways, relations):
     return features
 
 
-def _fmt(secs):
-    return f"{int(secs // 60)}m{int(secs % 60):02d}s"
-
-
-def _ts():
-    return datetime.now().strftime('%H:%M:%S')
-
-
 def main():
     args = _parse_args()
     WAYS_FILE = args.ways_file
     SOURCE_FILE = args.source_file
     OUTPUT_FILE = args.output
-    t_total = time.time()
 
-    print(f"[linear] [{_ts()}] Pass 1: Reading way geometries from {WAYS_FILE}...")
-    t = time.time()
-    way_handler = WayGeometryHandler()
-    way_handler.apply_file(WAYS_FILE, locations=True)
-    print(f"[linear] [{_ts()}] Pass 1 done in {_fmt(time.time() - t)}, {len(way_handler.ways):,} renderable proposed/construction ways")
-    if way_handler.unrenderable_way_ids:
-        print(f"[linear] [{_ts()}] Pass 1 skipped {len(way_handler.unrenderable_way_ids):,} candidate ways without usable geometry")
+    with timed_step(LOGGER, 'read_ways', input=str(WAYS_FILE)):
+        way_handler = WayGeometryHandler()
+        way_handler.apply_file(WAYS_FILE, locations=True)
+    LOGGER.info("Read ways", extra={'fields': {
+        'event': 'geometry_read', 'renderable_ways': len(way_handler.ways),
+        'unrenderable_ways': len(way_handler.unrenderable_way_ids),
+    }})
 
     if not way_handler.ways:
-        print("[linear] ERROR: No ways found.")
-        return
+        raise RuntimeError("No ways found")
 
-    print(f"\n[linear] [{_ts()}] Pass 2: Scanning relations in {SOURCE_FILE}...")
-    t = time.time()
-    rel_handler = RelationHandler(way_handler.ways, way_handler.unrenderable_way_ids)
-    # Only relations with a renderable candidate way can reach the output.
-    # Filter native members before creating Python tags and member objects.
-    tracker = None
-    filters = []
-    # IdTracker stores unsigned IDs. Preserve the original scan for temporary
-    # negative OSM IDs rather than rejecting or silently omitting them.
-    if all(wid >= 0 for wid in way_handler.ways):
-        tracker = osmium.IdTracker()
-        for wid in way_handler.ways:
-            tracker.add_way(wid)
-        filters.append(tracker.contains_filter())
-    rel_handler.apply_file(SOURCE_FILE, filters=filters)
-    del filters, tracker
-    relations = rel_handler.relations
-    relation_count = len(relations)
-    del rel_handler
-    way_handler.unrenderable_way_ids.clear()
-    print(f"[linear] [{_ts()}] Pass 2 done in {_fmt(time.time() - t)}, {relation_count:,} route relations found")
+    with timed_step(LOGGER, 'read_relations', input=str(SOURCE_FILE)):
+        rel_handler = RelationHandler(way_handler.ways, way_handler.unrenderable_way_ids)
+        # Only relations with a renderable candidate way can reach the output.
+        # Filter native members before creating Python tags and member objects.
+        tracker = None
+        filters = []
+        # IdTracker stores unsigned IDs. Preserve the original scan for temporary
+        # negative OSM IDs rather than rejecting or silently omitting them.
+        if all(wid >= 0 for wid in way_handler.ways):
+            tracker = osmium.IdTracker()
+            for wid in way_handler.ways:
+                tracker.add_way(wid)
+            filters.append(tracker.contains_filter())
+        rel_handler.apply_file(SOURCE_FILE, filters=filters)
+        del filters, tracker
+        relations = rel_handler.relations
+        relation_count = len(relations)
+        del rel_handler
+        way_handler.unrenderable_way_ids.clear()
+    LOGGER.info("Read relations", extra={"fields": {"event": "relations_read", "relations": relation_count}})
 
-    print(f"\n[linear] [{_ts()}] Building GeoJSON features...")
-    t = time.time()
-    features = build_features(way_handler.ways, relations)
-    print(f"[linear] [{_ts()}] Build done in {_fmt(time.time() - t)}")
+    with timed_step(LOGGER, 'build'):
+        features = build_features(way_handler.ways, relations)
 
     in_rel = sum(1 for f in features if f['id'].startswith('relation/'))
     orphan = sum(1 for f in features if f['id'].startswith('way/'))
-    print(f"  Relation features: {in_rel:,}")
-    print(f"  Orphan way features (connected components): {orphan:,}")
-    print(f"  Total: {len(features):,}")
 
     # Transport type breakdown
     type_counts = defaultdict(int)
     for f in features:
         type_counts[f['properties'].get('transport_type', 'unknown')] += 1
-    print("  transport_type breakdown:")
     for t_type, n in sorted(type_counts.items(), key=lambda x: -x[1]):
-        print(f"    {t_type:20s} {n:,}")
+        LOGGER.info("Feature category", extra={'fields': {
+            'event': 'feature_category', 'transport_type': t_type, 'features': n,
+        }})
 
-    print(f"\n[linear] [{_ts()}] Writing {OUTPUT_FILE}...")
-    t = time.time()
-    write_feature_collection(features, OUTPUT_FILE)
-    print(f"[linear] [{_ts()}] Write done in {_fmt(time.time() - t)}")
+    with timed_step(LOGGER, 'write', output=str(OUTPUT_FILE)):
+        write_feature_collection(features, OUTPUT_FILE)
 
-    print("\n[linear] Sample features:")
-    for feat in features[:8]:
-        props = feat['properties']
-        print(f"  [{props.get('project_status', '?'):20s}] [{props.get('transport_type', '?'):12s}] "
-              f"{(props.get('display_name') or 'Unnamed')[:55]}  ({feat['id']})")
-
-    print(f"\n[linear] [{_ts()}] Done! Total: {_fmt(time.time() - t_total)}")
+    LOGGER.info("Wrote GeoJSON", extra={'fields': {
+        'event': 'features_written', 'output': str(OUTPUT_FILE),
+        'features': len(features), 'relation_features': in_rel, 'orphan_features': orphan,
+    }})
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        with timed_step(LOGGER, 'total', traceback=True):
+            main()
+    except Exception:
+        raise SystemExit(1)

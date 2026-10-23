@@ -18,14 +18,17 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/osm_log.sh"
+
 DRY_RUN=0
 SOURCE=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --dry-run) DRY_RUN=1 ;;
-        --*)       echo "Unknown flag: $1"; exit 1 ;;
+        --*)       log_error "Unknown flag: $1"; exit 1 ;;
         *)
-            if [[ -n "$SOURCE" ]]; then echo "Unexpected argument: $1"; exit 1; fi
+            if [[ -n "$SOURCE" ]]; then log_error "Unexpected argument: $1"; exit 1; fi
             SOURCE="$1"
             ;;
     esac
@@ -33,39 +36,34 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$SOURCE" ]]; then
-    echo "Usage: $0 <base>_proposed.osm.pbf [--dry-run]"
+    log_error "Usage: $0 <base>_proposed.osm.pbf [--dry-run]"
     exit 1
 fi
 if [[ ! -f "$SOURCE" ]]; then
-    echo "Error: source file not found: $SOURCE"
+    log_error "source file not found: $SOURCE"
     exit 1
 fi
 # Suffix-anchored: the derived names below strip _proposed.osm.pbf, and a silent
 # no-op strip on a mismatched name would produce paths like foo.osm.pbf_proposed_ways.osm.pbf.
 if [[ "$SOURCE" != *_proposed.osm.pbf ]]; then
-    echo "Error: expected a *_proposed.osm.pbf file, got: $SOURCE"
+    log_error "expected a *_proposed.osm.pbf file, got: $SOURCE"
     exit 1
 fi
-command -v osmium &>/dev/null || { echo "Error: osmium not found"; exit 1; }
+command -v osmium &>/dev/null || { log_error "osmium not found"; exit 1; }
 
 SOURCE="$(realpath "$SOURCE")"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LINEAR_FILTERS="$SCRIPT_DIR/linear_filters.txt"
 AREAL_FILTERS="$SCRIPT_DIR/areal_filters.txt"
 NPROC=$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 4)
 
-function ts()       { date '+%H:%M:%S'; }
-function elapsed()  { local s=$1; printf "%dm%02ds" $((s / 60)) $((s % 60)); }
-function filesize() { du -sh "$1" 2>/dev/null | cut -f1; }
-function run()      { if [[ "$DRY_RUN" -eq 1 ]]; then echo "[dry-run] $*"; else "$@"; fi; }
+function run()      { if [[ "$DRY_RUN" -eq 1 ]]; then log_info "[dry-run] $*"; else osm_run "$@"; fi; }
 
 BASE_PREFIX="${SOURCE%_proposed.osm.pbf}"
 WAYS_PBF="${BASE_PREFIX}_proposed_ways.osm.pbf"
 AREAL_PBF="${BASE_PREFIX}_proposed_areal.osm.pbf"
 RELATIONS_PBF="${BASE_PREFIX}_proposed_relations.osm.pbf"
 
-echo "[$(ts)] Deriving ways/areal/relations sub-PBFs from $(basename "$SOURCE")"
-T=$SECONDS
+osm_step_start derive "input=$SOURCE" "workers=3"
 run osmium tags-filter --overwrite --input-format=pbf,num_threads="$NPROC" \
     -o "$WAYS_PBF" "$SOURCE" -e "$LINEAR_FILTERS" &
 PID_WAYS=$!
@@ -81,13 +79,14 @@ RC_WAYS=0; RC_AREAL=0; RC_REL=0
 wait $PID_WAYS  || RC_WAYS=$?
 wait $PID_AREAL || RC_AREAL=$?
 wait $PID_REL   || RC_REL=$?
-[[ "$RC_WAYS"  -eq 0 ]] || { echo "ERROR: ways derive failed";      exit 1; }
-[[ "$RC_AREAL" -eq 0 ]] || { echo "ERROR: areal derive failed";     exit 1; }
-[[ "$RC_REL"   -eq 0 ]] || { echo "ERROR: relations derive failed"; exit 1; }
+[[ "$RC_WAYS"  -eq 0 ]] || { log_error "Derivation failed" "worker=ways" "exit_code=$RC_WAYS"; exit 1; }
+[[ "$RC_AREAL" -eq 0 ]] || { log_error "Derivation failed" "worker=areal" "exit_code=$RC_AREAL"; exit 1; }
+[[ "$RC_REL"   -eq 0 ]] || { log_error "Derivation failed" "worker=relations" "exit_code=$RC_REL"; exit 1; }
 
-echo "[$(ts)] Derive done in $(elapsed $((SECONDS - T)))"
+osm_step_end
 if [[ "$DRY_RUN" -eq 0 ]]; then
-    echo "  $WAYS_PBF      , $(filesize "$WAYS_PBF")"
-    echo "  $AREAL_PBF     , $(filesize "$AREAL_PBF")"
-    echo "  $RELATIONS_PBF , $(filesize "$RELATIONS_PBF")"
+    for output in "$WAYS_PBF" "$AREAL_PBF" "$RELATIONS_PBF"; do
+        log_info "Wrote sub-PBF" "event=artifact_written" "output=$output" \
+            "size_bytes=$(wc -c < "$output" | tr -d '[:space:]')"
+    done
 fi

@@ -7,8 +7,8 @@ spec:
   annotations: []
   cursorSync: "Off"
   description:
-    Daily OSM updates from existing plain-text systemd journal messages. Requires the grafanacloud-logs
-    Loki data source and JOURNAL_UNIT=osm-update.service on one Alloy stack. Resource and duration charts show the last reported value in each display interval; they do not join lines into
+    Daily OSM updates from structured logfmt script events and systemd journal messages. Requires the grafanacloud-logs
+    Loki data source and JOURNAL_UNIT=osm-update.service on one Alloy stack. Charts show the last reported value in each display interval; they do not join lines into
     runs. See docs/GRAFANA_OSM.md for setup and limitations.
   editable: true
   elements:
@@ -33,10 +33,10 @@ spec:
                       expr: |-
                         last_over_time(
                           {service="osm-update"}
-                          |= "Done! Total:"
-                          | regexp `\[(?P<component>linear|areal)\] \[[0-9:]+\] Done! Total: (?P<elapsed>[0-9]+m[0-9]+s)`
-                          | component!=""
-                          | unwrap duration_seconds(elapsed)
+                          | logfmt
+                          | event="step_completed" | step="total"
+                          | component=~"linear|areal" | dry_run="0"
+                          | unwrap duration_seconds
                           | __error__="" [$__interval]
                         ) by (component)
                       instant: false
@@ -49,8 +49,8 @@ spec:
               interval: 1h
             transformations: []
         description:
-          Last reported total duration per extractor in each display interval (minimum one hour). Points
-          are placed at collection time; buffering delays their appearance but does not change the parsed duration.
+          Last reported total duration per extractor in each display interval (minimum one hour). Durations
+          use a monotonic clock; the Python logging handler flushes each event immediately.
         id: 4
         links: []
         title: Extraction durations
@@ -372,7 +372,11 @@ spec:
                     spec:
                       direction: backward
                       editorMode: code
-                      expr: '{service="osm-update"} |~ `(?i)(\berror\b|\bwarn(ing)?\b|\bfailed\b|traceback|out of memory|oom-kill)`'
+                      expr: |-
+                        {service="osm-update"}
+                        | logfmt
+                        | level=~"warning|error|critical"
+                        | __error__=""
                       instant: false
                       legendFormat: ""
                       queryType: range
@@ -380,11 +384,32 @@ spec:
                       maxLines: 1000
                     version: v0
                   refId: A
+              - kind: PanelQuery
+                spec:
+                  hidden: false
+                  query:
+                    datasource:
+                      name: grafanacloud-logs
+                    group: loki
+                    kind: DataQuery
+                    spec:
+                      direction: backward
+                      editorMode: code
+                      expr: |-
+                        {service="osm-update"}
+                        !~ `^time=`
+                        |~ `(?i)(\berror\b|\bwarn(ing)?\b|\bfailed\b|traceback|out of memory|oom-kill)`
+                      instant: false
+                      legendFormat: ""
+                      queryType: range
+                      range: true
+                      maxLines: 1000
+                    version: v0
+                  refId: B
             queryOptions: {}
             transformations: []
         description:
-          Matching diagnostic lines, not a count of failed runs. Some scripts can print errors while exiting
-          successfully. PID 1 diagnostics about this unit are included when the osm_manager Alloy source is deployed.
+          Structured warning/error events, plus diagnostic text from native tools, the importer, and systemd. PID 1 diagnostics about this unit are included when the osm_manager Alloy source is deployed.
           Literal OOM KILLS summary headings are not considered errors.
         id: 9
         links: []
@@ -427,53 +452,58 @@ spec:
                       expr: |-
                         last_over_time(
                           {service="osm-update"}
-                          |~ `\] (Pass [12]|Read|Nesting filter|Build|Write) done in `
-                          | regexp `\[(?P<component>linear|areal)\] \[[0-9:]+\] (?P<stage>Pass [12]|Read|Nesting filter|Build|Write) done in (?P<elapsed>[0-9]+m[0-9]+s)`
-                          | elapsed!=""
-                          | unwrap duration_seconds(elapsed)
+                          | logfmt
+                          | component="update_daily" | event="step_completed" | dry_run="0"
+                          | step=~"download|apply|refilter|derive|backfill|extraction|import"
+                          | unwrap duration_seconds
                           | __error__="" [$__interval]
-                        ) by (component, stage)
+                        ) by (step)
                       instant: false
-                      legendFormat: "{{component}} / {{stage}}"
+                      legendFormat: "{{step}}"
                       queryType: range
                       range: true
                     version: v0
                   refId: A
-              - kind: PanelQuery
-                spec:
-                  hidden: false
-                  query:
-                    datasource:
-                      name: grafanacloud-logs
-                    group: loki
-                    kind: DataQuery
-                    spec:
-                      direction: backward
-                      editorMode: code
-                      expr: |-
-                        last_over_time(
-                          {service="osm-update"}
-                          |= "Derive done in "
-                          | regexp `Derive done in (?P<elapsed>[0-9]+m[0-9]+s)`
-                          | elapsed!=""
-                          | unwrap duration_seconds(elapsed)
-                          | __error__="" [$__interval]
-                        ) by ()
-                      instant: false
-                      legendFormat: Sub-PBF derivation
-                      queryType: range
-                      range: true
-                    version: v0
-                  refId: B
             queryOptions:
               interval: 1h
-            transformations: []
+            # Join into one frame, then order its fields. Legend sorting alone does
+            # not control stacking. Missing/skipped steps retain their relative order.
+            transformations:
+              - kind: Transformation
+                group: joinByField
+                spec:
+                  options:
+                    mode: outer
+                    byField: Time
+              - kind: Transformation
+                group: organize
+                spec:
+                  options:
+                    excludeByName: {}
+                    indexByName:
+                      Time: 0
+                      download: 1
+                      apply: 2
+                      refilter: 3
+                      derive: 4
+                      backfill: 5
+                      extraction: 6
+                      import: 7
+                    renameByName:
+                      download: 1. Download diffs
+                      apply: 2. Apply diffs
+                      refilter: 3. Re-filter subset
+                      derive: 4. Derive sub-PBFs
+                      backfill: 5. Backfill geometry
+                      extraction: 6. Extract GeoJSON
+                      import: 7. Import database
         description:
-          "Stacked explicit stage durations per display interval: sub-PBF derivation, linear way/relation
-          reads and feature building, areal geometry reading/nesting filtering, and both GeoJSON writes. Linear and
-          areal work runs in parallel, so the stack height represents reported stage work, not service elapsed time.
-          Lines connect reported observations across gaps; markers identify the actual samples.
-          Download/apply, backfill and database import durations are not inferred from neighboring lines."
+          "Reported pipeline phase durations, stacked in execution order from bottom to top:
+          download, apply, re-filter, derive, backfill, extraction, import. Extraction measures wall
+          time for both parallel workers together. Skipped steps have no report; dry runs are excluded.
+          Values are the latest per phase within each display interval and may come from different
+          retries. Stack height excludes setup and backend restart. Markers show observations;
+          lines connect across gaps. Backfill remains best-effort; inspect warnings for failures."
         id: 11
         links: []
         title: Reported step durations
@@ -511,7 +541,7 @@ spec:
                 showLegend: true
               tooltip:
                 mode: multi
-                sort: desc
+                sort: none
           version: 13.2.0-29316898481
     panel-12:
       kind: Panel
@@ -944,6 +974,206 @@ spec:
                 mode: multi
                 sort: desc
           version: 13.2.0-29316898481
+    panel-18:
+      kind: Panel
+      spec:
+        data:
+          kind: QueryGroup
+          spec:
+            queries:
+              - kind: PanelQuery
+                spec:
+                  hidden: false
+                  query:
+                    datasource:
+                      name: grafanacloud-logs
+                    group: loki
+                    kind: DataQuery
+                    spec:
+                      direction: backward
+                      editorMode: code
+                      expr: |-
+                        last_over_time(
+                          {service="osm-update"}
+                          | logfmt
+                          | component="update_daily" | event="step_completed" | dry_run="0"
+                          | step=~"download|apply|refilter|derive|backfill|extraction|import"
+                          | avg_cpu_percent!=""
+                          | unwrap avg_cpu_percent
+                          | __error__="" [$__interval]
+                        ) by (step)
+                      instant: false
+                      legendFormat: "{{step}}"
+                      queryType: range
+                      range: true
+                    version: v0
+                  refId: A
+            queryOptions:
+              interval: 1h
+            transformations:
+              - kind: Transformation
+                group: joinByField
+                spec:
+                  options:
+                    mode: outer
+                    byField: Time
+              - kind: Transformation
+                group: organize
+                spec:
+                  options:
+                    excludeByName: {}
+                    indexByName:
+                      Time: 0
+                      download: 1
+                      apply: 2
+                      refilter: 3
+                      derive: 4
+                      backfill: 5
+                      extraction: 6
+                      import: 7
+                    renameByName:
+                      download: 1. Download diffs
+                      apply: 2. Apply diffs
+                      refilter: 3. Re-filter subset
+                      derive: 4. Derive sub-PBFs
+                      backfill: 5. Backfill geometry
+                      extraction: 6. Extract GeoJSON
+                      import: 7. Import database
+        description: "CPU seconds across measured commands and waited descendants divided by elapsed phase time. 100% is one fully busy CPU core; parallel work can exceed 100%. Low use can indicate waiting, including I/O, network, locks, or scheduling. Database server work outside the import process tree is excluded."
+        id: 18
+        links: []
+        title: Average CPU use by step
+        vizConfig:
+          group: timeseries
+          kind: VizConfig
+          spec:
+            fieldConfig:
+              defaults:
+                unit: percent
+                min: 0
+                noValue: No matching logs
+                color:
+                  mode: palette-classic
+                custom:
+                  drawStyle: points
+                  pointSize: 6
+                  showPoints: always
+                  spanNulls: false
+                  axisCenteredZero: false
+                  axisPlacement: auto
+                  fillOpacity: 0
+              overrides: []
+            options:
+              legend:
+                calcs:
+                  - lastNotNull
+                displayMode: table
+                placement: right
+                showLegend: true
+              tooltip:
+                mode: multi
+                sort: none
+          version: 13.2.0-29316898481
+    panel-19:
+      kind: Panel
+      spec:
+        data:
+          kind: QueryGroup
+          spec:
+            queries:
+              - kind: PanelQuery
+                spec:
+                  hidden: false
+                  query:
+                    datasource:
+                      name: grafanacloud-logs
+                    group: loki
+                    kind: DataQuery
+                    spec:
+                      direction: backward
+                      editorMode: code
+                      expr: |-
+                        last_over_time(
+                          {service="osm-update"}
+                          | logfmt
+                          | component="update_daily" | event="step_completed" | dry_run="0"
+                          | step=~"download|apply|refilter|derive|backfill|extraction|import"
+                          | max_process_rss_bytes!=""
+                          | unwrap max_process_rss_bytes
+                          | __error__="" [$__interval]
+                        ) by (step)
+                      instant: false
+                      legendFormat: "{{step}}"
+                      queryType: range
+                      range: true
+                    version: v0
+                  refId: A
+            queryOptions:
+              interval: 1h
+            transformations:
+              - kind: Transformation
+                group: joinByField
+                spec:
+                  options:
+                    mode: outer
+                    byField: Time
+              - kind: Transformation
+                group: organize
+                spec:
+                  options:
+                    excludeByName: {}
+                    indexByName:
+                      Time: 0
+                      download: 1
+                      apply: 2
+                      refilter: 3
+                      derive: 4
+                      backfill: 5
+                      extraction: 6
+                      import: 7
+                    renameByName:
+                      download: 1. Download diffs
+                      apply: 2. Apply diffs
+                      refilter: 3. Re-filter subset
+                      derive: 4. Derive sub-PBFs
+                      backfill: 5. Backfill geometry
+                      extraction: 6. Extract GeoJSON
+                      import: 7. Import database
+        description: "Largest individual process peak resident memory among measured commands and their waited descendants. For parallel derivation/extraction this is the largest worker peak, not combined simultaneous RAM. It measures process RSS rather than host cache usage and excludes database/container processes outside the command tree. Values are not stacked."
+        id: 19
+        links: []
+        title: Peak process RAM by step
+        vizConfig:
+          group: timeseries
+          kind: VizConfig
+          spec:
+            fieldConfig:
+              defaults:
+                unit: bytes
+                min: 0
+                noValue: No matching logs
+                color:
+                  mode: palette-classic
+                custom:
+                  drawStyle: points
+                  pointSize: 6
+                  showPoints: always
+                  spanNulls: false
+                  axisCenteredZero: false
+                  axisPlacement: auto
+                  fillOpacity: 0
+              overrides: []
+            options:
+              legend:
+                calcs:
+                  - lastNotNull
+                displayMode: table
+                placement: right
+                showLegend: true
+              tooltip:
+                mode: multi
+                sort: none
+          version: 13.2.0-29316898481
   layout:
     kind: GridLayout
     spec:
@@ -961,11 +1191,29 @@ spec:
           spec:
             element:
               kind: ElementReference
-              name: panel-12
+              name: panel-18
             height: 8
             width: 12
             x: 0
             y: 10
+        - kind: GridLayoutItem
+          spec:
+            element:
+              kind: ElementReference
+              name: panel-19
+            height: 8
+            width: 12
+            x: 12
+            y: 10
+        - kind: GridLayoutItem
+          spec:
+            element:
+              kind: ElementReference
+              name: panel-12
+            height: 8
+            width: 12
+            x: 0
+            y: 18
         - kind: GridLayoutItem
           spec:
             element:
@@ -974,7 +1222,7 @@ spec:
             height: 8
             width: 12
             x: 12
-            y: 10
+            y: 18
         - kind: GridLayoutItem
           spec:
             element:
@@ -983,7 +1231,7 @@ spec:
             height: 8
             width: 12
             x: 0
-            y: 18
+            y: 26
         - kind: GridLayoutItem
           spec:
             element:
@@ -992,7 +1240,7 @@ spec:
             height: 8
             width: 12
             x: 12
-            y: 18
+            y: 26
         - kind: GridLayoutItem
           spec:
             element:
@@ -1001,7 +1249,7 @@ spec:
             height: 8
             width: 12
             x: 0
-            y: 26
+            y: 34
         - kind: GridLayoutItem
           spec:
             element:
@@ -1010,7 +1258,7 @@ spec:
             height: 8
             width: 12
             x: 12
-            y: 26
+            y: 34
         - kind: GridLayoutItem
           spec:
             element:
@@ -1019,7 +1267,7 @@ spec:
             height: 8
             width: 12
             x: 0
-            y: 34
+            y: 42
         - kind: GridLayoutItem
           spec:
             element:
@@ -1028,7 +1276,7 @@ spec:
             height: 8
             width: 12
             x: 12
-            y: 34
+            y: 42
         - kind: GridLayoutItem
           spec:
             element:
@@ -1037,7 +1285,7 @@ spec:
             height: 8
             width: 24
             x: 0
-            y: 42
+            y: 50
         - kind: GridLayoutItem
           spec:
             element:
@@ -1046,7 +1294,7 @@ spec:
             height: 9
             width: 24
             x: 0
-            y: 50
+            y: 58
 
   links: []
   liveNow: false

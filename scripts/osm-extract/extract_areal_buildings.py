@@ -13,11 +13,10 @@ import shapely.wkb
 import math
 import re
 import argparse
-import time
-from datetime import datetime
 from shapely.geometry import mapping, Polygon
 from shapely.strtree import STRtree
 
+from osm_log import get_logger, timed_step
 from osm_io import write_feature_collection
 from osm_policy import (
     classify_areal_feature,
@@ -26,6 +25,9 @@ from osm_policy import (
     has_identity,
     passes_areal_size_gate,
 )
+
+
+LOGGER = get_logger('areal')
 
 
 def _parse_args():
@@ -218,53 +220,34 @@ def filter_nested_buildings(features, geometries):
     return non_buildings + kept_buildings, stats
 
 
-def _fmt(secs):
-    return f"{int(secs // 60)}m{int(secs % 60):02d}s"
-
-
-def _ts():
-    return datetime.now().strftime('%H:%M:%S')
-
-
 def main():
     args = _parse_args()
     SOURCE_FILE = args.source
     OUTPUT_FILE = args.output
-    t_total = time.time()
 
-    print(f"[areal] [{_ts()}] Reading geometries from {SOURCE_FILE}...")
-    t = time.time()
-    handler = ArealExtractionHandler()
-    try:
-        # locations=True feeds node coordinates to the way() callback for unclosed area-tagged ways.
+    with timed_step(LOGGER, 'read', input=str(SOURCE_FILE)):
+        handler = ArealExtractionHandler()
+        # locations=True feeds coordinates to way() for unclosed area-tagged ways.
         handler.apply_file(SOURCE_FILE, locations=True)
-    except Exception as e:
-        print(f"[areal] [{_ts()}] Error reading file: {e}")
-        return
-    print(f"[areal] [{_ts()}] Read done in {_fmt(time.time() - t)}, {len(handler.features):,} features found")
+    LOGGER.info("Read geometries", extra={"fields": {"event": "geometry_read", "features": len(handler.features)}})
 
-    print(f"\n[areal] [{_ts()}] Filtering nested buildings...")
-    t = time.time()
-    features, nest_stats = filter_nested_buildings(handler.features, handler.geometries)
-    print(f"[areal] [{_ts()}] Nesting filter done in {_fmt(time.time() - t)}")
-    print(f"  Checked: {nest_stats['checked']:,} buildings")
-    print(f"  Removed unidentified containers: {nest_stats['removed_containers']:,}")
-    print(f"  Kept: {len(features):,}")
+    with timed_step(LOGGER, 'nesting_filter'):
+        features, nest_stats = filter_nested_buildings(handler.features, handler.geometries)
 
-    print(f"\n[areal] [{_ts()}] Writing {OUTPUT_FILE}...")
-    t = time.time()
-    write_feature_collection(features, OUTPUT_FILE)
-    print(f"[areal] [{_ts()}] Write done in {_fmt(time.time() - t)}")
+    with timed_step(LOGGER, 'write', output=str(OUTPUT_FILE)):
+        write_feature_collection(features, OUTPUT_FILE)
 
-    print("\n[areal] Sample features:")
-    for feature in features[:10]:
-        props = feature['properties']
-        name = (props.get('display_name') or 'Unnamed')[:50]
-        area = props.get('area_sqm', 0)
-        transport = props.get('transport_type', '?')
-        print(f"  [{transport:10s}] {area:6,d} m² | {name}")
+    LOGGER.info("Wrote GeoJSON", extra={'fields': {
+        'event': 'features_written', 'output': str(OUTPUT_FILE),
+        'features_read': len(handler.features), 'features': len(features),
+        'buildings_checked': nest_stats['checked'],
+        'removed_containers': nest_stats['removed_containers'],
+    }})
 
-    print(f"\n[areal] [{_ts()}] Done! Total: {_fmt(time.time() - t_total)}")
 
 if __name__ == '__main__':
-    main()
+    try:
+        with timed_step(LOGGER, 'total', traceback=True):
+            main()
+    except Exception:
+        raise SystemExit(1)

@@ -165,3 +165,63 @@ created from the fetched geometry:
 # Report missing refs only, no network or writes
 ./backfill_geometry.sh --dry-run planet-latest_proposed_ways.osm.pbf
 ```
+
+## Logging and monitoring
+
+Bash entry points use `osm_log.sh`; Python extractors use the standard `logging`
+module through `osm_log.py`. Diagnostics are flushed to stderr as logfmt records
+with UTC timestamps, severity, component, and a shared run ID. Stdout remains
+available for machine output. Native tool and importer output is generally
+forwarded as-is; backfill failures retain up to 4096 bytes of captured diagnostics.
+
+Timed phases emit `event=step_completed`, a stable `step`, and numeric
+`duration_seconds`. Measured Bash phases and Python phases use a monotonic clock.
+Bash commands run through the standard-library `osm_resources.py` helper; private
+temporary records are combined into the existing completion event, then removed.
+There is no sampling loop or periodic resource log stream. Python is needed for
+Bash resource fields; without it Bash keeps reporting elapsed whole seconds. Exceptions and nonzero shell
+exits produce structured error events; dry-run records carry `dry_run=1` and are
+excluded from dashboard timings. Backfill remains best-effort and reports
+unresolved geometry as a warning with remaining node/way/relation counts.
+
+`OSM_LOG_LEVEL` controls both Bash and Python logging: `DEBUG`, `INFO` (default),
+`WARNING`, or `ERROR`. DEBUG includes individual fetch batches and merge strategy
+details. INFO includes phase timings, numeric feature counts and file sizes, and
+replication sequences. Feature samples are not logged. WARNING/ERROR levels hide
+successful timing events, so keep INFO for normal Grafana monitoring.
+
+The final shell event carries `status=success`, `partial`, `unchanged`, `failed`,
+or `dry_run`. Skipped phases emit `step_skipped` with a reason and no duration.
+Standalone backfill exits 0 when complete, 2 when partial, and 1 on failure.
+`update_daily.sh` handles both nonzero backfill outcomes, continues with available
+geometry, and records `status=partial` on completion. A later fatal failure takes
+precedence. Partial daily runs still exit zero so systemd can restart the backend.
+`run_all.sh` hands off to the daily updater for the final outcome.
+
+For optimization, each measured pipeline phase reports:
+
+- `cpu_seconds`: CPU time in measured commands, including waited descendants.
+- `avg_cpu_percent`: CPU seconds / elapsed seconds × 100. 100% means one CPU core;
+  multiple busy cores can exceed 100%. Low use can indicate waiting for disk,
+  network, locks, or CPU scheduling; it is not proof of an I/O bottleneck.
+- `max_process_rss_bytes`: the largest individual process peak resident memory.
+  Parallel worker peaks are not added, and this is not total simultaneous RAM.
+
+Python substeps additionally report their own CPU delta, current
+`rss_start_bytes` / `rss_end_bytes` on Linux, and `process_peak_rss_bytes`.
+That last value is the high-water mark since the Python process started, not
+an isolated substep peak. Compare start/end RSS to locate retained memory growth.
+The helper requires no additional packages, exporter, or systemd configuration.
+Only instrumented local commands are covered: PostgreSQL and Docker services
+running outside the updater's process tree are excluded. Failed phase summaries
+may contain only the resource records that were collected before interruption.
+
+The systemd unit captures stderr in the journal, and the existing Alloy source
+forwards those records to Loki. See [the OSM dashboard guide](../../docs/GRAFANA_OSM.md)
+for setup, the bottom-to-top step stack order, and query limitations.
+
+Run the extraction and logging tests with the Python dependencies installed:
+
+```bash
+python3 -m unittest discover -s scripts/osm-extract -p 'test_*.py'
+```

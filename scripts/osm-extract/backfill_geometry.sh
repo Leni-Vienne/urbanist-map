@@ -36,8 +36,8 @@
 #
 # A target that does not exist yet is created from the fetched geometry. Existing
 # targets are only replaced on a successful merge, so an interrupted or failed run
-# leaves inputs untouched. All network/merge failures are non-fatal warnings: the
-# worst case is the same incomplete geometry we started with.
+# leaves inputs untouched. Exit 0 means complete, 2 means partial (unresolved refs
+# or a failed merge), and 1 means failure. update_daily.sh continues on 1 or 2.
 #
 # Usage:
 #   ./backfill_geometry.sh <target.osm.pbf> [more-targets...] [options]
@@ -55,6 +55,9 @@
 #   --batch-rels N       Relation IDs per Overpass query (default: 50)
 
 set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/osm_log.sh"
 
 # ---------------------------------------------------------------------------
 # Argument parsing
@@ -92,14 +95,14 @@ while [[ $# -gt 0 ]]; do
         --batch-nodes) BATCH_NODES="${2:?--batch-nodes requires a number}"; shift ;;
         --batch-ways)  BATCH_WAYS="${2:?--batch-ways requires a number}"; shift ;;
         --batch-rels)  BATCH_RELS="${2:?--batch-rels requires a number}"; shift ;;
-        --*)           echo "Unknown flag: $1"; exit 1 ;;
+        --*)           log_error "Unknown flag: $1"; exit 1 ;;
         *)             TARGET_FILES+=("$1") ;;
     esac
     shift
 done
 
 if [[ ${#TARGET_FILES[@]} -eq 0 ]]; then
-    echo "Usage: $0 <target.osm.pbf> [more-targets...] [--detect <pbf>] [--dry-run]"
+    log_error "Usage: $0 <target.osm.pbf> [more-targets...] [--detect <pbf>] [--dry-run]"
     exit 1
 fi
 
@@ -111,25 +114,23 @@ fi
 # Detection sources must exist; a merge target may be missing (created on first
 # merge in standalone use) but its directory must exist.
 for f in "${DETECT_FILES[@]}"; do
-    [[ -f "$f" ]] || { echo "Error: detect file not found: $f"; exit 1; }
+    [[ -f "$f" ]] || { log_error "detect file not found: $f"; exit 1; }
 done
 for f in "${TARGET_FILES[@]}"; do
     d="$(dirname "$f")"
-    [[ -d "$d" ]] || { echo "Error: target directory not found: $d"; exit 1; }
+    [[ -d "$d" ]] || { log_error "target directory not found: $d"; exit 1; }
 done
 
-command -v osmium &>/dev/null || { echo "Error: osmium not found"; exit 1; }
-command -v curl   &>/dev/null || { echo "Error: curl not found"; exit 1; }
+command -v osmium &>/dev/null || { log_error "osmium not found"; exit 1; }
+command -v curl   &>/dev/null || { log_error "curl not found"; exit 1; }
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-function ts() { date '+%H:%M:%S'; }
-
 TMP_DIR="$(realpath "$(dirname "${TARGET_FILES[0]}")")/.backfill_$$"
 mkdir -p "$TMP_DIR"
-trap 'rm -rf "$TMP_DIR"' EXIT
+trap 'rc=$?; rm -rf "$TMP_DIR"; osm_log_exit "$rc"' EXIT
 
 # Print a short human reason for a failed HTTP fetch: a curl-level error (timeout,
 # DNS, refused) or the HTTP status plus the first meaningful line of the body.
@@ -164,7 +165,7 @@ function overpass_wait_slot() {
     wait=$(grep -oE 'in [0-9]+ seconds' <<<"$body" | grep -oE '[0-9]+' | sort -n | head -1)
     if [[ -n "$wait" ]]; then
         wait=$((wait + 1))
-        echo "    [$(ts)] Overpass slots busy, waiting ${wait}s for a free slot"
+        log_info "Waiting for an Overpass slot" "event=retry_wait" "wait_seconds=$wait"
         sleep "$wait"
     fi
     return 0
@@ -176,11 +177,13 @@ function fetch_overpass() {
     local query="$1" out="$2" code rc attempt
     for ((attempt = 1; attempt <= OV_RETRIES; attempt++)); do
         overpass_wait_slot
-        code=$(curl -s -A "$UA" --max-time "$CURL_TIMEOUT" -w '%{http_code}' \
-            --data-urlencode "data=$query" "$ENDPOINT" -o "$out" 2>/dev/null)
+        code=$(curl -sS -A "$UA" --max-time "$CURL_TIMEOUT" -w '%{http_code}' \
+            --data-urlencode "data=$query" "$ENDPOINT" -o "$out" 2>"${TMP_DIR}/curl.stderr")
         rc=$?
         [[ "$rc" -eq 0 && "$code" == "200" ]] && return 0
-        echo "    [warn] Overpass attempt $attempt/$OV_RETRIES failed: $(http_reason "$out" "$code" "$rc")"
+        log_warn "Overpass request failed: $(http_reason "$out" "$code" "$rc")" \
+            "event=fetch_retry" "backend=overpass" "attempt=$attempt" "max_attempts=$OV_RETRIES" \
+            "http_status=$code" "exit_code=$rc" "details=$(osm_failure_details "${TMP_DIR}/curl.stderr")"
         ((attempt < OV_RETRIES)) && sleep $((attempt * 5))
     done
     return 1
@@ -192,15 +195,18 @@ function fetch_overpass() {
 function fetch_osm_api() {
     local url="$1" out="$2" code rc attempt
     for ((attempt = 1; attempt <= OV_RETRIES; attempt++)); do
-        code=$(curl -s -A "$UA" --max-time "$CURL_TIMEOUT" -w '%{http_code}' \
-            "$url" -o "$out" 2>/dev/null)
+        code=$(curl -sS -A "$UA" --max-time "$CURL_TIMEOUT" -w '%{http_code}' \
+            "$url" -o "$out" 2>"${TMP_DIR}/curl.stderr")
         rc=$?
         [[ "$rc" -eq 0 && "$code" == "200" ]] && return 0
         if [[ "$rc" -eq 0 && "$code" =~ ^4 ]]; then
-            echo "    [warn] OSM API: $(http_reason "$out" "$code" "$rc")"
+            log_warn "OSM API request rejected: $(http_reason "$out" "$code" "$rc")" \
+                "event=fetch_fallback" "backend=osm_api" "http_status=$code" "exit_code=$rc"
             return 2
         fi
-        echo "    [warn] OSM API attempt $attempt/$OV_RETRIES failed: $(http_reason "$out" "$code" "$rc")"
+        log_warn "OSM API request failed: $(http_reason "$out" "$code" "$rc")" \
+            "event=fetch_retry" "backend=osm_api" "attempt=$attempt" "max_attempts=$OV_RETRIES" \
+            "http_status=$code" "exit_code=$rc" "details=$(osm_failure_details "${TMP_DIR}/curl.stderr")"
         ((attempt < OV_RETRIES)) && sleep $((attempt * 5))
     done
     return 1
@@ -219,7 +225,8 @@ function fetch_type() {
     local nbatches=$(( (total + bsize - 1) / bsize ))
     local b=0 start
     local via="Overpass"; [[ "$otype" == "node" ]] && via="OSM API"
-    echo "  [$(ts)] Fetching $total missing ${otype}(s) in $nbatches batch(es) via $via"
+    log_info "Fetching missing references" "event=fetch_started" \
+        "object_type=$otype" "objects=$total" "batches=$nbatches" "backend=$via"
 
     for ((start = 0; start < total; start += bsize)); do
         b=$((b + 1))
@@ -230,7 +237,7 @@ function fetch_type() {
 
         local raw="${TMP_DIR}/fetch_${otype}_${b}.osm"
         local sorted="${TMP_DIR}/fetch_${otype}_${b}.osm.pbf"
-        echo "    [$(ts)] ${otype} batch ${b}/${nbatches} (${#chunk[@]} ids)"
+        log_debug "Fetching batch" "object_type=$otype" "batch=$b" "batches=$nbatches" "objects=${#chunk[@]}"
 
         if [[ "$DRY_RUN" -eq 1 ]]; then continue; fi
 
@@ -242,7 +249,7 @@ function fetch_type() {
             fetch_osm_api "${OSM_API}/nodes?nodes=${joined}" "$raw"
             case $? in
                 0) ok=1 ;;
-                2) echo "    [$(ts)] node batch ${b}: deleted/absent id, falling back to Overpass"
+                2) log_debug "Falling back to Overpass for absent node IDs" "batch=$b"
                    fetch_overpass "[out:xml][timeout:${OV_TIMEOUT}];node(id:${joined});out meta;" "$raw" && ok=1 ;;
             esac
         else
@@ -256,13 +263,17 @@ function fetch_type() {
         fi
 
         if [[ "$ok" -ne 1 ]]; then
-            echo "    [warn] fetch of ${otype} batch ${b} failed, skipping"
+            log_warn "Skipping failed fetch" "event=fetch_failed" "object_type=$otype" "batch=$b"
             rm -f "$raw"
             continue
         fi
         # osmium needs sorted input for merge; fetched output is not guaranteed sorted.
-        if ! osmium sort "$raw" -o "$sorted" --overwrite 2>/dev/null; then
-            echo "    [warn] sort of ${otype} batch ${b} failed, skipping"
+        osmium sort "$raw" -o "$sorted" --overwrite 2>"${TMP_DIR}/sort.stderr"
+        local sort_rc=$?
+        if [[ "$sort_rc" -ne 0 ]]; then
+            log_warn "Skipping batch after osmium sort failed" "event=sort_failed" \
+                "object_type=$otype" "batch=$b" "exit_code=$sort_rc" \
+                "details=$(osm_failure_details "${TMP_DIR}/sort.stderr")"
             rm -f "$raw"
             continue
         fi
@@ -273,54 +284,73 @@ function fetch_type() {
 }
 
 # Union the missing references across all detection sources into $1.
-# Returns 0 if any source still has missing refs, 1 if all are clean.
+# Returns 0 if any source has missing refs, 1 if all are clean, 2 on check failure.
 function collect_missing() {
     local out="$1" src rc any=1
     : >"$out"
     for src in "${DETECT_FILES[@]}"; do
-        osmium check-refs -i -r "$src" >>"$out" 2>/dev/null
+        osmium check-refs -i -r "$src" >>"$out" 2>"${TMP_DIR}/check-refs.stderr"
         rc=$?
         if [[ "$rc" -eq 1 ]]; then
             any=0
         elif [[ "$rc" -gt 1 ]]; then
-            echo "[warn] osmium check-refs failed on $src (rc=$rc)"
+            log_error "osmium check-refs failed" "event=check_refs_failed" \
+                "input=$src" "exit_code=$rc" "details=$(osm_failure_details "${TMP_DIR}/check-refs.stderr")"
+            return 2
         fi
     done
     return $any
 }
 
+# Keep counting and reporting identical at every exit, including dry runs.
+function read_missing_ids() {
+    local raw=$1
+    mapfile -t NODE_IDS < <(grep -oE '^n[0-9]+' "$raw" | cut -c2- | sort -un)
+    mapfile -t WAY_IDS  < <(grep -oE '^w[0-9]+' "$raw" | cut -c2- | sort -un)
+    mapfile -t REL_IDS  < <(grep -oE '^r[0-9]+' "$raw" | cut -c2- | sort -un)
+}
+
+function finish_backfill() {
+    local check_rc=$1 raw=$2
+    [[ "$check_rc" -eq 2 ]] && exit 1
+    read_missing_ids "$raw"
+    OSM_LOG_SUMMARY=("remaining_nodes=${#NODE_IDS[@]}" "remaining_ways=${#WAY_IDS[@]}"
+        "remaining_relations=${#REL_IDS[@]}" "passes=$iter" "merge_failed=$MERGE_FAILED")
+    if [[ "$DRY_RUN" -eq 0 && ( "$check_rc" -eq 0 || "$MERGE_FAILED" -ne 0 ) ]]; then
+        OSM_LOG_STATUS=partial
+        exit 2
+    fi
+    exit 0
+}
+
 # ---------------------------------------------------------------------------
 # Main loop
 # ---------------------------------------------------------------------------
-
-echo ""
-echo "[$(ts)] Backfill: detecting dangling references"
-echo "  detect:  ${DETECT_FILES[*]}"
-echo "  targets: ${TARGET_FILES[*]}"
+log_debug "Backfill inputs" "detect=${DETECT_FILES[*]}" "targets=${TARGET_FILES[*]}"
 
 iter=0
+MERGE_FAILED=0
 while ((iter < MAX_ITERS)); do
     iter=$((iter + 1))
 
     MISSING_RAW="${TMP_DIR}/missing.txt"
-    if ! collect_missing "$MISSING_RAW"; then
-        echo "[$(ts)] No dangling references. Geometry is complete."
-        exit 0
+    collect_missing "$MISSING_RAW"
+    CHECK_RC=$?
+    if [[ "$CHECK_RC" -eq 2 ]]; then
+        exit 1
+    elif [[ "$CHECK_RC" -eq 1 ]]; then
+        finish_backfill "$CHECK_RC" "$MISSING_RAW"
     fi
 
-    # Leading char of each "<ref> in <container>" line gives the missing type.
-    mapfile -t NODE_IDS < <(grep -oE '^n[0-9]+' "$MISSING_RAW" | cut -c2- | sort -un)
-    mapfile -t WAY_IDS  < <(grep -oE '^w[0-9]+' "$MISSING_RAW" | cut -c2- | sort -un)
-    mapfile -t REL_IDS  < <(grep -oE '^r[0-9]+' "$MISSING_RAW" | cut -c2- | sort -un)
+    read_missing_ids "$MISSING_RAW"
 
     TOTAL=$(( ${#NODE_IDS[@]} + ${#WAY_IDS[@]} + ${#REL_IDS[@]} ))
-    echo ""
-    echo "[$(ts)] Pass $iter/$MAX_ITERS: ${#NODE_IDS[@]} nodes, ${#WAY_IDS[@]} ways, ${#REL_IDS[@]} relations missing"
+    log_info "Missing references" "event=missing_refs" "pass=$iter" "max_passes=$MAX_ITERS" \
+        "nodes=${#NODE_IDS[@]}" "ways=${#WAY_IDS[@]}" "relations=${#REL_IDS[@]}"
 
     if [[ "$TOTAL" -gt "$WARN_REFS" ]]; then
-        echo "[warn] $TOTAL missing references is unusually large."
-        echo "       If detecting against the main _proposed.osm.pbf, point --detect at the"
-        echo "       sub-PBFs instead, or run a full re-filter (run_all.sh) to correct drift."
+        log_warn "Unusually many missing references; detect against sub-PBFs or run a full re-filter" \
+            "references=$TOTAL" "threshold=$WARN_REFS"
     fi
 
     FETCHED_PBFS=()
@@ -331,12 +361,12 @@ while ((iter < MAX_ITERS)); do
     fetch_type relation "$BATCH_RELS"  1 "${REL_IDS[@]}"
 
     if [[ "$DRY_RUN" -eq 1 ]]; then
-        echo "[dry-run] would merge fetched geometry into: ${TARGET_FILES[*]}"
-        exit 0
+        log_info "Would merge fetched geometry" "targets=${TARGET_FILES[*]}"
+        finish_backfill "$CHECK_RC" "$MISSING_RAW"
     fi
 
     if [[ ${#FETCHED_PBFS[@]} -eq 0 ]]; then
-        echo "[warn] nothing fetched this pass (network failures or deleted upstream); stopping"
+        log_warn "nothing fetched this pass (network failures or deleted upstream); stopping"
         break
     fi
 
@@ -347,17 +377,17 @@ while ((iter < MAX_ITERS)); do
         # one is merged with it.
         if [[ -f "$tgt" ]]; then
             inputs=("$tgt" "${FETCHED_PBFS[@]}")
-            echo "[$(ts)] Merging ${#FETCHED_PBFS[@]} fetched batch(es) into $tgt"
+            log_info "Merging ${#FETCHED_PBFS[@]} fetched batch(es) into $tgt"
         else
             inputs=("${FETCHED_PBFS[@]}")
-            echo "[$(ts)] Creating $tgt from ${#FETCHED_PBFS[@]} fetched batch(es)"
+            log_info "Creating $tgt from ${#FETCHED_PBFS[@]} fetched batch(es)"
         fi
         if osmium merge --overwrite \
             --output-format=pbf,pbf_compression=lz4 \
-            -o "$merged" "${inputs[@]}"; then
-            mv -f "$merged" "$tgt"
+            -o "$merged" "${inputs[@]}" && mv -f "$merged" "$tgt"; then
+            :
         else
-            echo "[warn] osmium merge failed for $tgt; leaving it untouched"
+            log_warn "Could not merge and replace backfill target" "event=merge_failed" "output=$tgt"
             rm -f "$merged"
             MERGE_FAILED=1
         fi
@@ -366,10 +396,7 @@ while ((iter < MAX_ITERS)); do
     [[ "$MERGE_FAILED" -eq 1 ]] && break
 done
 
-# Final report: anything still dangling is left as-is (Python will drop it).
-if collect_missing "${TMP_DIR}/final.txt"; then
-    echo "[$(ts)] Backfill complete, all references resolved."
-else
-    echo "[$(ts)] Backfill done with some references still unresolved (deleted upstream or fetch failures)."
-fi
-exit 0
+# Final detection measures the remaining references rather than assuming every
+# requested object was returned (deleted OSM objects may be omitted by the API).
+collect_missing "${TMP_DIR}/final.txt"
+finish_backfill "$?" "${TMP_DIR}/final.txt"

@@ -34,7 +34,10 @@
 
 set -euo pipefail
 
-trap 'trap - INT TERM; echo "Interrupted, killing child processes..."; kill 0; exit 1' INT TERM
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/osm_log.sh"
+
+trap 'trap - INT TERM; log_warn "Interrupted, killing child processes..."; kill 0; exit 1' INT TERM
 
 # ---------------------------------------------------------------------------
 # Argument parsing
@@ -50,10 +53,10 @@ while [[ $# -gt 0 ]]; do
         --import)      DO_IMPORT=1 ;;
         --no-backfill) DO_BACKFILL=0 ;;
         --dry-run)     DRY_RUN=1 ;;
-        --*)        echo "Unknown flag: $1"; exit 1 ;;
+        --*)        log_error "Unknown flag: $1"; exit 1 ;;
         *)
             if [[ -n "$FILTERED_PBF" ]]; then
-                echo "Unexpected argument: $1"
+                log_error "Unexpected argument: $1"
                 exit 1
             fi
             FILTERED_PBF="$1"
@@ -63,13 +66,12 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$FILTERED_PBF" ]]; then
-    echo "Usage: $0 <planet_proposed.osm.pbf> [--import] [--no-backfill] [--dry-run]"
-    echo ""
-    echo "  <planet_proposed.osm.pbf>  The filtered PBF produced by run_all.sh"
-    echo "                             (the file ending in _proposed.osm.pbf)"
-    echo "  --import                   Run import-osm.ts after extraction"
-    echo "  --no-backfill              Skip geometry backfill for re-tagged elements"
-    echo "  --dry-run                  Print what would be done, do not execute"
+    log_error "Usage: $0 <planet_proposed.osm.pbf> [--import] [--no-backfill] [--dry-run]"
+    log_info "  <planet_proposed.osm.pbf>  The filtered PBF produced by run_all.sh"
+    log_info "                             (the file ending in _proposed.osm.pbf)"
+    log_info "  --import                   Run import-osm.ts after extraction"
+    log_info "  --no-backfill              Skip geometry backfill for re-tagged elements"
+    log_info "  --dry-run                  Print what would be done, do not execute"
     exit 1
 fi
 
@@ -80,21 +82,20 @@ fi
 # (the replication state only advances on success), so the result is correct.
 RECOVER_MERGED="${FILTERED_PBF%.osm.pbf}_updated.osm.pbf"
 if [[ ! -f "$FILTERED_PBF" && -f "$RECOVER_MERGED" ]]; then
-    echo "Warning: $FILTERED_PBF missing, recovering merged file from interrupted run: $RECOVER_MERGED"
+    log_warn "$FILTERED_PBF missing, recovering merged file from interrupted run: $RECOVER_MERGED"
     if [[ "$DRY_RUN" -eq 1 ]]; then
-        echo "[dry-run] mv $RECOVER_MERGED $FILTERED_PBF"
+        log_info "[dry-run] mv $RECOVER_MERGED $FILTERED_PBF"
     else
         mv -f "$RECOVER_MERGED" "$FILTERED_PBF"
     fi
 fi
 
 if [[ ! -f "$FILTERED_PBF" ]]; then
-    echo "Error: file not found: $FILTERED_PBF"
+    log_error "file not found: $FILTERED_PBF"
     exit 1
 fi
 
 FILTERED_PBF="$(realpath "$FILTERED_PBF")"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 WORK_DIR="$(dirname "$FILTERED_PBF")"
 FINAL_PBF="${FILTERED_PBF%.osm.pbf}_updated.osm.pbf"
@@ -103,7 +104,7 @@ FINAL_PBF="${FILTERED_PBF%.osm.pbf}_updated.osm.pbf"
 # here so a mismatched input fails loudly instead of a silent no-op strip
 # producing paths like foo.osm.pbf_proposed_ways.osm.pbf.
 if [[ "$FILTERED_PBF" != *_proposed.osm.pbf ]]; then
-    echo "Error: expected a *_proposed.osm.pbf file (produced by run_all.sh), got: $FILTERED_PBF"
+    log_error "expected a *_proposed.osm.pbf file (produced by run_all.sh), got: $FILTERED_PBF"
     exit 1
 fi
 BASE_PREFIX="${FILTERED_PBF%_proposed.osm.pbf}"
@@ -118,8 +119,8 @@ command -v curl    &>/dev/null || MISSING+=("curl")
 command -v python3 &>/dev/null || MISSING+=("python3")
 
 if [[ ${#MISSING[@]} -gt 0 ]]; then
-    echo "Error: missing required dependencies:"
-    for dep in "${MISSING[@]}"; do echo "  - $dep"; done
+    log_error "missing required dependencies:"
+    for dep in "${MISSING[@]}"; do log_info "  - $dep"; done
     exit 1
 fi
 
@@ -128,13 +129,13 @@ python3 -c "import osmium"  2>/dev/null || MISSING_PY+=("osmium  (pip install os
 python3 -c "import shapely" 2>/dev/null || MISSING_PY+=("shapely  (pip install shapely)")
 
 if [[ ${#MISSING_PY[@]} -gt 0 ]]; then
-    echo "Error: missing required Python packages:"
-    for pkg in "${MISSING_PY[@]}"; do echo "  - $pkg"; done
+    log_error "missing required Python packages:"
+    for pkg in "${MISSING_PY[@]}"; do log_info "  - $pkg"; done
     exit 1
 fi
 
 if [[ "$DO_IMPORT" -eq 1 ]]; then
-    command -v bun &>/dev/null || { echo "Error: bun not found (required for --import)"; exit 1; }
+    command -v bun &>/dev/null || { log_error "bun not found (required for --import)"; exit 1; }
 fi
 
 # ---------------------------------------------------------------------------
@@ -160,9 +161,9 @@ REQUIRED_SPACE_KB=9437184
 AVAILABLE_SPACE_KB=$(df -P -k "$WORK_DIR" | tail -1 | awk '{print $4}')
 
 if [[ "$AVAILABLE_SPACE_KB" -lt "$REQUIRED_SPACE_KB" ]]; then
-    echo "Error: Not enough free disk space in $WORK_DIR."
-    echo "  Available: $((AVAILABLE_SPACE_KB / 1024 / 1024)) GB"
-    echo "  Required:  9 GB"
+    log_error "Not enough free disk space in $WORK_DIR."
+    log_info "  Available: $((AVAILABLE_SPACE_KB / 1024 / 1024)) GB"
+    log_info "  Required:  9 GB"
     exit 1
 fi
 
@@ -170,14 +171,11 @@ fi
 # Helpers
 # ---------------------------------------------------------------------------
 
-function ts()      { date '+%H:%M:%S'; }
-function filesize() { du -sh "$1" 2>/dev/null | cut -f1; }
-
 function run() {
     if [[ "$DRY_RUN" -eq 1 ]]; then
-        echo "[dry-run] $*"
+        log_info "[dry-run] $*"
     else
-        "$@"
+        osm_run "$@"
     fi
 }
 
@@ -191,11 +189,7 @@ function run() {
 #   3. osmosis_replication_timestamp header in the PBF (present on fresh planet downloads,
 #      lost after osmium apply-changes)
 # ---------------------------------------------------------------------------
-
-echo ""
-echo "=========================================================="
-echo "[$(ts)] STEP 1: Reading replication timestamp"
-echo "=========================================================="
+log_debug "STEP 1: Reading replication timestamp"
 
 STATE_FILE="${FILTERED_PBF}.replication-state"
 
@@ -203,33 +197,31 @@ if [[ -f "$STATE_FILE" ]]; then
     # Sidecar file written by a previous run of this script: sequenceNumber=NNN\ntimestamp=...
     REPL_TIMESTAMP=$(grep "^timestamp="      "$STATE_FILE" | cut -d= -f2 | tr -d '[:space:]' || true)
     LAST_SEQNUM=$(   grep "^sequenceNumber=" "$STATE_FILE" | cut -d= -f2 | tr -d '[:space:]' || true)
-    echo "  Source: sidecar state file ($STATE_FILE)"
-    echo "  timestamp:      $REPL_TIMESTAMP"
-    echo "  sequenceNumber: ${LAST_SEQNUM:-(not found)}"
+    REPLICATION_SOURCE=sidecar
+    log_debug "  timestamp:      $REPL_TIMESTAMP"
+    log_debug "  sequenceNumber: ${LAST_SEQNUM:-(not found)}"
 elif [[ -n "${REPL_TIMESTAMP:-}" ]]; then
-    echo "  Source: REPL_TIMESTAMP env var"
-    echo "  timestamp: $REPL_TIMESTAMP"
+    REPLICATION_SOURCE=environment
+    log_debug "  timestamp: $REPL_TIMESTAMP"
 else
     # Fall back to the PBF header (present on fresh planet downloads)
     # osmium fileinfo (without -e) reads only PBF headers. The -e flag would
     # scan every object in the file, which on a multi-GB planet is ~2min wasted.
     FILEINFO=$(osmium fileinfo "$FILTERED_PBF" 2>/dev/null)
     REPL_TIMESTAMP=$(echo "$FILEINFO" | grep -i "osmosis_replication_timestamp" | sed 's/.*= *//' | tr -d '[:space:]' || true)
-    echo "  Source: PBF header"
-    echo "  osmosis_replication_timestamp: ${REPL_TIMESTAMP:-(not found)}"
+    REPLICATION_SOURCE=pbf_header
+    log_debug "  osmosis_replication_timestamp: ${REPL_TIMESTAMP:-(not found)}"
 fi
 
 # The timestamp is only needed to binary-search the starting sequence. When the
 # sidecar carries a sequence number, resumption works without it (a sidecar with
 # a blank timestamp happens when the state.txt fetch failed at the end of a run).
 if [[ -z "$REPL_TIMESTAMP" && -z "${LAST_SEQNUM:-}" ]]; then
-    echo ""
-    echo "ERROR: Could not determine replication timestamp."
-    echo "On the first run after a fresh planet filter this is read from the PBF header."
-    echo "On subsequent runs it is read from the sidecar file: $STATE_FILE"
-    echo ""
-    echo "If the sidecar file is missing, pass the timestamp manually:"
-    echo "  REPL_TIMESTAMP=2026-03-16T01:00:01Z ./update_daily.sh ..."
+    log_error "Could not determine replication timestamp."
+    log_info "On the first run after a fresh planet filter this is read from the PBF header."
+    log_info "On subsequent runs it is read from the sidecar file: $STATE_FILE"
+    log_info "If the sidecar file is missing, pass the timestamp manually:"
+    log_info "  REPL_TIMESTAMP=2026-03-16T01:00:01Z ./update_daily.sh ..."
     exit 1
 fi
 
@@ -241,30 +233,26 @@ fi
 # Each sequence directory contains a .osc.gz diff and a .state.txt file.
 # We binary-search the sequence numbers to find where our PBF timestamp lands.
 # ---------------------------------------------------------------------------
-
-echo ""
-echo "=========================================================="
-echo "[$(ts)] STEP 2: Resolving OSC sequence number for ${REPL_TIMESTAMP:-sidecar sequence ${LAST_SEQNUM:-?}}"
-echo "=========================================================="
+log_debug "STEP 2: Resolving OSC sequence number for ${REPL_TIMESTAMP:-sidecar sequence ${LAST_SEQNUM:-?}}"
 
 REPL_BASE_URL="https://planet.openstreetmap.org/replication/day"
 
 # Fetch the current (latest) state to know the maximum sequence number
 CURRENT_STATE=$(curl -sfL "${REPL_BASE_URL}/state.txt") || true
 if [[ -z "$CURRENT_STATE" ]]; then
-    echo "ERROR: Failed to fetch current replication state from ${REPL_BASE_URL}/state.txt"
-    echo "Check network access or verify the URL is reachable."
+    log_error "Failed to fetch current replication state from ${REPL_BASE_URL}/state.txt"
+    log_info "Check network access or verify the URL is reachable."
     exit 1
 fi
 CURRENT_SEQNUM=$(echo "$CURRENT_STATE" | grep "^sequenceNumber=" | cut -d= -f2 | tr -d '[:space:]' || true)
 CURRENT_TS=$(echo "$CURRENT_STATE"     | grep "^timestamp="      | cut -d= -f2 | tr -d '[:space:]' || true)
 if [[ -z "$CURRENT_SEQNUM" ]]; then
-    echo "ERROR: Could not parse sequenceNumber from state.txt. Got:"
-    echo "$CURRENT_STATE"
+    log_error "Could not parse sequenceNumber from state.txt. Got:"
+    log_info "$CURRENT_STATE"
     exit 1
 fi
 
-echo "  Current replication sequence: $CURRENT_SEQNUM  ($CURRENT_TS)"
+log_debug "  Current replication sequence: $CURRENT_SEQNUM  ($CURRENT_TS)"
 
 # Binary-search helper: given a sequence number, fetch its timestamp from state.txt
 function fetch_seq_timestamp() {
@@ -293,15 +281,15 @@ function ts_to_epoch() {
 if [[ -n "${LAST_SEQNUM:-}" ]]; then
     FOUND_SEQ="$LAST_SEQNUM"
     FOUND_TS=$(fetch_seq_timestamp "$FOUND_SEQ")
-    echo "  Resuming from sidecar sequence: $FOUND_SEQ  ($FOUND_TS)"
+    log_debug "  Resuming from sidecar sequence: $FOUND_SEQ  ($FOUND_TS)"
 else
     PBF_EPOCH=$(ts_to_epoch "$REPL_TIMESTAMP")
     if [[ "$PBF_EPOCH" -eq 0 ]]; then
-        echo "ERROR: Could not parse timestamp: $REPL_TIMESTAMP"
+        log_error "Could not parse timestamp: $REPL_TIMESTAMP"
         exit 1
     fi
-    echo "  PBF timestamp epoch: $PBF_EPOCH"
-    echo "  Binary-searching for matching sequence number..."
+    log_debug "  PBF timestamp epoch: $PBF_EPOCH"
+    log_debug "  Binary-searching for matching sequence number..."
 
     LO=1
     HI="$CURRENT_SEQNUM"
@@ -326,17 +314,21 @@ else
     done
 
     if [[ -z "$FOUND_SEQ" ]]; then
-        echo "ERROR: Could not find a replication sequence <= PBF timestamp."
-        echo "The PBF may be older than the oldest available daily diff."
+        log_error "Could not find a replication sequence <= PBF timestamp."
+        log_info "The PBF may be older than the oldest available daily diff."
         exit 1
     fi
 
     FOUND_TS=$(fetch_seq_timestamp "$FOUND_SEQ")
-    echo "  Matched sequence: $FOUND_SEQ  ($FOUND_TS)"
+    log_debug "  Matched sequence: $FOUND_SEQ  ($FOUND_TS)"
 fi
 
 START_SEQ=$(( FOUND_SEQ + 1 ))
-echo "  Will apply sequences $START_SEQ through $CURRENT_SEQNUM  ($((CURRENT_SEQNUM - START_SEQ + 1)) diffs)"
+TOTAL_DIFFS=$(( CURRENT_SEQNUM > FOUND_SEQ ? CURRENT_SEQNUM - FOUND_SEQ : 0 ))
+OSM_LOG_SUMMARY=("source_sequence=$FOUND_SEQ" "target_sequence=$CURRENT_SEQNUM"
+    "diffs=$TOTAL_DIFFS" "replication_timestamp=$CURRENT_TS" "input=$FILTERED_PBF")
+log_info "Resolved replication range" "event=replication_resolved" \
+    "source=$REPLICATION_SOURCE" "${OSM_LOG_SUMMARY[@]}"
 
 # Nothing to do: PBF is already at the latest published sequence.
 # But verify that extraction artifacts from the previous run are intact: each one
@@ -352,19 +344,23 @@ if [[ "$START_SEQ" -gt "$CURRENT_SEQNUM" ]]; then
               "${BASE_PREFIX}_proposed_linear.geojson" \
               "${BASE_PREFIX}_proposed_areal.geojson"; do
         if [[ ! -s "$_f" || "$_f" -ot "$STATE_FILE" ]]; then
-            echo ""
-            echo "[$(ts)] Sequence is current ($CURRENT_SEQNUM) but $(basename "$_f") is missing, empty, or older than the sidecar."
-            echo "         A previous step 4 likely failed (e.g. OOM). Skipping diff application and re-running extraction."
+            log_warn "Extraction artifact is missing, empty, or older than replication state; rebuilding" \
+                "event=extraction_recovery" "artifact=$_f"
             _ARTIFACTS_OK=0
             break
         fi
     done
     if [[ "$_ARTIFACTS_OK" -eq 1 ]]; then
-        echo ""
-        echo "[$(ts)] Already up to date (sequence $CURRENT_SEQNUM). Nothing to apply."
+        for _step in download apply refilter derive backfill extraction; do
+            osm_step_skip "$_step" already_current
+        done
         if [[ "$DO_IMPORT" -eq 1 ]]; then
-            echo "[$(ts)] Running import-osm.ts on the existing extraction (--import)."
+            osm_step_start import
             run bun run "$REPO_ROOT/back/src/scripts/import-osm.ts"
+            osm_step_end
+        else
+            osm_step_skip import disabled
+            OSM_LOG_STATUS=unchanged
         fi
         exit 0
     fi
@@ -383,47 +379,46 @@ fi
 # so an interrupted run is safe to re-invoke (stale files are cleared below).
 # ---------------------------------------------------------------------------
 
-echo ""
-echo "=========================================================="
-echo "[$(ts)] STEP 3: Downloading and applying OSC diffs"
-echo "=========================================================="
-
 # Phase 1: download every OSC in range.
 OSC_FILES=()
-TOTAL_DIFFS=$(( CURRENT_SEQNUM - START_SEQ + 1 ))
-for SEQ in $(seq "$START_SEQ" "$CURRENT_SEQNUM"); do
-    PADDED=$(printf "%09d" "$SEQ")
-    P1="${PADDED:0:3}"
-    P2="${PADDED:3:3}"
-    P3="${PADDED:6:3}"
-    OSC_URL="${REPL_BASE_URL}/${P1}/${P2}/${P3}.osc.gz"
-    OSC_FILE="${WORK_DIR}/daily_diff_${PADDED}.osc.gz"
+if [[ "$TOTAL_DIFFS" -gt 0 ]]; then
+    osm_step_start download "diffs=$TOTAL_DIFFS"
+    for SEQ in $(seq "$START_SEQ" "$CURRENT_SEQNUM"); do
+        PADDED=$(printf "%09d" "$SEQ")
+        P1="${PADDED:0:3}"
+        P2="${PADDED:3:3}"
+        P3="${PADDED:6:3}"
+        OSC_URL="${REPL_BASE_URL}/${P1}/${P2}/${P3}.osc.gz"
+        OSC_FILE="${WORK_DIR}/daily_diff_${PADDED}.osc.gz"
 
-    echo "[$(ts)] Downloading sequence $SEQ / $CURRENT_SEQNUM"
-    echo "  $OSC_URL"
-    run curl -sfL -o "$OSC_FILE" "$OSC_URL" || {
-        echo "ERROR: Failed to download $OSC_URL"
-        exit 1
-    }
-    if [[ "$DRY_RUN" -eq 0 ]]; then
-        echo "  Downloaded: $(filesize "$OSC_FILE")"
-    fi
-    OSC_FILES+=("$OSC_FILE")
-done
+        log_debug "Downloading diff" "sequence=$SEQ" "url=$OSC_URL"
+        run curl -sfL -o "$OSC_FILE" "$OSC_URL" || {
+            log_error "Failed to download $OSC_URL"
+            exit 1
+        }
+        if [[ "$DRY_RUN" -eq 0 ]]; then
+            log_info "Downloaded diff" "event=diff_downloaded" "sequence=$SEQ" \
+                "size_bytes=$(wc -c < "$OSC_FILE" | tr -d '[:space:]')"
+        fi
+        OSC_FILES+=("$OSC_FILE")
+    done
+    osm_step_end
+else
+    osm_step_skip download no_new_diffs
+fi
 
 # Phase 2: apply all diffs in one osmium call.
 # Skipped when falling through from the "already up to date but extraction
 # incomplete" path (no new diffs exist, so there is nothing to merge).
 if [[ ${#OSC_FILES[@]} -gt 0 ]]; then
-    echo ""
-    echo "[$(ts)] Applying $TOTAL_DIFFS diff(s) to $FILTERED_PBF"
-    echo "  Output: $FINAL_PBF"
+    osm_step_start apply "input=$FILTERED_PBF" "output=$FINAL_PBF" "diffs=$TOTAL_DIFFS"
     run osmium apply-changes \
         --overwrite \
         --output-format=pbf,pbf_compression=lz4 \
         -o "$FINAL_PBF" \
         "$FILTERED_PBF" \
         "${OSC_FILES[@]}"
+    osm_step_end
 
     # $FINAL_PBF now holds everything in $FILTERED_PBF plus the diffs, so the
     # original is redundant. Drop it before the re-filter pass so peak disk stays
@@ -434,12 +429,11 @@ if [[ ${#OSC_FILES[@]} -gt 0 ]]; then
     # apply-changes merges every changed object from the diffs, filtered or not.
     # Re-filter (same rules as filter_combined.sh step 1) so the PBF only keeps
     # matching objects and does not grow with unrelated planet data on every run.
-    echo ""
-    echo "[$(ts)] Re-filtering merged PBF to drop non-matching diff objects"
+    osm_step_start refilter "input=$FINAL_PBF"
     REFILTER_RULES="${WORK_DIR}/.osmium_filters_$$.txt"
     REFILTERED_PBF="${FILTERED_PBF%.osm.pbf}_refiltered.osm.pbf"
     if [[ "$DRY_RUN" -eq 1 ]]; then
-        echo "[dry-run] build_combined_filters.sh > $REFILTER_RULES"
+        log_info "[dry-run] build_combined_filters.sh > $REFILTER_RULES"
     else
         "$SCRIPT_DIR/build_combined_filters.sh" > "$REFILTER_RULES"
     fi
@@ -451,6 +445,7 @@ if [[ ${#OSC_FILES[@]} -gt 0 ]]; then
         -e "$REFILTER_RULES"
     run rm -f "$REFILTER_RULES"
     run mv -f "$REFILTERED_PBF" "$FINAL_PBF"
+    osm_step_end
 
     # Phase 3: clean up the OSCs now that they're baked into $FINAL_PBF.
     if [[ "$DRY_RUN" -eq 0 ]]; then
@@ -462,8 +457,8 @@ if [[ ${#OSC_FILES[@]} -gt 0 ]]; then
     # of the file it describes.
     run mv -f "$FINAL_PBF" "$FILTERED_PBF"
     if [[ "$DRY_RUN" -eq 0 ]]; then
-        echo ""
-        echo "[$(ts)] Final updated PBF: $FILTERED_PBF  ($(filesize "$FILTERED_PBF"))"
+        log_info "Updated subset PBF" "event=artifact_written" "output=$FILTERED_PBF" \
+            "size_bytes=$(wc -c < "$FILTERED_PBF" | tr -d '[:space:]')"
     fi
 
     # Write sidecar state file so the next run knows where to resume.
@@ -472,22 +467,19 @@ if [[ ${#OSC_FILES[@]} -gt 0 ]]; then
     FINAL_SEQ_TS=$(fetch_seq_timestamp "$CURRENT_SEQNUM")
     if [[ "$DRY_RUN" -eq 0 ]]; then
         printf "sequenceNumber=%s\ntimestamp=%s\n" "$CURRENT_SEQNUM" "$FINAL_SEQ_TS" > "$STATE_FILE"
-        echo "[$(ts)] Saved replication state to $STATE_FILE (seq=$CURRENT_SEQNUM, ts=$FINAL_SEQ_TS)"
+        log_info "Saved replication state" "event=replication_saved" "state_file=$STATE_FILE" \
+            "sequence=$CURRENT_SEQNUM" "timestamp=$FINAL_SEQ_TS"
     else
-        echo "[dry-run] write $STATE_FILE: sequenceNumber=$CURRENT_SEQNUM timestamp=$FINAL_SEQ_TS"
+        log_info "[dry-run] write $STATE_FILE: sequenceNumber=$CURRENT_SEQNUM timestamp=$FINAL_SEQ_TS"
     fi
 else
-    echo "[$(ts)] No new diffs to apply, re-running extraction from existing PBF."
+    osm_step_skip apply no_new_diffs
+    osm_step_skip refilter no_new_diffs
 fi
 
 # ---------------------------------------------------------------------------
 # Step 4: Derive ways/areal/relations sub-PBFs and run Python extraction
 # ---------------------------------------------------------------------------
-
-echo ""
-echo "=========================================================="
-echo "[$(ts)] STEP 4: Deriving sub-PBFs + Python extraction"
-echo "=========================================================="
 
 # BASE_PREFIX = /path/to/<base> (the _proposed.osm.pbf suffix stripped near the top)
 WAYS_PBF="${BASE_PREFIX}_proposed_ways.osm.pbf"
@@ -499,10 +491,11 @@ AREAL_GEOJSON="${BASE_PREFIX}_proposed_areal.geojson"
 # Split the caught-up subset into the focused files the Python extraction reads.
 # derive_subpbfs.sh is the single source of truth for this step (also runnable
 # standalone to rebuild the sub-PBFs while iterating on the Python extraction).
-echo ""
 DERIVE_DRY=""
 [[ "$DRY_RUN" -eq 1 ]] && DERIVE_DRY="--dry-run"
-"$SCRIPT_DIR/derive_subpbfs.sh" "$FILTERED_PBF" $DERIVE_DRY
+osm_step_start derive
+osm_run "$SCRIPT_DIR/derive_subpbfs.sh" "$FILTERED_PBF" $DERIVE_DRY
+osm_step_end
 
 # Backfill geometry for construction elements re-tagged by the diffs. Their
 # unchanged nodes/members were never in the filtered PBF, so they would be dropped
@@ -517,23 +510,33 @@ DERIVE_DRY=""
 # re-filter (run_all.sh) overwrites the main PBF from a fresh planet that already
 # carries complete geometry. Best-effort: a failure here never aborts the run.
 if [[ "$DO_BACKFILL" -eq 1 ]]; then
-    echo ""
-    echo "[$(ts)] Backfilling geometry for re-tagged construction elements"
+    osm_step_start backfill
+    BACKFILL_RC=0
 
     BACKFILL_DRY=""
     [[ "$DRY_RUN" -eq 1 ]] && BACKFILL_DRY="--dry-run"
-    "$SCRIPT_DIR/backfill_geometry.sh" \
+    osm_run "$SCRIPT_DIR/backfill_geometry.sh" \
         "$WAYS_PBF" "$AREAL_PBF" "$FILTERED_PBF" \
         --detect "$WAYS_PBF" --detect "$AREAL_PBF" \
         $BACKFILL_DRY \
-        || echo "[$(ts)] WARNING: backfill step failed, continuing with available geometry."
+        || BACKFILL_RC=$?
+    case "$BACKFILL_RC" in
+        0) BACKFILL_STATUS=success ;;
+        2) BACKFILL_STATUS=partial ;;
+        *) BACKFILL_STATUS=failed ;;
+    esac
+    if [[ "$BACKFILL_RC" -ne 0 ]]; then
+        OSM_LOG_STATUS=partial
+        log_warn "Continuing with incomplete backfill" "event=backfill_incomplete" \
+            "status=$BACKFILL_STATUS" "exit_code=$BACKFILL_RC"
+    fi
+    osm_step_end "$BACKFILL_STATUS"
+    OSM_LOG_SUMMARY+=("backfill_status=$BACKFILL_STATUS")
 else
-    echo ""
-    echo "[$(ts)] Skipping geometry backfill (--no-backfill)."
+    osm_step_skip backfill disabled
+    OSM_LOG_SUMMARY+=("backfill_status=skipped")
 fi
-
-echo ""
-echo "[$(ts)] Running Python extraction (linear + areal in parallel)"
+osm_step_start extraction "workers=2"
 run python3 "$SCRIPT_DIR/extract_linear_topo.py" \
     --ways-file "$WAYS_PBF" \
     --source-file "$RELATIONS_PBF" \
@@ -551,26 +554,18 @@ RC_LINEAR=0
 RC_AREAL=0
 wait $PID_LINEAR || RC_LINEAR=$?
 wait $PID_AREAL  || RC_AREAL=$?
-[[ "$RC_LINEAR" -eq 0 ]] || { echo "ERROR: linear extraction failed"; exit 1; }
-[[ "$RC_AREAL"  -eq 0 ]] || { echo "ERROR: areal extraction failed";  exit 1; }
+[[ "$RC_LINEAR" -eq 0 ]] || { log_error "Extractor failed" "worker=linear" "exit_code=$RC_LINEAR"; exit 1; }
+[[ "$RC_AREAL"  -eq 0 ]] || { log_error "Extractor failed" "worker=areal" "exit_code=$RC_AREAL"; exit 1; }
+osm_step_end
 
 # ---------------------------------------------------------------------------
 # Step 5: DB import (optional)
 # ---------------------------------------------------------------------------
 
 if [[ "$DO_IMPORT" -eq 1 ]]; then
-    echo ""
-    echo "=========================================================="
-    echo "[$(ts)] STEP 5: Running import-osm.ts"
-    echo "=========================================================="
+    osm_step_start import
     run bun run "$REPO_ROOT/back/src/scripts/import-osm.ts"
+    osm_step_end
 else
-    echo ""
-    echo "[$(ts)] Skipping DB import (pass --import to enable)."
-    echo "  Run manually: bun run back/src/scripts/import-osm.ts"
+    osm_step_skip import disabled
 fi
-
-echo ""
-echo "=========================================================="
-echo "[$(ts)] ALL DONE"
-echo "=========================================================="
