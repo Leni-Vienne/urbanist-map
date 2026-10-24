@@ -8,8 +8,7 @@ spec:
   cursorSync: "Off"
   description:
     Daily OSM updates from structured logfmt script events and systemd journal messages. Requires the grafanacloud-logs
-    Loki data source and JOURNAL_UNIT=osm-update.service on one Alloy stack. Charts show the last reported value in each display interval; they do not join lines into
-    runs. See docs/GRAFANA_OSM.md for setup and limitations.
+    Loki data source and JOURNAL_UNIT=osm-update.service on one Alloy stack. Charts show history across the selected time range, connecting reported samples with visible markers. They do not join events into runs. See docs/GRAFANA_OSM.md for setup and limitations.
   editable: true
   elements:
     panel-4:
@@ -65,10 +64,11 @@ spec:
                 color:
                   mode: palette-classic
                 custom:
-                  drawStyle: points
+                  drawStyle: line
+                  lineWidth: 2
                   pointSize: 6
                   showPoints: always
-                  spanNulls: false
+                  spanNulls: true
                   axisCenteredZero: false
                   axisPlacement: auto
                   fillOpacity: 0
@@ -134,32 +134,6 @@ spec:
                           |= "Finished " |= ".geojson. Inserted:"
                           | regexp `Finished (?P<file>[^/ ]+[.]geojson)[.] Inserted: (?P<inserted>[0-9]+), unchanged: (?P<unchanged>[0-9]+), skipped: (?P<skipped>[0-9]+)`
                           | file!=""
-                          | unwrap unchanged
-                          | __error__="" [$__interval]
-                        ) by (file)
-                      instant: false
-                      legendFormat: "{{file}} / unchanged"
-                      queryType: range
-                      range: true
-                    version: v0
-                  refId: B
-              - kind: PanelQuery
-                spec:
-                  hidden: false
-                  query:
-                    datasource:
-                      name: grafanacloud-logs
-                    group: loki
-                    kind: DataQuery
-                    spec:
-                      direction: backward
-                      editorMode: code
-                      expr: |-
-                        last_over_time(
-                          {service="osm-update"}
-                          |= "Finished " |= ".geojson. Inserted:"
-                          | regexp `Finished (?P<file>[^/ ]+[.]geojson)[.] Inserted: (?P<inserted>[0-9]+), unchanged: (?P<unchanged>[0-9]+), skipped: (?P<skipped>[0-9]+)`
-                          | file!=""
                           | unwrap skipped
                           | __error__="" [$__interval]
                         ) by (file)
@@ -168,12 +142,12 @@ spec:
                       queryType: range
                       range: true
                     version: v0
-                  refId: C
+                  refId: B
             queryOptions:
               interval: 1h
             transformations: []
         description:
-          Last reported file summary in each display interval. Inserted is the importer's label for upserts
+          Last reported new/changed and skipped counts per file in each display interval. Inserted is the importer's label for upserts
           of new or changed features, not strictly newly created projects. Duplicate IDs can be processed repeatedly;
           successful file processing does not prove final import completion.
         id: 6
@@ -190,10 +164,11 @@ spec:
                 color:
                   mode: palette-classic
                 custom:
-                  drawStyle: points
+                  drawStyle: line
+                  lineWidth: 2
                   pointSize: 6
                   showPoints: always
-                  spanNulls: false
+                  spanNulls: true
                   axisCenteredZero: false
                   axisPlacement: auto
                   fillOpacity: 0
@@ -262,10 +237,11 @@ spec:
                 color:
                   mode: palette-classic
                 custom:
-                  drawStyle: points
+                  drawStyle: line
+                  lineWidth: 2
                   pointSize: 6
                   showPoints: always
-                  spanNulls: false
+                  spanNulls: true
                   axisCenteredZero: false
                   axisPlacement: auto
                   fillOpacity: 0
@@ -335,10 +311,11 @@ spec:
                 color:
                   mode: palette-classic
                 custom:
-                  drawStyle: points
+                  drawStyle: line
+                  lineWidth: 2
                   pointSize: 6
                   showPoints: always
-                  spanNulls: false
+                  spanNulls: true
                   axisCenteredZero: false
                   axisPlacement: auto
                   fillOpacity: 0
@@ -625,10 +602,11 @@ spec:
                 color:
                   mode: palette-classic
                 custom:
-                  drawStyle: points
+                  drawStyle: line
+                  lineWidth: 2
                   pointSize: 6
                   showPoints: always
-                  spanNulls: false
+                  spanNulls: true
                   axisCenteredZero: false
                   axisPlacement: auto
                   fillOpacity: 0
@@ -727,10 +705,11 @@ spec:
                 color:
                   mode: palette-classic
                 custom:
-                  drawStyle: points
+                  drawStyle: line
+                  lineWidth: 2
                   pointSize: 6
                   showPoints: always
-                  spanNulls: false
+                  spanNulls: true
                   axisCenteredZero: false
                   axisPlacement: auto
                   fillOpacity: 0
@@ -801,10 +780,11 @@ spec:
                 color:
                   mode: palette-classic
                 custom:
-                  drawStyle: points
+                  drawStyle: line
+                  lineWidth: 2
                   pointSize: 6
                   showPoints: always
-                  spanNulls: false
+                  spanNulls: true
                   axisCenteredZero: false
                   axisPlacement: auto
                   fillOpacity: 0
@@ -875,10 +855,11 @@ spec:
                 color:
                   mode: palette-classic
                 custom:
-                  drawStyle: points
+                  drawStyle: line
+                  lineWidth: 2
                   pointSize: 6
                   showPoints: always
-                  spanNulls: false
+                  spanNulls: true
                   axisCenteredZero: false
                   axisPlacement: auto
                   fillOpacity: 0
@@ -932,9 +913,8 @@ spec:
             transformations: []
         description:
           Optional resource monitor RSS summary for Python, Bun, osmium, Postgres and Java. Names identify
-          processes across the host, not a particular extractor or container. Stacked lines connect reported peaks;
-          markers identify actual samples. Peaks need not occur together, so the stack height is not a measured
-          simultaneous memory total.
+          processes across the host, not a particular extractor or container. Lines connect reported peaks;
+          markers identify actual samples. Peaks need not occur together and are not added together.
         id: 17
         links: []
         title: Reported process RSS peaks
@@ -956,11 +936,8 @@ spec:
                   spanNulls: true
                   axisCenteredZero: false
                   axisPlacement: auto
-                  fillOpacity: 60
+                  fillOpacity: 0
                   lineWidth: 1
-                  stacking:
-                    mode: normal
-                    group: A
                 min: 0
               overrides: []
             options:
@@ -1055,10 +1032,11 @@ spec:
                 color:
                   mode: palette-classic
                 custom:
-                  drawStyle: points
+                  drawStyle: line
+                  lineWidth: 2
                   pointSize: 6
                   showPoints: always
-                  spanNulls: false
+                  spanNulls: true
                   axisCenteredZero: false
                   axisPlacement: auto
                   fillOpacity: 0
@@ -1155,10 +1133,11 @@ spec:
                 color:
                   mode: palette-classic
                 custom:
-                  drawStyle: points
+                  drawStyle: line
+                  lineWidth: 2
                   pointSize: 6
                   showPoints: always
-                  spanNulls: false
+                  spanNulls: true
                   axisCenteredZero: false
                   axisPlacement: auto
                   fillOpacity: 0

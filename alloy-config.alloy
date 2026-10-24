@@ -95,3 +95,12 @@ loki.source.journal "osm" {
   labels     = { job = "systemd-journal", service = "osm-update" }
   forward_to = [loki.write.default.receiver]
 }
+
+// PID 1 logs about the unit with UNIT, rather than logging from inside its
+// _SYSTEMD_UNIT. Collect its accounting and diagnostics separately from stdout.
+loki.source.journal "osm_manager" {
+  path       = "/var/log/journal"
+  matches    = "UNIT=" + coalesce(env("JOURNAL_UNIT"), "unset.service") + " _PID=1"
+  labels     = { job = "systemd-journal", service = "osm-update" }
+  forward_to = [loki.write.default.receiver]
+}
