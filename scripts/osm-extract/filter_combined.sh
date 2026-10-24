@@ -32,11 +32,9 @@ if [[ "$SOURCE" != *.osm.pbf ]]; then
 fi
 OUTPUT="${SOURCE%.osm.pbf}_proposed.osm.pbf"
 
-NPROC=$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 4)
-
 log_info "Filter configuration" "input=$SOURCE" "output=$OUTPUT" \
     "input_size_bytes=$(wc -c < "$SOURCE" | tr -d '[:space:]')" \
-    "threads=$NPROC" "compression=lz4"
+    "compression=lz4"
 osm_step_start filter
 
 COMBINED_FILTERS="$(dirname "$OUTPUT")/.osmium_filters_$$.txt"
@@ -45,7 +43,6 @@ trap 'rc=$?; rm -f "$COMBINED_FILTERS"; osm_log_exit "$rc"' EXIT
 
 osm_run osmium tags-filter \
     --overwrite \
-    --input-format=pbf,num_threads="$NPROC" \
     --output-format=pbf,pbf_compression=lz4 \
     -o "$OUTPUT" \
     "$SOURCE" \

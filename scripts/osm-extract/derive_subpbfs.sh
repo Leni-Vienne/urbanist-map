@@ -54,7 +54,6 @@ command -v osmium &>/dev/null || { log_error "osmium not found"; exit 1; }
 SOURCE="$(realpath "$SOURCE")"
 LINEAR_FILTERS="$SCRIPT_DIR/linear_filters.txt"
 AREAL_FILTERS="$SCRIPT_DIR/areal_filters.txt"
-NPROC=$(nproc 2>/dev/null || sysctl -n hw.logicalcpu 2>/dev/null || echo 4)
 
 function run()      { if [[ "$DRY_RUN" -eq 1 ]]; then log_info "[dry-run] $*"; else osm_run "$@"; fi; }
 
@@ -63,14 +62,18 @@ WAYS_PBF="${BASE_PREFIX}_proposed_ways.osm.pbf"
 AREAL_PBF="${BASE_PREFIX}_proposed_areal.osm.pbf"
 RELATIONS_PBF="${BASE_PREFIX}_proposed_relations.osm.pbf"
 
-osm_step_start derive "input=$SOURCE" "workers=3"
-run osmium tags-filter --overwrite --input-format=pbf,num_threads="$NPROC" \
+# libosmium's PBF parser uses a pool per process: OSMIUM_POOL_THREADS, default
+# nproc-2 (4 on the 6-core host). Four per worker benchmarked faster than
+# 1/2/3/6/8 for these three concurrent workers. `num_threads` is not an osmium
+# option; it is silently ignored, so do not pass it.
+osm_step_start derive "input=$SOURCE" "workers=3" "pool=${OSMIUM_POOL_THREADS:-auto}"
+run osmium tags-filter --overwrite --input-format=pbf \
     -o "$WAYS_PBF" "$SOURCE" -e "$LINEAR_FILTERS" &
 PID_WAYS=$!
-run osmium tags-filter --overwrite --input-format=pbf,num_threads="$NPROC" \
+run osmium tags-filter --overwrite --input-format=pbf \
     -o "$AREAL_PBF" "$SOURCE" -e "$AREAL_FILTERS" &
 PID_AREAL=$!
-run osmium cat --overwrite --input-format=pbf,num_threads="$NPROC" \
+run osmium cat --overwrite --input-format=pbf \
     --object-type=relation -o "$RELATIONS_PBF" "$SOURCE" &
 PID_REL=$!
 # Collect all statuses before failing, so one job failing does not leave the

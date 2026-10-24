@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Weekly incremental update for the proposed/construction OSM extract.
+# Daily incremental update for the proposed/construction OSM extract.
 #
-# Instead of re-filtering the full planet PBF (~30-40 min), this script:
+# Instead of rebuilding from a planet PBF (~30-40 min), this script:
 #   1. Determines the replication sequence number from the existing filtered PBF
 #   2. Downloads matching daily OSC diffs from planet.osm.org/replication/day/
 #   3. Applies each diff in sequence to the filtered PBF via osmium apply-changes
@@ -9,20 +9,22 @@
 #   5. Runs the Python feature extraction (~3-5min)
 #   6. Runs the DB import (import-osm.ts)
 #
-# Note: planet.osm.org publishes weekly full planet dumps (.osm.bz2) but OSC
-# change files are only available at daily (and finer) granularity. Running
+# Note: planet.osm.org publishes full planet dumps only periodically, but OSC
+# change files are available at daily (and finer) granularity. Running
 # this script after 3 weeks of inactivity will download and chain 21 daily
 # diffs (~50-100MB each, ~1.5GB total), still much less than re-downloading
 # the planet.
 #
-# Total expected time per week of catchup: ~5min (~10-15min for a typical run).
+# Total expected time: ~25-30 min for a normal one-diff run (including
+# extraction and import), longer for catch-up runs.
 #
 # Elements that gain proposed/construction tags for the first time (i.e.,
 # pre-existing OSM ways/relations that get re-tagged) arrive in the diff with
 # their tags but not their unchanged nodes/members, which were never in the
 # filtered PBF. backfill_geometry.sh resolves those dangling references from the
-# OSM/Overpass API after the diffs are applied. A monthly full re-filter
-# (run_all.sh on a fresh planet.osm.pbf) remains useful to correct larger drift.
+# OSM/Overpass API after the diffs are applied. This is the only repair path for
+# missing geometry, so a backfill failure is a real failure, not something to
+# defer.
 #
 # Usage:
 #   ./update_daily.sh <planet_proposed.osm.pbf> [--import] [--no-backfill] [--dry-run]
@@ -506,9 +508,9 @@ osm_step_end
 # Fetched geometry is merged into the sub-PBFs (so the current run's Python
 # extraction sees it) and into the main PBF (so it persists). The next re-derive
 # keeps objects referenced by matching ways, so the baked-in nodes flow back into
-# the freshly rebuilt sub-PBFs and detection only finds the new delta. A full
-# re-filter (run_all.sh) overwrites the main PBF from a fresh planet that already
-# carries complete geometry. Best-effort: a failure here never aborts the run.
+# the freshly rebuilt sub-PBFs and detection only finds the new delta. Merging
+# into the main PBF is what makes the fetched geometry survive future runs.
+# Best-effort: a failure here never aborts the run.
 if [[ "$DO_BACKFILL" -eq 1 ]]; then
     osm_step_start backfill
     BACKFILL_RC=0

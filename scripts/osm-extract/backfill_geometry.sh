@@ -80,7 +80,7 @@ CURL_TIMEOUT=300
 OV_SLEEP=1
 OV_RETRIES=3
 # Above this many missing references the delta is suspicious; we still proceed but
-# suggest a full re-filter (run_all.sh) to correct any larger drift.
+# log a warning so the failure stays visible.
 WARN_REFS=100000
 
 UA="UrbanistMap-backfill/1.0 (osm-extract daily geometry backfill)"
@@ -349,7 +349,7 @@ while ((iter < MAX_ITERS)); do
         "nodes=${#NODE_IDS[@]}" "ways=${#WAY_IDS[@]}" "relations=${#REL_IDS[@]}"
 
     if [[ "$TOTAL" -gt "$WARN_REFS" ]]; then
-        log_warn "Unusually many missing references; detect against sub-PBFs or run a full re-filter" \
+        log_warn "Unusually many missing references; check the backfill inputs and replication state" \
             "references=$TOTAL" "threshold=$WARN_REFS"
     fi
 

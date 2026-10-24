@@ -19,7 +19,7 @@ Must be run inside WSL (Windows Subsystem for Linux) or a native Linux environme
 
 There are two entry points:
 
-- **`run_all.sh`** , one-shot bootstrap from a fresh planet/region download. Filters
+- **`run_all.sh`** , one-shot initial bootstrap from a fresh planet/region download. Filters
   the planet to the construction subset, then hands off to `update_daily.sh` to catch
   up to today, extract, and (optionally) import. Use it the first time or to rebuild
   from scratch.
@@ -79,7 +79,7 @@ If the source file is on a Windows drive (`/mnt/d/...`), the script works but WS
 | Stage              | Script                                  | Duration (planet) |
 | ------------------ | --------------------------------------- | ----------------- |
 | filter             | `filter_combined.sh` (via `run_all.sh`) | ~30-40 min        |
-| catch-up + extract | `update_daily.sh`                       | ~10-15 min        |
+| catch-up + extract | `update_daily.sh`                       | ~25-30 min        |
 
 `filter_combined.sh` only produces the construction subset PBF; deriving the sub-PBFs
 and running `extract_linear_topo.py` + `extract_areal_buildings.py` happens inside
@@ -94,9 +94,9 @@ extraction (geometry backfilled into the subset PBF flows through automatically)
 ./derive_subpbfs.sh planet-latest_proposed.osm.pbf
 ```
 
-## Weekly incremental updates
+## Daily incremental updates
 
-`update_daily.sh` applies OSM daily diffs to an existing subset PBF instead of re-filtering the full planet. This turns a ~30-40 min full re-filter into a ~10-15 min incremental run.
+`update_daily.sh` applies OSM daily diffs to an existing subset PBF instead of rebuilding from a planet download. A normal one-diff run currently takes roughly 25-30 minutes including extraction and import; a catch-up run takes longer.
 
 ```bash
 # Extract + import in one go
@@ -112,7 +112,7 @@ extraction (geometry backfilled into the subset PBF flows through automatically)
 ./update_daily.sh --dry-run planet-latest_proposed.osm.pbf
 ```
 
-The script reads the `osmosis_replication_timestamp` from the PBF header (set automatically when filtering from an official planet download), binary-searches the daily replication feed at `planet.openstreetmap.org/replication/day/` to find the matching sequence, downloads and chains all daily diffs since that point, then derives the sub-PBFs and runs the extraction on the result.
+The script reads the last applied sequence from the `*.replication-state` sidecar (falling back to the PBF header on a fresh filter), resolves the current daily sequence from `planet.openstreetmap.org/replication/day/`, downloads and chains all daily diffs since that point, then derives the sub-PBFs and runs the extraction on the result.
 
 ### Geometry backfill
 
@@ -141,10 +141,9 @@ The fetched geometry is merged into both the sub-PBFs (so the current run's Pyth
 extraction sees it) and the main `*_proposed.osm.pbf` (so it persists). The next
 re-derive keeps objects referenced by matching ways, so the baked-in nodes flow
 back into the freshly rebuilt sub-PBFs and detection only finds the new delta.
-Merging into the multi-GB main PBF is a streaming, page-cached osmium merge that
-costs a couple of seconds, the same as the sub-PBFs. A full `run_all.sh` re-filter
-overwrites the main PBF from a fresh planet that already carries complete geometry,
-so no stale state accumulates.
+The main-PBF merge is a full rewrite of the multi-GB file and dominates the
+backfill step; it is the price of persisting the geometry so future runs do not
+have to fetch it again.
 
 `backfill_geometry.sh` takes one or more merge targets and optional `--detect`
 sources (defaulting to the first target). A target that does not exist yet is
@@ -197,6 +196,13 @@ Standalone backfill exits 0 when complete, 2 when partial, and 1 on failure.
 geometry, and records `status=partial` on completion. A later fatal failure takes
 precedence. Partial daily runs still exit zero so systemd can restart the backend.
 `run_all.sh` hands off to the daily updater for the final outcome.
+
+`osmium tags-filter` re-reads its input to discover referenced objects: two
+passes for the linear/ways filter and four for the areal and combined filters.
+That pass count, not the thread count, dominates the osmium phases. PBF parsing
+uses libosmium's thread pool (`OSMIUM_POOL_THREADS`, default `nproc-2`); there is
+no `num_threads` input-format option, and unknown format options are silently
+ignored.
 
 For optimization, each measured pipeline phase reports:
 
