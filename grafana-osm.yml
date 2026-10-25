@@ -430,10 +430,19 @@ spec:
                         last_over_time(
                           {service="osm-update"}
                           | logfmt
-                          | component="update_daily" | event="step_completed" | dry_run="0"
+                          | component="update_daily" | event=~"step_completed|step_skipped" | dry_run="0"
                           | step=~"download|apply|refilter|derive|backfill|extraction|import"
+                          | label_format step=`{{- if eq .step "download" -}}1. Download diffs
+                            {{- else if eq .step "apply" -}}2. Apply diffs
+                            {{- else if eq .step "refilter" -}}3. Re-filter subset
+                            {{- else if eq .step "derive" -}}4. Derive sub-PBFs
+                            {{- else if eq .step "backfill" -}}5. Backfill geometry
+                            {{- else if eq .step "extraction" -}}6. Extract GeoJSON
+                            {{- else if eq .step "import" -}}7. Import database
+                            {{- end -}}`
+                          | label_format duration_seconds=`{{ if eq .event "step_skipped" }}0{{ else }}{{ .duration_seconds }}{{ end }}`
                           | unwrap duration_seconds
-                          | __error__="" [$__interval]
+                          | __error__="" [$__auto]
                         ) by (step)
                       instant: false
                       legendFormat: "{{step}}"
@@ -443,15 +452,13 @@ spec:
                   refId: A
             queryOptions:
               interval: 1h
-            # Join into one frame, then order its fields. Legend sorting alone does
-            # not control stacking. Missing/skipped steps retain their relative order.
+            # Align timestamps before ordering the final fields used for stacking.
             transformations:
               - kind: Transformation
-                group: joinByField
+                group: prepareTimeSeries
                 spec:
                   options:
-                    mode: outer
-                    byField: Time
+                    format: wide
               - kind: Transformation
                 group: organize
                 spec:
@@ -459,25 +466,18 @@ spec:
                     excludeByName: {}
                     indexByName:
                       Time: 0
-                      download: 1
-                      apply: 2
-                      refilter: 3
-                      derive: 4
-                      backfill: 5
-                      extraction: 6
-                      import: 7
-                    renameByName:
-                      download: 1. Download diffs
-                      apply: 2. Apply diffs
-                      refilter: 3. Re-filter subset
-                      derive: 4. Derive sub-PBFs
-                      backfill: 5. Backfill geometry
-                      extraction: 6. Extract GeoJSON
-                      import: 7. Import database
+                      1. Download diffs: 1
+                      2. Apply diffs: 2
+                      3. Re-filter subset: 3
+                      4. Derive sub-PBFs: 4
+                      5. Backfill geometry: 5
+                      6. Extract GeoJSON: 6
+                      7. Import database: 7
+                    renameByName: {}
         description:
           "Reported pipeline phase durations, stacked in execution order from bottom to top:
           download, apply, re-filter, derive, backfill, extraction, import. Extraction measures wall
-          time for both parallel workers together. Skipped steps have no report; dry runs are excluded.
+          time for both parallel workers together. Explicitly skipped steps contribute zero; dry runs are excluded.
           Values are the latest per phase within each display interval and may come from different
           retries. Stack height excludes setup and backend restart. Markers show observations;
           lines connect across gaps. Backfill remains best-effort; inspect warnings for failures."
@@ -493,7 +493,7 @@ spec:
                 unit: s
                 noValue: No matching logs
                 color:
-                  mode: palette-classic
+                  mode: palette-classic-by-name
                 custom:
                   drawStyle: line
                   lineInterpolation: linear
@@ -975,9 +975,17 @@ spec:
                           | logfmt
                           | component="update_daily" | event="step_completed" | dry_run="0"
                           | step=~"download|apply|refilter|derive|backfill|extraction|import"
+                          | label_format step=`{{- if eq .step "download" -}}1. Download diffs
+                            {{- else if eq .step "apply" -}}2. Apply diffs
+                            {{- else if eq .step "refilter" -}}3. Re-filter subset
+                            {{- else if eq .step "derive" -}}4. Derive sub-PBFs
+                            {{- else if eq .step "backfill" -}}5. Backfill geometry
+                            {{- else if eq .step "extraction" -}}6. Extract GeoJSON
+                            {{- else if eq .step "import" -}}7. Import database
+                            {{- end -}}`
                           | avg_cpu_percent!=""
                           | unwrap avg_cpu_percent
-                          | __error__="" [$__interval]
+                          | __error__="" [$__auto]
                         ) by (step)
                       instant: false
                       legendFormat: "{{step}}"
@@ -987,35 +995,8 @@ spec:
                   refId: A
             queryOptions:
               interval: 1h
-            transformations:
-              - kind: Transformation
-                group: joinByField
-                spec:
-                  options:
-                    mode: outer
-                    byField: Time
-              - kind: Transformation
-                group: organize
-                spec:
-                  options:
-                    excludeByName: {}
-                    indexByName:
-                      Time: 0
-                      download: 1
-                      apply: 2
-                      refilter: 3
-                      derive: 4
-                      backfill: 5
-                      extraction: 6
-                      import: 7
-                    renameByName:
-                      download: 1. Download diffs
-                      apply: 2. Apply diffs
-                      refilter: 3. Re-filter subset
-                      derive: 4. Derive sub-PBFs
-                      backfill: 5. Backfill geometry
-                      extraction: 6. Extract GeoJSON
-                      import: 7. Import database
+            # Numbered step labels match the duration panel without joining time series.
+            transformations: []
         description: "CPU seconds across measured commands and waited descendants divided by elapsed phase time. 100% is one fully busy CPU core; parallel work can exceed 100%. Low use can indicate waiting, including I/O, network, locks, or scheduling. Database server work outside the import process tree is excluded."
         id: 18
         links: []
@@ -1030,7 +1011,7 @@ spec:
                 min: 0
                 noValue: No matching logs
                 color:
-                  mode: palette-classic
+                  mode: palette-classic-by-name
                 custom:
                   drawStyle: line
                   lineWidth: 2
@@ -1076,9 +1057,17 @@ spec:
                           | logfmt
                           | component="update_daily" | event="step_completed" | dry_run="0"
                           | step=~"download|apply|refilter|derive|backfill|extraction|import"
+                          | label_format step=`{{- if eq .step "download" -}}1. Download diffs
+                            {{- else if eq .step "apply" -}}2. Apply diffs
+                            {{- else if eq .step "refilter" -}}3. Re-filter subset
+                            {{- else if eq .step "derive" -}}4. Derive sub-PBFs
+                            {{- else if eq .step "backfill" -}}5. Backfill geometry
+                            {{- else if eq .step "extraction" -}}6. Extract GeoJSON
+                            {{- else if eq .step "import" -}}7. Import database
+                            {{- end -}}`
                           | max_process_rss_bytes!=""
                           | unwrap max_process_rss_bytes
-                          | __error__="" [$__interval]
+                          | __error__="" [$__auto]
                         ) by (step)
                       instant: false
                       legendFormat: "{{step}}"
@@ -1088,35 +1077,8 @@ spec:
                   refId: A
             queryOptions:
               interval: 1h
-            transformations:
-              - kind: Transformation
-                group: joinByField
-                spec:
-                  options:
-                    mode: outer
-                    byField: Time
-              - kind: Transformation
-                group: organize
-                spec:
-                  options:
-                    excludeByName: {}
-                    indexByName:
-                      Time: 0
-                      download: 1
-                      apply: 2
-                      refilter: 3
-                      derive: 4
-                      backfill: 5
-                      extraction: 6
-                      import: 7
-                    renameByName:
-                      download: 1. Download diffs
-                      apply: 2. Apply diffs
-                      refilter: 3. Re-filter subset
-                      derive: 4. Derive sub-PBFs
-                      backfill: 5. Backfill geometry
-                      extraction: 6. Extract GeoJSON
-                      import: 7. Import database
+            # Numbered step labels match the duration panel without joining time series.
+            transformations: []
         description: "Largest individual process peak resident memory among measured commands and their waited descendants. For parallel derivation/extraction this is the largest worker peak, not combined simultaneous RAM. It measures process RSS rather than host cache usage and excludes database/container processes outside the command tree. Values are not stacked."
         id: 19
         links: []
@@ -1131,7 +1093,7 @@ spec:
                 min: 0
                 noValue: No matching logs
                 color:
-                  mode: palette-classic
+                  mode: palette-classic-by-name
                 custom:
                   drawStyle: line
                   lineWidth: 2
