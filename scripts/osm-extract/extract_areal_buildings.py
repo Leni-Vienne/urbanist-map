@@ -13,10 +13,12 @@ import shapely.wkb
 import math
 import re
 import argparse
+from pathlib import Path
+import tempfile
 from shapely.geometry import mapping, Polygon
 
 from osm_log import get_logger, timed_step
-from osm_io import write_feature_collection
+from osm_io import feature_collection_writer
 from osm_policy import (
     classify_areal_feature,
     get_areal_building_category,
@@ -63,11 +65,11 @@ def create_display_name(props):
 
 
 class ArealExtractionHandler(osmium.SimpleHandler):
-    def __init__(self, defer_geometry=False):
+    def __init__(self, write_feature):
         super().__init__()
         self.wkbfab = osmium.geom.WKBFactory()
-        self.defer_geometry = defer_geometry
-        self.features = []
+        self.write_feature = write_feature
+        self.feature_count = 0
 
     def area(self, a):
         tags = {t.k: t.v for t in a.tags}
@@ -137,39 +139,33 @@ class ArealExtractionHandler(osmium.SimpleHandler):
         if timestamp:
             props['osm_last_modified'] = timestamp
 
-        # Production keeps the Shapely shape until output. Eager mapping() here
-        # retains Python coordinate objects for every feature at once; streaming
-        # conversion saved about 747 MiB of peak RAM on the production PBF.
-        self.features.append({
+        self.write_feature({
             'type': 'Feature',
             'id': feature_id,
-            'geometry': geom if self.defer_geometry else mapping(geom),
+            'geometry': mapping(geom),
             'properties': props
         })
+        self.feature_count += 1
 
 
 def main():
     args = _parse_args()
-    SOURCE_FILE = args.source
-    OUTPUT_FILE = args.output
+    output = Path(args.output)
 
-    with timed_step(LOGGER, 'read', input=str(SOURCE_FILE)):
-        handler = ArealExtractionHandler(defer_geometry=True)
-        # locations=True feeds coordinates to way() for unclosed area-tagged ways.
-        handler.apply_file(SOURCE_FILE, locations=True)
-    LOGGER.info("Read geometries", extra={"fields": {"event": "geometry_read", "features": len(handler.features)}})
-
-    with timed_step(LOGGER, 'write', output=str(OUTPUT_FILE)):
-        # Keep this a generator: convert and write one feature at a time. A list
-        # comprehension or conversion during reading would undo the RAM saving.
-        # Use each feature's own shape; repeated IDs can have different shapes.
-        encoded = ({**feature, 'geometry': mapping(feature['geometry'])}
-                   for feature in handler.features)
-        write_feature_collection(encoded, OUTPUT_FILE)
+    with timed_step(LOGGER, 'extract', input=str(args.source), output=str(output)):
+        # Stage beside the destination so replacement is atomic. A failed read,
+        # encoding or write leaves the previous complete output available.
+        with tempfile.TemporaryDirectory(prefix=f'.{output.name}.', dir=output.parent) as staging:
+            staged_output = Path(staging) / output.name
+            with feature_collection_writer(staged_output) as write_feature:
+                handler = ArealExtractionHandler(write_feature)
+                # locations=True supplies coordinates for unclosed area-tagged ways.
+                handler.apply_file(args.source, locations=True)
+            staged_output.replace(output)
 
     LOGGER.info("Wrote GeoJSON", extra={'fields': {
-        'event': 'features_written', 'output': str(OUTPUT_FILE),
-        'features_read': len(handler.features), 'features': len(handler.features),
+        'event': 'features_written', 'output': str(output),
+        'features_read': handler.feature_count, 'features': handler.feature_count,
     }})
 
 

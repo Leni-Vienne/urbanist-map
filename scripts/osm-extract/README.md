@@ -70,6 +70,12 @@ Current use is separate: `landuse=brownfield` with `planned:landuse=residential`
 qualifies as residential redevelopment. Unspecified future uses do not inherit the
 current site's category.
 
+The areal extractor writes accepted features as they arrive, without retaining a
+collection of shapes, properties, or coordinates. It preserves callback order,
+including repeated IDs. Output is staged beside the destination and replaces it
+only after successful extraction and file closure; failures leave the previous
+GeoJSON available. This temporarily needs space for both old and new GeoJSON.
+
 ## Performance note
 
 If the source file is on a Windows drive (`/mnt/d/...`), the script works but WSL I/O through `/mnt/` is significantly slower than on the WSL native filesystem. For large files (country-level or planet), copying the source to the WSL filesystem first (`cp /mnt/d/... ~/`) can cut processing time substantially. WSL is installed on C: by default.
@@ -221,6 +227,10 @@ The helper requires no additional packages, exporter, or systemd configuration.
 Only instrumented local commands are covered: PostgreSQL and Docker services
 running outside the updater's process tree are excluded. Failed phase summaries
 may contain only the resource records that were collected before interruption.
+
+The areal extractor reports a combined `extract` phase because its reading,
+geometry processing, and writing are interleaved; its `total` phase remains the
+whole-process comparison with the linear extractor.
 
 The systemd unit captures stderr in the journal, and the existing Alloy source
 forwards those records to Loki. See [the OSM dashboard guide](../../docs/GRAFANA_OSM.md)

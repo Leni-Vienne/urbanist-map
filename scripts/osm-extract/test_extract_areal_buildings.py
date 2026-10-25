@@ -16,12 +16,13 @@ from osm_policy import classify_areal_feature
 
 class LifecycleLanduseTest(unittest.TestCase):
     def extract(self, tags, size=0.001):
-        handler = ArealExtractionHandler()
+        features = []
+        handler = ArealExtractionHandler(features.append)
         kind = classify_areal_feature(tags)
         if kind is not None:
             geom = Polygon([(2, 48), (2 + size, 48), (2 + size, 48 + size), (2, 48 + size)])
             handler.emit_feature(tags, kind, geom, 'way/123', '2026-10-19T00:00:00Z')
-        return handler.features
+        return features
 
     def test_development_landuses_keep_their_stage_and_source_tags(self):
         for state, status in [('proposed', 'proposed'), ('planned', 'planned'),
@@ -127,10 +128,11 @@ class LifecycleLanduseTest(unittest.TestCase):
                 with tempfile.TemporaryDirectory() as directory:
                     source = Path(directory) / 'project.osm'
                     ElementTree.ElementTree(root).write(source, encoding='utf-8')
-                    handler = ArealExtractionHandler()
+                    features = []
+                    handler = ArealExtractionHandler(features.append)
                     handler.apply_file(str(source), locations=True)
-                self.assertEqual(1, len(handler.features))
-                feature = handler.features[0]
+                self.assertEqual(1, len(features))
+                feature = features[0]
                 self.assertEqual('relation/456' if is_relation else 'way/123', feature['id'])
                 self.assertEqual('planned', feature['properties']['project_status'])
 
@@ -175,12 +177,13 @@ class AreaOutputTest(unittest.TestCase):
                     'building', geom, 'way/123', '2026-10-19T00:00:00Z',
                 )
 
-        reference = ArealExtractionHandler()
+        reference_features = []
+        reference = ArealExtractionHandler(reference_features.append)
         read_features(reference)
         with tempfile.TemporaryDirectory() as directory:
             expected = Path(directory) / 'expected.geojson'
             actual = Path(directory) / 'actual.geojson'
-            write_feature_collection(reference.features, expected)
+            write_feature_collection(reference_features, expected)
             args = Namespace(source='unused.osm.pbf', output=str(actual))
             with patch.object(areal, '_parse_args', return_value=args), \
                     patch.object(ArealExtractionHandler, 'apply_file', read_features):
@@ -190,6 +193,50 @@ class AreaOutputTest(unittest.TestCase):
             features = json.loads(actual.read_text())['features']
             self.assertEqual(['way/123', 'way/123'], [f['id'] for f in features])
             self.assertNotEqual(features[0]['geometry'], features[1]['geometry'])
+
+    def test_features_reach_sink_during_callbacks(self):
+        features = []
+        handler = ArealExtractionHandler(features.append)
+        shape = Polygon([(2, 48), (2.001, 48), (2.001, 48.001), (2, 48.001)])
+        handler.emit_feature({'planned:building': 'apartments'}, 'building',
+                             shape, 'way/1', None)
+        self.assertEqual(['way/1'], [feature['id'] for feature in features])
+        self.assertEqual(1, handler.feature_count)
+        handler.emit_feature({'planned:landuse': 'yes'}, 'building',
+                             Polygon([(2, 48), (2.00001, 48), (2, 48.00001)]),
+                             'way/2', None)
+        self.assertEqual(1, handler.feature_count)
+        self.assertEqual(1, len(features))
+
+    def test_failed_extraction_preserves_output_and_cleans_staging(self):
+        shape = Polygon([(2, 48), (2.001, 48), (2.001, 48.001), (2, 48.001)])
+
+        def fail_after_feature(handler, *args, **kwargs):
+            handler.emit_feature({'planned:building': 'apartments'}, 'building',
+                                 shape, 'way/1', None)
+            raise RuntimeError('Interrupted extraction')
+
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / 'areas.geojson'
+            output.write_text('previous output')
+            args = Namespace(source='unused.osm.pbf', output=str(output))
+            with patch.object(areal, '_parse_args', return_value=args), \
+                    patch.object(ArealExtractionHandler, 'apply_file', fail_after_feature):
+                with self.assertRaisesRegex(RuntimeError, 'Interrupted extraction'):
+                    areal.main()
+            self.assertEqual('previous output', output.read_text())
+            self.assertEqual([output], list(Path(directory).iterdir()))
+
+    def test_output_failure_propagates_from_callback(self):
+        def fail_write(feature):
+            raise OSError('Disk full')
+
+        handler = ArealExtractionHandler(fail_write)
+        shape = Polygon([(2, 48), (2.001, 48), (2.001, 48.001), (2, 48.001)])
+        with self.assertRaisesRegex(OSError, 'Disk full'):
+            handler.emit_feature({'planned:building': 'apartments'}, 'building',
+                                 shape, 'way/1', None)
+        self.assertEqual(0, handler.feature_count)
 
 
 if __name__ == '__main__':
