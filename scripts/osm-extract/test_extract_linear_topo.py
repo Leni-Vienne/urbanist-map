@@ -1,5 +1,6 @@
 from contextlib import redirect_stdout
 from io import StringIO
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -56,7 +57,7 @@ class RelationHandlerTest(unittest.TestCase):
         self.assertEqual('Metro extension', feature['properties']['display_name'])
         self.assertEqual(['way/101', 'way/102'], feature['properties']['osm_ids'])
         self.assertEqual([[2, 48], [2.001, 48], [2.002, 48]],
-                         [list(coord) for coord in feature['geometry']['coordinates']])
+                         [list(coord) for coord in linear.mapping(feature['geometry'])['coordinates']])
 
     def test_unrenderable_candidates_count_towards_route_eligibility_but_are_not_emitted(self):
         relation = SimpleNamespace(
@@ -98,6 +99,45 @@ class RelationHandlerTest(unittest.TestCase):
         handler.relation(relation)
 
         self.assertEqual({}, handler.relations)
+
+
+class DeferredGeometryOutputTest(unittest.TestCase):
+    def setUp(self):
+        self.ways = {
+            1: {'coords': [(2, 48), (2.001, 48)],
+                'tags': {'railway': 'proposed', 'proposed': 'subway'}, 'timestamp': None},
+            2: {'coords': [(3, 49), (3.001, 49)],
+                'tags': {'highway': 'construction', 'construction': 'primary'}, 'timestamp': None},
+        }
+        self.relations = {10: {'tags': {'type': 'route', 'name': 'Métro extension'},
+                               'member_way_ids': [1]}}
+
+    def test_build_keeps_shapes_for_both_relation_and_orphan_features(self):
+        with patch.object(linear, 'mapping', side_effect=AssertionError('Eager coordinate conversion')):
+            features = build_features(self.ways, self.relations)
+        self.assertEqual(['relation/10', 'way/2'], [feature['id'] for feature in features])
+        self.assertEqual([(2, 48), (2.001, 48)], list(features[0]['geometry'].coords))
+        self.assertEqual([(3, 49), (3.001, 49)], list(features[1]['geometry'].coords))
+
+    def test_cli_writes_relation_and_orphan_shapes_as_geojson(self):
+        way_handler = SimpleNamespace(ways=self.ways, unrenderable_way_ids=set(),
+                                      apply_file=lambda *args, **kwargs: None)
+        relation_handler = SimpleNamespace(relations=self.relations,
+                                           apply_file=lambda *args, **kwargs: None)
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / 'linear.geojson'
+            args = SimpleNamespace(ways_file='ways.pbf', source_file='relations.pbf', output=output)
+            with patch.object(linear, '_parse_args', return_value=args), \
+                 patch.object(linear, 'WayGeometryHandler', return_value=way_handler), \
+                 patch.object(linear, 'RelationHandler', return_value=relation_handler):
+                linear.main()
+            features = json.loads(output.read_text())['features']
+        self.assertEqual(['relation/10', 'way/2'], [feature['id'] for feature in features])
+        self.assertEqual('Métro extension', features[0]['properties']['name'])
+        self.assertEqual({'type': 'LineString', 'coordinates': [[2, 48], [2.001, 48]]},
+                         features[0]['geometry'])
+        self.assertEqual({'type': 'LineString', 'coordinates': [[3, 49], [3.001, 49]]},
+                         features[1]['geometry'])
 
 
 class ComponentGeometryCacheTest(unittest.TestCase):

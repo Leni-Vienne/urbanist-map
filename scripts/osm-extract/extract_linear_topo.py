@@ -15,7 +15,7 @@ import re
 import argparse
 import osmium
 from collections import defaultdict
-from shapely.geometry import LineString, mapping, box
+from shapely.geometry import LineString, MultiLineString, mapping, box
 from shapely.ops import linemerge
 from shapely.strtree import STRtree
 
@@ -383,7 +383,9 @@ class ComponentSet:
                     for wid in self.components[rep_id] 
                     if wid in self.ways and len(self.ways[wid]['coords']) >= 2]
             try:
-                self._cache[key] = linemerge(lines) if lines else None
+                # Passing the collection preserves cached LineStrings;
+                # linemerge(list) extracts and rebuilds their coordinates.
+                self._cache[key] = linemerge(MultiLineString(lines)) if lines else None
             except Exception:
                 self._cache[key] = lines[0] if lines else None
         return self._cache[key]
@@ -761,7 +763,7 @@ def get_latest_timestamp(way_ids, ways):
 
 
 def make_relation_feature(rel_id, rel, ways):
-    """Build GeoJSON feature from a relation."""
+    """Build a relation feature, retaining its shape until output."""
     member_geoms, member_tags, member_ids = [], [], []
     
     for wid in rel['member_way_ids']:
@@ -774,7 +776,7 @@ def make_relation_feature(rel_id, rel, ways):
         return None
     
     try:
-        merged = linemerge(member_geoms)
+        merged = linemerge(MultiLineString(member_geoms))
     except Exception:
         merged = member_geoms[0]
     
@@ -831,13 +833,13 @@ def make_relation_feature(rel_id, rel, ways):
     return {
         'type': 'Feature',
         'id': f'relation/{rel_id}',
-        'geometry': mapping(merged),
+        'geometry': merged,
         'properties': props,
     }
 
 
 def make_orphan_features(orphan_ways):
-    """Build features from orphan ways using all merge strategies."""
+    """Build orphan features with Shapely shapes using all merge strategies."""
     cs = ComponentSet(orphan_ways)
 
     b, a = merge_by_topology(cs)
@@ -892,7 +894,7 @@ def make_orphan_features(orphan_ways):
         features.append({
             'type': 'Feature',
             'id': f'way/{props["osm_way_id"]}',
-            'geometry': mapping(merged),
+            'geometry': merged,
             'properties': props,
         })
     
@@ -1002,7 +1004,7 @@ def _relation_geometry(member_way_ids, ways):
     if not lines:
         return None
     try:
-        return linemerge(lines)
+        return linemerge(MultiLineString(lines))
     except Exception:
         return lines[0]
 
@@ -1210,7 +1212,11 @@ def main():
         }})
 
     with timed_step(LOGGER, 'write', output=str(OUTPUT_FILE)):
-        write_feature_collection(features, OUTPUT_FILE)
+        # Convert one shape at a time instead of retaining every feature's
+        # Python coordinate lists alongside the source coordinates and caches.
+        encoded = ({**feature, 'geometry': mapping(feature['geometry'])}
+                   for feature in features)
+        write_feature_collection(encoded, OUTPUT_FILE)
 
     LOGGER.info("Wrote GeoJSON", extra={'fields': {
         'event': 'features_written', 'output': str(OUTPUT_FILE),
