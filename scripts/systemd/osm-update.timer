@@ -1,6 +1,5 @@
 [Unit]
 Description=Run osm-update.service daily
-Requires=osm-update.service
 
 [Timer]
 # Fires every day at 04:00 UTC. Adjust to match your lowest-traffic window.
