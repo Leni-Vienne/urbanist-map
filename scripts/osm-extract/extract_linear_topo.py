@@ -15,6 +15,8 @@ import re
 import argparse
 import osmium
 from collections import defaultdict
+from itertools import combinations
+from shapely.affinity import scale
 from shapely.geometry import LineString, MultiLineString, mapping, box
 from shapely.ops import linemerge
 from shapely.strtree import STRtree
@@ -49,6 +51,20 @@ def _parse_args():
 
 
 URL_RE = re.compile(r'https?://\S+')
+LOCAL_NAME_KEY_RE = re.compile(r'name:[a-z]{2,3}(?:-[A-Za-z0-9]+)*')
+PROJECT_IDENTITY_KEYS = {
+    'name', 'ref', 'wikidata', 'official_ref',
+    'construction:ref', 'proposed:ref', 'planned:ref',
+}
+
+
+def identity_tags(tags):
+    """Explicit project identities, including localized names."""
+    for key, value in tags.items():
+        if key in PROJECT_IDENTITY_KEYS or LOCAL_NAME_KEY_RE.fullmatch(key):
+            value = value.strip()
+            if value:
+                yield key, value
 
 
 # ---------------------------------------------------------------------------
@@ -91,22 +107,6 @@ def snap_coord(coord, precision=6):
     return (round(coord[0], precision), round(coord[1], precision))
 
 
-def bbox_of_coords(coords):
-    """Return (minlon, minlat, maxlon, maxlat) for a list of coords."""
-    lons = [c[0] for c in coords]
-    lats = [c[1] for c in coords]
-    return min(lons), min(lats), max(lons), max(lats)
-
-
-def bbox_distance_km(a, b):
-    """Minimum distance in km between two bboxes. Returns 0 if they overlap."""
-    lon_gap = max(0.0, max(a[0], b[0]) - min(a[2], b[2]))
-    lat_gap = max(0.0, max(a[1], b[1]) - min(a[3], b[3]))
-    mean_lat = (a[1] + a[3] + b[1] + b[3]) / 4
-    km_per_lon_deg = 111.32 * abs(math.cos(math.radians(mean_lat)))
-    return math.sqrt((lon_gap * km_per_lon_deg) ** 2 + (lat_gap * 111) ** 2)
-
-
 def compute_bearing(coords):
     """Compute dominant bearing (0-180°) from start to end of linestring."""
     if len(coords) < 2:
@@ -128,7 +128,7 @@ def bearing_diff(b1, b2):
 
 
 def meters_to_degrees(meters):
-    """Approximate conversion at mid-latitudes."""
+    """Convert metres to latitude degrees; longitude also needs latitude scaling."""
     return meters / 111320
 
 
@@ -320,13 +320,6 @@ class ComponentSet:
         }
         self.components = components
     
-    def bbox(self, rep_id):
-        key = (rep_id, 'bbox')
-        if key not in self._cache:
-            coords = [c for wid in self.components[rep_id] for c in self.ways[wid]['coords']]
-            self._cache[key] = bbox_of_coords(coords)
-        return self._cache[key]
-    
     def transport_type(self, rep_id):
         key = (rep_id, 'type')
         if key not in self._cache:
@@ -345,7 +338,7 @@ class ComponentSet:
             anon = True
             for wid in self.components[rep_id]:
                 tags = self.ways[wid]['tags']
-                if any(tags.get(k, '').strip() for k in ('ref', 'name', 'description')):
+                if any(identity_tags(tags)) or tags.get('description', '').strip():
                     anon = False
                     break
             self._cache[key] = anon
@@ -389,344 +382,132 @@ class ComponentSet:
             except Exception:
                 self._cache[key] = lines[0] if lines else None
         return self._cache[key]
-    
-    def get_keys(self, rep_id):
-        """Get merge keys (refs/names/wikidata) for a component."""
-        key = (rep_id, 'keys')
-        if key not in self._cache:
-            keys = set()
-            bt = self.broad_type(rep_id)
-            for wid in self.components[rep_id]:
-                tags = self.ways[wid]['tags']
-                for tag in ('ref', 'construction:ref', 'proposed:ref', 'official_ref'):
-                    if tags.get(tag, '').strip():
-                        keys.add(f'{tag}:{tags[tag].strip()}')
-                # Only merge by name for major transit (not road/bike/pedestrian)
-                if bt not in ('road', 'bike', 'pedestrian'):
-                    best_name = best_name_from_tags([tags])
-                    if best_name:
-                        keys.add(f'name:{best_name}')
-                # Merge by wikidata - strong indicator of same project
-                if tags.get('wikidata', '').strip():
-                    keys.add(f'wikidata:{tags["wikidata"].strip()}')
-            self._cache[key] = keys
-        return self._cache[key]
 
 
 # ---------------------------------------------------------------------------
 # Merge strategies
 # ---------------------------------------------------------------------------
 
-def merge_by_topology(cs):
-    """Merge ways by shared endpoints (Union-Find on snapped coords)."""
-    before = len(cs.ways)
-    endpoint_to_ways = defaultdict(set)
-    way_info = {}  # wid -> (broad_group, project_status, name)
-    for wid, way in cs.ways.items():
-        tags = way['tags']
-        way_info[wid] = (broad_group(get_transport_type(tags)),
-                         get_linear_project_status(tags),
-                         tags.get('name', '').strip())
-        endpoint_to_ways[snap_coord(way['coords'][0])].add(wid)
-        endpoint_to_ways[snap_coord(way['coords'][-1])].add(wid)
-
-    uf = UnionFind(cs.ways.keys())
-    for wids in endpoint_to_ways.values():
-        wlist = list(wids)
-        # All pairs at the endpoint: two compatible ways must merge even when a
-        # third incompatible way shares the same endpoint.
-        for i in range(len(wlist)):
-            group_a, status_a, name_a = way_info[wlist[i]]
-            for j in range(i + 1, len(wlist)):
-                group_b, status_b, name_b = way_info[wlist[j]]
-                # Only merge same broad type and same project status
-                if group_a != group_b:
-                    continue
-                if status_a != status_b:
-                    continue
-                # Don't merge two named ways with different names, road/path intersections
-                # are not project continuations
-                if name_a and name_b and name_a != name_b:
-                    continue
-                uf.union(wlist[i], wlist[j])
-
-    cs.set_components({root: wids for root, wids in uf.groups().items()})
-    return before, len(cs.components)
-
-
-def merge_by_ref(cs, max_distance_km=1.0, max_distance_wikidata_km=10.0):
-    """Merge components sharing ref/name/wikidata within proximity.
-
-    Uses a larger distance threshold for wikidata keys since they are a stronger
-    signal that features belong to the same project.
-    """
+def _merge_components(cs, pairs):
+    """Merge candidate pairs without changing type, status, or project identity."""
     before = len(cs.components)
-    key_to_comps = defaultdict(list)
-    for rep_id in cs.components:
-        for k in cs.get_keys(rep_id):
-            key_to_comps[k].append(rep_id)
+    uf = UnionFind(cs.components)
+    identities = {}
+    for rid, way_ids in cs.components.items():
+        identity = defaultdict(set)
+        for wid in way_ids:
+            for key, value in identity_tags(cs.ways[wid]['tags']):
+                identity[key].add(value)
+        if identity:
+            identities[rid] = identity
 
-    uf = UnionFind(cs.components.keys())
-    for key, rep_ids in key_to_comps.items():
-        if len(rep_ids) < 2:
+    for ri, rj, max_distance_m in pairs:
+        a, b = uf.find(ri), uf.find(rj)
+        if a == b:
             continue
-        # Use larger threshold for wikidata-based merging
-        threshold = max_distance_wikidata_km if key.startswith('wikidata:') else max_distance_km
-        for i, ri in enumerate(rep_ids):
-            for rj in rep_ids[i+1:]:
-                if cs.broad_type(ri) == cs.broad_type(rj) and \
-                   cs.project_status(ri) == cs.project_status(rj) and \
-                   bbox_distance_km(cs.bbox(ri), cs.bbox(rj)) <= threshold:
-                    uf.union(ri, rj)
-
-    new_comps = defaultdict(list)
-    for rep_id, way_ids in cs.components.items():
-        new_comps[uf.find(rep_id)].extend(way_ids)
-    cs.set_components(dict(new_comps))
-    return before, len(cs.components)
-
-
-def _bbox_to_box(b):
-    return box(b[0], b[1], b[2], b[3])
-
-
-def _expand_box(b, pad_lon, pad_lat):
-    return box(b[0] - pad_lon, b[1] - pad_lat, b[2] + pad_lon, b[3] + pad_lat)
-
-
-def absorb_anonymous(cs, max_distance_km=1.0):
-    """Absorb anonymous components into nearest named component of exact same type.
-
-    Uses line-to-line distance against the actual geometry of each named component.
-    Bbox distance would treat any orphan inside a large enveloping component
-    (e.g. a ring road spanning a whole metro area) as adjacent to it.
-    """
-    before = len(cs.components)
-    named = [rid for rid in cs.components if not cs.is_anonymous(rid)]
-    anonymous = [rid for rid in cs.components if cs.is_anonymous(rid)]
-
-    if not named or not anonymous:
-        return before, len(cs.components)
-
-    max_dist_deg = meters_to_degrees(max_distance_km * 1000)
-
-    # Group named components by (transport_type, project_status) and build one STRtree
-    # per group over the buffered actual geometry of each named component.
-    named_by_type_status = defaultdict(list)
-    for nid in named:
-        named_by_type_status[(cs.transport_type(nid), cs.project_status(nid))].append(nid)
-
-    trees = {}     # key -> STRtree of buffered geometries
-    idx_maps = {}  # key -> list of (rep_id, geometry); index matches tree
-    for key, nids in named_by_type_status.items():
-        entries = []
-        bufs = []
-        for nid in nids:
-            g = cs.geometry(nid)
-            if g is not None and not g.is_empty:
-                entries.append((nid, g))
-                bufs.append(g.buffer(max_dist_deg))
-        if bufs:
-            trees[key] = STRtree(bufs)
-            idx_maps[key] = entries
-
-    absorptions = {}
-    for uid in anonymous:
-        uid_key = (cs.transport_type(uid), cs.project_status(uid))
-        if uid_key not in trees:
+        if (cs.transport_type(ri), cs.project_status(ri)) != (
+                cs.transport_type(rj), cs.project_status(rj)):
             continue
-        anon_geom = cs.geometry(uid)
-        if anon_geom is None or anon_geom.is_empty:
+        left, right = identities.get(a, {}), identities.get(b, {})
+        # Check whole groups: an unidentified segment must not bridge two
+        # incompatible names/refs, even if each original pair looked compatible.
+        if any(left[key] != right[key] for key in left.keys() & right.keys()):
             continue
-        candidates = trees[uid_key].query(anon_geom)
-        best_target, best_dist = None, float('inf')
-        for idx in candidates:
-            nid, named_geom = idx_maps[uid_key][idx]
-            try:
-                d = anon_geom.distance(named_geom)
-            except Exception:
+        if max_distance_m is not None:
+            geom, other = cs.geometry(ri), cs.geometry(rj)
+            # Use the same local scale for both lines, after the cheap checks.
+            latitude = (min(geom.bounds[1], other.bounds[1]) +
+                        max(geom.bounds[3], other.bounds[3])) / 2
+            lon_scale = math.cos(math.radians(latitude))
+            projected = scale(geom, xfact=lon_scale, origin=(0, 0))
+            other_projected = scale(other, xfact=lon_scale, origin=(0, 0))
+            if projected.distance(other_projected) > meters_to_degrees(max_distance_m):
                 continue
-            if d < best_dist:
-                best_dist, best_target = d, nid
-        if best_target is not None and best_dist <= max_dist_deg:
-            absorptions[uid] = best_target
+        uf.union(a, b)
+        if left:
+            identities.setdefault(b, {}).update(identities.pop(a))
 
-    new_comps = dict(cs.components)
-    for uid, target in absorptions.items():
-        new_comps[target] = new_comps[target] + new_comps.pop(uid)
-    cs.set_components(new_comps)
+    components = defaultdict(list)
+    for rid, way_ids in cs.components.items():
+        components[uf.find(rid)].extend(way_ids)
+    cs.set_components(dict(components))
     return before, len(cs.components)
 
 
+def _nearby_candidates(cs, rep_ids, max_distance_m):
+    """Find envelope candidates; the merge check measures actual line distance."""
+    rep_ids = sorted(rep_ids)
+    if len(rep_ids) < 2:
+        return
+    entries = [(rid, cs.geometry(rid)) for rid in rep_ids]
+    entries = [(rid, geom) for rid, geom in entries if geom is not None and not geom.is_empty]
+    geoms = [geom for _, geom in entries]
+    tree = STRtree(geoms)
+    pad_lat = meters_to_degrees(max_distance_m)
+    for i, (ri, geom) in enumerate(entries):
+        x1, y1, x2, y2 = geom.bounds
+        max_lat = min(90, max(abs(y1), abs(y2)) + pad_lat)
+        pad_lon = pad_lat / max(1e-6, math.cos(math.radians(max_lat)))
+        for j in sorted(tree.query(box(x1 - pad_lon, y1 - pad_lat, x2 + pad_lon, y2 + pad_lat))):
+            if j <= i:
+                continue
+            yield ri, entries[j][0], max_distance_m
 
-def merge_by_name_proximity(cs, max_distance_m=100):
-    """Merge components sharing the same OSM name tag that are within max_distance_m of each other.
 
-    Uses geometry distance (not bbox) and Union-Find for transitive chain merging:
-    if A is close to B and B is close to C (all same name), A+B+C all merge even if A is
-    far from C directly.
-    """
-    before = len(cs.components)
+def merge_by_topology(cs):
+    """Join compatible ways sharing snapped endpoints."""
+    endpoint_to_ways = defaultdict(list)
+    for wid in sorted(cs.ways):
+        coords = cs.ways[wid]['coords']
+        for endpoint in sorted({snap_coord(coords[0]), snap_coord(coords[-1])}):
+            endpoint_to_ways[endpoint].append(wid)
+    cs.set_components({wid: [wid] for wid in cs.ways})
+    pairs = ((a, b, None) for wids in endpoint_to_ways.values() for a, b in combinations(wids, 2))
+    return _merge_components(cs, pairs)
 
-    max_dist_deg = meters_to_degrees(max_distance_m)
 
-    def osm_names(rep_id):
-        names = set()
-        for wid in cs.components[rep_id]:
-            n = cs.ways[wid]['tags'].get('name', '').strip()
-            if n:
-                names.add(n)
-        return names
+def merge_by_identity(cs):
+    """Join matching names within 100 m, refs within 1 km, or Wikidata within 10 km."""
+    key_to_comps = defaultdict(list)
+    for rid, way_ids in cs.components.items():
+        keys = {key for wid in way_ids for key in identity_tags(cs.ways[wid]['tags'])}
+        for key in sorted(keys):
+            key_to_comps[key].append(rid)
 
-    name_to_comps = defaultdict(list)
-    for rep_id in cs.components:
-        for n in osm_names(rep_id):
-            name_to_comps[n].append(rep_id)
+    def pairs():
+        for tag, value in sorted(key_to_comps, key=lambda key: (key[0] != 'wikidata', key)):
+            if tag == 'wikidata':
+                distance = 10000
+            elif tag == 'name' or tag.startswith('name:'):
+                distance = 100
+            else:
+                distance = 1000
+            yield from _nearby_candidates(cs, key_to_comps[tag, value], distance)
 
-    uf = UnionFind(list(cs.components.keys()))
-
-    for name, rep_ids in name_to_comps.items():
-        if len(rep_ids) < 2:
-            continue
-
-        valid_rids = []
-        valid_geoms = []
-        valid_bufs = []
-        for rid in rep_ids:
-            g = cs.geometry(rid)
-            if g is not None:
-                valid_rids.append(rid)
-                valid_geoms.append(g)
-                valid_bufs.append(g.buffer(max_dist_deg))
-
-        if len(valid_rids) < 2:
-            continue
-
-        tree = STRtree(valid_bufs)
-        for i, ri in enumerate(valid_rids):
-            for idx in tree.query(valid_bufs[i]):
-                if idx <= i:
-                    continue
-                rj = valid_rids[idx]
-                if cs.broad_type(ri) != cs.broad_type(rj):
-                    continue
-                try:
-                    if valid_geoms[i].distance(valid_geoms[idx]) <= max_dist_deg:
-                        uf.union(ri, rj)
-                except Exception:
-                    continue
-
-    new_comps = defaultdict(list)
-    for rep_id, way_ids in cs.components.items():
-        new_comps[uf.find(rep_id)].extend(way_ids)
-    cs.set_components(dict(new_comps))
-
-    return before, len(cs.components)
+    return _merge_components(cs, pairs())
 
 
 def cluster_anonymous(cs, max_distance_km=0.2):
-    """Merge anonymous components of the same broad type that are physically close.
-    Useful for fragmented interchanges or station tracks."""
-    before = len(cs.components)
-    anonymous = [rid for rid in cs.components if cs.is_anonymous(rid)]
-
-    if len(anonymous) < 2:
-        return before, len(cs.components)
-
-    pad_lat = max_distance_km / 111
-
-    # Group anonymous components by (broad_type, project_status) and build one STRtree per group.
-    anon_by_btype = defaultdict(list)
-    for rid in anonymous:
-        anon_by_btype[(cs.broad_type(rid), cs.project_status(rid))].append(rid)
-
-    uf = UnionFind(anonymous)
-
-    for btype, rids in anon_by_btype.items():
-        if len(rids) < 2:
-            continue
-        geoms = [_bbox_to_box(cs.bbox(rid)) for rid in rids]
-        tree = STRtree(geoms)
-        for i, ri in enumerate(rids):
-            bb = cs.bbox(ri)
-            # Longitude degrees shrink with latitude; the floor keeps the
-            # prefilter box bounded near the poles.
-            km_per_lon_deg = max(20.0, 111.32 * abs(math.cos(math.radians((bb[1] + bb[3]) / 2))))
-            query_box = _expand_box(bb, max_distance_km / km_per_lon_deg, pad_lat)
-            for idx in tree.query(query_box):
-                if idx <= i:
-                    continue
-                rj = rids[idx]
-                if bbox_distance_km(cs.bbox(ri), cs.bbox(rj)) <= max_distance_km:
-                    uf.union(ri, rj)
-                    
-    groups = uf.groups()
-    merge_count = sum(1 for g in groups.values() if len(g) > 1)
-
-    if merge_count > 0:
-        new_comps = dict(cs.components)
-        for root, group_ids in groups.items():
-            if len(group_ids) > 1:
-                all_ways = []
-                for gid in group_ids:
-                    all_ways.extend(new_comps.pop(gid, []))
-                new_comps[root] = all_ways
-        cs.set_components(new_comps)
-
-    return before, len(cs.components)
+    """Group unidentified non-rail fragments by actual line distance."""
+    groups = defaultdict(list)
+    for rid in cs.components:
+        if cs.is_anonymous(rid) and cs.broad_type(rid) != 'rail':
+            groups[cs.transport_type(rid), cs.project_status(rid)].append(rid)
+    pairs = (pair for rids in groups.values()
+             for pair in _nearby_candidates(cs, rids, max_distance_km * 1000))
+    return _merge_components(cs, pairs)
 
 
 def merge_parallel_tracks(cs, max_distance_m=10, max_bearing_diff=15):
-    """Merge anonymous parallel rail tracks (last resort)."""
-    before = len(cs.components)
-    anon_rail = [rid for rid in cs.components
-                 if cs.is_anonymous(rid) and cs.broad_type(rid) == 'rail']
-
-    if len(anon_rail) < 2:
-        return before, len(cs.components)
-
-    max_dist_deg = meters_to_degrees(max_distance_m)
-    uf = UnionFind(anon_rail)
-
-    geoms = [cs.geometry(rid) for rid in anon_rail]
-    # Build STRtree over buffered geometries so we only check truly close pairs.
-    buffered = [g.buffer(max_dist_deg) if g is not None else box(0, 0, 0, 0) for g in geoms]
-    tree = STRtree(buffered)
-
-    for i, ri in enumerate(anon_rail):
-        geom1 = geoms[i]
-        if geom1 is None:
-            continue
-        bearing1 = cs.bearing(ri)
-        for idx in tree.query(buffered[i]):
-            if idx <= i:
-                continue
-            rj = anon_rail[idx]
-            if bearing_diff(bearing1, cs.bearing(rj)) > max_bearing_diff:
-                continue
-            geom2 = geoms[idx]
-            if geom2 is None:
-                continue
-            try:
-                if geom1.distance(geom2) <= max_dist_deg and \
-                   cs.project_status(ri) == cs.project_status(rj):
-                    uf.union(ri, rj)
-            except Exception:
-                continue
-    groups = uf.groups()
-    merge_count = sum(1 for g in groups.values() if len(g) > 1)
-
-    if merge_count > 0:
-        new_comps = dict(cs.components)
-        for root, group_ids in groups.items():
-            if len(group_ids) > 1:
-                all_ways = []
-                for gid in group_ids:
-                    all_ways.extend(new_comps.pop(gid, []))
-                new_comps[root] = all_ways
-        cs.set_components(new_comps)
-
-    return before, len(cs.components)
+    """Group unidentified rail tracks only when close, aligned, and compatible."""
+    groups = defaultdict(list)
+    for rid in cs.components:
+        if cs.is_anonymous(rid) and cs.broad_type(rid) == 'rail':
+            groups[cs.transport_type(rid), cs.project_status(rid)].append(rid)
+    pairs = ((ri, rj, limit) for rids in groups.values()
+             for ri, rj, limit in _nearby_candidates(cs, rids, max_distance_m)
+             if bearing_diff(cs.bearing(ri), cs.bearing(rj)) <= max_bearing_diff)
+    return _merge_components(cs, pairs)
 
 
 # ---------------------------------------------------------------------------
@@ -844,16 +625,12 @@ def make_orphan_features(orphan_ways):
 
     b, a = merge_by_topology(cs)
     LOGGER.debug(f"  merge_by_topology:    {b:,} → {a:,} components ({b - a:,} merged)")
-    b, a = merge_by_ref(cs)
-    LOGGER.debug(f"  merge_by_ref:         {b:,} → {a:,} components ({b - a:,} merged)")
-    b, a = absorb_anonymous(cs)
-    LOGGER.debug(f"  absorb_anonymous:     {b:,} → {a:,} components ({b - a:,} absorbed)")
+    b, a = merge_by_identity(cs)
+    LOGGER.debug(f"  merge_by_identity:    {b:,} → {a:,} components ({b - a:,} merged)")
     b, a = merge_parallel_tracks(cs)
     LOGGER.debug(f"  merge_parallel_tracks: {b:,} → {a:,} components ({b - a:,} merged)")
     b, a = cluster_anonymous(cs, max_distance_km=0.2)
     LOGGER.debug(f"  cluster_anonymous:    {b:,} → {a:,} components ({b - a:,} merged)")
-    b, a = merge_by_name_proximity(cs, max_distance_m=100)
-    LOGGER.debug(f"  merge_by_name_prox:   {b:,} → {a:,} components ({b - a:,} merged)")
 
     features = []
     for rep_id, way_ids in cs.components.items():

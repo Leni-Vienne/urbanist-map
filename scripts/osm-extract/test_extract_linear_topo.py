@@ -1,6 +1,8 @@
 from contextlib import redirect_stdout
 from io import StringIO
 import json
+import math
+from itertools import permutations
 from pathlib import Path
 import tempfile
 import unittest
@@ -161,6 +163,97 @@ class ComponentGeometryCacheTest(unittest.TestCase):
         self.assertEqual('rail', components.transport_type(1))
         components.set_components({1: [3, 1]})
         self.assertEqual('road', components.transport_type(1))
+
+
+class OrphanGroupingTest(unittest.TestCase):
+    @staticmethod
+    def way(coords, kind='road', status='proposed', **tags):
+        key = 'highway' if kind == 'road' else 'railway'
+        return {'coords': coords, 'timestamp': None,
+                'tags': {key: status, status: 'primary' if kind == 'road' else kind, **tags}}
+
+    @staticmethod
+    def groups(ways):
+        return {frozenset(feature['properties']['osm_ids'])
+                for feature in linear.make_orphan_features(ways)}
+
+    def test_nearby_unidentified_way_is_not_attached_to_a_named_project(self):
+        for gap in (0.0005, 0.004):
+            with self.subTest(gap=gap):
+                ways = {1: self.way([(0, 0), (0.001, 0)], name='Main Street'),
+                        2: self.way([(0, gap), (0.001, gap)])}
+                self.assertEqual(2, len(self.groups(ways)))
+
+    def test_unidentified_bridge_cannot_join_conflicting_group_identities(self):
+        for identity in ('name', 'ref', 'wikidata'):
+            ways = {1: self.way([(-0.001, 0), (0, 0)], **{identity: 'A'}),
+                    2: self.way([(0, 0), (0, 0.001)]),
+                    3: self.way([(0, 0), (0.001, 0)], **{identity: 'B'})}
+            for order in permutations(ways):
+                with self.subTest(identity=identity, order=order):
+                    groups = self.groups({wid: ways[wid] for wid in order})
+                    self.assertEqual({frozenset({'way/1', 'way/2'}), frozenset({'way/3'})}, groups)
+
+    def test_identity_merge_checks_transitive_conflicts(self):
+        ways = {1: self.way([(0, 0), (0, 0.001)], name='A', ref='R'),
+                2: self.way([(0.001, 0), (0.001, 0.001)], ref='R', wikidata='Q1'),
+                3: self.way([(0.002, 0), (0.002, 0.001)], name='B', wikidata='Q1')}
+        self.assertEqual({frozenset({'way/1'}), frozenset({'way/2', 'way/3'})}, self.groups(ways))
+
+    def test_matching_names_refs_and_wikidata_still_merge_within_their_limits(self):
+        for tag, gap_m, count in [('name', 50, 1), ('name', 500, 2),
+                                  ('ref', 800, 1), ('ref', 1200, 2),
+                                  ('planned:ref', 800, 1), ('name:en', 50, 1),
+                                  ('wikidata', 5000, 1), ('wikidata', 11000, 2)]:
+            with self.subTest(tag=tag, gap_m=gap_m):
+                gap = gap_m / 111320
+                ways = {1: self.way([(0, 0), (0, 0.001)], **{tag: 'A'}),
+                        2: self.way([(gap, 0), (gap, 0.001)], **{tag: 'A'})}
+                self.assertEqual(count, len(self.groups(ways)))
+
+    def test_same_name_does_not_override_status_or_identity_conflicts(self):
+        for other in ({'status': 'construction'}, {'ref': 'B'}, {'wikidata': 'Q2'}):
+            with self.subTest(other=other):
+                ways = {1: self.way([(0, 0), (0, 0.001)], name='Main Street', ref='A', wikidata='Q1'),
+                        2: self.way([(0.0001, 0), (0.0001, 0.001)], name='Main Street', **other)}
+                self.assertEqual(2, len(self.groups(ways)))
+
+    def test_descriptions_and_name_metadata_do_not_identify_rail_projects(self):
+        for tags in ({'description': 'Proposed tracks'}, {'name:etymology:wikidata': 'Q1'}):
+            with self.subTest(tags=tags):
+                ways = {1: self.way([(0, 0), (0, 0.001)], kind='rail', **tags),
+                        2: self.way([(0.0005, 0), (0.0005, 0.001)], kind='rail', **tags)}
+                self.assertEqual(2, len(self.groups(ways)))
+
+    def test_overlapping_bounding_boxes_do_not_make_distant_lines_neighbours(self):
+        ways = {1: self.way([(0, 0), (0.01, 0.01)]),
+                2: self.way([(0, 0.01), (0.004, 0.014)])}
+        self.assertEqual(2, len(self.groups(ways)))
+
+    def test_200_metre_limit_accounts_for_latitude(self):
+        for latitude in (0, 60, 80):
+            for distance, count in ((150, 1), (250, 2)):
+                with self.subTest(latitude=latitude, distance=distance):
+                    gap = distance / (111320 * math.cos(math.radians(latitude)))
+                    ways = {1: self.way([(0, latitude), (0, latitude + 0.001)]),
+                            2: self.way([(gap, latitude), (gap, latitude + 0.001)])}
+                    self.assertEqual(count, len(self.groups(ways)))
+
+    def test_anonymous_rail_keeps_the_strict_distance_type_and_status_checks(self):
+        for gap_m, kind, status, count in [(5, 'rail', 'proposed', 1),
+                                           (20, 'rail', 'proposed', 2),
+                                           (5, 'tram', 'proposed', 2),
+                                           (5, 'rail', 'construction', 2)]:
+            with self.subTest(gap_m=gap_m, kind=kind, status=status):
+                gap = gap_m / 111320
+                ways = {1: self.way([(0, 0), (0, 0.001)], kind='rail'),
+                        2: self.way([(gap, 0), (gap, 0.001)], kind=kind, status=status)}
+                self.assertEqual(count, len(self.groups(ways)))
+
+    def test_anonymous_rail_must_be_parallel(self):
+        ways = {1: self.way([(0, 0), (0, 0.001)], kind='rail'),
+                2: self.way([(-0.0005, 0.0005), (0.0005, 0.0005)], kind='rail')}
+        self.assertEqual(2, len(self.groups(ways)))
 
 
 class NativeRelationFilterTest(unittest.TestCase):

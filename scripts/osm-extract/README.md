@@ -67,6 +67,27 @@ Both GeoJSON files are required before the importer starts updating the database
 The importer syncs the single `osm_world` source and prunes absent projects, so a
 regional extract must not be imported into the worldwide database.
 
+## Linear grouping policy
+
+Orphan ways (ways not assigned to an accepted OSM relation) use four passes:
+
+1. Join ways that share snapped endpoints.
+2. Join explicit matching names within 100 m, references within 1 km, or Wikidata
+   IDs within 10 km. Descriptions and inferred display names are not identities.
+3. Group unidentified rail fragments within 10 m with bearings within 15 degrees.
+4. Group unidentified non-rail fragments within 200 m.
+
+Every pass requires the same transport type and lifecycle status. Conflicting
+names, references, or Wikidata IDs block a merge across the entire group, so an
+unidentified intermediate way cannot join incompatible projects. Localized names
+and lifecycle references also count as identities. Ways with descriptions are
+not treated as unidentified. Proximity alone never attaches an unidentified
+fragment to an identified project.
+
+Distance checks compare the actual lines, using a local planar approximation
+that adjusts longitude for latitude. Bounding boxes only find candidates. Limits
+apply to each connection; a chain of connected fragments can span farther.
+
 ## Area selection policy
 
 Lifecycle land-use tags share a whitelist of development and recreation types,
