@@ -12,24 +12,6 @@ import {
 import type { TimelineStatus } from "../db/schema";
 import type { JsonObject } from "@shared/json";
 
-interface OsmSkipInput {
-  fullReimport: boolean;
-  externalId: string | null;
-  osmLastModified: Date | null;
-  storedLastModifiedMs: number | undefined;
-  encounteredInRun: boolean;
-}
-
-export function shouldSkipUnchangedOsmFeature(input: OsmSkipInput): boolean {
-  return (
-    !input.fullReimport &&
-    input.externalId !== null &&
-    input.osmLastModified !== null &&
-    !input.encounteredInRun &&
-    input.storedLastModifiedMs === input.osmLastModified.getTime()
-  );
-}
-
 export function mapTimelineStatus(projectStatus: string | undefined): TimelineStatus {
   switch (projectStatus) {
     case "under_construction":

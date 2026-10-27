@@ -158,14 +158,15 @@ fi
 # Disk space check
 # ---------------------------------------------------------------------------
 
-# Require 9GB of free space (9 * 1024 * 1024 = 9437184 KB)
+# Working-space budget for the worldwide subset: 9 GiB, not a size estimate
+# for arbitrary regional inputs. Catch-up runs may need more for downloaded diffs.
 REQUIRED_SPACE_KB=9437184
 AVAILABLE_SPACE_KB=$(df -P -k "$WORK_DIR" | tail -1 | awk '{print $4}')
 
 if [[ "$AVAILABLE_SPACE_KB" -lt "$REQUIRED_SPACE_KB" ]]; then
     log_error "Not enough free disk space in $WORK_DIR."
-    log_info "  Available: $((AVAILABLE_SPACE_KB / 1024 / 1024)) GB"
-    log_info "  Required:  9 GB"
+    log_info "  Available: $((AVAILABLE_SPACE_KB / 1024 / 1024)) GiB"
+    log_info "  Required:  9 GiB (worldwide update working-space budget)"
     exit 1
 fi
 
@@ -178,6 +179,17 @@ function run() {
         log_info "[dry-run] $*"
     else
         osm_run "$@"
+    fi
+}
+
+function import_features() {
+    if [[ "$DO_IMPORT" -eq 1 ]]; then
+        osm_step_start import
+        run bun run "$REPO_ROOT/back/src/scripts/import-osm.ts" \
+            --input-prefix "${BASE_PREFIX}_proposed"
+        osm_step_end
+    else
+        osm_step_skip import disabled
     fi
 }
 
@@ -356,12 +368,8 @@ if [[ "$START_SEQ" -gt "$CURRENT_SEQNUM" ]]; then
         for _step in download apply refilter derive backfill extraction; do
             osm_step_skip "$_step" already_current
         done
-        if [[ "$DO_IMPORT" -eq 1 ]]; then
-            osm_step_start import
-            run bun run "$REPO_ROOT/back/src/scripts/import-osm.ts"
-            osm_step_end
-        else
-            osm_step_skip import disabled
+        import_features
+        if [[ "$DO_IMPORT" -eq 0 ]]; then
             OSM_LOG_STATUS=unchanged
         fi
         exit 0
@@ -564,10 +572,4 @@ osm_step_end
 # Step 5: DB import (optional)
 # ---------------------------------------------------------------------------
 
-if [[ "$DO_IMPORT" -eq 1 ]]; then
-    osm_step_start import
-    run bun run "$REPO_ROOT/back/src/scripts/import-osm.ts"
-    osm_step_end
-else
-    osm_step_skip import disabled
-fi
+import_features

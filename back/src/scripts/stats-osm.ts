@@ -2,37 +2,19 @@
  * Snapshot stats for the projects table, with before/after diff support.
  *
  * Usage:
- *   bun run back/src/scripts/projects-stats.ts         , print current stats
- *   bun run back/src/scripts/projects-stats.ts save    , save snapshot to disk
- *   bun run back/src/scripts/projects-stats.ts diff    , diff current state against saved snapshot
+ *   bun run back/src/scripts/stats-osm.ts         , print current stats
+ *   bun run back/src/scripts/stats-osm.ts save    , save snapshot to disk
+ *   bun run back/src/scripts/stats-osm.ts diff    , diff current state against saved snapshot
  */
 
 import { db } from "../database";
 import { sql } from "drizzle-orm";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { printDiff, printSnapshot, type Distribution, type Snapshot } from "./osmStats";
+import { logOsmEvent } from "./osmLog";
 
 const SNAPSHOT_PATH = path.join(process.cwd(), "back/src/scripts/projects-stats-snapshot.json");
-
-export type Distribution = Record<string, number>;
-
-export interface Snapshot {
-  timestamp: string;
-  total: number;
-  osm: number;
-  userSubmitted: number;
-  detached: number;
-  projectShape: Distribution;
-  approvalStatus: Distribution;
-  timelineStatus: Distribution;
-  tags: Distribution;
-  tagsPerProject: Distribution;
-  countries: Distribution;
-  importSources: Distribution;
-  completeness: Record<string, number>;
-  geometrySize: Distribution;
-  osmIdTypes: Distribution;
-}
 
 async function queryDistribution(
   query: ReturnType<typeof sql>,
@@ -229,147 +211,21 @@ export async function collectSnapshot(
   };
 }
 
-function printDistribution(title: string, dist: Distribution, total: number) {
-  console.log(`\n--- ${title} ---`);
-  const entries = Object.entries(dist);
-  if (entries.length === 0) {
-    console.log("  (empty)");
-    return;
-  }
-  const maxLen = Math.max(...entries.map(([k]) => k.length), 5);
-  for (const [label, count] of entries) {
-    const pct = total > 0 ? ((count / total) * 100).toFixed(1) : "0.0";
-    const bar = "#".repeat(Math.round((count / total) * 40));
-    console.log(
-      `  ${label.padEnd(maxLen)}  ${String(count).padStart(7)}  (${pct.padStart(5)}%)  ${bar}`,
-    );
-  }
-}
-
-export function printSnapshot(s: Snapshot, title = "projects table snapshot") {
-  console.log("=".repeat(60));
-  console.log(`  ${title}, ${s.timestamp}`);
-  console.log("=".repeat(60));
-
-  console.log(`\nTOTAL ROWS: ${s.total}`);
-  console.log(`  Imported (OSM):   ${s.osm}`);
-  console.log(`  User-submitted:   ${s.userSubmitted}`);
-  console.log(`  Soft-detached:    ${s.detached}`);
-
-  printDistribution("Project shape (linear vs areal)", s.projectShape, s.total);
-  printDistribution("Approval status", s.approvalStatus, s.total);
-  printDistribution("Timeline status", s.timelineStatus, s.total);
-  printDistribution("Tags (unnested)", s.tags, s.total);
-  printDistribution("Tags per project", s.tagsPerProject, s.total);
-  printDistribution("Country distribution (top 20)", s.countries, s.total);
-  printDistribution("Import source", s.importSources, s.total);
-  printDistribution("OSM id type (relation vs way)", s.osmIdTypes, s.total);
-
-  console.log("\n--- Field completeness ---");
-  const maxLen = Math.max(...Object.keys(s.completeness).map((k) => k.length));
-  for (const [label, count] of Object.entries(s.completeness)) {
-    const pct = s.total > 0 ? ((count / s.total) * 100).toFixed(1) : "0.0";
-    console.log(
-      `  ${label.padEnd(maxLen)}  ${String(count).padStart(7)} / ${s.total}  (${pct.padStart(5)}%)`,
-    );
-  }
-
-  printDistribution("Geometry size", s.geometrySize, s.total);
-
-  console.log("\n" + "=".repeat(60));
-}
-
-function diffNumber(label: string, before: number, after: number) {
-  before = before ?? 0;
-  after = after ?? 0;
-  const delta = after - before;
-  if (delta === 0) return;
-  const sign = delta > 0 ? "+" : "";
-  console.log(`  ${label}: ${before} -> ${after}  (${sign}${delta})`);
-}
-
-function diffDistribution(title: string, before: Distribution, after: Distribution) {
-  const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
-  const lines: string[] = [];
-  for (const key of keys) {
-    const b = before[key] ?? 0;
-    const a = after[key] ?? 0;
-    const delta = a - b;
-    if (delta === 0) continue;
-    const sign = delta > 0 ? "+" : "";
-    const marker = delta > 0 ? "  +" : "  -";
-    lines.push(`${marker} ${key}: ${b} -> ${a}  (${sign}${delta})`);
-  }
-  if (lines.length === 0) return;
-  console.log(`\n--- ${title} ---`);
-  for (const l of lines) console.log(l);
-}
-
-export function printDiff(before: Snapshot, after: Snapshot, title = "projects table diff") {
-  console.log("=".repeat(60));
-  console.log(`  ${title}`);
-  console.log(`  before: ${before.timestamp}`);
-  console.log(`  after:  ${after.timestamp}`);
-  console.log("=".repeat(60));
-
-  console.log("\n--- Totals ---");
-  diffNumber("total", before.total, after.total);
-  diffNumber("osm", before.osm, after.osm);
-  diffNumber("userSubmitted", before.userSubmitted, after.userSubmitted);
-  diffNumber("detached", before.detached, after.detached);
-
-  diffDistribution("Project shape (linear vs areal)", before.projectShape, after.projectShape);
-
-  diffDistribution("Approval status", before.approvalStatus, after.approvalStatus);
-  diffDistribution("Timeline status", before.timelineStatus, after.timelineStatus);
-  diffDistribution("Tags (unnested)", before.tags, after.tags);
-  diffDistribution("Tags per project", before.tagsPerProject, after.tagsPerProject);
-  diffDistribution("Country distribution", before.countries, after.countries);
-  diffDistribution("Import source", before.importSources, after.importSources);
-  diffDistribution("OSM id type (relation vs way)", before.osmIdTypes, after.osmIdTypes);
-
-  const compKeys = new Set([
-    ...Object.keys(before.completeness),
-    ...Object.keys(after.completeness),
-  ]);
-  const compLines: string[] = [];
-  for (const key of compKeys) {
-    const b = before.completeness[key] ?? 0;
-    const a = after.completeness[key] ?? 0;
-    const delta = a - b;
-    if (delta === 0) continue;
-    const sign = delta > 0 ? "+" : "";
-    compLines.push(`  ${key}: ${b} -> ${a}  (${sign}${delta})`);
-  }
-  if (compLines.length > 0) {
-    console.log("\n--- Field completeness ---");
-    for (const l of compLines) console.log(l);
-  }
-
-  diffDistribution("Geometry size", before.geometrySize, after.geometrySize);
-
-  console.log("\n" + "=".repeat(60));
-}
-
 async function main() {
   const mode = process.argv[2] ?? "print";
 
   if (mode === "save") {
-    console.log("Collecting snapshot...");
     const snapshot = await collectSnapshot();
-    fs.writeFileSync(SNAPSHOT_PATH, JSON.stringify(snapshot, null, 2));
-    console.log(`Snapshot saved to ${SNAPSHOT_PATH}`);
-    console.log(`  total: ${snapshot.total} rows  (timestamp: ${snapshot.timestamp})`);
+    fs.writeFileSync(SNAPSHOT_PATH, JSON.stringify(snapshot) + "\n");
+    logOsmEvent("osm_stats", "snapshot_saved", { file: SNAPSHOT_PATH, ...snapshot });
     return;
   }
 
   if (mode === "diff") {
     if (!fs.existsSync(SNAPSHOT_PATH)) {
-      console.error(`No snapshot found at ${SNAPSHOT_PATH}. Run with "save" first.`);
-      process.exit(1);
+      throw new Error(`No snapshot found at ${SNAPSHOT_PATH}. Run with "save" first.`);
     }
     const before = JSON.parse(fs.readFileSync(SNAPSHOT_PATH, "utf8")) as Snapshot;
-    console.log("Collecting current state...");
     const after = await collectSnapshot();
     printDiff(before, after);
     return;
@@ -382,7 +238,7 @@ async function main() {
 
 if (import.meta.main) {
   main().catch((err) => {
-    console.error(err);
+    logOsmEvent("osm_stats", "stats_failed", { error: err }, "error");
     process.exit(1);
   });
 }

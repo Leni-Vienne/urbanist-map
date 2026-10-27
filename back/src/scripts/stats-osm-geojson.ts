@@ -17,13 +17,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { sql } from "drizzle-orm";
-import {
-  collectSnapshot as collectDbSnapshot,
-  printDiff,
-  printSnapshot,
-  type Distribution,
-  type Snapshot,
-} from "./stats-osm";
+import { printDiff, printSnapshot, type Distribution, type Snapshot } from "./osmStats";
+import { logOsmEvent } from "./osmLog";
 import { centroid, deriveSourceUrl, extractTags, mapTimelineStatus } from "./osmDerive";
 
 const GEOJSON_PATHS = [
@@ -132,7 +127,7 @@ function collectGeojsonSnapshot(): Snapshot {
 
   for (const geojsonPath of GEOJSON_PATHS) {
     if (!fs.existsSync(geojsonPath)) {
-      console.error(`Missing ${geojsonPath}, skipping.`);
+      logOsmEvent("osm_stats", "input_missing", { file: geojsonPath }, "warning");
       continue;
     }
     const geojson = JSON.parse(fs.readFileSync(geojsonPath, "utf8")) as GeoJSON.FeatureCollection;
@@ -187,7 +182,7 @@ function collectGeojsonSnapshot(): Snapshot {
   }
 
   if (duplicateIds > 0) {
-    console.error(`Note: ${duplicateIds} feature(s) repeat an external id and collapse on import.`);
+    logOsmEvent("osm_stats", "duplicate_ids", { duplicates: duplicateIds }, "warning");
   }
 
   tags["(no tags)"] = tagsPerProject["0"] ?? 0;
@@ -223,13 +218,12 @@ async function main() {
   const mode = process.argv[2] ?? "print";
 
   if (mode === "diff") {
-    console.log("Collecting projects table state...");
+    const { collectSnapshot: collectDbSnapshot } = await import("./stats-osm");
     // Restrict the baseline to the rows this extract can account for. User submissions live in the
     // same table but no import touches them, so counting them would report them as losses.
     const before = await collectDbSnapshot(
       sql`import_source_id = (SELECT id FROM import_sources WHERE slug = 'osm_world')`,
     );
-    console.log("Reading GeoJSON extract...");
     const after = collectGeojsonSnapshot();
     // Countries have no GeoJSON counterpart; carry the table's through so the section reports no
     // change instead of a total loss.
@@ -242,6 +236,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(err);
+  logOsmEvent("osm_stats", "stats_failed", { error: err }, "error");
   process.exit(1);
 });

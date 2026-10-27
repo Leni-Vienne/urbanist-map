@@ -39,6 +39,7 @@ const sqlClient = new SQL(importDatabaseUrl.toString(), {
 const db = drizzle({ client: sqlClient });
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { parseArgs } from "node:util";
 import {
   centroid,
   deriveSourceUrl,
@@ -49,10 +50,23 @@ import {
 import { buildProjectSlug } from "@shared/projectSlug";
 import { refreshAllIndexable } from "../db/indexable";
 import { computeOsmFeatureRevision, shouldSkipOsmFeature } from "./osmRevision";
+import { logOsmEvent } from "./osmLog";
 
+// Manual imports use the repository's worldwide extract from any working directory.
+// The updater supplies its prefix so extraction and import always use the same files.
+const { values: options } = parseArgs({
+  args: process.argv.slice(2),
+  options: {
+    "input-prefix": {
+      type: "string",
+      default: path.resolve(import.meta.dir, "../../../scripts/osm-extract/planet-latest_proposed"),
+    },
+    full: { type: "boolean", default: false },
+  },
+});
 const GEOJSON_PATHS = [
-  path.join(process.cwd(), "scripts/osm-extract/planet-latest_proposed_linear.geojson"),
-  path.join(process.cwd(), "scripts/osm-extract/planet-latest_proposed_areal.geojson"),
+  `${options["input-prefix"]}_linear.geojson`,
+  `${options["input-prefix"]}_areal.geojson`,
 ];
 
 // A large batch cuts the commit (and thus fsync) count. Each row binds ~22 params, so 1000 rows =
@@ -62,7 +76,7 @@ const UPSERT_BATCH_SIZE = 1000;
 // Set --full (or OSM_FULL_REIMPORT=1) to bypass the unchanged-row skip and re-derive every feature.
 // Use it after changing importer-only derivation logic (date parsing, source-url rules, etc.) when the
 // source feature and therefore its revision did not change.
-const FULL_REIMPORT = process.argv.includes("--full") || process.env.OSM_FULL_REIMPORT === "1";
+const FULL_REIMPORT = options.full || process.env.OSM_FULL_REIMPORT === "1";
 
 // Import source configuration
 const IMPORT_SOURCE_SLUG = "osm_world";
@@ -75,20 +89,7 @@ const IMPORT_SOURCE_CONFIG = {
   enabled: true,
 };
 
-function log(message: string): void {
-  console.log(`[${new Date().toISOString().slice(11, 19)}] ${message}`);
-}
-
-// Throttled progress logger: emits at most one line every 3s so large datasets
-// don't flood the terminal with thousands of identical-looking lines.
-let lastProgressAt = 0;
-function logProgress(message: string): void {
-  const t = Date.now();
-  if (t - lastProgressAt >= 3000) {
-    lastProgressAt = t;
-    log(message);
-  }
-}
+const log = logOsmEvent.bind(null, "import_osm");
 
 const KNN_CHUNK_SIZE = 1_000;
 
@@ -165,10 +166,10 @@ async function waitForDb(): Promise<void> {
     await new Promise((r) => setTimeout(r, delay));
     try {
       await db.execute(sql`SELECT 1`);
-      console.log("Database connection restored.");
+      log("db_restored");
       return;
     } catch {
-      console.log(`Database still unavailable, retrying in ${delay / 1000}s...`);
+      log("db_retry", { delay_seconds: delay / 1000 }, "warning");
       delay = Math.min(delay * 2, 30_000);
     }
   }
@@ -240,7 +241,7 @@ async function flushBatch(batch: any[]): Promise<{ ok: number; fail: number }> {
     return { ok: batch.length, fail: 0 };
   } catch (batchErr) {
     if (isTransient(batchErr)) {
-      console.warn("Transient DB error on batch, waiting for recovery...");
+      log("batch_retry", { rows: batch.length, error: batchErr }, "warning");
       await waitForDb();
       return flushBatch(batch);
     }
@@ -260,7 +261,7 @@ async function flushBatch(batch: any[]): Promise<{ ok: number; fail: number }> {
         ok++;
       } catch (rowErr) {
         if (isTransient(rowErr)) {
-          console.warn("Transient DB error on row, waiting for recovery...");
+          log("row_retry", { external_id: row.externalId, error: rowErr }, "warning");
           await waitForDb();
           try {
             await db
@@ -273,11 +274,15 @@ async function flushBatch(batch: any[]): Promise<{ ok: number; fail: number }> {
               });
             ok++;
           } catch (retryErr) {
-            console.error(`Failed to insert/update row after retry:`, retryErr);
+            log(
+              "row_failed",
+              { external_id: row.externalId, error: retryErr, retried: true },
+              "error",
+            );
             fail++;
           }
         } else {
-          console.error(`Failed to insert/update row:`, rowErr);
+          log("row_failed", { external_id: row.externalId, error: rowErr }, "error");
           fail++;
         }
       }
@@ -287,10 +292,18 @@ async function flushBatch(batch: any[]): Promise<{ ok: number; fail: number }> {
 }
 
 async function main() {
-  log(
-    `synchronous_commit=off, batch size ${UPSERT_BATCH_SIZE}${FULL_REIMPORT ? ", FULL re-import" : ""}`,
-  );
-  log(`Setting up import source: ${IMPORT_SOURCE_SLUG}`);
+  const started = performance.now();
+  // Both files form one worldwide sync. Skipping a missing file would let pruning
+  // delete its projects after successfully importing the other file.
+  for (const geojsonPath of GEOJSON_PATHS) {
+    fs.accessSync(geojsonPath, fs.constants.R_OK);
+  }
+
+  log("import_started", {
+    batch_size: UPSERT_BATCH_SIZE,
+    full_reimport: FULL_REIMPORT,
+    input_prefix: options["input-prefix"],
+  });
   let importSource = await db
     .select()
     .from(importSources)
@@ -299,7 +312,7 @@ async function main() {
     .then((rows) => rows[0]);
 
   if (!importSource) {
-    log(`Import source not found, creating: ${IMPORT_SOURCE_SLUG}`);
+    log("source_creating", { source: IMPORT_SOURCE_SLUG });
     const created = await db.insert(importSources).values(IMPORT_SOURCE_CONFIG).returning();
     importSource = created[0];
   }
@@ -308,7 +321,7 @@ async function main() {
     throw new Error(`Failed to create or retrieve import source: ${IMPORT_SOURCE_SLUG}`);
   }
 
-  log(`Using import source: ${importSource.name} (id=${importSource.id})`);
+  log("source_resolved", { source: IMPORT_SOURCE_SLUG, source_id: importSource.id });
 
   // Country codes come from the admin boundaries, which are also what the nearest-boundary lookup
   // searches. With none loaded, every feature would fail to resolve a country, and failing to
@@ -325,12 +338,11 @@ async function main() {
       .filter((code): code is string => code !== null),
   );
   if (validCountryCodes.size === 0) {
-    console.error(
+    throw new Error(
       "No admin boundaries carry a country code. Run import-boundaries before importing OSM features.",
     );
-    process.exit(1);
   }
-  log(`Loaded ${validCountryCodes.size} valid country codes`);
+  log("countries_loaded", { countries: validCountryCodes.size });
 
   // Preload externalId -> countryCode for rows already resolved in a prior run. A nearest-boundary
   // KNN is the dominant per-run cost, so we only resolve new features below and reuse this for the
@@ -356,14 +368,12 @@ async function main() {
         existingRevisionByExternalId.set(row.externalId, row.externalRevision);
     }
   } catch (err) {
-    console.error(
-      "Failed to preload existing projects (will resolve all via KNN, re-upsert all):",
-      err,
-    );
+    log("preload_failed", { error: err, fallback: "resolve_and_upsert_all" }, "warning");
   }
-  log(
-    `Preloaded ${existingCountryByExternalId.size} country codes, ${existingRevisionByExternalId.size} revisions`,
-  );
+  log("projects_preloaded", {
+    country_codes: existingCountryByExternalId.size,
+    revisions: existingRevisionByExternalId.size,
+  });
 
   // Record sync start time for pruning stale data later
   const syncStartTime = new Date();
@@ -383,38 +393,16 @@ async function main() {
   const duplicateExternalIds = new Set<string>();
 
   for (const geojsonPath of GEOJSON_PATHS) {
-    if (!fs.existsSync(geojsonPath)) {
-      console.warn(`File not found, skipping: ${geojsonPath}`);
-      continue;
-    }
-
-    console.log(`\n======================================================`);
-    log(`Processing ${path.basename(geojsonPath)}...`);
-    console.log(`======================================================`);
-
+    const fileStarted = performance.now();
+    const file = path.basename(geojsonPath);
     const geojson = JSON.parse(fs.readFileSync(geojsonPath, "utf8")) as GeoJSON.FeatureCollection;
-    log(`Found ${geojson.features.length} features to import`);
+    log("file_started", { file, features: geojson.features.length });
 
     const allStatuses = new Map<string, number>();
     let noName = 0,
       noEndDate = 0,
       noStartDate = 0,
       noTags = 0;
-    for (const f of geojson.features) {
-      const p = f.properties ?? {};
-      const status = String(p["project_status"] ?? "missing");
-      allStatuses.set(status, (allStatuses.get(status) ?? 0) + 1);
-      if (!(p["display_name"] as string | undefined)?.trim()) noName++;
-      if (!parseOsmDate(p["opening_date"]) && !parseOsmDate(p["end_date"])) noEndDate++;
-      if (!parseOsmDate(p["start_date"]) && !parseOsmDate(p["construction_start_expected"]))
-        noStartDate++;
-      if (extractTags(p).length === 0) noTags++;
-    }
-    console.log("\nproject_status breakdown:  ", Object.fromEntries(allStatuses));
-    console.log(
-      `No display_name: ${noName}, no end_date: ${noEndDate}, no start_date: ${noStartDate}, no tags: ${noTags}\n`,
-    );
-
     const revisions = geojson.features.map(computeOsmFeatureRevision);
     const unchangedFeatures = geojson.features.map((feature, index) => {
       const externalId = feature.id ? String(feature.id) : null;
@@ -438,7 +426,6 @@ async function main() {
 
     // Resolve countryCode for each feature before the upsert loop. Reuse the preloaded value when the
     // feature already exists, and only feed the misses (new features) into the KNN lookup.
-    log(`Resolving country codes for ${geojson.features.length} features...`);
     const countryCodes: Array<string | null> = new Array(geojson.features.length).fill(null);
     const centroidsToResolve: Array<{ lat: number; lng: number } | null> = new Array(
       geojson.features.length,
@@ -463,9 +450,12 @@ async function main() {
     for (let i = 0; i < resolved.length; i++) {
       if (countryCodes[i] == null) countryCodes[i] = resolved[i] ?? null;
     }
-    log(
-      `Country code resolution complete (${reusedCount} reused, ${knnCount} checked via KNN, ${unchangedFeatures.filter(Boolean).length} revision-matched).`,
-    );
+    log("countries_resolved", {
+      file,
+      reused: reusedCount,
+      checked: knnCount,
+      unchanged: unchangedFeatures.filter(Boolean).length,
+    });
 
     // Build rows and flush in batches.
     // geometrySizeM is intentionally omitted here, it is computed in a single bulk UPDATE after all
@@ -486,6 +476,21 @@ async function main() {
         encounteredExternalIds.add(externalId);
       }
 
+      // Count every input feature, including revision matches. Reuse these
+      // derivations below instead of computing them again for changed rows.
+      const props = featureProps;
+      const name = (props["display_name"] as string | undefined)?.trim() || null;
+      const tags = extractTags(props);
+      const endParsed = parseOsmDate(props["opening_date"]) ?? parseOsmDate(props["end_date"]);
+      const startParsed =
+        parseOsmDate(props["start_date"]) ?? parseOsmDate(props["construction_start_expected"]);
+      const status = String(props["project_status"] ?? "missing");
+      allStatuses.set(status, (allStatuses.get(status) ?? 0) + 1);
+      if (!name) noName++;
+      if (!endParsed) noEndDate++;
+      if (!startParsed) noStartDate++;
+      if (tags.length === 0) noTags++;
+
       if (unchangedFeatures[i]) {
         if (externalId) seenExternalIds.push(externalId);
         unchanged++;
@@ -500,9 +505,6 @@ async function main() {
       }
 
       try {
-        const props = featureProps;
-
-        const name = (props["display_name"] as string | undefined)?.trim() || null;
         const description = (props["description"] as string | undefined)?.trim() || null;
         const countryCode = countryCodes[i] ?? null;
         if (!countryCode) {
@@ -518,8 +520,6 @@ async function main() {
           continue;
         }
 
-        const tags = extractTags(props);
-
         // Map OSM project_status to our timeline status
         const timelineStatus = mapTimelineStatus(props["project_status"] as string | undefined);
 
@@ -530,11 +530,6 @@ async function main() {
 
         // website is always preserved in externalProperties, so both are accessible downstream.
         const sourceUrl = deriveSourceUrl(props);
-
-        // Dates: opening_date → endDate, start_date / construction_start_expected → startDate
-        const endParsed = parseOsmDate(props["opening_date"]) ?? parseOsmDate(props["end_date"]);
-        const startParsed =
-          parseOsmDate(props["start_date"]) ?? parseOsmDate(props["construction_start_expected"]);
 
         const startDate = startParsed?.date ?? null;
         const startDatePrecision = startParsed?.precision ?? null;
@@ -586,7 +581,11 @@ async function main() {
         // by external_id, so they are left out (the prune excludes external_id IS NULL rows anyway).
         if (externalId) seenExternalIds.push(externalId);
       } catch (rowErr) {
-        console.error(`Failed to build row for feature ${i}:`, rowErr);
+        log(
+          "row_build_failed",
+          { file, feature_index: i, external_id: externalId, error: rowErr },
+          "error",
+        );
         skipped++;
       }
 
@@ -595,7 +594,6 @@ async function main() {
         inserted += ok;
         skipped += fail;
         pendingRows.length = 0;
-        logProgress(`Upserted ${i + 1} / ${geojson.features.length} features`);
       }
     }
 
@@ -610,28 +608,43 @@ async function main() {
     globalInserted += inserted;
     globalSkipped += skipped;
     globalUnchanged += unchanged;
-    log(
-      `Finished ${path.basename(geojsonPath)}. Inserted: ${inserted}, unchanged: ${unchanged}, skipped: ${skipped}`,
-    );
+    log("file_completed", {
+      file,
+      features: geojson.features.length,
+      upserted: inserted,
+      unchanged,
+      skipped,
+      duration_seconds: (performance.now() - fileStarted) / 1000,
+      project_status: Object.fromEntries(allStatuses),
+      missing_name: noName,
+      missing_end_date: noEndDate,
+      missing_start_date: noStartDate,
+      missing_tags: noTags,
+    });
 
     if (skippedUnresolvedCountry > 0) {
-      console.warn(
-        `  WARNING: ${skippedUnresolvedCountry} feature(s) resolved no country and were left un-upserted.`,
+      log(
+        "country_unresolved",
+        {
+          file,
+          skipped: skippedUnresolvedCountry,
+          sample_ids: skippedCountrySamples,
+        },
+        "warning",
       );
-      console.warn(`    Usually a feature carrying no usable geometry to place.`);
-      console.warn(`    sample ids: ${skippedCountrySamples.join(", ")}`);
     }
   }
 
-  console.log("");
   if (duplicateExternalIds.size > 0) {
-    console.warn(
-      `Encountered ${duplicateExternalIds.size} duplicate external id(s); later occurrences were reprocessed. Sample: ${[...duplicateExternalIds].slice(0, 10).join(", ")}`,
+    log(
+      "duplicate_ids",
+      {
+        duplicates: duplicateExternalIds.size,
+        sample_ids: [...duplicateExternalIds].slice(0, 10),
+      },
+      "warning",
     );
   }
-  log(
-    `DONE. Total Inserted: ${globalInserted}, Unchanged: ${globalUnchanged}, Skipped: ${globalSkipped}`,
-  );
 
   // Compute geometry_size_m and the lat/lng/center_coordinate anchor in a single bulk UPDATE over
   // the changed/new rows. This avoids the double geometryJson parse that would occur inline per row,
@@ -640,8 +653,7 @@ async function main() {
   // (e.g. the midpoint of a railroad line) rather than the JS arithmetic centroid set during upsert,
   // which can fall off curved or asymmetric shapes. It is what marker placement and tile-based
   // navigation snap to. Unchanged rows keep the anchor a prior run already computed (see conflictSet).
-  console.log("");
-  log(`Computing geometry sizes and anchors for changed rows (batched)...`);
+  log("geometry_started");
   // New or geometry-changed rows: geometry_size_m IS NULL means the upsert nulled it on a geometry
   // change, or the row is new. This is exactly the set whose size, anchor AND admin boundary need
   // (re)computing, so it is captured once here and reused by the boundary-assignment pass below.
@@ -658,10 +670,9 @@ async function main() {
       `)
     ).map((r) => r.id);
 
-    log(`${changedRowIds.length} rows to process`);
+    log("geometry_rows", { rows: changedRowIds.length });
 
     const GEOMETRY_BATCH_SIZE = 2000;
-    let sizesDone = 0;
     for (let offset = 0; offset < changedRowIds.length; offset += GEOMETRY_BATCH_SIZE) {
       const batchIds = changedRowIds.slice(offset, offset + GEOMETRY_BATCH_SIZE);
       const idList = sql.join(
@@ -683,12 +694,10 @@ async function main() {
         ) AS sizes
         WHERE p.id = sizes.id
       `);
-      sizesDone += batchIds.length;
-      logProgress(`Geometry sizes + anchors: ${sizesDone} / ${changedRowIds.length}`);
     }
-    log(`Geometry sizes and anchors computed.`);
+    log("geometry_completed", { rows: changedRowIds.length });
   } catch (err) {
-    console.error("Failed to compute geometry sizes and anchors (non-fatal):", err);
+    log("geometry_failed", { error: err }, "warning");
   }
 
   // Re-assign new and geometry-changed projects to their admin boundary (the majority-of-shape rule
@@ -699,10 +708,8 @@ async function main() {
   // sync, mirroring import-boundaries' own assign pass but scoped to an id list instead of all rows.
   // Best-effort: a failure here must not fail the import.
   if (changedRowIds.length > 0) {
-    console.log("");
-    log(`Assigning admin boundaries for ${changedRowIds.length} new/changed projects (batched)...`);
+    log("boundaries_started", { rows: changedRowIds.length });
     const BOUNDARY_BATCH_SIZE = 2000;
-    let assignDone = 0;
     try {
       for (let offset = 0; offset < changedRowIds.length; offset += BOUNDARY_BATCH_SIZE) {
         const batchIds = changedRowIds.slice(offset, offset + BOUNDARY_BATCH_SIZE);
@@ -729,12 +736,10 @@ async function main() {
           WHERE pr.id = chosen.project_id
             AND pr.admin_boundary_id IS DISTINCT FROM chosen.boundary_id
         `);
-        assignDone += batchIds.length;
-        logProgress(`Admin boundaries: ${assignDone} / ${changedRowIds.length}`);
       }
-      log(`Admin boundary assignment complete.`);
+      log("boundaries_completed", { rows: changedRowIds.length });
     } catch (err) {
-      console.error("Failed to assign admin boundaries (non-fatal):", err);
+      log("boundaries_failed", { error: err }, "warning");
     }
   }
 
@@ -746,8 +751,7 @@ async function main() {
   // Projects without overlays are hard-deleted.
   // import_locked_at rows are exempt (staleCondition requires import_locked_at IS NULL): they hold an
   // approved user edit and must never be deleted or detached by the sync.
-  console.log("");
-  log(`Pruning OSM projects absent from this sync...`);
+  log("prune_started");
 
   // Presence is tracked by a temp table of this run's seen external_ids rather than a per-row
   // last_imported_at bump, so unchanged rows are never rewritten. Built on the single pinned connection
@@ -769,14 +773,9 @@ async function main() {
       );
     }
     pruneSafe = seenExternalIds.length > 0;
-    log(
-      `Loaded ${seenExternalIds.length} seen external ids${pruneSafe ? "" : " (empty, skipping prune)"}`,
-    );
+    log("seen_ids_loaded", { features: seenExternalIds.length, prune_enabled: pruneSafe });
   } catch (err) {
-    console.error(
-      "Failed to build seen-id set; skipping prune to avoid deleting present rows:",
-      err,
-    );
+    log("prune_skipped", { reason: "seen_ids_failed", error: err }, "warning");
   }
 
   const staleCondition = sql`import_source_id = ${importSource.id} AND import_locked_at IS NULL AND external_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM seen_external_ids s WHERE s.external_id = projects.external_id)`;
@@ -802,9 +801,9 @@ async function main() {
         .delete(projects)
         .where(sql`${staleCondition} AND NOT (${hasOverlays})`)
         .returning({ id: projects.id });
-      log(`Hard-deleted ${hardDeleted.length} stale projects with no overlays`);
+      log("cleanup_completed", { action: "hard_deleted", projects: hardDeleted.length });
     } catch (err) {
-      console.error("Failed to hard-delete stale projects:", err);
+      log("cleanup_failed", { action: "hard_deleted", error: err }, "warning");
     }
 
     try {
@@ -819,9 +818,9 @@ async function main() {
         })
         .where(sql`${staleCondition} AND detached_at IS NULL AND (${hasOverlays})`)
         .returning({ id: projects.id });
-      log(`Soft-detached ${softDetached.length} stale projects with overlays`);
+      log("cleanup_completed", { action: "soft_detached", projects: softDetached.length });
     } catch (err) {
-      console.error("Failed to soft-detach stale projects:", err);
+      log("cleanup_failed", { action: "soft_detached", error: err }, "warning");
     }
 
     // Drop tombstones whose slug is live again: a reappearing OSM feature regenerates the same
@@ -831,15 +830,14 @@ async function main() {
         sql`DELETE FROM deleted_projects WHERE slug IN (SELECT slug FROM projects WHERE slug IS NOT NULL)`,
       );
     } catch (err) {
-      console.error("Failed to prune resurrected tombstones (non-fatal):", err);
+      log("cleanup_failed", { action: "resurrected_tombstones", error: err }, "warning");
     }
   }
 
   // Recompute the SEO indexable flag across all rows now that inserts, detaches and prunes are done.
-  console.log("");
-  log(`Refreshing SEO indexable flags...`);
+  log("indexable_started");
   await refreshAllIndexable(db);
-  log(`Indexable flags refreshed.`);
+  log("indexable_completed");
 
   // Update lastSyncAt to mark successful completion
   await db
@@ -852,22 +850,28 @@ async function main() {
   // selectivity estimates assume uniform geographic distribution, so they will
   // still under-count clustered regions, but scalar column stats (tags,
   // geometry_size_m, timeline_status) benefit meaningfully from a fresh ANALYZE.
-  log(`Running ANALYZE on projects table...`);
+  log("analyze_started");
   try {
     await db.execute(sql`ANALYZE projects`);
-    log(`ANALYZE complete.`);
+    log("analyze_completed");
   } catch (err) {
-    console.error("ANALYZE failed (non-fatal):", err);
+    log("analyze_failed", { error: err }, "warning");
   }
 
-  log(`Import complete. Updated lastSyncAt for ${IMPORT_SOURCE_SLUG}`);
   await sqlClient.end();
+  log("import_completed", {
+    source: IMPORT_SOURCE_SLUG,
+    upserted: globalInserted,
+    unchanged: globalUnchanged,
+    skipped: globalSkipped,
+    duration_seconds: (performance.now() - started) / 1000,
+  });
   // Importing boundaryAssignment transitively constructs the app's main + tile pools (database.ts),
   // which this script never queries. Exit explicitly so an idle pool can't keep the process alive.
   process.exit(0);
 }
 
 main().catch((err) => {
-  console.error(err);
+  log("import_failed", { error: err }, "error");
   process.exit(1);
 });

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { extractTags, shouldSkipUnchangedOsmFeature } from "./osmDerive";
+import { extractTags } from "./osmDerive";
 import { formatConstructionName, isRedevelopmentSite } from "@shared/osmRules";
 
 describe("OSM construction fallback tag", () => {
@@ -90,33 +90,5 @@ describe("OSM area extraction categories", () => {
     expect(extractTags({ transport_type: "building", construction: "museum" })).toEqual([
       "construction",
     ]);
-  });
-});
-
-describe("OSM unchanged-row skipping", () => {
-  const timestamp = new Date("2026-02-04T14:36:17Z");
-
-  test("skips the first unchanged occurrence", () => {
-    expect(
-      shouldSkipUnchangedOsmFeature({
-        fullReimport: false,
-        externalId: "relation/14721596",
-        osmLastModified: timestamp,
-        storedLastModifiedMs: timestamp.getTime(),
-        encounteredInRun: false,
-      }),
-    ).toBe(true);
-  });
-
-  test("does not skip a later duplicate occurrence", () => {
-    expect(
-      shouldSkipUnchangedOsmFeature({
-        fullReimport: false,
-        externalId: "relation/14721596",
-        osmLastModified: timestamp,
-        storedLastModifiedMs: timestamp.getTime(),
-        encounteredInRun: true,
-      }),
-    ).toBe(false);
   });
 });

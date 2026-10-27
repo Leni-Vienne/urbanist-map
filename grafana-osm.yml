@@ -105,10 +105,10 @@ spec:
                       expr: |-
                         last_over_time(
                           {service="osm-update"}
-                          |= "Finished " |= ".geojson. Inserted:"
-                          | regexp `Finished (?P<file>[^/ ]+[.]geojson)[.] Inserted: (?P<inserted>[0-9]+), unchanged: (?P<unchanged>[0-9]+), skipped: (?P<skipped>[0-9]+)`
+                          | json
+                          | component="import_osm" | event="file_completed"
                           | file!=""
-                          | unwrap inserted
+                          | unwrap upserted
                           | __error__="" [$__interval]
                         ) by (file)
                       instant: false
@@ -131,8 +131,8 @@ spec:
                       expr: |-
                         last_over_time(
                           {service="osm-update"}
-                          |= "Finished " |= ".geojson. Inserted:"
-                          | regexp `Finished (?P<file>[^/ ]+[.]geojson)[.] Inserted: (?P<inserted>[0-9]+), unchanged: (?P<unchanged>[0-9]+), skipped: (?P<skipped>[0-9]+)`
+                          | json
+                          | component="import_osm" | event="file_completed"
                           | file!=""
                           | unwrap skipped
                           | __error__="" [$__interval]
@@ -143,11 +143,37 @@ spec:
                       range: true
                     version: v0
                   refId: B
+              - kind: PanelQuery
+                spec:
+                  hidden: false
+                  query:
+                    datasource:
+                      name: grafanacloud-logs
+                    group: loki
+                    kind: DataQuery
+                    spec:
+                      direction: backward
+                      editorMode: code
+                      expr: |-
+                        last_over_time(
+                          {service="osm-update"}
+                          | json
+                          | component="import_osm" | event="file_completed"
+                          | file!=""
+                          | unwrap unchanged
+                          | __error__="" [$__interval]
+                        ) by (file)
+                      instant: false
+                      legendFormat: "{{file}} / unchanged"
+                      queryType: range
+                      range: true
+                    version: v0
+                  refId: C
             queryOptions:
               interval: 1h
             transformations: []
         description:
-          Last reported new/changed and skipped counts per file in each display interval. Inserted is the importer's label for upserts
+          Last reported new/changed, unchanged, and skipped counts per file in each display interval. Upserted counts successful upsert attempts
           of new or changed features, not strictly newly created projects. Duplicate IDs can be processed repeatedly;
           successful file processing does not prove final import completion.
         id: 6
@@ -205,8 +231,8 @@ spec:
                       expr: |-
                         last_over_time(
                           {service="osm-update"}
-                          |~ `(Hard-deleted|Soft-detached) [0-9]+ stale projects`
-                          | regexp `(?P<action>Hard-deleted|Soft-detached) (?P<projects>[0-9]+) stale projects`
+                          | json
+                          | component="import_osm" | event="cleanup_completed"
                           | action!=""
                           | unwrap projects
                           | __error__="" [$__interval]
@@ -374,7 +400,7 @@ spec:
                       editorMode: code
                       expr: |-
                         {service="osm-update"}
-                        !~ `^time=`
+                        !~ `^(time=|\{)`
                         |~ `(?i)(\berror\b|\bwarn(ing)?\b|\bfailed\b|traceback|out of memory|oom-kill)`
                       instant: false
                       legendFormat: ""
@@ -383,10 +409,33 @@ spec:
                       maxLines: 1000
                     version: v0
                   refId: B
+              - kind: PanelQuery
+                spec:
+                  hidden: false
+                  query:
+                    datasource:
+                      name: grafanacloud-logs
+                    group: loki
+                    kind: DataQuery
+                    spec:
+                      direction: backward
+                      editorMode: code
+                      expr: |-
+                        {service="osm-update"}
+                        | json
+                        | level=~"warning|error|critical"
+                        | __error__=""
+                      instant: false
+                      legendFormat: ""
+                      queryType: range
+                      range: true
+                      maxLines: 1000
+                    version: v0
+                  refId: C
             queryOptions: {}
             transformations: []
         description:
-          Structured warning/error events, plus diagnostic text from native tools, the importer, and systemd. PID 1 diagnostics about this unit are included when the osm_manager Alloy source is deployed.
+          Structured warning/error events, plus diagnostic text from native tools and systemd. PID 1 diagnostics about this unit are included when the osm_manager Alloy source is deployed.
           Literal OOM KILLS summary headings are not considered errors.
         id: 9
         links: []

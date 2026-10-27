@@ -136,6 +136,7 @@ osm_step_end
 # tools and network. All fake commands share one executable to make their output
 # deterministic, including the machine-readable state consumed by the script.
 FAKE_TOOL = '''#!{python}
+import json
 import os
 from pathlib import Path
 import sys
@@ -174,6 +175,7 @@ elif name == 'osmium':
     if '-o' in args:
         Path(args[args.index('-o') + 1]).write_text('pbf')
 elif name == 'bun':
+    Path(os.environ['IMPORT_ARGS_FILE']).write_text(json.dumps(args))
     print('native importer output')
     if os.environ.get('FAIL_IMPORT'):
         sys.exit(19)
@@ -192,7 +194,9 @@ class PipelineLoggingTest(unittest.TestCase):
         executable.chmod(0o755)
         for name in ['df', 'curl', 'python3', 'osmium', 'bun', 'sleep']:
             (tools / name).symlink_to(executable)
-        self.env = {**os.environ, 'PATH': f'{tools}:{os.environ["PATH"]}', 'OSM_LOG_LEVEL': 'INFO'}
+        self.import_args = self.work / 'import-args.json'
+        self.env = {**os.environ, 'PATH': f'{tools}:{os.environ["PATH"]}', 'OSM_LOG_LEVEL': 'INFO',
+                    'IMPORT_ARGS_FILE': str(self.import_args)}
         self.pbf = self.work / 'test_proposed.osm.pbf'
         self.pbf.write_text('pbf')
         Path(f'{self.pbf}.replication-state').write_text(
@@ -213,6 +217,9 @@ class PipelineLoggingTest(unittest.TestCase):
         self.assertEqual(1, len({r['run_id'] for r in records}))
         self.assertTrue(all(r['dry_run'] == '0' for r in records))
         self.assertEqual('native importer output\n', result.stdout)
+        self.assertEqual(['run', str(SCRIPT_DIR.parent.parent / 'back/src/scripts/import-osm.ts'),
+                          '--input-prefix', str(self.work / 'test_proposed')],
+                         json.loads(self.import_args.read_text()))
         self.assertEqual('success', records[-1]['status'])
         self.assertEqual('1', records[-1]['source_sequence'])
         self.assertEqual('2', records[-1]['target_sequence'])
@@ -243,6 +250,8 @@ class PipelineLoggingTest(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual(['import'], [r['step'] for r in records
                                      if r.get('event') == 'step_completed'])
+        self.assertEqual(['--input-prefix', str(self.work / 'test_proposed')],
+                         json.loads(self.import_args.read_text())[-2:])
 
     def test_failed_extractor_prevents_import_and_reports_active_step(self):
         self.env['FAIL_LINEAR'] = '1'

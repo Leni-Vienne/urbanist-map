@@ -57,6 +57,16 @@ Both files are written next to the PBF:
 | `*_proposed_linear.geojson` | Railways, roads, aerialways, waterways, cycling/pedestrian paths tagged as proposed, planned or under construction |
 | `*_proposed_areal.geojson`  | Buildings and development areas tagged as proposed, planned or under construction                                  |
 
+`--import` passes the generated file prefix to the importer. For a manual worldwide
+import, run `bun run osm:import` from the repository root; no filenames are needed.
+The importer defaults to `scripts/osm-extract/planet-latest_proposed_{linear,areal}.geojson`
+relative to the repository, even when invoked directly from another directory.
+For worldwide files stored elsewhere, use
+`bun run osm:import --input-prefix /data/planet-latest_proposed`.
+Both GeoJSON files are required before the importer starts updating the database.
+The importer syncs the single `osm_world` source and prunes absent projects, so a
+regional extract must not be imported into the worldwide database.
+
 ## Area selection policy
 
 Lifecycle land-use tags share a whitelist of development and recreation types,
@@ -103,6 +113,10 @@ extraction (geometry backfilled into the subset PBF flows through automatically)
 ## Daily incremental updates
 
 `update_daily.sh` applies OSM daily diffs to an existing subset PBF instead of rebuilding from a planet download. A normal one-diff run currently takes roughly 25-30 minutes including extraction and import; a catch-up run takes longer.
+
+The updater requires 9 GiB of free working space, a fixed budget for our worldwide
+subset rather than a calculation for regional extracts. Long catch-up runs can
+need additional space for downloaded diffs.
 
 ```bash
 # Extract + import in one go
@@ -176,8 +190,10 @@ created from the fetched geometry:
 Bash entry points use `osm_log.sh`; Python extractors use the standard `logging`
 module through `osm_log.py`. Diagnostics are flushed to stderr as logfmt records
 with UTC timestamps, severity, component, and a shared run ID. Stdout remains
-available for machine output. Native tool and importer output is generally
-forwarded as-is; backfill failures retain up to 4096 bytes of captured diagnostics.
+available for machine output. The TypeScript importer emits one JSON event per
+line with the same run ID, numeric statistics, and structured errors. Native tool
+output is forwarded as-is; backfill failures retain up to 4096 bytes of captured
+diagnostics.
 
 Timed phases emit `event=step_completed`, a stable `step`, and numeric
 `duration_seconds`. Measured Bash phases and Python phases use a monotonic clock.
