@@ -77,7 +77,7 @@ export async function resolveBoundaryPath(adminBoundaryId: string): Promise<Boun
 //   - line 85% in one neighborhood       -> that neighborhood (clear majority)
 //   - line split 60/40 across two        -> their shared city (neither neighborhood clears 0.8)
 //   - 500km line across five states      -> the country (no single state clears 0.8)
-export const BOUNDARY_DOMINANCE_THRESHOLD = 0.8;
+const BOUNDARY_DOMINANCE_THRESHOLD = 0.8;
 
 // A project's effective footprint for boundary assignment: the union of its own geometry and the
 // corners of its approved map overlays, falling back to the marker point when neither exists.
@@ -131,12 +131,43 @@ export function projectEffectiveGeometrySql(alias: string): string {
 // for the contained majority and the overlay only runs for the rare project straddling a border.
 // Keeping ST_Covers out of safe_overlay_fraction means that function's per-call subtransaction cost
 // (from its EXCEPTION block) is paid only on straddling rows, never on the contained majority.
-export function coverageFractionSql(geom: string): string {
+function coverageFractionSql(geom: string): string {
   return `CASE
     WHEN ${geom} IS NULL THEN 1.0
     WHEN ST_Covers(b.geom, ${geom}) THEN 1.0
     ELSE safe_overlay_fraction(b.geom, ${geom})
   END`;
+}
+
+// Resolve the deepest qualifying boundary, breaking same-level ties by coverage. `geom` is a
+// controlled SQL expression, never user input; callers materialize the effective footprint first.
+// Gather bounding-box candidates once, without running geometry predicates on large country/state
+// polygons. The ordered levels + LATERAL LIMIT let the executor stop at the first qualifying level,
+// so contained local projects never need exact tests against their much larger ancestors.
+export function boundaryForGeometrySql(geom: string): SQL {
+  return sql`
+    WITH candidates AS MATERIALIZED (
+      SELECT osm_id, admin_level, geom
+      FROM admin_boundaries
+      WHERE geom && ${sql.raw(geom)}
+    )
+    SELECT winner.boundary_id
+    FROM (SELECT DISTINCT admin_level FROM candidates ORDER BY admin_level DESC) levels
+    JOIN LATERAL (
+      SELECT b.osm_id AS boundary_id
+      FROM candidates b
+      CROSS JOIN LATERAL (
+        SELECT ${sql.raw(coverageFractionSql(geom))} AS frac OFFSET 0
+      ) coverage
+      WHERE b.admin_level = levels.admin_level
+        AND ST_Intersects(b.geom, ${sql.raw(geom)})
+        AND coverage.frac >= ${BOUNDARY_DOMINANCE_THRESHOLD}
+      ORDER BY coverage.frac DESC
+      LIMIT 1
+    ) winner ON true
+    ORDER BY levels.admin_level DESC
+    LIMIT 1
+  `;
 }
 
 // Assign one project to its boundary. Used on the user-submission path and re-run when a map
@@ -147,17 +178,8 @@ function assignProjectBoundarySql(projectId: string): SQL {
   return sql`
     UPDATE projects pr
     SET admin_boundary_id = (
-      SELECT c.boundary_id
+      SELECT (${boundaryForGeometrySql("eff.geom")})
       FROM (SELECT ${sql.raw(projectEffectiveGeometrySql("pr"))} AS geom OFFSET 0) eff
-      JOIN LATERAL (
-        SELECT b.osm_id AS boundary_id, b.admin_level,
-               ${sql.raw(coverageFractionSql("eff.geom"))} AS frac
-        FROM admin_boundaries b
-        WHERE ST_Intersects(b.geom, eff.geom)
-      ) c ON true
-      WHERE c.frac >= ${BOUNDARY_DOMINANCE_THRESHOLD}
-      ORDER BY c.admin_level DESC, c.frac DESC
-      LIMIT 1
     )
     WHERE pr.id = ${projectId}
   `;

@@ -11,11 +11,7 @@
 import { drizzle } from "drizzle-orm/bun-sql";
 import { SQL } from "bun";
 import { projects, importSources, adminBoundaries } from "../db/schema";
-import {
-  BOUNDARY_DOMINANCE_THRESHOLD,
-  coverageFractionSql,
-  projectEffectiveGeometrySql,
-} from "../db/boundaryAssignment";
+import { boundaryForGeometrySql, projectEffectiveGeometrySql } from "../db/boundaryAssignment";
 import { geometrySizeMSql } from "../db/geometrySize";
 import { sql, eq, isNull } from "drizzle-orm";
 import { config } from "../config";
@@ -708,10 +704,12 @@ async function main() {
   // sync, mirroring import-boundaries' own assign pass but scoped to an id list instead of all rows.
   // Best-effort: a failure here must not fail the import.
   if (changedRowIds.length > 0) {
+    const boundariesStarted = performance.now();
     log("boundaries_started", { rows: changedRowIds.length });
     const BOUNDARY_BATCH_SIZE = 2000;
     try {
       for (let offset = 0; offset < changedRowIds.length; offset += BOUNDARY_BATCH_SIZE) {
+        const batchStarted = performance.now();
         const batchIds = changedRowIds.slice(offset, offset + BOUNDARY_BATCH_SIZE);
         const idList = sql.join(
           batchIds.map((id) => sql`${id}::uuid`),
@@ -721,23 +719,26 @@ async function main() {
           UPDATE projects pr
           SET admin_boundary_id = chosen.boundary_id
           FROM (
-            SELECT DISTINCT ON (c.project_id) c.project_id, c.boundary_id
-            FROM (
-              SELECT p.id AS project_id, b.osm_id AS boundary_id, b.admin_level,
-                     ${sql.raw(coverageFractionSql("eff.geom"))} AS frac
-              FROM projects p
-              JOIN LATERAL (SELECT ${sql.raw(projectEffectiveGeometrySql("p"))} AS geom OFFSET 0) eff ON true
-              JOIN admin_boundaries b ON ST_Intersects(b.geom, eff.geom)
-              WHERE p.id IN (${idList})
-            ) c
-            WHERE c.frac >= ${BOUNDARY_DOMINANCE_THRESHOLD}
-            ORDER BY c.project_id, c.admin_level DESC, c.frac DESC
+            SELECT p.id AS project_id, boundary.boundary_id
+            FROM projects p
+            JOIN LATERAL (SELECT ${sql.raw(projectEffectiveGeometrySql("p"))} AS geom OFFSET 0) eff ON true
+            LEFT JOIN LATERAL (${boundaryForGeometrySql("eff.geom")}) boundary ON true
+            WHERE p.id IN (${idList})
           ) chosen
           WHERE pr.id = chosen.project_id
             AND pr.admin_boundary_id IS DISTINCT FROM chosen.boundary_id
         `);
+        log("boundaries_batch_completed", {
+          rows: batchIds.length,
+          processed: offset + batchIds.length,
+          total: changedRowIds.length,
+          duration_seconds: (performance.now() - batchStarted) / 1000,
+        });
       }
-      log("boundaries_completed", { rows: changedRowIds.length });
+      log("boundaries_completed", {
+        rows: changedRowIds.length,
+        duration_seconds: (performance.now() - boundariesStarted) / 1000,
+      });
     } catch (err) {
       log("boundaries_failed", { error: err }, "warning");
     }

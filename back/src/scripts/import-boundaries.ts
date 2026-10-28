@@ -27,11 +27,7 @@
 import { drizzle } from "drizzle-orm/bun-sql";
 import { SQL as BunSQL } from "bun";
 import { adminBoundaries, importSources } from "../db/schema";
-import {
-  BOUNDARY_DOMINANCE_THRESHOLD,
-  coverageFractionSql,
-  projectEffectiveGeometrySql,
-} from "../db/boundaryAssignment";
+import { boundaryForGeometrySql, projectEffectiveGeometrySql } from "../db/boundaryAssignment";
 import { sql, eq, type SQL } from "drizzle-orm";
 import { config } from "../config";
 import * as fs from "node:fs";
@@ -515,18 +511,12 @@ async function assignProjects(onlyUnassigned: boolean): Promise<void> {
       UPDATE projects pr
       SET admin_boundary_id = chosen.boundary_id
       FROM (
-        SELECT DISTINCT ON (c.project_id) c.project_id, c.boundary_id
-        FROM (
-          SELECT p.id AS project_id, b.osm_id AS boundary_id, b.admin_level,
-                 ${sql.raw(coverageFractionSql("eff.geom"))} AS frac
-          FROM project_assign_queue q
-          JOIN projects p ON p.id = q.id
-          JOIN LATERAL (SELECT ${sql.raw(projectEffectiveGeometrySql("p"))} AS geom OFFSET 0) eff ON true
-          JOIN admin_boundaries b ON ST_Intersects(b.geom, eff.geom)
-          WHERE q.rn > ${start} AND q.rn <= ${end}
-        ) c
-        WHERE c.frac >= ${BOUNDARY_DOMINANCE_THRESHOLD}
-        ORDER BY c.project_id, c.admin_level DESC, c.frac DESC
+        SELECT p.id AS project_id, boundary.boundary_id
+        FROM project_assign_queue q
+        JOIN projects p ON p.id = q.id
+        JOIN LATERAL (SELECT ${sql.raw(projectEffectiveGeometrySql("p"))} AS geom OFFSET 0) eff ON true
+        LEFT JOIN LATERAL (${boundaryForGeometrySql("eff.geom")}) boundary ON true
+        WHERE q.rn > ${start} AND q.rn <= ${end}
       ) chosen
       WHERE pr.id = chosen.project_id
         AND pr.admin_boundary_id IS DISTINCT FROM chosen.boundary_id
