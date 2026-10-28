@@ -10,8 +10,8 @@
     :appendTo="bodyElement"
     @update:visible="handleVisibilityChange"
   >
-    <div class="p-fluid" @keydown.stop @keyup.stop @keypress.stop>
-      <div class="field mb-4">
+    <div @keydown.stop @keyup.stop @keypress.stop>
+      <div class="mb-4">
         <FloatLabel class="w-full" variant="in">
           <!-- @vue-expect-error PrimeVue v-model type mismatch -->
           <InputText
@@ -39,7 +39,6 @@
         icon="pi pi-check"
         :disabled="!hasChanges"
         @click="saveChanges"
-        class="p-button-primary"
       />
     </template>
   </Dialog>

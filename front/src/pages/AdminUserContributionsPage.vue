@@ -163,22 +163,20 @@
       :modal="true"
       :style="{ width: '450px' }"
     >
-      <div>
-        <p>{{ deleteDialogMessage }}</p>
-        <div class="mt-4">
-          <label for="deleteReason" class="block mb-2 font-semibold">{{
-            t("admin.userContributions.deleteDialog.reason")
-          }}</label>
-          <Textarea
-            id="deleteReason"
-            v-model="deleteReason"
-            :placeholder="t('admin.userContributions.deleteDialog.reasonPlaceholder')"
-            :autoResize="true"
-            rows="2"
-            class="w-full"
-            dir="auto"
-          />
-        </div>
+      <p>{{ deleteDialogMessage }}</p>
+      <div class="mt-4">
+        <label for="deleteReason" class="block mb-2 font-semibold">{{
+          t("admin.userContributions.deleteDialog.reason")
+        }}</label>
+        <Textarea
+          id="deleteReason"
+          v-model="deleteReason"
+          :placeholder="t('admin.userContributions.deleteDialog.reasonPlaceholder')"
+          :autoResize="true"
+          rows="2"
+          class="w-full"
+          dir="auto"
+        />
       </div>
       <template #footer>
         <Button

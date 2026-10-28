@@ -11,7 +11,7 @@
       >
         <!-- Slot for content above drawer (e.g., mode controls) -->
         <div class="absolute left-0 right-0 bottom-full mb-2 pointer-events-none">
-          <slot name="above" :drawer-height-px="currentDrawerHeightPx"></slot>
+          <slot name="above"></slot>
         </div>
 
         <div
@@ -73,11 +73,6 @@ const viewportHeight = ref(0);
 // Convert minimum height from pixels to viewport percentage
 const minHeightPercent = computed(() => {
   return (MIN_HEIGHT_PX / viewportHeight.value) * 100;
-});
-
-// Calculate current drawer height in pixels for slot consumers
-const currentDrawerHeightPx = computed(() => {
-  return (currentHeight.value / 100) * viewportHeight.value;
 });
 
 const drawerStyle = computed(() => {

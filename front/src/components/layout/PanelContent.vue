@@ -1,5 +1,5 @@
 <template>
-  <div :class="contentContainerClass">
+  <div class="flex-1 flex flex-col min-h-0">
     <ExplorePanel v-show="activeTab === 'explore'" />
     <!-- overflow-x hidden removes the spurious horizontal scrollbar from the sliders -->
     <div v-if="activeTab === 'filter'" class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4">
@@ -30,8 +30,4 @@ const uiStore = useUiStore();
 
 // Tab and its derived map mode share this single source of truth.
 const activeTab = computed(() => uiStore.activeTab);
-
-defineProps<{
-  contentContainerClass: string;
-}>();
 </script>

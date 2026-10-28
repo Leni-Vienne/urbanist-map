@@ -1,5 +1,5 @@
 <template>
-  <div class="field">
+  <div>
     <label
       :id="`${idPrefix}-status-label`"
       class="text-(--p-text-color-secondary) font-medium mb-2 block"

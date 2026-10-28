@@ -10,7 +10,7 @@
           : $t('auth.signUp')
     "
     :style="{ width: '450px' }"
-    class="p-fluid auth-modal-overflow"
+    class="auth-modal-overflow"
   >
     <!-- Forgot Password Mode -->
     <div v-if="isForgotPasswordMode">
@@ -108,7 +108,7 @@
       </div>
 
       <form @submit.prevent="handleSubmit" class="flex flex-col gap-4" autocomplete="on">
-        <div class="field relative">
+        <div class="relative">
           <label for="auth-email" class="block text-sm font-medium mb-2">{{
             $t("auth.emailAddress")
           }}</label>
@@ -130,7 +130,9 @@
             :title="$t('auth.lastUsedEmail')"
             top="top-7.5"
           />
-          <small v-if="emailError" class="p-error text-[13px]">{{ emailError }}</small>
+          <small v-if="emailError" class="text-red-600 dark:text-red-400 text-[13px]">{{
+            emailError
+          }}</small>
         </div>
 
         <div v-if="!isLoginMode">
@@ -147,7 +149,9 @@
             :invalid="Boolean(usernameError)"
             dir="auto"
           />
-          <small v-if="usernameError" class="p-error text-[13px]">{{ usernameError }}</small>
+          <small v-if="usernameError" class="text-red-600 dark:text-red-400 text-[13px]">{{
+            usernameError
+          }}</small>
           <small v-else class="text-muted-color text-[13px]">{{ $t("auth.displayName") }}</small>
         </div>
 
@@ -179,11 +183,13 @@
               autocomplete: isLoginMode ? 'current-password' : 'new-password',
             }"
           />
-          <small v-if="passwordError" class="p-error text-[13px]">{{ passwordError }}</small>
+          <small v-if="passwordError" class="text-red-600 dark:text-red-400 text-[13px]">{{
+            passwordError
+          }}</small>
         </div>
 
         <!-- Remember Me Checkbox (only in login mode) -->
-        <div v-if="isLoginMode" class="field-checkbox flex items-center gap-2">
+        <div v-if="isLoginMode" class="flex items-center gap-2">
           <Checkbox inputId="auth-remember-me" v-model="form.rememberMe" :binary="true" />
           <label for="auth-remember-me" class="text-sm cursor-pointer select-none">
             {{ $t("auth.rememberMe") }}
@@ -194,7 +200,7 @@
         </div>
 
         <!-- CAPTCHA Widget (only for registration) -->
-        <div v-if="!isLoginMode" class="field flex justify-center py-2">
+        <div v-if="!isLoginMode" class="flex justify-center py-2">
           <div id="turnstile-widget"></div>
         </div>
 

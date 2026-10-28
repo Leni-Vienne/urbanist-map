@@ -1,18 +1,7 @@
 <template>
   <DraggableDrawer v-model:height-percent="uiStore.mobileDrawerHeightPercent">
-    <template #above="{ drawerHeightPx }">
-      <div class="relative w-full h-0 pointer-events-none">
-        <!-- Satellite Preview: Minimum floor 80px. Positioned Left. -->
-        <div
-          class="absolute left-0 bottom-0 w-full pointer-events-none"
-          :style="{
-            marginBottom: `${Math.max(0, 30 - Math.max(drawerHeightPx || 0, 65))}px`,
-            zIndex: 10,
-          }"
-        >
-          <SatellitePreview :in-drawer="true" />
-        </div>
-      </div>
+    <template #above>
+      <SatellitePreview in-drawer />
     </template>
 
     <template #header>
@@ -23,8 +12,8 @@
           :class="activeTab === 'explore' ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'"
         >
           <div class="overflow-hidden">
-            <div class="title-container ml-4 pb-1">
-              <h3 class="m-0 text-lg font-semibold text-color select-none leading-tight">
+            <div class="ml-4 pb-1">
+              <h3 class="text-lg font-semibold text-color select-none leading-tight">
                 {{ $t("app.title") }}
               </h3>
               <p class="mt-1 text-[13px] text-muted-color leading-tight">
@@ -42,7 +31,7 @@
          independent of the active tab. Its own close button hides
          it again, revealing the tab content below. -->
     <div class="relative flex-1 flex flex-col min-h-0">
-      <PanelContent content-container-class="flex-1 flex flex-col min-h-0" />
+      <PanelContent />
       <Transition name="detail-slide-over">
         <div v-if="detailVisible" class="absolute inset-0 z-20 bg-content-background">
           <ProjectDetailPanel />

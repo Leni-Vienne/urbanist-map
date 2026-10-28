@@ -31,13 +31,7 @@
       </Message>
     </div>
 
-    <DataTable
-      v-else
-      :value="detachedProjects"
-      dataKey="id"
-      v-model:expandedRows="expandedRows"
-      class="detached-table"
-    >
+    <DataTable v-else :value="detachedProjects" dataKey="id" v-model:expandedRows="expandedRows">
       <Column :expander="true" headerStyle="width: 3rem" />
 
       <Column :header="t('admin.detached.columns.project')">

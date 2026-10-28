@@ -1,37 +1,35 @@
 <template>
   <div
-    class="pointer-events-auto w-full"
+    class="city-search relative w-full"
     @mousedown.stop
     @touchstart.stop
     @click.stop
     @dblclick.stop
   >
-    <span class="p-input-icon-left w-full">
-      <i class="pi pi-search" />
-      <AutoComplete
-        v-model="selectedCity"
-        :suggestions="suggestions"
-        :placeholder="$t('search.cities')"
-        option-label="displayName"
-        @complete="onSearch"
-        @item-select="onSelect"
-        class="w-full"
-        :min-length="0"
-        :loading="isLoading"
-        :dropdown="false"
-        name="city-search"
-        :pt="{ pcInputText: { root: { dir: 'auto' } } }"
-      >
-        <template #option="{ option }">
-          <div class="flex flex-col min-w-0 w-full leading-tight">
-            <span class="text-sm truncate">{{ option.primary }}</span>
-            <span v-if="option.secondary" class="text-xs text-muted-color truncate">
-              {{ option.secondary }}
-            </span>
-          </div>
-        </template>
-      </AutoComplete>
-    </span>
+    <i class="pi pi-search" />
+    <AutoComplete
+      v-model="selectedCity"
+      :suggestions="suggestions"
+      :placeholder="$t('search.cities')"
+      option-label="displayName"
+      @complete="onSearch"
+      @item-select="onSelect"
+      class="w-full"
+      :min-length="0"
+      :loading="isLoading"
+      :dropdown="false"
+      name="city-search"
+      :pt="{ pcInputText: { root: { dir: 'auto' } } }"
+    >
+      <template #option="{ option }">
+        <div class="flex flex-col min-w-0 w-full leading-tight">
+          <span class="text-sm truncate">{{ option.primary }}</span>
+          <span v-if="option.secondary" class="text-xs text-muted-color truncate">
+            {{ option.secondary }}
+          </span>
+        </div>
+      </template>
+    </AutoComplete>
   </div>
 </template>
 
@@ -143,10 +141,6 @@ const MAX_BOUNDARY_ZOOM = 16;
 </script>
 
 <style scoped>
-:deep(.p-autocomplete) {
-  width: 100%;
-}
-
 :deep(.p-autocomplete-input) {
   padding: 0.5rem 0.75rem 0.5rem 2.5rem;
   font-size: 0.875rem;
@@ -157,20 +151,7 @@ const MAX_BOUNDARY_ZOOM = 16;
   min-width: 0;
 }
 
-:deep(.p-autocomplete-panel) {
-  margin-top: 0.25rem;
-  border-radius: 0.375rem;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-}
-
-/* Position search icon */
-.p-input-icon-left {
-  display: block;
-  position: relative;
-  width: 100%;
-}
-
-.p-input-icon-left > i {
+.city-search > i {
   position: absolute;
   left: 0.75rem;
   top: 50%;

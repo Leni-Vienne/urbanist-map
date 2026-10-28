@@ -32,7 +32,9 @@
               :inputProps="{ autocomplete: 'new-password' }"
               required
             />
-            <small v-if="passwordError" class="p-error">{{ passwordError }}</small>
+            <small v-if="passwordError" class="text-red-600 dark:text-red-400">{{
+              passwordError
+            }}</small>
           </div>
 
           <div class="flex flex-col gap-2 text-left">
@@ -49,7 +51,9 @@
               :inputProps="{ autocomplete: 'new-password' }"
               required
             />
-            <small v-if="confirmError" class="p-error">{{ confirmError }}</small>
+            <small v-if="confirmError" class="text-red-600 dark:text-red-400">{{
+              confirmError
+            }}</small>
           </div>
 
           <Button

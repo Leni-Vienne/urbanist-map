@@ -24,9 +24,7 @@
       <div
         class="absolute top-4 left-4 right-4 flex justify-between items-start gap-4 z-1000 pointer-events-none"
       >
-        <div class="pointer-events-auto min-w-0 flex-[0_1_100%] md:flex-[0_1_280px]">
-          <CitySearch />
-        </div>
+        <CitySearch class="pointer-events-auto min-w-0 flex-[0_1_100%] md:flex-[0_1_280px]" />
         <div class="shrink-0 flex items-center gap-2 pointer-events-auto">
           <UserMenu />
           <SettingsButton />

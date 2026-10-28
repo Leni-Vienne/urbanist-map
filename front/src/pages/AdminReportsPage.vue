@@ -40,7 +40,6 @@
       :rows="20"
       :rowsPerPageOptions="[10, 20, 50]"
       paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
-      class="reports-table"
     >
       <Column :expander="true" headerStyle="width: 3rem" />
 
@@ -155,39 +154,36 @@
       :header="t('admin.reports.actions.banUser')"
       :modal="true"
       :closable="true"
-      class="ban-dialog"
       :style="{ width: '500px' }"
     >
-      <div>
-        <p class="mb-4">
-          {{
-            t("admin.reports.banDialog.confirmMessage", {
-              username: selectedUser?.username,
-            })
-          }}
-        </p>
+      <p class="mb-4">
+        {{
+          t("admin.reports.banDialog.confirmMessage", {
+            username: selectedUser?.username,
+          })
+        }}
+      </p>
 
-        <div class="mb-4">
-          <label for="banReason" class="block mb-2 font-semibold">{{
-            t("admin.reports.banDialog.reason")
-          }}</label>
-          <Textarea
-            id="banReason"
-            v-model="banReason"
-            :placeholder="t('admin.reports.banDialog.reasonPlaceholder')"
-            :autoResize="true"
-            rows="3"
-            maxlength="500"
-            class="w-full"
-            dir="auto"
-          />
-          <small class="text-muted-color">{{ banReason.length }}/500</small>
-        </div>
+      <div class="mb-4">
+        <label for="banReason" class="block mb-2 font-semibold">{{
+          t("admin.reports.banDialog.reason")
+        }}</label>
+        <Textarea
+          id="banReason"
+          v-model="banReason"
+          :placeholder="t('admin.reports.banDialog.reasonPlaceholder')"
+          :autoResize="true"
+          rows="3"
+          maxlength="500"
+          class="w-full"
+          dir="auto"
+        />
+        <small class="text-muted-color">{{ banReason.length }}/500</small>
+      </div>
 
-        <div class="flex items-center gap-2 mt-4">
-          <Checkbox inputId="deleteContent" v-model="deleteContent" :binary="true" />
-          <label for="deleteContent">{{ t("admin.reports.banDialog.deleteContent") }}</label>
-        </div>
+      <div class="flex items-center gap-2 mt-4">
+        <Checkbox inputId="deleteContent" v-model="deleteContent" :binary="true" />
+        <label for="deleteContent">{{ t("admin.reports.banDialog.deleteContent") }}</label>
       </div>
 
       <template #footer>

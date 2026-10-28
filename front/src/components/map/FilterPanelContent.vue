@@ -142,32 +142,28 @@
     </div>
   </div>
 
-  <div>
-    <p
-      class="m-0 mb-2 text-xs font-semibold text-(--p-text-color-secondary) uppercase tracking-wide"
-    >
-      {{ $t("map.controls.filterByLastModified") }}
-    </p>
-    <div class="px-2.5">
-      <!-- @vue-expect-error PrimeVue v-model type mismatch -->
-      <Slider
-        v-model="dateSliderPositions"
-        :min="0"
-        :max="DATE_SLIDER_MAX"
-        :step="1"
-        range
-        class="w-full"
-      />
-      <div class="flex justify-between mt-2 text-xs text-(--p-text-color-secondary)">
-        <span
-          >{{ $t("map.controls.lastModifiedFrom") }}:
-          {{ formatDateSlider(dateSliderPositions[0]) }}</span
-        >
-        <span
-          >{{ $t("map.controls.lastModifiedTo") }}:
-          {{ formatDateSlider(dateSliderPositions[1]) }}</span
-        >
-      </div>
+  <p class="m-0 mb-2 text-xs font-semibold text-(--p-text-color-secondary) uppercase tracking-wide">
+    {{ $t("map.controls.filterByLastModified") }}
+  </p>
+  <div class="px-2.5">
+    <!-- @vue-expect-error PrimeVue v-model type mismatch -->
+    <Slider
+      v-model="dateSliderPositions"
+      :min="0"
+      :max="DATE_SLIDER_MAX"
+      :step="1"
+      range
+      class="w-full"
+    />
+    <div class="flex justify-between mt-2 text-xs text-(--p-text-color-secondary)">
+      <span
+        >{{ $t("map.controls.lastModifiedFrom") }}:
+        {{ formatDateSlider(dateSliderPositions[0]) }}</span
+      >
+      <span
+        >{{ $t("map.controls.lastModifiedTo") }}:
+        {{ formatDateSlider(dateSliderPositions[1]) }}</span
+      >
     </div>
   </div>
 </template>
