@@ -2,9 +2,9 @@ import { moderatorProcedure } from "../../trpc";
 import { checkModeratorCountryPermission, checkModeratorOverlayPermission } from "./shared";
 import { projects, overlays, changeRequests, users } from "../../db/schema";
 import { and, eq, or, sql, inArray, ne } from "drizzle-orm";
-import { db, type Transaction } from "../../database";
+import { db, type DatabaseExecutor, type Transaction } from "../../database";
 import { TRPCError } from "@trpc/server";
-import { queueR2Migration } from "../../services/r2MigrationService";
+import { copyImageToR2, removePublishedLocalCopies } from "../../services/imagePublication";
 import { captureProjectMapState } from "../../db/projectMapState";
 import { reconcileProjectChanges } from "../../services/projectEffects";
 import * as z from "zod";
@@ -132,7 +132,7 @@ export const approvalProcedures = {
       try {
         if (input.status === "rejected") {
           await db.transaction(async (tx) => {
-            const overlay = await getOverlayForModeration(tx, input.id);
+            const overlay = await getOverlayForModeration(tx, input.id, input.expectedVersion);
             await rejectOverlay(
               tx,
               input.id,
@@ -145,8 +145,15 @@ export const approvalProcedures = {
           return { success: true };
         }
 
+        const pendingOverlay = await getOverlayForModeration(db, input.id, input.expectedVersion);
+        const publishToR2 = process.env.NODE_ENV === "production";
+        if (publishToR2) await copyImageToR2(pendingOverlay.filename);
+
         const approval = await db.transaction(async (tx) => {
-          const overlay = await getOverlayForModeration(tx, input.id);
+          const overlay = await getOverlayForModeration(tx, input.id, input.expectedVersion);
+          if (overlay.filename !== pendingOverlay.filename) {
+            throw new ModerationConflictError("Image changed while it was being published");
+          }
           const before = await captureProjectMapState(tx, [overlay.projectId]);
           if (overlay.replacesOverlayId) {
             await resolveReplacementConflicts(
@@ -163,15 +170,7 @@ export const approvalProcedures = {
           return { overlay, before };
         });
 
-        // Queue the approved image before optional cleanup work. Each post-commit side effect has
-        // its own failure boundary so one failure cannot suppress the remaining reconciliation.
-        if (process.env.NODE_ENV === "production") {
-          try {
-            queueR2Migration(approval.overlay.filename);
-          } catch (error) {
-            console.error(`Failed to queue R2 migration for overlay ${input.id}:`, error);
-          }
-        }
+        if (publishToR2) await removePublishedLocalCopies(approval.overlay.filename);
 
         await reconcileProjectChanges(approval.before);
 
@@ -190,8 +189,12 @@ export const approvalProcedures = {
     }),
 };
 
-async function getOverlayForModeration(tx: Transaction, overlayId: string) {
-  const rows = await tx
+async function getOverlayForModeration(
+  executor: DatabaseExecutor,
+  overlayId: string,
+  expectedVersion: number,
+) {
+  const rows = await executor
     .select({
       filename: overlays.filename,
       replacesOverlayId: overlays.replacesOverlayId,
@@ -199,12 +202,20 @@ async function getOverlayForModeration(tx: Transaction, overlayId: string) {
       projectId: overlays.projectId,
     })
     .from(overlays)
-    .where(eq(overlays.id, overlayId))
+    .where(
+      and(
+        eq(overlays.id, overlayId),
+        eq(overlays.status, "pending"),
+        eq(overlays.version, expectedVersion),
+      ),
+    )
     .limit(1);
 
   const overlay = rows[0];
   if (!overlay?.projectId) {
-    throw new ModerationConflictError("Overlay gone or detached from its project");
+    throw new ModerationConflictError(
+      "Overlay gone, detached, version moved, or already processed",
+    );
   }
 
   return { ...overlay, projectId: overlay.projectId };

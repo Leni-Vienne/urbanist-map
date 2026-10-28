@@ -19,7 +19,6 @@ import { resolveSessionUser } from "./lib/currentUser";
 import { requestLogger } from "./middleware/requestLogger";
 import { logger } from "./services/logger";
 import { startCleanupJob } from "./services/cleanupService";
-import { startR2MigrationService } from "./services/r2MigrationService";
 
 const app = new Hono<AppEnv>();
 
@@ -134,7 +133,6 @@ if (process.env.NODE_ENV !== "development" || process.env.WARM_TILE_CACHE === "t
 }
 
 startCleanupJob();
-startR2MigrationService();
 
 export type { AppRouter } from "./routes";
 
