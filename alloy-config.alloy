@@ -40,7 +40,8 @@ loki.process "json" {
   // hundred streams. Never promote ip or path: both are unbounded and would wreck the index.
   //
   // botClass is the request-time verdict from back/src/services/botClassifier.ts: 4 fixed values
-  // (scanner, declared-bot, human-likely, unknown). botKind collapses those to
+  // (scanner, declared-bot, human-likely, unknown), based only on that request's path and user agent.
+  // No classification history is kept per IP. botKind collapses those to
   // bot/human/unknown for the stacked bot-vs-human panel. Because botKind is determined by
   // botClass, it creates no stream beyond the ones botClass already creates, so the convenience is
   // free at the index. visitorId is a keyed, anonymous identifier for a single client IP in

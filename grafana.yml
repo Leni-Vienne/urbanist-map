@@ -14,7 +14,7 @@ annotations:
         spec: {}
         version: v0
 cursorSync: "Off"
-description: Request traffic and bot classification for the selected backend. All counts are origin-side, so only requests that reach the API backend appear. The Pages-hosted frontend, edge-cached assets, and requests Cloudflare blocks never reach it, so Cloudflare's zone-wide visitor numbers sit far above every panel here. Health checks (/api/health) are excluded by the bot classification filters. Route panels normalise paths into templates at query time. Path is a log field, not a Loki label, so it is parsed per request rather than indexed. Use the time picker to select the aggregation window. The Traffic variable narrows every panel except panels that fix their own botKind. Unknown is a verdict of no evidence rather than a claim of human traffic. A route the SPA never fetches from a browser, such as /seo/project/{slug}, produces no human signal and remains unknown unless another bot signal applies.
+description: Request traffic and bot classification for the selected backend. All counts are origin-side, so only requests that reach the API backend appear. The Pages-hosted frontend, edge-cached assets, and requests Cloudflare blocks never reach it, so Cloudflare's zone-wide visitor numbers sit far above every panel here. Health checks (/api/health) are excluded by the bot classification filters. Route panels normalise paths into templates at query time. Path is a log field, not a Loki label, so it is parsed per request rather than indexed. Use the time picker to select the aggregation window. The Traffic variable narrows every panel except panels that fix their own botKind. Each request is classified independently. Scanner paths and recognized bot user agents count as bots; recognized browser user agents count as likely human; all others remain unknown. Browser user agents can be imitated by bots.
 editable: true
 elements:
   panel-1:
@@ -179,7 +179,7 @@ elements:
                 refId: A
           queryOptions: {}
           transformations: []
-      description: "Bots as a percentage of requests that carry a decided verdict. Unknown requests are excluded from both sides of the ratio rather than counted as human. A visitor is unknown when no evidence tier fired, which is not evidence of being human. Routes that trigger no human-signal path, including /seo/project/{slug}, remain unknown unless another bot signal applies."
+      description: "Bots as a percentage of requests classified as bot or likely human. Unknown requests are excluded from both sides of the ratio. Classification uses only each request's path and user agent; a browser user agent is a hint of human traffic, not proof."
       id: 10
       links: []
       title: Bot traffic share
@@ -395,7 +395,7 @@ elements:
                 refId: B
           queryOptions: {}
           transformations: []
-      description: Rolling one-hour count of distinct anonymous visitors, split into likely humans, declared bots, scanners, and unknown visitors.
+      description: Rolling one-hour count of distinct client IPs per request classification. One IP can appear in multiple categories when its requests differ.
       id: 7
       links: []
       title: Unique visitors by classification

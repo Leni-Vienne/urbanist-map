@@ -79,8 +79,7 @@ export async function requestLogger(c: Context, next: Next) {
     }
 
     const userId = getUserId(c);
-    // After duration is measured, so the range scan never shows up as request latency
-    const verdict = classifyRequest(ip, path, userAgent);
+    const verdict = classifyRequest(path, userAgent);
 
     // eslint-disable-next-line no-nested-ternary
     const level = status >= 500 ? "error" : status >= 400 ? "warn" : "info";
@@ -104,7 +103,7 @@ export async function requestLogger(c: Context, next: Next) {
     // Reaching here means an unhandled throw bubbled past Hono's error handler,
     // so no real response was set (c.res lazily defaults to 200): treat as 500
     const status = 500;
-    const verdict = classifyRequest(ip, path, userAgent);
+    const verdict = classifyRequest(path, userAgent);
 
     logger.error({
       method,
