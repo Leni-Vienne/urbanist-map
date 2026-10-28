@@ -19,6 +19,7 @@ from shapely.geometry import mapping, Polygon
 
 from osm_log import get_logger, timed_step
 from osm_io import feature_collection_writer
+from osm_tags import tags_to_dict
 from osm_policy import (
     classify_areal_feature,
     get_areal_building_category,
@@ -72,7 +73,7 @@ class ArealExtractionHandler(osmium.SimpleHandler):
         self.feature_count = 0
 
     def area(self, a):
-        tags = {t.k: t.v for t in a.tags}
+        tags = tags_to_dict(a.tags)
         kind = classify_areal_feature(tags)
         if kind is None:
             return
@@ -93,7 +94,7 @@ class ArealExtractionHandler(osmium.SimpleHandler):
         # (e.g. landuse=construction on an open ring) by closing them into a polygon.
         if w.is_closed():
             return
-        tags = {t.k: t.v for t in w.tags}
+        tags = tags_to_dict(w.tags)
         kind = classify_areal_feature(tags)
         if kind is None:
             return

@@ -1,0 +1,121 @@
+diff --git a/lib/osm.cc b/lib/osm.cc
+index e7e7717..999d2f9 100644
+--- a/lib/osm.cc
++++ b/lib/osm.cc
+@@ -65,6 +65,16 @@ static py::object tag_iterator_next(TagIterator &it, TagIterator const &cend)
+ }
+ 
+ 
++static py::dict tags_to_dict(osmium::TagList const &tags)
++{
++    py::dict result;
++    for (auto const &tag : tags) {
++        result[py::str(tag.key())] = py::str(tag.value());
++    }
++    return result;
++}
++
++
+ static py::object member_iterator_next(MemberIterator &it, MemberIterator const &cend)
+ {
+     if (it == cend)
+@@ -145,6 +155,8 @@ py::class_<COSMObject> make_osm_object_class(py::module_ &m, char const *class_n
+         .def("tags_begin", [](COSMObject const &o) { return o.get()->tags().cbegin(); })
+         .def("tags_next", [](COSMObject const &o, TagIterator &it)
+             { return tag_iterator_next(it, o.get()->tags().cend()); })
++        .def("tags_to_dict", [](COSMObject const &o)
++            { return tags_to_dict(o.get()->tags()); })
+         .def("is_valid", &COSMObject::is_valid)
+     ;
+ }
+@@ -312,6 +324,8 @@ PYBIND11_MODULE(_osm, m)
+         .def("tags_begin", [](pyosmium::COSMChangeset const &o) { return o.get()->tags().cbegin(); })
+         .def("tags_next", [](pyosmium::COSMChangeset const &o, TagIterator &it)
+             { return tag_iterator_next(it, o.get()->tags().cend()); })
++        .def("tags_to_dict", [](pyosmium::COSMChangeset const &o)
++            { return tags_to_dict(o.get()->tags()); })
+         .def("is_valid", &pyosmium::COSMChangeset::is_valid)
+     ;
+ 
+diff --git a/src/osmium/osm/_osm.pyi b/src/osmium/osm/_osm.pyi
+index 6ed9648..05c12a2 100644
+--- a/src/osmium/osm/_osm.pyi
++++ b/src/osmium/osm/_osm.pyi
+@@ -4,7 +4,7 @@
+ #
+ # Copyright (C) 2024 Sarah Hoffmann <lonvia@denofr.de> and others.
+ # For a full list of authors see the git log.
+-from typing import ClassVar, Iterator, Tuple, Optional, Any
++from typing import ClassVar, Iterator, Tuple, Optional, Any, Dict
+ 
+ from typing import overload
+ import datetime
+@@ -91,6 +91,7 @@ class TagContainerProtocol(BufferProxyProtocol):
+     def tags_has_key(self, key: str) -> bool: ...
+     def tags_begin(self) -> CTagListIterator: ...
+     def tags_next(self, it: CTagListIterator) -> osmium.osm.types.Tag: ...
++    def tags_to_dict(self) -> Dict[str, str]: ...
+ 
+ class COSMObject(TagContainerProtocol):
+     def positive_id(self) -> int: ...
+diff --git a/src/osmium/osm/types.py b/src/osmium/osm/types.py
+index f0649df..8165d04 100644
+--- a/src/osmium/osm/types.py
++++ b/src/osmium/osm/types.py
+@@ -5,7 +5,7 @@
+ # Copyright (C) 2025 Sarah Hoffmann <lonvia@denofr.de> and others.
+ # For a full list of authors see the git log.
+ from typing import Any, NamedTuple, Callable, Optional, Iterator, \
+-                   Iterable, TYPE_CHECKING, TypeVar, Generic, Tuple, Union
++                   Iterable, TYPE_CHECKING, TypeVar, Generic, Tuple, Union, Dict
+ import datetime as dt
+ 
+ import osmium.osm.mutable
+@@ -102,6 +102,14 @@ class TagList(Iterable[Tag]):
+     def __iter__(self) -> TagIterator:
+         return TagIterator(self._pyosmium_data)
+ 
++    def to_dict(self) -> Dict[str, str]:
++        """ Return the tags as a dictionary.
++
++            This is equivalent to ``{tag.k: tag.v for tag in tags}``, including
++            insertion order and last-value-wins behaviour for duplicate keys.
++        """
++        return self._pyosmium_data.tags_to_dict()
++
+     def __str__(self) -> str:
+         if self._pyosmium_data.is_valid():
+             return f"{{{_list_elipse(self)}}}"
+diff --git a/test/test_taglist.py b/test/test_taglist.py
+index df77f8d..03f4945 100644
+--- a/test/test_taglist.py
++++ b/test/test_taglist.py
+@@ -126,3 +126,28 @@ def test_taglist_indexop_get(tag_handler):
+     tags = tag_handler("n234 Tabba=x,2=vvv,xx=abba", tests)
+ 
+     assert tags == {'abba': 'x', '2': 'vvv', 'xx': 'abba'}
++
++
++def test_taglist_to_dict(tag_handler):
++    def tests(n):
++        result = n.tags.to_dict()
++        assert result == {'abba': 'x', '2': 'vvv', 'xx': 'abba'}
++        assert list(result) == ['abba', '2', 'xx']
++        assert all(type(key) is str and type(value) is str
++                   for key, value in result.items())
++        # The dictionary owns independent string objects.
++        result['new'] = 'value'
++        assert 'new' not in n.tags
++
++    tags = tag_handler("n234 Tabba=x,2=vvv,xx=abba", tests)
++
++    assert tags == {'abba': 'x', '2': 'vvv', 'xx': 'abba'}
++
++
++def test_taglist_to_dict_unicode(tag_handler):
++    def tests(n):
++        assert n.tags.to_dict() == {'keyñ': 'value'}
++
++    tags = tag_handler("n2 Tkeyñ=value", tests)
++
++    assert tags == {'keyñ': 'value'}

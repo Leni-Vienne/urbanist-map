@@ -23,6 +23,7 @@ from shapely.strtree import STRtree
 
 from osm_log import get_logger, timed_step
 from osm_io import write_feature_collection
+from osm_tags import tags_to_dict
 from osm_policy import (
     aggregate_project_status,
     broad_group,
@@ -248,7 +249,7 @@ class WayGeometryHandler(osmium.SimpleHandler):
         self.unrenderable_way_ids = set()
 
     def way(self, w):
-        tags = {t.k: t.v for t in w.tags}
+        tags = tags_to_dict(w.tags)
         if not is_transport_way(tags):
             return
         try:
@@ -273,7 +274,7 @@ class RelationHandler(osmium.SimpleHandler):
         self.relations = {}
 
     def relation(self, r):
-        tags = {t.k: t.v for t in r.tags}
+        tags = tags_to_dict(r.tags)
         member_way_ids = [m.ref for m in r.members if m.type == 'w']
         candidate_member_count = sum(
             wid in self.candidate_ways or wid in self.unrenderable_way_ids

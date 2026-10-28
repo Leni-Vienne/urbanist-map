@@ -12,7 +12,10 @@ Must be run inside WSL (Windows Subsystem for Linux) or a native Linux environme
 
 **Python packages**
 
-- `osmium` >= 4.0, `pip install 'osmium>=4.0'` (native relation-member filtering)
+- `osmium` >= 4.0, `pip install 'osmium>=4.0'` (native relation-member filtering).
+  Optionally, build with the [tag-copy patch](patches/README.md) (patch target:
+  4.3.2) for faster extraction. The extractors use `TagList.to_dict()` when
+  available and fall back to tag iteration otherwise.
 - `shapely`, `pip install shapely`
 
 ## Usage

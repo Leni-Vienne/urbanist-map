@@ -64,7 +64,10 @@ class RelationHandlerTest(unittest.TestCase):
     def test_unrenderable_candidates_count_towards_route_eligibility_but_are_not_emitted(self):
         relation = SimpleNamespace(
             id=123,
-            tags=[SimpleNamespace(k='type', v='route'), SimpleNamespace(k='route', v='tracks')],
+            tags=[
+                SimpleNamespace(k='type', v='route'),
+                SimpleNamespace(k='route', v='tracks'),
+            ],
             members=[SimpleNamespace(type='w', ref=wid) for wid in (1, 2, 3, 4)],
         )
         handler = RelationHandler({1: {}}, unrenderable_way_ids={2, 3})
@@ -79,7 +82,10 @@ class RelationHandlerTest(unittest.TestCase):
     def test_explicit_lifecycle_still_requires_a_renderable_project_member(self):
         relation = SimpleNamespace(
             id=123,
-            tags=[SimpleNamespace(k='type', v='route'), SimpleNamespace(k='state', v='planned')],
+            tags=[
+                SimpleNamespace(k='type', v='route'),
+                SimpleNamespace(k='state', v='planned'),
+            ],
             members=[SimpleNamespace(type='w', ref=1)],
         )
         handler = RelationHandler({}, unrenderable_way_ids={1})
