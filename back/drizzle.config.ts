@@ -9,8 +9,5 @@ export default defineConfig({
   dbCredentials: {
     // oxlint-disable-next-line no-non-null-assertion
     url: process.env.DATABASE_URL!,
-    ssl: {
-      rejectUnauthorized: false,
-    },
   },
 });

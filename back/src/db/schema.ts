@@ -114,10 +114,7 @@ export const importSources = pgTable(
       .notNull()
       .$onUpdate(() => new Date()),
   },
-  (table) => [
-    index("idx_import_sources_slug").on(table.slug),
-    index("idx_import_sources_type").on(table.type),
-  ],
+  (table) => [index("idx_import_sources_type").on(table.type)],
 );
 
 // Users table for custom authentication
@@ -150,7 +147,6 @@ export const users = pgTable(
   },
   // eslint-disable-next-line eslint/no-shadow
   (users) => [
-    index("idx_users_email").on(users.email),
     index("idx_users_email_verification").on(users.emailVerificationToken),
     index("idx_users_password_reset").on(users.passwordResetToken),
   ],
@@ -288,11 +284,19 @@ export const projects = pgTable(
     index("idx_projects_indexable")
       .on(table.slug)
       .where(sql`${table.indexable} = true`),
-    sql.raw(
-      "CREATE INDEX IF NOT EXISTS idx_projects_center_coordinate ON projects USING GIST (center_coordinate)",
-    ), // Spatial index for project center coordinates
-    sql.raw("CREATE INDEX IF NOT EXISTS idx_projects_geometry ON projects USING GIST (geometry)"), // Spatial index for geometry bbox filtering and MVT tiles
-    sql.raw("CREATE INDEX IF NOT EXISTS idx_projects_tags ON projects USING GIN (tags)"), // GIN index for efficient tag filtering
+    index("idx_projects_center_coordinate").using("gist", table.centerCoordinate),
+    index("idx_projects_geometry").using("gist", table.geometry),
+    // Low-zoom tiles query only approved geometries above these size thresholds.
+    index("idx_projects_geometry_100k")
+      .using("gist", table.geometry)
+      .where(sql`${table.geometrySizeM} >= 100000 AND ${table.status} = 'approved'`),
+    index("idx_projects_geometry_50k")
+      .using("gist", table.geometry)
+      .where(sql`${table.geometrySizeM} >= 50000 AND ${table.status} = 'approved'`),
+    index("idx_projects_geometry_10k")
+      .using("gist", table.geometry)
+      .where(sql`${table.geometrySizeM} >= 10000 AND ${table.status} = 'approved'`),
+    index("idx_projects_tags").using("gin", table.tags),
     // Unique constraint for external data - prevents duplicate imports from same source
     // Note: PostgreSQL allows multiple (NULL, NULL) rows since NULL != NULL in unique constraints
     uniqueIndex("idx_projects_source_external").on(table.importSourceId, table.externalId),
@@ -342,8 +346,7 @@ export const overlays = pgTable(
     index("idx_overlays_project").on(table.projectId),
     index("idx_overlays_replaces").on(table.replacesOverlayId),
     index("idx_overlays_kind").on(table.kind),
-    sql.raw("CREATE INDEX IF NOT EXISTS idx_overlays_corners ON overlays USING GIST (corners)"),
-    sql.raw("CREATE INDEX IF NOT EXISTS idx_overlays_centroid ON overlays USING GIST (centroid)"),
+    index("idx_overlays_corners").using("gist", table.corners),
   ],
 );
 
@@ -377,21 +380,19 @@ export const adminBoundaries = pgTable(
     index("idx_admin_boundaries_admin_level").on(table.adminLevel),
     index("idx_admin_boundaries_parent").on(table.parentId),
     index("idx_admin_boundaries_country").on(table.countryCode),
-    sql.raw(
-      "CREATE INDEX IF NOT EXISTS idx_admin_boundaries_geom ON admin_boundaries USING GIST (geom)",
+    index("idx_admin_boundaries_geom").using("gist", table.geom),
+    // Match the normalization used by location search; the function is defined in migrations.
+    index("idx_admin_boundaries_name_trgm").using(
+      "gin",
+      sql`immutable_search_text(${table.name}) gin_trgm_ops`,
     ),
-    // pg_trgm GIN indexes backing the location search (searchBoundariesNearLocation). They make
-    // the normalized `LIKE '%term%'` index-driven; without them the search scans the whole table by
-    // distance whenever matches aren't near the map center. immutable_search_text (accent fold +
-    // lowercase + strip non-alphanumerics) is defined in migration.
-    sql.raw(
-      "CREATE INDEX IF NOT EXISTS idx_admin_boundaries_name_trgm ON admin_boundaries USING gin (immutable_search_text(name) gin_trgm_ops)",
+    index("idx_admin_boundaries_name_en_trgm").using(
+      "gin",
+      sql`immutable_search_text(coalesce(${table.nameEn}, '')) gin_trgm_ops`,
     ),
-    sql.raw(
-      "CREATE INDEX IF NOT EXISTS idx_admin_boundaries_name_en_trgm ON admin_boundaries USING gin (immutable_search_text(coalesce(name_en, '')) gin_trgm_ops)",
-    ),
-    sql.raw(
-      "CREATE INDEX IF NOT EXISTS idx_admin_boundaries_names_trgm ON admin_boundaries USING gin (immutable_search_text(coalesce(names::text, '')) gin_trgm_ops)",
+    index("idx_admin_boundaries_names_trgm").using(
+      "gin",
+      sql`immutable_search_text(coalesce(${table.names}::text, '')) gin_trgm_ops`,
     ),
   ],
 );

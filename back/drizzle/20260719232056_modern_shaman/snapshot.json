@@ -1,3224 +1,577 @@
 {
-  "version": "8",
+  "type": "diff",
+  "version": "9",
   "dialect": "postgres",
   "id": "556bdc26-2d30-4f88-868d-fbf9acbf7977",
   "prevIds": ["447999c6-a679-4b80-a09f-49f98fea875c"],
-  "ddl": [
-    {
-      "values": ["pending", "approved", "rejected", "replaced"],
-      "name": "approval_status",
-      "entityType": "enums",
-      "schema": "public"
-    },
-    {
-      "values": ["pending", "approved", "rejected", "conflicted"],
-      "name": "change_request_status",
-      "entityType": "enums",
-      "schema": "public"
-    },
-    {
-      "isRlsEnabled": false,
-      "name": "admin_boundaries",
-      "entityType": "tables",
-      "schema": "public"
-    },
-    {
-      "isRlsEnabled": false,
-      "name": "change_history",
-      "entityType": "tables",
-      "schema": "public"
-    },
-    {
-      "isRlsEnabled": false,
-      "name": "change_requests",
-      "entityType": "tables",
-      "schema": "public"
-    },
-    {
-      "isRlsEnabled": false,
-      "name": "config",
-      "entityType": "tables",
-      "schema": "public"
-    },
-    {
-      "isRlsEnabled": false,
-      "name": "deleted_projects",
-      "entityType": "tables",
-      "schema": "public"
-    },
-    {
-      "isRlsEnabled": false,
-      "name": "import_sources",
-      "entityType": "tables",
-      "schema": "public"
-    },
-    {
-      "isRlsEnabled": false,
-      "name": "oauth_accounts",
-      "entityType": "tables",
-      "schema": "public"
-    },
-    {
-      "isRlsEnabled": false,
-      "name": "overlays",
-      "entityType": "tables",
-      "schema": "public"
-    },
-    {
-      "isRlsEnabled": false,
-      "name": "projects",
-      "entityType": "tables",
-      "schema": "public"
-    },
-    {
-      "isRlsEnabled": false,
-      "name": "scheduled_deletions",
-      "entityType": "tables",
-      "schema": "public"
-    },
-    {
-      "isRlsEnabled": false,
-      "name": "sessions",
-      "entityType": "tables",
-      "schema": "public"
-    },
-    {
-      "isRlsEnabled": false,
-      "name": "uploaded_files",
-      "entityType": "tables",
-      "schema": "public"
-    },
-    {
-      "isRlsEnabled": false,
-      "name": "user_reports",
-      "entityType": "tables",
-      "schema": "public"
-    },
-    {
-      "isRlsEnabled": false,
-      "name": "users",
-      "entityType": "tables",
-      "schema": "public"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "osm_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "admin_boundaries"
-    },
-    {
-      "type": "integer",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "admin_level",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "admin_boundaries"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "parent_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "admin_boundaries"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "name",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "admin_boundaries"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "name_en",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "admin_boundaries"
-    },
-    {
-      "type": "jsonb",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "names",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "admin_boundaries"
-    },
-    {
-      "type": "char(3)",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "country_code",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "admin_boundaries"
-    },
-    {
-      "type": "geometry(multipolygon,4326)",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "geom",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "admin_boundaries"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "external_last_modified",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "admin_boundaries"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "last_imported_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "admin_boundaries"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "created_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "admin_boundaries"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "updated_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "admin_boundaries"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "gen_random_uuid()",
-      "generated": null,
-      "identity": null,
-      "name": "id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "change_history"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "change_request_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "change_history"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "entity_type",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "change_history"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "entity_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "change_history"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "field_name",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "change_history"
-    },
-    {
-      "type": "jsonb",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "old_value",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "change_history"
-    },
-    {
-      "type": "jsonb",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "new_value",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "change_history"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "changed_by",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "change_history"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "approved_by",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "change_history"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "applied_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "change_history"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "gen_random_uuid()",
-      "generated": null,
-      "identity": null,
-      "name": "id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "change_requests"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "entity_type",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "change_requests"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "entity_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "change_requests"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "field_name",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "change_requests"
-    },
-    {
-      "type": "jsonb",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "old_value",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "change_requests"
-    },
-    {
-      "type": "jsonb",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "new_value",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "change_requests"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "change_reason",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "change_requests"
-    },
-    {
-      "type": "change_request_status",
-      "typeSchema": "public",
-      "notNull": true,
-      "dimensions": 0,
-      "default": "'pending'",
-      "generated": null,
-      "identity": null,
-      "name": "status",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "change_requests"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "requested_by",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "change_requests"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "created_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "change_requests"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "resolved_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "change_requests"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "resolved_by",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "change_requests"
-    },
-    {
-      "type": "integer",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "1",
-      "generated": null,
-      "identity": null,
-      "name": "id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "config"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "info_message",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "config"
-    },
-    {
-      "type": "integer",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "2",
-      "generated": null,
-      "identity": null,
-      "name": "report_threshold",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "config"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "updated_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "config"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "slug",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "deleted_projects"
-    },
-    {
-      "type": "double precision",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "lat",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "deleted_projects"
-    },
-    {
-      "type": "double precision",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "lng",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "deleted_projects"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "'removed'",
-      "generated": null,
-      "identity": null,
-      "name": "status",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "deleted_projects"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "deleted_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "deleted_projects"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "gen_random_uuid()",
-      "generated": null,
-      "identity": null,
-      "name": "id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "import_sources"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "slug",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "import_sources"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "name",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "import_sources"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "type",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "import_sources"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "url_template",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "import_sources"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "attribution",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "import_sources"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "last_sync_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "import_sources"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "last_sync_started_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "import_sources"
-    },
-    {
-      "type": "boolean",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "true",
-      "generated": null,
-      "identity": null,
-      "name": "enabled",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "import_sources"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "created_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "import_sources"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "updated_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "import_sources"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "gen_random_uuid()",
-      "generated": null,
-      "identity": null,
-      "name": "id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "oauth_accounts"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "user_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "oauth_accounts"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "provider",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "oauth_accounts"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "provider_account_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "oauth_accounts"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "created_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "oauth_accounts"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "gen_random_uuid()",
-      "generated": null,
-      "identity": null,
-      "name": "id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "overlays"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "filename",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "overlays"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "caption",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "overlays"
-    },
-    {
-      "type": "approval_status",
-      "typeSchema": "public",
-      "notNull": true,
-      "dimensions": 0,
-      "default": "'pending'",
-      "generated": null,
-      "identity": null,
-      "name": "status",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "overlays"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "project_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "overlays"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "author_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "overlays"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "replaces_overlay_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "overlays"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "replaced_by_overlay_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "overlays"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "'map'",
-      "generated": null,
-      "identity": null,
-      "name": "kind",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "overlays"
-    },
-    {
-      "type": "geometry(polygon,4326)",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "corners",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "overlays"
-    },
-    {
-      "type": "geometry(point)",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "centroid",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "overlays"
-    },
-    {
-      "type": "integer",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "1",
-      "generated": null,
-      "identity": null,
-      "name": "version",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "overlays"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "rejection_reason",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "overlays"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "created_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "overlays"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "updated_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "overlays"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "gen_random_uuid()",
-      "generated": null,
-      "identity": null,
-      "name": "id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "name",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "slug",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "description",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "approval_status",
-      "typeSchema": "public",
-      "notNull": true,
-      "dimensions": 0,
-      "default": "'pending'",
-      "generated": null,
-      "identity": null,
-      "name": "status",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "owner_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "char(3)",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "country_code",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "'proposed'",
-      "generated": null,
-      "identity": null,
-      "name": "timeline_status",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "import_source_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "external_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "jsonb",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "external_properties",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "external_last_modified",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "last_imported_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "source_url",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "proposal_date",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "proposal_date_precision",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "start_date",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "start_date_precision",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "end_date",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "end_date_precision",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "double precision",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "lat",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "double precision",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "lng",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "geometry(point)",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "center_coordinate",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "geometry(geometrycollection,4326)",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "geometry",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "double precision",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "geometry_size_m",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 1,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "tags",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "integer",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "1",
-      "generated": null,
-      "identity": null,
-      "name": "version",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "rejection_reason",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "admin_boundary_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "detached_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "import_locked_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "boolean",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "false",
-      "generated": null,
-      "identity": null,
-      "name": "indexable",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "created_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "updated_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "gen_random_uuid()",
-      "generated": null,
-      "identity": null,
-      "name": "id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "scheduled_deletions"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "overlay_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "scheduled_deletions"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "filename",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "scheduled_deletions"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "deletion_date",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "scheduled_deletions"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "deletion_type",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "scheduled_deletions"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "created_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "scheduled_deletions"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "sessions"
-    },
-    {
-      "type": "jsonb",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "data",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "sessions"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "expires_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "sessions"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "created_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "sessions"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "updated_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "sessions"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "gen_random_uuid()",
-      "generated": null,
-      "identity": null,
-      "name": "id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "uploaded_files"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "filename",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "uploaded_files"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "original_filename",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "uploaded_files"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "uploader_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "uploaded_files"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "created_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "uploaded_files"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "gen_random_uuid()",
-      "generated": null,
-      "identity": null,
-      "name": "id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "user_reports"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "reported_user_id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "user_reports"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "reported_by",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "user_reports"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "reason",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "user_reports"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "created_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "user_reports"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "gen_random_uuid()",
-      "generated": null,
-      "identity": null,
-      "name": "id",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "users"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "email",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "users"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "username",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "users"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "password_hash",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "users"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": "'user'",
-      "generated": null,
-      "identity": null,
-      "name": "role",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "users"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 1,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "moderated_countries",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "users"
-    },
-    {
-      "type": "boolean",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "false",
-      "generated": null,
-      "identity": null,
-      "name": "email_verified",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "users"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "email_verification_token",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "users"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "password_reset_token",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "users"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "password_reset_expires_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "users"
-    },
-    {
-      "type": "integer",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "0",
-      "generated": null,
-      "identity": null,
-      "name": "approved_count",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "users"
-    },
-    {
-      "type": "integer",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "0",
-      "generated": null,
-      "identity": null,
-      "name": "rejected_count",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "users"
-    },
-    {
-      "type": "boolean",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "false",
-      "generated": null,
-      "identity": null,
-      "name": "banned",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "users"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "banned_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "users"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "banned_by",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "users"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "ban_reason",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "users"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "last_approval_acknowledgement_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "users"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "created_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "users"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "updated_at",
-      "entityType": "columns",
-      "schema": "public",
-      "table": "users"
-    },
-    {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "admin_level",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": ["table", "public", "uploaded_files"],
+      "writes": [
+        "s|tbl|public.uploaded_files",
+        "n|tbl|public.uploaded_files",
+        "e|tbl|public.uploaded_files",
+        "n|rel|public.uploaded_files",
+        "n|type|public.uploaded_files",
+        "n|rel|public.uploaded_files_pkey"
       ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_admin_boundaries_admin_level",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "admin_boundaries"
+      "reads": ["n|sch|public"]
     },
     {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "parent_id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
+      "statementType": "drop_fk",
+      "statementTarget": ["table", "public", "projects"],
+      "writes": [
+        "s|fk|public.projects.projects_city_id_cities_id_fk",
+        "n|fk|public.projects.projects_city_id_cities_id_fk",
+        "e|fk|public.projects.projects_city_id_cities_id_fk",
+        "n|con|public.projects.projects_city_id_cities_id_fk"
       ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_admin_boundaries_parent",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "admin_boundaries"
+      "reads": ["n|tbl|public.projects", "n|sch|public", "e|col|public.projects.city_id"]
     },
     {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "country_code",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
+      "statementType": "drop_table",
+      "statementTarget": ["table", "public", "cities"],
+      "writes": [
+        "s|tbl|public.cities",
+        "n|tbl|public.cities",
+        "e|tbl|public.cities",
+        "n|rel|public.cities",
+        "n|type|public.cities"
       ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_admin_boundaries_country",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "admin_boundaries"
+      "reads": ["n|sch|public"]
     },
     {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "entity_type",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        },
-        {
-          "value": "entity_id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
+      "statementType": "drop_table",
+      "statementTarget": ["table", "public", "countries"],
+      "writes": [
+        "s|tbl|public.countries",
+        "n|tbl|public.countries",
+        "e|tbl|public.countries",
+        "n|rel|public.countries",
+        "n|type|public.countries"
       ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_change_history_entity",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "change_history"
+      "reads": ["n|sch|public"]
     },
     {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "change_request_id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
+      "statementType": "drop_unique",
+      "statementTarget": ["table", "public", "users"],
+      "writes": [
+        "s|uq|public.users.users_google_id_unique",
+        "n|uq|public.users.users_google_id_unique",
+        "e|uq|public.users.users_google_id_unique",
+        "n|con|public.users.users_google_id_unique",
+        "n|rel|public.users_google_id_unique"
       ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_change_history_request",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "change_history"
+      "reads": ["n|tbl|public.users", "n|sch|public", "e|col|public.users.google_id"],
+      "sharedWrites": ["e|uniqueness|public.users.google_id"]
     },
     {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "entity_type",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        },
-        {
-          "value": "entity_id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
+      "statementType": "drop_index",
+      "statementTarget": ["index", "public", "users", "idx_users_google_id"],
+      "writes": [
+        "s|idx|public.idx_users_google_id",
+        "n|idx|public.idx_users_google_id",
+        "e|idx|public.idx_users_google_id",
+        "n|rel|public.idx_users_google_id"
       ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_change_requests_entity",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "change_requests"
+      "reads": ["e|tbl|public.users", "n|sch|public", "e|col|public.users.google_id"],
+      "sharedWrites": []
     },
     {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "requested_by",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
+      "statementType": "drop_column",
+      "statementTarget": ["column", "public", "projects", "is_development"],
+      "writes": [
+        "s|col|public.projects.is_development",
+        "n|col|public.projects.is_development",
+        "e|col|public.projects.is_development"
       ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_change_requests_requested_by",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "change_requests"
+      "reads": ["n|tbl|public.projects", "n|sch|public"]
     },
     {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "status",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
+      "statementType": "drop_column",
+      "statementTarget": ["column", "public", "projects", "city_id"],
+      "writes": [
+        "s|col|public.projects.city_id",
+        "n|col|public.projects.city_id",
+        "e|col|public.projects.city_id"
       ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_change_requests_status",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "change_requests"
+      "reads": ["n|tbl|public.projects", "n|sch|public"]
     },
     {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "deleted_at",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
+      "statementType": "drop_column",
+      "statementTarget": ["column", "public", "projects", "latest_update_on"],
+      "writes": [
+        "s|col|public.projects.latest_update_on",
+        "n|col|public.projects.latest_update_on",
+        "e|col|public.projects.latest_update_on"
       ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_deleted_projects_deleted_at",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "deleted_projects"
+      "reads": ["n|tbl|public.projects", "n|sch|public"]
     },
     {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "slug",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
+      "statementType": "drop_column",
+      "statementTarget": ["column", "public", "projects", "coordinates"],
+      "writes": [
+        "s|col|public.projects.coordinates",
+        "n|col|public.projects.coordinates",
+        "e|col|public.projects.coordinates"
       ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_import_sources_slug",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "import_sources"
+      "reads": ["n|tbl|public.projects", "n|sch|public"]
     },
     {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "type",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
+      "statementType": "drop_column",
+      "statementTarget": ["column", "public", "users", "google_id"],
+      "writes": [
+        "s|col|public.users.google_id",
+        "n|col|public.users.google_id",
+        "e|col|public.users.google_id"
       ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_import_sources_type",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "import_sources"
+      "reads": ["n|tbl|public.users", "n|sch|public"]
     },
     {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "provider",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        },
-        {
-          "value": "provider_account_id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
+      "statementType": "alter_column",
+      "statementTarget": ["column", "public", "overlays", "centroid"],
+      "writes": ["s|colprop|public.overlays.centroid.notNull"],
+      "reads": ["n|tbl|public.overlays", "n|sch|public", "n|col|public.overlays.centroid"],
+      "sqlHash": "b365fdce703eb950"
+    },
+    {
+      "statementType": "alter_column",
+      "statementTarget": ["column", "public", "projects", "name"],
+      "writes": ["s|colprop|public.projects.name.notNull"],
+      "reads": ["n|tbl|public.projects", "n|sch|public", "n|col|public.projects.name"],
+      "sqlHash": "ce2c90e28b9cd292"
+    },
+    {
+      "statementType": "alter_column",
+      "statementTarget": ["column", "public", "change_history", "new_value"],
+      "writes": ["s|colprop|public.change_history.new_value.notNull"],
+      "reads": [
+        "n|tbl|public.change_history",
+        "n|sch|public",
+        "n|col|public.change_history.new_value"
       ],
-      "isUnique": true,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_oauth_accounts_provider_account",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "oauth_accounts"
+      "sqlHash": "25cd7881ad44518f"
     },
     {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "user_id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
+      "statementType": "alter_column",
+      "statementTarget": ["column", "public", "change_requests", "new_value"],
+      "writes": ["s|colprop|public.change_requests.new_value.notNull"],
+      "reads": [
+        "n|tbl|public.change_requests",
+        "n|sch|public",
+        "n|col|public.change_requests.new_value"
       ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_oauth_accounts_user_id",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "oauth_accounts"
+      "sqlHash": "575afd6a39491177"
     },
     {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "status",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
+      "statementType": "alter_column",
+      "statementTarget": ["column", "public", "overlays", "corners"],
+      "writes": [
+        "s|colprop|public.overlays.corners.notNull",
+        "s|colprop|public.overlays.corners.type",
+        "s|colprop|public.overlays.corners.default"
       ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_overlays_status",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "overlays"
+      "reads": ["n|tbl|public.overlays", "n|sch|public", "n|col|public.overlays.corners"],
+      "sqlHash": "bbea82c3ef3fd560"
     },
     {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "author_id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
+      "statementType": "create_index",
+      "statementTarget": ["index", "public", "uploaded_files", "idx_uploaded_files_filename"],
+      "writes": [
+        "s|idx|public.idx_uploaded_files_filename",
+        "n|idx|public.idx_uploaded_files_filename",
+        "e|idx|public.idx_uploaded_files_filename",
+        "n|rel|public.idx_uploaded_files_filename"
       ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_overlays_author_id",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "overlays"
+      "reads": [
+        "n|tbl|public.uploaded_files",
+        "n|sch|public",
+        "n|col|public.uploaded_files.filename"
+      ]
     },
     {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "project_id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
+      "statementType": "create_index",
+      "statementTarget": ["index", "public", "uploaded_files", "idx_uploaded_files_uploader"],
+      "writes": [
+        "s|idx|public.idx_uploaded_files_uploader",
+        "n|idx|public.idx_uploaded_files_uploader",
+        "e|idx|public.idx_uploaded_files_uploader",
+        "n|rel|public.idx_uploaded_files_uploader"
       ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_overlays_project",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "overlays"
+      "reads": [
+        "n|tbl|public.uploaded_files",
+        "n|sch|public",
+        "n|col|public.uploaded_files.uploader_id"
+      ]
     },
     {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "replaces_overlay_id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
+      "statementType": "create_index",
+      "statementTarget": ["index", "public", "uploaded_files", "idx_uploaded_files_created_at"],
+      "writes": [
+        "s|idx|public.idx_uploaded_files_created_at",
+        "n|idx|public.idx_uploaded_files_created_at",
+        "e|idx|public.idx_uploaded_files_created_at",
+        "n|rel|public.idx_uploaded_files_created_at"
       ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_overlays_replaces",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "overlays"
+      "reads": [
+        "n|tbl|public.uploaded_files",
+        "n|sch|public",
+        "n|col|public.uploaded_files.created_at"
+      ]
     },
     {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "kind",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
+      "statementType": "create_fk",
+      "statementTarget": ["table", "public", "uploaded_files"],
+      "writes": [
+        "s|fk|public.uploaded_files.uploaded_files_uploader_id_users_id_fkey",
+        "n|fk|public.uploaded_files.uploaded_files_uploader_id_users_id_fkey",
+        "e|fk|public.uploaded_files.uploaded_files_uploader_id_users_id_fkey",
+        "n|con|public.uploaded_files.uploaded_files_uploader_id_users_id_fkey"
       ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_overlays_kind",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "overlays"
-    },
-    {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "status",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": false,
-      "where": "\"status\" <> 'approved'",
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_projects_status",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "owner_id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": false,
-      "where": "\"owner_id\" IS NOT NULL",
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_projects_owner_id",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "timeline_status",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_projects_timeline_status",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "external_id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_projects_external_id",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "last_imported_at",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_projects_last_imported",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "external_last_modified",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_projects_external_last_modified",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "admin_boundary_id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_projects_admin_boundary",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "slug",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": false,
-      "where": "\"indexable\" = true",
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_projects_indexable",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "import_source_id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        },
-        {
-          "value": "external_id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": true,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_projects_source_external",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "deletion_date",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_scheduled_deletions_date",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "scheduled_deletions"
-    },
-    {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "overlay_id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_scheduled_deletions_overlay",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "scheduled_deletions"
-    },
-    {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "expires_at",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_sessions_expires_at",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "sessions"
-    },
-    {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "filename",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": true,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_uploaded_files_filename",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "uploaded_files"
-    },
-    {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "uploader_id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_uploaded_files_uploader",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "uploaded_files"
-    },
-    {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "created_at",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_uploaded_files_created_at",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "uploaded_files"
-    },
-    {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "reported_user_id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_user_reports_reported_user",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "user_reports"
-    },
-    {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "reported_by",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_user_reports_reported_by",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "user_reports"
-    },
-    {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "email",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_users_email",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "users"
-    },
-    {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "email_verification_token",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_users_email_verification",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "users"
-    },
-    {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "password_reset_token",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_users_password_reset",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "users"
-    },
-    {
-      "nameExplicit": false,
-      "columns": ["parent_id"],
-      "schemaTo": "public",
-      "tableTo": "admin_boundaries",
-      "columnsTo": ["osm_id"],
-      "onUpdate": "CASCADE",
-      "onDelete": "SET NULL",
-      "name": "admin_boundaries_parent_id_admin_boundaries_osm_id_fk",
-      "entityType": "fks",
-      "schema": "public",
-      "table": "admin_boundaries"
-    },
-    {
-      "nameExplicit": false,
-      "columns": ["change_request_id"],
-      "schemaTo": "public",
-      "tableTo": "change_requests",
-      "columnsTo": ["id"],
-      "onUpdate": "CASCADE",
-      "onDelete": "SET NULL",
-      "name": "change_history_change_request_id_change_requests_id_fk",
-      "entityType": "fks",
-      "schema": "public",
-      "table": "change_history"
-    },
-    {
-      "nameExplicit": false,
-      "columns": ["changed_by"],
-      "schemaTo": "public",
-      "tableTo": "users",
-      "columnsTo": ["id"],
-      "onUpdate": "CASCADE",
-      "onDelete": "SET NULL",
-      "name": "change_history_changed_by_users_id_fk",
-      "entityType": "fks",
-      "schema": "public",
-      "table": "change_history"
-    },
-    {
-      "nameExplicit": false,
-      "columns": ["approved_by"],
-      "schemaTo": "public",
-      "tableTo": "users",
-      "columnsTo": ["id"],
-      "onUpdate": "CASCADE",
-      "onDelete": "SET NULL",
-      "name": "change_history_approved_by_users_id_fk",
-      "entityType": "fks",
-      "schema": "public",
-      "table": "change_history"
-    },
-    {
-      "nameExplicit": false,
-      "columns": ["requested_by"],
-      "schemaTo": "public",
-      "tableTo": "users",
-      "columnsTo": ["id"],
-      "onUpdate": "CASCADE",
-      "onDelete": "SET NULL",
-      "name": "change_requests_requested_by_users_id_fk",
-      "entityType": "fks",
-      "schema": "public",
-      "table": "change_requests"
-    },
-    {
-      "nameExplicit": false,
-      "columns": ["resolved_by"],
-      "schemaTo": "public",
-      "tableTo": "users",
-      "columnsTo": ["id"],
-      "onUpdate": "CASCADE",
-      "onDelete": "SET NULL",
-      "name": "change_requests_resolved_by_users_id_fk",
-      "entityType": "fks",
-      "schema": "public",
-      "table": "change_requests"
-    },
-    {
-      "nameExplicit": false,
-      "columns": ["user_id"],
-      "schemaTo": "public",
-      "tableTo": "users",
-      "columnsTo": ["id"],
-      "onUpdate": "CASCADE",
-      "onDelete": "CASCADE",
-      "name": "oauth_accounts_user_id_users_id_fk",
-      "entityType": "fks",
-      "schema": "public",
-      "table": "oauth_accounts"
-    },
-    {
-      "nameExplicit": false,
-      "columns": ["project_id"],
-      "schemaTo": "public",
-      "tableTo": "projects",
-      "columnsTo": ["id"],
-      "onUpdate": "CASCADE",
-      "onDelete": "CASCADE",
-      "name": "overlays_project_id_projects_id_fk",
-      "entityType": "fks",
-      "schema": "public",
-      "table": "overlays"
-    },
-    {
-      "nameExplicit": false,
-      "columns": ["author_id"],
-      "schemaTo": "public",
-      "tableTo": "users",
-      "columnsTo": ["id"],
-      "onUpdate": "CASCADE",
-      "onDelete": "SET NULL",
-      "name": "overlays_author_id_users_id_fk",
-      "entityType": "fks",
-      "schema": "public",
-      "table": "overlays"
-    },
-    {
-      "nameExplicit": false,
-      "columns": ["owner_id"],
-      "schemaTo": "public",
-      "tableTo": "users",
-      "columnsTo": ["id"],
-      "onUpdate": "CASCADE",
-      "onDelete": "SET NULL",
-      "name": "projects_owner_id_users_id_fk",
-      "entityType": "fks",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "nameExplicit": false,
-      "columns": ["import_source_id"],
-      "schemaTo": "public",
-      "tableTo": "import_sources",
-      "columnsTo": ["id"],
-      "onUpdate": "CASCADE",
-      "onDelete": "SET NULL",
-      "name": "projects_import_source_id_import_sources_id_fk",
-      "entityType": "fks",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "nameExplicit": false,
-      "columns": ["admin_boundary_id"],
-      "schemaTo": "public",
-      "tableTo": "admin_boundaries",
-      "columnsTo": ["osm_id"],
-      "onUpdate": "CASCADE",
-      "onDelete": "SET NULL",
-      "name": "projects_admin_boundary_id_admin_boundaries_osm_id_fk",
-      "entityType": "fks",
-      "schema": "public",
-      "table": "projects"
-    },
-    {
-      "nameExplicit": false,
-      "columns": ["overlay_id"],
-      "schemaTo": "public",
-      "tableTo": "overlays",
-      "columnsTo": ["id"],
-      "onUpdate": "CASCADE",
-      "onDelete": "CASCADE",
-      "name": "scheduled_deletions_overlay_id_overlays_id_fk",
-      "entityType": "fks",
-      "schema": "public",
-      "table": "scheduled_deletions"
-    },
-    {
-      "nameExplicit": false,
-      "columns": ["uploader_id"],
-      "schemaTo": "public",
-      "tableTo": "users",
-      "columnsTo": ["id"],
-      "onUpdate": "CASCADE",
-      "onDelete": "CASCADE",
-      "name": "uploaded_files_uploader_id_users_id_fkey",
-      "entityType": "fks",
-      "schema": "public",
-      "table": "uploaded_files"
-    },
-    {
-      "nameExplicit": false,
-      "columns": ["reported_user_id"],
-      "schemaTo": "public",
-      "tableTo": "users",
-      "columnsTo": ["id"],
-      "onUpdate": "CASCADE",
-      "onDelete": "CASCADE",
-      "name": "user_reports_reported_user_id_users_id_fk",
-      "entityType": "fks",
-      "schema": "public",
-      "table": "user_reports"
-    },
-    {
-      "nameExplicit": false,
-      "columns": ["reported_by"],
-      "schemaTo": "public",
-      "tableTo": "users",
-      "columnsTo": ["id"],
-      "onUpdate": "CASCADE",
-      "onDelete": "CASCADE",
-      "name": "user_reports_reported_by_users_id_fk",
-      "entityType": "fks",
-      "schema": "public",
-      "table": "user_reports"
-    },
-    {
-      "nameExplicit": false,
-      "columns": ["banned_by"],
-      "schemaTo": "public",
-      "tableTo": "users",
-      "columnsTo": ["id"],
-      "onUpdate": "NO ACTION",
-      "onDelete": "SET NULL",
-      "name": "users_banned_by_users_id_fk",
-      "entityType": "fks",
-      "schema": "public",
-      "table": "users"
-    },
-    {
-      "columns": ["osm_id"],
-      "nameExplicit": false,
-      "name": "admin_boundaries_pkey",
-      "schema": "public",
-      "table": "admin_boundaries",
-      "entityType": "pks"
-    },
-    {
-      "columns": ["id"],
-      "nameExplicit": false,
-      "name": "change_history_pkey",
-      "schema": "public",
-      "table": "change_history",
-      "entityType": "pks"
-    },
-    {
-      "columns": ["id"],
-      "nameExplicit": false,
-      "name": "change_requests_pkey",
-      "schema": "public",
-      "table": "change_requests",
-      "entityType": "pks"
-    },
-    {
-      "columns": ["id"],
-      "nameExplicit": false,
-      "name": "config_pkey",
-      "schema": "public",
-      "table": "config",
-      "entityType": "pks"
-    },
-    {
-      "columns": ["slug"],
-      "nameExplicit": false,
-      "name": "deleted_projects_pkey",
-      "schema": "public",
-      "table": "deleted_projects",
-      "entityType": "pks"
-    },
-    {
-      "columns": ["id"],
-      "nameExplicit": false,
-      "name": "import_sources_pkey",
-      "schema": "public",
-      "table": "import_sources",
-      "entityType": "pks"
-    },
-    {
-      "columns": ["id"],
-      "nameExplicit": false,
-      "name": "oauth_accounts_pkey",
-      "schema": "public",
-      "table": "oauth_accounts",
-      "entityType": "pks"
-    },
-    {
-      "columns": ["id"],
-      "nameExplicit": false,
-      "name": "overlays_pkey",
-      "schema": "public",
-      "table": "overlays",
-      "entityType": "pks"
-    },
-    {
-      "columns": ["id"],
-      "nameExplicit": false,
-      "name": "projects_pkey",
-      "schema": "public",
-      "table": "projects",
-      "entityType": "pks"
-    },
-    {
-      "columns": ["id"],
-      "nameExplicit": false,
-      "name": "scheduled_deletions_pkey",
-      "schema": "public",
-      "table": "scheduled_deletions",
-      "entityType": "pks"
-    },
-    {
-      "columns": ["id"],
-      "nameExplicit": false,
-      "name": "sessions_pkey",
-      "schema": "public",
-      "table": "sessions",
-      "entityType": "pks"
-    },
-    {
-      "columns": ["id"],
-      "nameExplicit": false,
-      "name": "uploaded_files_pkey",
-      "schema": "public",
-      "table": "uploaded_files",
-      "entityType": "pks"
-    },
-    {
-      "columns": ["id"],
-      "nameExplicit": false,
-      "name": "user_reports_pkey",
-      "schema": "public",
-      "table": "user_reports",
-      "entityType": "pks"
-    },
-    {
-      "columns": ["id"],
-      "nameExplicit": false,
-      "name": "users_pkey",
-      "schema": "public",
-      "table": "users",
-      "entityType": "pks"
-    },
-    {
-      "nameExplicit": false,
-      "columns": ["slug"],
-      "nullsNotDistinct": false,
-      "name": "import_sources_slug_unique",
-      "schema": "public",
-      "table": "import_sources",
-      "entityType": "uniques"
-    },
-    {
-      "nameExplicit": false,
-      "columns": ["slug"],
-      "nullsNotDistinct": false,
-      "name": "projects_slug_unique",
-      "schema": "public",
-      "table": "projects",
-      "entityType": "uniques"
-    },
-    {
-      "nameExplicit": false,
-      "columns": ["email"],
-      "nullsNotDistinct": false,
-      "name": "users_email_unique",
-      "schema": "public",
-      "table": "users",
-      "entityType": "uniques"
-    },
-    {
-      "nameExplicit": false,
-      "columns": ["username"],
-      "nullsNotDistinct": false,
-      "name": "users_username_unique",
-      "schema": "public",
-      "table": "users",
-      "entityType": "uniques"
+      "reads": [
+        "n|tbl|public.uploaded_files",
+        "n|sch|public",
+        "n|tbl|public.users",
+        "n|sch|public",
+        "n|col|public.uploaded_files.uploader_id",
+        "n|col|public.users.id",
+        "e|uniqueness|public.users.id"
+      ]
     }
   ],
-  "renames": []
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "uploaded_files",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "uploaded_files",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "gen_random_uuid()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "uploaded_files",
+        "name": "filename",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "uploaded_files",
+        "name": "original_filename",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "uploaded_files",
+        "name": "uploader_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "uploaded_files",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "uploaded_files",
+        "name": "idx_uploaded_files_filename",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "filename",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "uploaded_files",
+        "name": "idx_uploaded_files_uploader",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "uploader_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "uploaded_files",
+        "name": "idx_uploaded_files_created_at",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "created_at",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "uploaded_files",
+        "name": "uploaded_files_uploader_id_users_id_fkey",
+        "nameExplicit": false,
+        "columns": ["uploader_id"],
+        "schemaTo": "public",
+        "tableTo": "users",
+        "columnsTo": ["id"],
+        "onUpdate": "CASCADE",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "uploaded_files",
+        "name": "uploaded_files_pkey",
+        "columns": ["id"],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "drop",
+      "key": "tables\u0000[\"public\",\"cities\"]"
+    },
+    {
+      "op": "drop",
+      "key": "tables\u0000[\"public\",\"countries\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"cities\",\"id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"cities\",\"name\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"cities\",\"country_code\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"cities\",\"coordinates\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"cities\",\"created_at\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"cities\",\"updated_at\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"countries\",\"id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"countries\",\"code\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"countries\",\"name\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"countries\",\"center_coordinates\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"countries\",\"created_at\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"countries\",\"updated_at\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"projects\",\"is_development\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"projects\",\"city_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"projects\",\"latest_update_on\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"projects\",\"coordinates\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"users\",\"google_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "indexes\u0000[\"public\",\"idx_cities_country\"]"
+    },
+    {
+      "op": "drop",
+      "key": "indexes\u0000[\"public\",\"idx_countries_code\"]"
+    },
+    {
+      "op": "drop",
+      "key": "indexes\u0000[\"public\",\"idx_users_google_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"public\",\"projects\",\"projects_city_id_cities_id_fk\"]"
+    },
+    {
+      "op": "drop",
+      "key": "pks\u0000[\"public\",\"cities\",\"cities_pkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "pks\u0000[\"public\",\"countries\",\"countries_pkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "uniques\u0000[\"public\",\"countries\",\"countries_code_unique\"]"
+    },
+    {
+      "op": "drop",
+      "key": "uniques\u0000[\"public\",\"users\",\"users_google_id_unique\"]"
+    },
+    {
+      "op": "alter",
+      "key": "columns\u0000[\"public\",\"overlays\",\"centroid\"]",
+      "set": {
+        "notNull": false
+      }
+    },
+    {
+      "op": "alter",
+      "key": "columns\u0000[\"public\",\"projects\",\"name\"]",
+      "set": {
+        "notNull": false
+      }
+    },
+    {
+      "op": "alter",
+      "key": "columns\u0000[\"public\",\"change_history\",\"new_value\"]",
+      "set": {
+        "notNull": false
+      }
+    },
+    {
+      "op": "alter",
+      "key": "columns\u0000[\"public\",\"change_requests\",\"new_value\"]",
+      "set": {
+        "notNull": false
+      }
+    },
+    {
+      "op": "alter",
+      "key": "columns\u0000[\"public\",\"overlays\",\"corners\"]",
+      "set": {
+        "type": "geometry(polygon,4326)",
+        "notNull": false
+      }
+    }
+  ]
 }

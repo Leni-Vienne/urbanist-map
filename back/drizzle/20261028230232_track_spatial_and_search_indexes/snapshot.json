@@ -1,0 +1,437 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "10f0f6bc-8b42-4b5b-96fc-55da0aacbe10",
+  "prevIds": ["e6ea5d55-7b59-4f3f-bb9a-5154874ab61e"],
+  "footprints": [
+    {
+      "statementType": "drop_index",
+      "statementTarget": ["index", "public", "users", "idx_users_email"],
+      "writes": [
+        "s|idx|public.idx_users_email",
+        "n|idx|public.idx_users_email",
+        "e|idx|public.idx_users_email",
+        "n|rel|public.idx_users_email"
+      ],
+      "reads": ["e|tbl|public.users", "n|sch|public", "e|col|public.users.email"],
+      "sharedWrites": []
+    },
+    {
+      "statementType": "drop_index",
+      "statementTarget": ["index", "public", "import_sources", "idx_import_sources_slug"],
+      "writes": [
+        "s|idx|public.idx_import_sources_slug",
+        "n|idx|public.idx_import_sources_slug",
+        "e|idx|public.idx_import_sources_slug",
+        "n|rel|public.idx_import_sources_slug"
+      ],
+      "reads": ["e|tbl|public.import_sources", "n|sch|public", "e|col|public.import_sources.slug"],
+      "sharedWrites": []
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": ["index", "public", "admin_boundaries", "idx_admin_boundaries_geom"],
+      "writes": [
+        "s|idx|public.idx_admin_boundaries_geom",
+        "n|idx|public.idx_admin_boundaries_geom",
+        "e|idx|public.idx_admin_boundaries_geom",
+        "n|rel|public.idx_admin_boundaries_geom"
+      ],
+      "reads": [
+        "n|tbl|public.admin_boundaries",
+        "n|sch|public",
+        "n|col|public.admin_boundaries.geom"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": ["index", "public", "admin_boundaries", "idx_admin_boundaries_name_trgm"],
+      "writes": [
+        "s|idx|public.idx_admin_boundaries_name_trgm",
+        "n|idx|public.idx_admin_boundaries_name_trgm",
+        "e|idx|public.idx_admin_boundaries_name_trgm",
+        "n|rel|public.idx_admin_boundaries_name_trgm"
+      ],
+      "reads": ["n|tbl|public.admin_boundaries", "n|sch|public"]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "admin_boundaries",
+        "idx_admin_boundaries_name_en_trgm"
+      ],
+      "writes": [
+        "s|idx|public.idx_admin_boundaries_name_en_trgm",
+        "n|idx|public.idx_admin_boundaries_name_en_trgm",
+        "e|idx|public.idx_admin_boundaries_name_en_trgm",
+        "n|rel|public.idx_admin_boundaries_name_en_trgm"
+      ],
+      "reads": ["n|tbl|public.admin_boundaries", "n|sch|public"]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": ["index", "public", "admin_boundaries", "idx_admin_boundaries_names_trgm"],
+      "writes": [
+        "s|idx|public.idx_admin_boundaries_names_trgm",
+        "n|idx|public.idx_admin_boundaries_names_trgm",
+        "e|idx|public.idx_admin_boundaries_names_trgm",
+        "n|rel|public.idx_admin_boundaries_names_trgm"
+      ],
+      "reads": ["n|tbl|public.admin_boundaries", "n|sch|public"]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": ["index", "public", "overlays", "idx_overlays_corners"],
+      "writes": [
+        "s|idx|public.idx_overlays_corners",
+        "n|idx|public.idx_overlays_corners",
+        "e|idx|public.idx_overlays_corners",
+        "n|rel|public.idx_overlays_corners"
+      ],
+      "reads": ["n|tbl|public.overlays", "n|sch|public", "n|col|public.overlays.corners"]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": ["index", "public", "projects", "idx_projects_center_coordinate"],
+      "writes": [
+        "s|idx|public.idx_projects_center_coordinate",
+        "n|idx|public.idx_projects_center_coordinate",
+        "e|idx|public.idx_projects_center_coordinate",
+        "n|rel|public.idx_projects_center_coordinate"
+      ],
+      "reads": ["n|tbl|public.projects", "n|sch|public", "n|col|public.projects.center_coordinate"]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": ["index", "public", "projects", "idx_projects_geometry"],
+      "writes": [
+        "s|idx|public.idx_projects_geometry",
+        "n|idx|public.idx_projects_geometry",
+        "e|idx|public.idx_projects_geometry",
+        "n|rel|public.idx_projects_geometry"
+      ],
+      "reads": ["n|tbl|public.projects", "n|sch|public", "n|col|public.projects.geometry"]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": ["index", "public", "projects", "idx_projects_geometry_100k"],
+      "writes": [
+        "s|idx|public.idx_projects_geometry_100k",
+        "n|idx|public.idx_projects_geometry_100k",
+        "e|idx|public.idx_projects_geometry_100k",
+        "n|rel|public.idx_projects_geometry_100k"
+      ],
+      "reads": ["n|tbl|public.projects", "n|sch|public", "n|col|public.projects.geometry"]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": ["index", "public", "projects", "idx_projects_geometry_50k"],
+      "writes": [
+        "s|idx|public.idx_projects_geometry_50k",
+        "n|idx|public.idx_projects_geometry_50k",
+        "e|idx|public.idx_projects_geometry_50k",
+        "n|rel|public.idx_projects_geometry_50k"
+      ],
+      "reads": ["n|tbl|public.projects", "n|sch|public", "n|col|public.projects.geometry"]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": ["index", "public", "projects", "idx_projects_geometry_10k"],
+      "writes": [
+        "s|idx|public.idx_projects_geometry_10k",
+        "n|idx|public.idx_projects_geometry_10k",
+        "e|idx|public.idx_projects_geometry_10k",
+        "n|rel|public.idx_projects_geometry_10k"
+      ],
+      "reads": ["n|tbl|public.projects", "n|sch|public", "n|col|public.projects.geometry"]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": ["index", "public", "projects", "idx_projects_tags"],
+      "writes": [
+        "s|idx|public.idx_projects_tags",
+        "n|idx|public.idx_projects_tags",
+        "e|idx|public.idx_projects_tags",
+        "n|rel|public.idx_projects_tags"
+      ],
+      "reads": ["n|tbl|public.projects", "n|sch|public", "n|col|public.projects.tags"]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "admin_boundaries",
+        "name": "idx_admin_boundaries_geom",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "geom",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "gist",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "admin_boundaries",
+        "name": "idx_admin_boundaries_name_trgm",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "immutable_search_text(\"name\") gin_trgm_ops",
+            "isExpression": true,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "gin",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "admin_boundaries",
+        "name": "idx_admin_boundaries_name_en_trgm",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "immutable_search_text(coalesce(\"name_en\", '')) gin_trgm_ops",
+            "isExpression": true,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "gin",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "admin_boundaries",
+        "name": "idx_admin_boundaries_names_trgm",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "immutable_search_text(coalesce(\"names\"::text, '')) gin_trgm_ops",
+            "isExpression": true,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "gin",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "overlays",
+        "name": "idx_overlays_corners",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "corners",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "gist",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "projects",
+        "name": "idx_projects_center_coordinate",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "center_coordinate",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "gist",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "projects",
+        "name": "idx_projects_geometry",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "geometry",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "gist",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "projects",
+        "name": "idx_projects_geometry_100k",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "geometry",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "\"geometry_size_m\" >= 100000 AND \"status\" = 'approved'",
+        "with": "",
+        "method": "gist",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "projects",
+        "name": "idx_projects_geometry_50k",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "geometry",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "\"geometry_size_m\" >= 50000 AND \"status\" = 'approved'",
+        "with": "",
+        "method": "gist",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "projects",
+        "name": "idx_projects_geometry_10k",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "geometry",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "\"geometry_size_m\" >= 10000 AND \"status\" = 'approved'",
+        "with": "",
+        "method": "gist",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "projects",
+        "name": "idx_projects_tags",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tags",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "gin",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "drop",
+      "key": "indexes\u0000[\"public\",\"idx_users_email\"]"
+    },
+    {
+      "op": "drop",
+      "key": "indexes\u0000[\"public\",\"idx_import_sources_slug\"]"
+    }
+  ]
+}

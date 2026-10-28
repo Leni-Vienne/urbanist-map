@@ -631,24 +631,6 @@ async function loadBoundaries(inputPath: string): Promise<void> {
     .where(eq(importSources.id, importSource.id));
 }
 
-// The GIST index on geom is the hard dependency of every spatial pass: without it,
-// ST_Contains/ST_Intersects fall back to a full scan per point (hours instead of seconds).
-// schema.ts declares it, but drizzle does not emit sql.raw indexes into migrations, so it is
-// ensured here. IF NOT EXISTS makes it idempotent and near-instant when already present, so the
-// hierarchy/assign steps can ensure it themselves and run standalone without a preceding load.
-async function ensureSpatialIndex(): Promise<void> {
-  try {
-    log("Ensuring spatial index on admin_boundaries.geom...");
-    const indexStart = Date.now();
-    await db.execute(
-      sql`CREATE INDEX IF NOT EXISTS idx_admin_boundaries_geom ON admin_boundaries USING GIST (geom)`,
-    );
-    log(`  spatial index ready in ${formatDuration((Date.now() - indexStart) / 1000)}`);
-  } catch (error) {
-    console.error("Failed to ensure spatial index:", error);
-  }
-}
-
 type ImportStep = "load" | "hierarchy" | "assign";
 // Canonical order; selected steps always run in this order so dependencies hold regardless of how
 // they were listed on the command line.
@@ -725,9 +707,6 @@ async function main(): Promise<void> {
   }
 
   if (runLoad && inputPath) await loadBoundaries(inputPath);
-
-  // Every spatial pass depends on the GIST index; ensure it whenever one will run.
-  if (runHierarchy || runAssign) await ensureSpatialIndex();
 
   if (runHierarchy) await resolveHierarchy();
   if (runAssign) await assignProjects(onlyUnassigned);

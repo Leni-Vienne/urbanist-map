@@ -1,488 +1,92 @@
 {
-  "id": "9a6335d7-172e-4f7e-8235-64122c213762",
-  "prevIds": ["0001675f-a999-4b96-bab1-1e87734c9f71"],
-  "version": "8",
+  "type": "diff",
+  "version": "9",
   "dialect": "postgres",
-  "ddl": [
+  "id": "f00a3e54-046a-422b-8e56-3eacdac4b6b4",
+  "prevIds": ["186b75da-156a-4a1b-91d0-2e54674a32bf"],
+  "footprints": [
     {
-      "isRlsEnabled": false,
-      "name": "images",
-      "schema": "public",
-      "entityType": "tables"
-    },
-    {
-      "columns": ["id"],
-      "nameExplicit": false,
-      "name": "images_pkey",
-      "schema": "public",
-      "table": "images",
-      "entityType": "pks"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "gen_random_uuid()",
-      "generated": null,
-      "identity": null,
-      "name": "id",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "url",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "caption",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "project_id",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "author_id",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "jsonb",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "metadata",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "double precision",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "top_left_lat",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "double precision",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "top_left_lng",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "double precision",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "top_right_lat",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "double precision",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "top_right_lng",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "double precision",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "bottom_right_lat",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "double precision",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "bottom_right_lng",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "double precision",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "bottom_left_lat",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "double precision",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "bottom_left_lng",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "geometry(point)",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "centroid",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "created_at",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "updated_at",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "project_id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
+      "statementType": "create_table",
+      "statementTarget": ["table", "public", "config"],
+      "writes": [
+        "s|tbl|public.config",
+        "n|tbl|public.config",
+        "e|tbl|public.config",
+        "n|rel|public.config",
+        "n|type|public.config",
+        "n|rel|public.config_pkey"
       ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_images_project",
-      "schema": "public",
-      "table": "images",
-      "entityType": "indexes"
-    },
-    {
-      "nameExplicit": false,
-      "columns": ["project_id"],
-      "schemaTo": "public",
-      "tableTo": "projects",
-      "columnsTo": ["id"],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "name": "images_project_id_projects_id_fk",
-      "schema": "public",
-      "table": "images",
-      "entityType": "fks"
-    },
-    {
-      "nameExplicit": false,
-      "columns": ["author_id"],
-      "schemaTo": "public",
-      "tableTo": "users",
-      "columnsTo": ["id"],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "name": "images_author_id_users_id_fk",
-      "schema": "public",
-      "table": "images",
-      "entityType": "fks"
-    },
-    {
-      "isRlsEnabled": false,
-      "name": "projects",
-      "schema": "public",
-      "entityType": "tables"
-    },
-    {
-      "columns": ["id"],
-      "nameExplicit": false,
-      "name": "projects_pkey",
-      "schema": "public",
-      "table": "projects",
-      "entityType": "pks"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "gen_random_uuid()",
-      "generated": null,
-      "identity": null,
-      "name": "id",
-      "schema": "public",
-      "table": "projects",
-      "entityType": "columns"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "title",
-      "schema": "public",
-      "table": "projects",
-      "entityType": "columns"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "description",
-      "schema": "public",
-      "table": "projects",
-      "entityType": "columns"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "owner_id",
-      "schema": "public",
-      "table": "projects",
-      "entityType": "columns"
-    },
-    {
-      "type": "jsonb",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "metadata",
-      "schema": "public",
-      "table": "projects",
-      "entityType": "columns"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "created_at",
-      "schema": "public",
-      "table": "projects",
-      "entityType": "columns"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "updated_at",
-      "schema": "public",
-      "table": "projects",
-      "entityType": "columns"
-    },
-    {
-      "nameExplicit": false,
-      "columns": ["owner_id"],
-      "schemaTo": "public",
-      "tableTo": "users",
-      "columnsTo": ["id"],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "name": "projects_owner_id_users_id_fk",
-      "schema": "public",
-      "table": "projects",
-      "entityType": "fks"
-    },
-    {
-      "isRlsEnabled": false,
-      "name": "users",
-      "schema": "public",
-      "entityType": "tables"
-    },
-    {
-      "columns": ["id"],
-      "nameExplicit": false,
-      "name": "users_pkey",
-      "schema": "public",
-      "table": "users",
-      "entityType": "pks"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "gen_random_uuid()",
-      "generated": null,
-      "identity": null,
-      "name": "id",
-      "schema": "public",
-      "table": "users",
-      "entityType": "columns"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "username",
-      "schema": "public",
-      "table": "users",
-      "entityType": "columns"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "email",
-      "schema": "public",
-      "table": "users",
-      "entityType": "columns"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "created_at",
-      "schema": "public",
-      "table": "users",
-      "entityType": "columns"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "updated_at",
-      "schema": "public",
-      "table": "users",
-      "entityType": "columns"
+      "reads": ["n|sch|public"]
     }
   ],
-  "renames": []
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "config",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "config",
+        "name": "id",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "config",
+        "name": "info_message",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "config",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "config",
+        "name": "config_pkey",
+        "columns": ["id"],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    }
+  ]
 }

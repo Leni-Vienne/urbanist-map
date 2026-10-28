@@ -1,749 +1,413 @@
 {
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
   "id": "bccab76a-1bb6-46c1-9aff-cbf6cae20fd5",
   "prevIds": ["e41a7ca3-6973-4e73-afcf-6a1db6f5895f"],
-  "version": "8",
-  "dialect": "postgres",
-  "ddl": [
+  "footprints": [
     {
-      "isRlsEnabled": false,
-      "name": "cities",
-      "schema": "public",
-      "entityType": "tables"
-    },
-    {
-      "columns": ["id"],
-      "nameExplicit": false,
-      "name": "cities_pkey",
-      "schema": "public",
-      "table": "cities",
-      "entityType": "pks"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "gen_random_uuid()",
-      "generated": null,
-      "identity": null,
-      "name": "id",
-      "schema": "public",
-      "table": "cities",
-      "entityType": "columns"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "name",
-      "schema": "public",
-      "table": "cities",
-      "entityType": "columns"
-    },
-    {
-      "type": "char(3)",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "country_code",
-      "schema": "public",
-      "table": "cities",
-      "entityType": "columns"
-    },
-    {
-      "type": "geometry(point)",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "coordinates",
-      "schema": "public",
-      "table": "cities",
-      "entityType": "columns"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "created_at",
-      "schema": "public",
-      "table": "cities",
-      "entityType": "columns"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "updated_at",
-      "schema": "public",
-      "table": "cities",
-      "entityType": "columns"
-    },
-    {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "country_code",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
+      "statementType": "create_table",
+      "statementTarget": ["table", "public", "cities"],
+      "writes": [
+        "s|tbl|public.cities",
+        "n|tbl|public.cities",
+        "e|tbl|public.cities",
+        "n|rel|public.cities",
+        "n|type|public.cities",
+        "n|rel|public.cities_pkey"
       ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_cities_country",
-      "schema": "public",
-      "table": "cities",
-      "entityType": "indexes"
+      "reads": ["n|sch|public"]
     },
     {
-      "isRlsEnabled": false,
-      "name": "countries",
-      "schema": "public",
-      "entityType": "tables"
-    },
-    {
-      "columns": ["id"],
-      "nameExplicit": false,
-      "name": "countries_pkey",
-      "schema": "public",
-      "table": "countries",
-      "entityType": "pks"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "gen_random_uuid()",
-      "generated": null,
-      "identity": null,
-      "name": "id",
-      "schema": "public",
-      "table": "countries",
-      "entityType": "columns"
-    },
-    {
-      "type": "char(3)",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "code",
-      "schema": "public",
-      "table": "countries",
-      "entityType": "columns"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "name",
-      "schema": "public",
-      "table": "countries",
-      "entityType": "columns"
-    },
-    {
-      "type": "geometry(point)",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "center_coordinates",
-      "schema": "public",
-      "table": "countries",
-      "entityType": "columns"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "created_at",
-      "schema": "public",
-      "table": "countries",
-      "entityType": "columns"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "updated_at",
-      "schema": "public",
-      "table": "countries",
-      "entityType": "columns"
-    },
-    {
-      "nameExplicit": false,
-      "columns": ["code"],
-      "nullsNotDistinct": false,
-      "name": "countries_code_unique",
-      "schema": "public",
-      "table": "countries",
-      "entityType": "uniques"
-    },
-    {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "code",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
+      "statementType": "create_table",
+      "statementTarget": ["table", "public", "countries"],
+      "writes": [
+        "s|tbl|public.countries",
+        "n|tbl|public.countries",
+        "e|tbl|public.countries",
+        "n|rel|public.countries",
+        "n|type|public.countries",
+        "n|rel|public.countries_pkey",
+        "n|rel|public.countries_code_unique"
       ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_countries_code",
-      "schema": "public",
-      "table": "countries",
-      "entityType": "indexes"
+      "reads": ["n|sch|public"]
     },
     {
-      "isRlsEnabled": false,
-      "name": "images",
-      "schema": "public",
-      "entityType": "tables"
-    },
-    {
-      "columns": ["id"],
-      "nameExplicit": false,
-      "name": "images_pkey",
-      "schema": "public",
-      "table": "images",
-      "entityType": "pks"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "gen_random_uuid()",
-      "generated": null,
-      "identity": null,
-      "name": "id",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "filename",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "caption",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "project_id",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "author_id",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "jsonb",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "metadata",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "double precision",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "top_left_lat",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "double precision",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "top_left_lng",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "double precision",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "top_right_lat",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "double precision",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "top_right_lng",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "double precision",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "bottom_right_lat",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "double precision",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "bottom_right_lng",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "double precision",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "bottom_left_lat",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "double precision",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "bottom_left_lng",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "geometry(point)",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "centroid",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "created_at",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "updated_at",
-      "schema": "public",
-      "table": "images",
-      "entityType": "columns"
-    },
-    {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "project_id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "projects", "city_id"],
+      "writes": [
+        "s|col|public.projects.city_id",
+        "n|col|public.projects.city_id",
+        "e|col|public.projects.city_id"
       ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "idx_images_project",
-      "schema": "public",
-      "table": "images",
-      "entityType": "indexes"
+      "reads": ["n|tbl|public.projects", "n|sch|public"]
     },
     {
-      "nameExplicit": false,
-      "columns": ["project_id"],
-      "schemaTo": "public",
-      "tableTo": "projects",
-      "columnsTo": ["id"],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "name": "images_project_id_projects_id_fk",
-      "schema": "public",
-      "table": "images",
-      "entityType": "fks"
+      "statementType": "create_index",
+      "statementTarget": ["index", "public", "cities", "idx_cities_country"],
+      "writes": [
+        "s|idx|public.idx_cities_country",
+        "n|idx|public.idx_cities_country",
+        "e|idx|public.idx_cities_country",
+        "n|rel|public.idx_cities_country"
+      ],
+      "reads": ["n|tbl|public.cities", "n|sch|public", "n|col|public.cities.country_code"]
     },
     {
-      "nameExplicit": false,
-      "columns": ["author_id"],
-      "schemaTo": "public",
-      "tableTo": "users",
-      "columnsTo": ["id"],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "name": "images_author_id_users_id_fk",
-      "schema": "public",
-      "table": "images",
-      "entityType": "fks"
+      "statementType": "create_index",
+      "statementTarget": ["index", "public", "countries", "idx_countries_code"],
+      "writes": [
+        "s|idx|public.idx_countries_code",
+        "n|idx|public.idx_countries_code",
+        "e|idx|public.idx_countries_code",
+        "n|rel|public.idx_countries_code"
+      ],
+      "reads": ["n|tbl|public.countries", "n|sch|public", "n|col|public.countries.code"]
     },
     {
-      "isRlsEnabled": false,
-      "name": "projects",
-      "schema": "public",
-      "entityType": "tables"
-    },
-    {
-      "columns": ["id"],
-      "nameExplicit": false,
-      "name": "projects_pkey",
-      "schema": "public",
-      "table": "projects",
-      "entityType": "pks"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "gen_random_uuid()",
-      "generated": null,
-      "identity": null,
-      "name": "id",
-      "schema": "public",
-      "table": "projects",
-      "entityType": "columns"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "title",
-      "schema": "public",
-      "table": "projects",
-      "entityType": "columns"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "description",
-      "schema": "public",
-      "table": "projects",
-      "entityType": "columns"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "owner_id",
-      "schema": "public",
-      "table": "projects",
-      "entityType": "columns"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "city_id",
-      "schema": "public",
-      "table": "projects",
-      "entityType": "columns"
-    },
-    {
-      "type": "jsonb",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "metadata",
-      "schema": "public",
-      "table": "projects",
-      "entityType": "columns"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "created_at",
-      "schema": "public",
-      "table": "projects",
-      "entityType": "columns"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "updated_at",
-      "schema": "public",
-      "table": "projects",
-      "entityType": "columns"
-    },
-    {
-      "nameExplicit": false,
-      "columns": ["owner_id"],
-      "schemaTo": "public",
-      "tableTo": "users",
-      "columnsTo": ["id"],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "name": "projects_owner_id_users_id_fk",
-      "schema": "public",
-      "table": "projects",
-      "entityType": "fks"
-    },
-    {
-      "nameExplicit": false,
-      "columns": ["city_id"],
-      "schemaTo": "public",
-      "tableTo": "cities",
-      "columnsTo": ["id"],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "name": "projects_city_id_cities_id_fk",
-      "schema": "public",
-      "table": "projects",
-      "entityType": "fks"
-    },
-    {
-      "isRlsEnabled": false,
-      "name": "users",
-      "schema": "public",
-      "entityType": "tables"
-    },
-    {
-      "columns": ["id"],
-      "nameExplicit": false,
-      "name": "users_pkey",
-      "schema": "public",
-      "table": "users",
-      "entityType": "pks"
-    },
-    {
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "gen_random_uuid()",
-      "generated": null,
-      "identity": null,
-      "name": "id",
-      "schema": "public",
-      "table": "users",
-      "entityType": "columns"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "username",
-      "schema": "public",
-      "table": "users",
-      "entityType": "columns"
-    },
-    {
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "name": "email",
-      "schema": "public",
-      "table": "users",
-      "entityType": "columns"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "created_at",
-      "schema": "public",
-      "table": "users",
-      "entityType": "columns"
-    },
-    {
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "now()",
-      "generated": null,
-      "identity": null,
-      "name": "updated_at",
-      "schema": "public",
-      "table": "users",
-      "entityType": "columns"
+      "statementType": "create_fk",
+      "statementTarget": ["table", "public", "projects"],
+      "writes": [
+        "s|fk|public.projects.projects_city_id_cities_id_fk",
+        "n|fk|public.projects.projects_city_id_cities_id_fk",
+        "e|fk|public.projects.projects_city_id_cities_id_fk",
+        "n|con|public.projects.projects_city_id_cities_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.projects",
+        "n|sch|public",
+        "n|tbl|public.cities",
+        "n|sch|public",
+        "n|col|public.projects.city_id",
+        "n|col|public.cities.id",
+        "e|uniqueness|public.cities.id"
+      ]
     }
   ],
-  "renames": []
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "cities",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "countries",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "cities",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "gen_random_uuid()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "cities",
+        "name": "name",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "cities",
+        "name": "country_code",
+        "type": "char(3)",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "cities",
+        "name": "coordinates",
+        "type": "geometry(point)",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "cities",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "cities",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "countries",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "gen_random_uuid()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "countries",
+        "name": "code",
+        "type": "char(3)",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "countries",
+        "name": "name",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "countries",
+        "name": "center_coordinates",
+        "type": "geometry(point)",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "countries",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "countries",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "projects",
+        "name": "city_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "cities",
+        "name": "idx_cities_country",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "country_code",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "countries",
+        "name": "idx_countries_code",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "code",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "projects",
+        "name": "projects_city_id_cities_id_fk",
+        "nameExplicit": false,
+        "columns": ["city_id"],
+        "schemaTo": "public",
+        "tableTo": "cities",
+        "columnsTo": ["id"],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "cities",
+        "name": "cities_pkey",
+        "columns": ["id"],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "countries",
+        "name": "countries_pkey",
+        "columns": ["id"],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "countries",
+        "name": "countries_code_unique",
+        "nameExplicit": false,
+        "columns": ["code"],
+        "nullsNotDistinct": false,
+        "entityType": "uniques"
+      }
+    }
+  ]
 }
