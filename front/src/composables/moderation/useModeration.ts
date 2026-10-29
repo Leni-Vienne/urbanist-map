@@ -13,7 +13,6 @@ import { overlayWireToData } from "@/utils/typeFactories";
 import { invalidateLatestContributions } from "@/services/feed/latestContributions";
 import { canModerateCountry } from "@/services/moderation/moderationCountrySync";
 
-// Result type for approval operations
 export type ApprovalResult = {
   success: boolean;
   error?: "not_found" | "version_conflict" | "unknown";
@@ -94,7 +93,6 @@ export function useModeration() {
     }
   }
 
-  // Generic approval handler for any moderation item type
   async function setApprovalStatus(request: ApprovalRequest): Promise<ApprovalResult> {
     const { id, status, itemType } = request;
     const isOverlay = itemType === "overlay";
@@ -222,23 +220,8 @@ export function useModeration() {
     return setOverlayStatus(id, "rejected", rejectionReason);
   }
 
-  async function setProjectStatus(
-    id: string,
-    status: "approved" | "rejected",
-    rejectionReason?: string,
-    rejectAllOverlays?: boolean,
-  ): Promise<ApprovalResult> {
-    return setApprovalStatus({
-      id,
-      status,
-      itemType: "project",
-      rejectionReason,
-      rejectAllOverlays,
-    });
-  }
-
   async function approveProject(id: string): Promise<ApprovalResult> {
-    return setProjectStatus(id, "approved");
+    return setApprovalStatus({ id, status: "approved", itemType: "project" });
   }
 
   async function rejectProject(
@@ -246,7 +229,13 @@ export function useModeration() {
     rejectionReason?: string,
     rejectAllOverlays?: boolean,
   ): Promise<ApprovalResult> {
-    return setProjectStatus(id, "rejected", rejectionReason, rejectAllOverlays);
+    return setApprovalStatus({
+      id,
+      status: "rejected",
+      itemType: "project",
+      rejectionReason,
+      rejectAllOverlays,
+    });
   }
 
   onMounted(() => {

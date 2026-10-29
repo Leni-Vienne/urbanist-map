@@ -189,8 +189,6 @@ const lightbox = useTemplateRef<InstanceType<typeof ImageLightbox>>("lightbox");
 interface Props {
   project: Project | null;
   compact?: boolean;
-  // Render the Wikidata logo + main image inside the card. Off by default because the detail
-  // panel renders its own (logo next to the name, image with a zoom lightbox).
   showWikidataMedia?: boolean;
   wikidataEntity?: WikidataEntity | null;
 }

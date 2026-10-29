@@ -1,13 +1,10 @@
 <template>
   <div class="flex h-screen">
-    <!-- Desktop SideMenu -->
     <SideMenu v-if="!isMobile" />
 
-    <!-- Mobile Bottom Drawer -->
     <MobileDrawer v-if="isMobile" />
 
     <div class="grow flex flex-col relative">
-      <!-- Info message banner (displayed at top when config.infoMessage is set) -->
       <Message
         v-if="authStore.infoMessage && !authStore.version && !infoBannerDismissed"
         severity="info"
@@ -19,7 +16,6 @@
         {{ authStore.infoMessage }}
       </Message>
 
-      <!-- Scheduled maintenance banner (daily 4:00 UTC, ~1 min downtime) -->
       <Message
         v-if="maintenanceBannerText && !maintenanceBannerDismissed"
         severity="warn"
@@ -31,7 +27,6 @@
         {{ maintenanceBannerText }}
       </Message>
 
-      <!-- Map container that fills remaining space -->
       <div class="flex-1 relative overflow-hidden">
         <MapView />
       </div>
@@ -50,7 +45,6 @@
       />
     </div>
 
-    <!-- Project Management Dialogs -->
     <ProjectManager
       v-if="
         uiStore.projectCreationSeed ||
@@ -59,10 +53,8 @@
       "
     />
 
-    <!-- Image Upload Dialog - always rendered so it's available from any part of the app -->
     <ImageUploadDialog v-if="uiStore.imageUploadProjectId" />
 
-    <!-- Submission Confirmation Dialog - loads lazily when first submission is triggered -->
     <SubmissionDialogWrapper v-if="showSubmissionDialog" />
   </div>
 </template>
@@ -99,7 +91,7 @@ const ProjectManager = defineAsyncComponent(
 const ImageUploadDialog = defineAsyncComponent(
   () => import("@/components/common/ImageUploadDialog.vue"),
 );
-// Loads lazily the first time a submission is triggered (not on page load)
+// Keep the submission-service imports behind this async boundary until a submission is triggered.
 const SubmissionDialogWrapper = defineAsyncComponent(
   () => import("@/components/submission/SubmissionDialogWrapper.vue"),
 );
@@ -186,7 +178,6 @@ onMounted(() => {
 async function restoreSessionAndConsumeAuthParams() {
   await authStore.initialize();
 
-  // Handle auth query parameters from URL
   if (route.query.auth === "success") {
     if (route.query.provider === "osm") {
       authStore.setLastUsedMethod("osm");
@@ -196,9 +187,7 @@ async function restoreSessionAndConsumeAuthParams() {
     toastError(errorMessage, t("pages.home.authenticationError"));
   }
 
-  // Focus the map on a /project/:slug deep link (no-op on other routes). Fire-and-forget: the
-  // handler waits for the map to be ready on its own. slug + t are captured synchronously above
-  // (this runs after an await, so useRoute/useI18n would no longer resolve here).
+  // Fire-and-forget: the deep-link handler waits for the map to be ready on its own.
   void handleProjectDeepLink(route.params.slug, t);
 
   // Strip the auth params the OAuth callback appended so they don't linger in the URL.
@@ -213,7 +202,6 @@ async function restoreSessionAndConsumeAuthParams() {
   }
 }
 
-// Get error message for auth query param codes
 function getErrorMessage(error: string): string {
   switch (error) {
     case "auth_failed":

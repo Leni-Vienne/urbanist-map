@@ -28,9 +28,6 @@ function isRecord(value: unknown): value is JsonObject {
 //   statement.mainsnak , the "snak" (property + value pair) that holds the actual data
 //   snak.snaktype , "value" | "novalue" | "somevalue"; we only care about "value"
 //   snak.datavalue, { type: "string" | "quantity" | "wikibase-entityid" | …, value: … }
-
-// P154 = logo image (Wikimedia Commons filename)
-// P18  = main image (Wikimedia Commons filename)
 function getStringClaim(claims: JsonObject, property: string): string | null {
   const arr = claims[property];
   const statement = Array.isArray(arr) ? arr[0] : undefined;
