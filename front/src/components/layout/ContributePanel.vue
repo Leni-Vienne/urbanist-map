@@ -28,7 +28,7 @@
       <ProjectActionButtons
         :project="project"
         :show-delete="!isExternal"
-        :is-modified="isProjectModified(project.id)"
+        :is-modified="isProjectUnsaved(project)"
         @edit="handleEditProjectClick"
         @add-image="handleAddImageToProject"
         @draw="handleDrawShapesClick"
@@ -153,6 +153,7 @@ import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useUserContributions } from "@/composables/project/useUserContributions";
 import { useContributeActions } from "@/composables/project/useContributeActions";
 import { useFocusStore } from "@/stores/focusStore";
+import { isProjectUnsaved } from "@/services/overlay/unsavedState";
 
 import ProjectAccordionPanel from "@/components/layout/ProjectAccordionPanel.vue";
 import ProjectActionButtons from "@/components/project/ProjectActionButtons.vue";
@@ -174,7 +175,6 @@ const {
 const changeRequestStore = useChangeRequestStore();
 
 const {
-  isProjectModified,
   handleNewProjectClick,
   handleDeleteOverlayClick,
   handleDeleteStagedRender,

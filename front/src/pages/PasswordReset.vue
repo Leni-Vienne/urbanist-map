@@ -28,13 +28,15 @@
               :feedback="true"
               toggleMask
               :placeholder="$t('auth.chooseStrongPassword')"
-              :class="{ 'p-invalid': passwordError }"
+              :class="{ 'p-invalid': validationAttempted && passwordError }"
               :inputProps="{ autocomplete: 'new-password' }"
               required
             />
-            <small v-if="passwordError" class="text-red-600 dark:text-red-400">{{
-              passwordError
-            }}</small>
+            <small
+              v-if="validationAttempted && passwordError"
+              class="text-red-600 dark:text-red-400"
+              >{{ passwordError }}</small
+            >
           </div>
 
           <div class="flex flex-col gap-2 text-left">
@@ -47,13 +49,15 @@
               :feedback="false"
               toggleMask
               :placeholder="$t('auth.confirmPassword')"
-              :class="{ 'p-invalid': confirmError }"
+              :class="{ 'p-invalid': validationAttempted && confirmError }"
               :inputProps="{ autocomplete: 'new-password' }"
               required
             />
-            <small v-if="confirmError" class="text-red-600 dark:text-red-400">{{
-              confirmError
-            }}</small>
+            <small
+              v-if="validationAttempted && confirmError"
+              class="text-red-600 dark:text-red-400"
+              >{{ confirmError }}</small
+            >
           </div>
 
           <Button
@@ -99,31 +103,16 @@ const tokenValid = ref(false);
 const submitting = ref(false);
 const newPassword = ref("");
 const confirmPassword = ref("");
-const passwordError = ref("");
-const confirmError = ref("");
+const validationAttempted = ref(false);
 const errorMessage = ref("");
 
-const isFormValid = computed(() => {
-  return (
-    newPassword.value.length >= 8 &&
-    newPassword.value === confirmPassword.value &&
-    !passwordError.value &&
-    !confirmError.value
-  );
-});
-
-function validatePasswords() {
-  passwordError.value = "";
-  confirmError.value = "";
-
-  if (newPassword.value && newPassword.value.length < 8) {
-    passwordError.value = t("auth.chooseStrongPassword");
-  }
-
-  if (confirmPassword.value && newPassword.value !== confirmPassword.value) {
-    confirmError.value = t("auth.passwordsDontMatch");
-  }
-}
+const passwordError = computed(() =>
+  newPassword.value.length < 8 ? t("auth.chooseStrongPassword") : "",
+);
+const confirmError = computed(() =>
+  newPassword.value !== confirmPassword.value ? t("auth.passwordsDontMatch") : "",
+);
+const isFormValid = computed(() => !passwordError.value && !confirmError.value);
 
 async function checkTokenPresent() {
   try {
@@ -144,7 +133,7 @@ async function checkTokenPresent() {
 
 async function handleResetPassword() {
   try {
-    validatePasswords();
+    validationAttempted.value = true;
     if (!isFormValid.value) return;
 
     submitting.value = true;

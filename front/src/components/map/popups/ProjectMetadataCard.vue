@@ -41,24 +41,16 @@
         </div>
       </div>
 
-      <!-- Last Modified -->
-      <div v-if="project.importSourceId" :class="cls.row">
-        <span :class="cls.label">{{ $t("project.lastModified") }}</span>
-        <span :class="cls.value">{{
-          formatDate(project.externalLastModified ?? project.updatedAt)
-        }}</span>
-      </div>
-
       <!-- Creator (user-made projects only) -->
       <div v-if="!project.importSourceId && project.ownerUsername" :class="cls.row">
         <span :class="cls.label">{{ $t("project.createdBy") }}</span>
         <span :class="cls.value">{{ project.ownerUsername }}</span>
       </div>
 
-      <!-- Last Modified (user-made projects only) -->
-      <div v-if="!project.importSourceId && project.updatedAt" :class="cls.row">
+      <!-- Last Modified -->
+      <div v-if="project.importSourceId || lastModifiedDate" :class="cls.row">
         <span :class="cls.label">{{ $t("project.lastModified") }}</span>
-        <span :class="cls.value">{{ formatDate(project.updatedAt) }}</span>
+        <span :class="cls.value">{{ formatDate(lastModifiedDate) }}</span>
       </div>
 
       <!-- Location: full admin breadcrumb when loaded (getById), else country. Hidden when neither

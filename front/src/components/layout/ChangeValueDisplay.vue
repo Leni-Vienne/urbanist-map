@@ -46,12 +46,12 @@
   <div v-else class="flex items-start gap-2 my-1 text-xs flex-wrap">
     <span
       class="text-tag-success-color bg-tag-success-background px-1 py-0.5 rounded-sm wrap-break-word max-w-37"
-      >{{ formatValue(change.oldValue, change.fieldName) }}</span
+      >{{ formatValue(change.oldValue) }}</span
     >
     <i class="pi pi-arrow-right self-center"></i>
     <span
       class="text-tag-warn-color bg-tag-warn-background px-1 py-0.5 rounded-sm wrap-break-word max-w-37"
-      >{{ formatValue(change.newValue, change.fieldName) }}</span
+      >{{ formatValue(change.newValue) }}</span
     >
   </div>
 
@@ -105,13 +105,9 @@ function isGeometryField(fieldName: string): boolean {
   return fieldName === "corners" || fieldName === "centroid";
 }
 
-function formatValue(value: unknown, fieldName: string): string {
+function formatValue(value: unknown): string {
   if (value === null || value === undefined || value === "") {
     return t("overlay.notSet");
-  }
-
-  if (fieldName === "corners" || fieldName === "centroid") {
-    return t("overlay.coordinatesViewOnMap");
   }
 
   if (typeof value === "object") {

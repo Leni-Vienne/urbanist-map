@@ -92,7 +92,7 @@ export function useUserContributions() {
       if (!overlay.projectId) continue;
       const overlayIds = result[overlay.projectId];
       if (!overlayIds) continue;
-      if (!overlayIds.includes(overlay.id)) overlayIds.push(overlay.id);
+      overlayIds.push(overlay.id);
     }
     return result;
   });
