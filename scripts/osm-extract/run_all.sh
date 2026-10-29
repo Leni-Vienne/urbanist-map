@@ -2,7 +2,7 @@
 # Bootstrap the full dataset from a fresh planet/region PBF.
 #
 # Usage:
-#   ./run_all.sh [--import] <source.osm.pbf>
+#   ./run_all.sh [--import] [--trim] <source.osm.pbf>
 #
 # Two stages, and no extraction of its own:
 #   1. filter_combined.sh , reduce the planet to the construction subset (~30-40 min
@@ -24,10 +24,12 @@ source "$SCRIPT_DIR/osm_log.sh"
 trap 'trap - INT TERM; log_warn "Interrupted, killing child processes..."; kill 0; exit 1' INT TERM
 
 IMPORT_FLAG=""
+TRIM_ARGS=()
 SOURCE=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --trim)   TRIM_ARGS=(--trim) ;;
         --import) IMPORT_FLAG="--import" ;;
         --*)      log_error "Unknown flag: $1"; exit 1 ;;
         *)
@@ -39,7 +41,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$SOURCE" ]]; then
-    log_error "Usage: $0 [--import] <source.osm.pbf>"
+    log_error "Usage: $0 [--import] [--trim] <source.osm.pbf>"
     exit 1
 fi
 if [[ ! -f "$SOURCE" ]]; then
@@ -68,7 +70,7 @@ log_info "BOOTSTRAP from $SOURCE"
 
 # Stage 1: reduce the planet to the construction subset.
 log_info "STAGE 1/2: Filtering planet to construction subset"
-"$SCRIPT_DIR/filter_combined.sh" "$SOURCE_ABS"
+"$SCRIPT_DIR/filter_combined.sh" "$SOURCE_ABS" "${TRIM_ARGS[@]}"
 
 # A fresh filter carries the planet's replication timestamp in its PBF header, but a
 # replication-state sidecar from an earlier dataset now points at a stale sequence.
@@ -83,4 +85,4 @@ fi
 log_info "STAGE 2/2: Catch-up + extraction via update_daily.sh"
 # The daily updater owns the final outcome, including partial backfill. Replacing
 # this wrapper avoids a second, misleading success summary after it returns.
-exec "$SCRIPT_DIR/update_daily.sh" "$COMBINED_PBF" $IMPORT_FLAG
+exec "$SCRIPT_DIR/update_daily.sh" "$COMBINED_PBF" $IMPORT_FLAG "${TRIM_ARGS[@]}"

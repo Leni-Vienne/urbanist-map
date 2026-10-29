@@ -112,6 +112,20 @@ GeoJSON available. This temporarily needs space for both old and new GeoJSON.
 
 ## Performance note
 
+Trimming is disabled by default. Pass `--trim` to any Bash pipeline entry point
+(including `run_all.sh` and `update_daily.sh`) to opt in; wrappers forward it to
+their child scripts. The supplied `osm-update.service` opts in with `--trim`.
+When enabled, before large PBF writes (filtering, diff application, re-filtering,
+boundary filtering, and each backfill merge), the scripts run `fstrim` on the destination
+filesystem resolved by `findmnt`. The three parallel sub-PBF derivations share
+one trim before any worker starts. Small fetched-geometry batch sorts are excluded.
+`fstrim` and `findmnt` are provided by util-linux; trimming needs sufficient
+privileges and filesystem/device support. Missing tools or failed trims produce
+a warning and processing continues. Dry runs only log the intended trim.
+TRIM informs storage about already-free blocks; it does not increase filesystem
+free space. Normal OS trim maintenance is usually sufficient; opt in when
+measurements show a benefit for your storage and workload.
+
 If the source file is on a Windows drive (`/mnt/d/...`), the script works but WSL I/O through `/mnt/` is significantly slower than on the WSL native filesystem. For large files (country-level or planet), copying the source to the WSL filesystem first (`cp /mnt/d/... ~/`) can cut processing time substantially. WSL is installed on C: by default.
 
 ## Stages

@@ -142,9 +142,21 @@ from pathlib import Path
 import sys
 name = Path(sys.argv[0]).name
 args = sys.argv[1:]
+if name in ('osmium', 'findmnt', 'fstrim'):
+    with open(os.environ['COMMAND_LOG_FILE'], 'a') as stream:
+        stream.write(json.dumps([name, *args]) + '\\n')
 if name == 'df':
     print('Filesystem 1024-blocks Used Available Capacity Mounted on')
     print('test 30000000 1000 29999000 1% /')
+elif name == 'findmnt':
+    if os.environ.get('FAIL_FINDMNT'):
+        sys.exit(1)
+    print('/mock filesystem')
+elif name == 'fstrim':
+    if os.environ.get('FAIL_TRIM'):
+        print('discard operation is not supported', file=sys.stderr)
+        sys.exit(1)
+    print('/mock filesystem: 7 GiB trimmed')
 elif name == 'curl':
     if '-o' in args:
         Path(args[args.index('-o') + 1]).write_text('diff')
@@ -174,6 +186,8 @@ elif name == 'osmium':
         sys.exit(3)
     if '-o' in args:
         Path(args[args.index('-o') + 1]).write_text('pbf')
+    elif '--output' in args:
+        Path(args[args.index('--output') + 1]).write_text('output')
 elif name == 'bun':
     Path(os.environ['IMPORT_ARGS_FILE']).write_text(json.dumps(args))
     print('native importer output')
@@ -192,11 +206,13 @@ class PipelineLoggingTest(unittest.TestCase):
         executable = tools / 'tool'
         executable.write_text(FAKE_TOOL.format(python=sys.executable))
         executable.chmod(0o755)
-        for name in ['df', 'curl', 'python3', 'osmium', 'bun', 'sleep']:
+        for name in ['df', 'curl', 'python3', 'osmium', 'bun', 'sleep', 'findmnt', 'fstrim']:
             (tools / name).symlink_to(executable)
         self.import_args = self.work / 'import-args.json'
         self.env = {**os.environ, 'PATH': f'{tools}:{os.environ["PATH"]}', 'OSM_LOG_LEVEL': 'INFO',
-                    'IMPORT_ARGS_FILE': str(self.import_args)}
+                    'IMPORT_ARGS_FILE': str(self.import_args),
+                    'COMMAND_LOG_FILE': str(self.work / 'commands.jsonl')}
+        (self.work / 'commands.jsonl').touch()
         self.pbf = self.work / 'test_proposed.osm.pbf'
         self.pbf.write_text('pbf')
         Path(f'{self.pbf}.replication-state').write_text(
@@ -207,6 +223,92 @@ class PipelineLoggingTest(unittest.TestCase):
                                 env=self.env, capture_output=True, text=True)
         records = [parse_record(line) for line in result.stderr.splitlines()]
         return result, records
+
+    def command_calls(self):
+        return [json.loads(line) for line in
+                (self.work / 'commands.jsonl').read_text().splitlines()]
+
+    def test_trimming_is_disabled_by_default_for_all_entry_points(self):
+        for script in ['filter_combined.sh', 'derive_subpbfs.sh', 'backfill_geometry.sh',
+                       'extract_boundaries.sh', 'update_daily.sh', 'run_all.sh']:
+            with self.subTest(script=script):
+                self.env['CHECK_REFS_RC'] = '1'
+                (self.work / 'commands.jsonl').write_text('')
+                result, _ = self.run_script(script)
+                self.assertIn(result.returncode, (0, 2), result.stderr)
+                self.assertFalse(any(call[0] in ('findmnt', 'fstrim')
+                                     for call in self.command_calls()))
+
+    def test_daily_forwards_trim_to_backfill(self):
+        self.env['CHECK_REFS_RC'] = '1'
+        result, _ = self.run_script('update_daily.sh', '--trim')
+        self.assertEqual(0, result.returncode, result.stderr)
+        calls = self.command_calls()
+        merges = [i for i, call in enumerate(calls) if call[:2] == ['osmium', 'merge']]
+        self.assertTrue(merges)
+        for index in merges:
+            self.assertEqual('fstrim', calls[index - 1][0])
+        self.assertEqual(3 + len(merges), sum(call[0] == 'fstrim' for call in calls))
+
+    def test_daily_trims_before_apply_refilter_and_parallel_derivation(self):
+        result, _ = self.run_script('update_daily.sh', '--no-backfill', '--trim')
+        self.assertEqual(0, result.returncode, result.stderr)
+        calls = self.command_calls()
+        writes = [(i, call[1]) for i, call in enumerate(calls)
+                  if call[0] == 'osmium' and '-o' in call]
+        self.assertEqual(['apply-changes', 'tags-filter'], [op for _, op in writes[:2]])
+        for index, _ in writes[:3]:
+            self.assertEqual(['fstrim', '--verbose', '--', '/mock filesystem'], calls[index - 1])
+        self.assertEqual(3, sum(call[0] == 'fstrim' for call in calls))
+        self.assertEqual(5, len(writes))
+        for call in calls:
+            if call[0] == 'findmnt':
+                self.assertEqual(str(self.work), call[-1])
+
+    def test_trim_failure_warns_and_pipeline_continues(self):
+        self.env['FAIL_TRIM'] = '1'
+        result, records = self.run_script('update_daily.sh', '--no-backfill', '--trim')
+        self.assertEqual(0, result.returncode, result.stderr)
+        warnings = [r for r in records if r['message'] == 'Filesystem trim failed; continuing PBF write']
+        self.assertEqual(3, len(warnings))
+        self.assertTrue(all(r['level'] == 'warning' and 'not supported' in r['details']
+                            for r in warnings))
+        self.assertEqual('success', records[-1]['status'])
+
+    def test_mount_lookup_failure_warns_without_trimming(self):
+        self.env['FAIL_FINDMNT'] = '1'
+        result, records = self.run_script('derive_subpbfs.sh', '--trim')
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertTrue(any(r['level'] == 'warning' and 'resolve destination filesystem' in r['message']
+                            for r in records))
+        self.assertFalse(any(call[0] == 'fstrim' for call in self.command_calls()))
+
+    def test_filter_and_backfill_trim_before_large_output(self):
+        for script, args in [('filter_combined.sh', ()),
+                             ('backfill_geometry.sh', ('--max-iters', '1'))]:
+            with self.subTest(script=script):
+                self.env['CHECK_REFS_RC'] = '1'
+                (self.work / 'commands.jsonl').write_text('')
+                result, _ = self.run_script(script, *args, '--trim')
+                self.assertIn(result.returncode, (0, 2), result.stderr)
+                calls = self.command_calls()
+                writes = [i for i, call in enumerate(calls)
+                          if call[0] == 'osmium' and call[1] in ('tags-filter', 'merge')]
+                self.assertEqual(1, len(writes))
+                self.assertEqual('fstrim', calls[writes[0] - 1][0])
+                self.assertEqual(1, sum(call[0] == 'fstrim' for call in calls))
+
+    def test_boundaries_only_trim_when_filtered_pbf_is_written(self):
+        first, _ = self.run_script('extract_boundaries.sh', '--trim')
+        self.assertEqual(0, first.returncode, first.stderr)
+        calls = self.command_calls()
+        index = next(i for i, call in enumerate(calls)
+                     if call[:2] == ['osmium', 'tags-filter'])
+        self.assertEqual('fstrim', calls[index - 1][0])
+        (self.work / 'commands.jsonl').write_text('')
+        second, _ = self.run_script('extract_boundaries.sh', '--trim')
+        self.assertEqual(0, second.returncode, second.stderr)
+        self.assertFalse(any(call[0] == 'fstrim' for call in self.command_calls()))
 
     def test_pipeline_reports_execution_order_and_shared_run_id(self):
         result, records = self.run_script('update_daily.sh', '--import')
@@ -234,14 +336,16 @@ class PipelineLoggingTest(unittest.TestCase):
         self.assertIn('timestamp=2026-10-23T00:00:00Z', Path(f'{self.pbf}.replication-state').read_text())
 
     def test_dry_run_marks_every_event_and_preserves_input(self):
-        result, records = self.run_script('update_daily.sh', '--dry-run', '--no-backfill')
+        result, records = self.run_script('update_daily.sh', '--dry-run', '--no-backfill', '--trim')
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertTrue(all(r['dry_run'] == '1' for r in records))
         self.assertEqual('pbf', self.pbf.read_text())
         self.assertFalse((self.work / 'test_proposed_linear.geojson').exists())
         self.assertEqual('dry_run', records[-1]['status'])
+        self.assertEqual(3, sum('fstrim destination filesystem' in r['message'] for r in records))
         self.assertTrue(all('cpu_seconds' not in r and 'max_process_rss_bytes' not in r
                             for r in records))
+        self.assertFalse(any(call[0] in ('findmnt', 'fstrim') for call in self.command_calls()))
 
     def test_current_dataset_only_reports_the_requested_import(self):
         first, _ = self.run_script('update_daily.sh')
@@ -345,10 +449,14 @@ class PipelineLoggingTest(unittest.TestCase):
 
     def test_bootstrap_leaves_final_outcome_to_daily_updater(self):
         self.env['CHECK_REFS_RC'] = '1'
-        result, records = self.run_script('run_all.sh', '--import')
+        result, records = self.run_script('run_all.sh', '--import', '--trim')
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual('update_daily', records[-1]['component'])
         self.assertEqual('partial', records[-1]['status'])
+        calls = self.command_calls()
+        first_filter = next(i for i, call in enumerate(calls) if call[:2] == ['osmium', 'tags-filter'])
+        self.assertEqual('fstrim', calls[first_filter - 1][0])
+        self.assertGreater(sum(call[0] == 'fstrim' for call in calls), 4)
         self.assertFalse(any(r['component'] == 'run_all' and r.get('event') == 'script_completed'
                              for r in records))
 

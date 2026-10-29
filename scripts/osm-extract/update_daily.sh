@@ -27,17 +27,19 @@
 # defer.
 #
 # Usage:
-#   ./update_daily.sh <planet_proposed.osm.pbf> [--import] [--no-backfill] [--dry-run]
+#   ./update_daily.sh <planet_proposed.osm.pbf> [--import] [--no-backfill] [--dry-run] [--trim]
 #
 # Options:
 #   --import       Run import-osm.ts after extraction (requires bun + backend)
 #   --no-backfill  Skip the geometry backfill step (re-tagged elements may be dropped)
 #   --dry-run      Print what would be done without executing
+#   --trim         Trim the destination filesystem before large PBF writes
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/osm_log.sh"
+source "$SCRIPT_DIR/osm_disk.sh"
 
 trap 'trap - INT TERM; log_warn "Interrupted, killing child processes..."; kill 0; exit 1' INT TERM
 
@@ -54,6 +56,7 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --import)      DO_IMPORT=1 ;;
         --no-backfill) DO_BACKFILL=0 ;;
+        --trim)        OSM_TRIM_BEFORE_WRITE=1 ;;
         --dry-run)     DRY_RUN=1 ;;
         --*)        log_error "Unknown flag: $1"; exit 1 ;;
         *)
@@ -68,12 +71,13 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$FILTERED_PBF" ]]; then
-    log_error "Usage: $0 <planet_proposed.osm.pbf> [--import] [--no-backfill] [--dry-run]"
+    log_error "Usage: $0 <planet_proposed.osm.pbf> [--import] [--no-backfill] [--dry-run] [--trim]"
     log_info "  <planet_proposed.osm.pbf>  The filtered PBF produced by run_all.sh"
     log_info "                             (the file ending in _proposed.osm.pbf)"
     log_info "  --import                   Run import-osm.ts after extraction"
     log_info "  --no-backfill              Skip geometry backfill for re-tagged elements"
     log_info "  --dry-run                  Print what would be done, do not execute"
+    log_info "  --trim                     Trim before large PBF writes (disabled by default)"
     exit 1
 fi
 
@@ -422,6 +426,7 @@ fi
 # incomplete" path (no new diffs exist, so there is nothing to merge).
 if [[ ${#OSC_FILES[@]} -gt 0 ]]; then
     osm_step_start apply "input=$FILTERED_PBF" "output=$FINAL_PBF" "diffs=$TOTAL_DIFFS"
+    osm_trim_before_write "$FINAL_PBF"
     run osmium apply-changes \
         --overwrite \
         --output-format=pbf,pbf_compression=lz4 \
@@ -447,6 +452,7 @@ if [[ ${#OSC_FILES[@]} -gt 0 ]]; then
     else
         "$SCRIPT_DIR/build_combined_filters.sh" > "$REFILTER_RULES"
     fi
+    osm_trim_before_write "$REFILTERED_PBF"
     run osmium tags-filter \
         --overwrite \
         --output-format=pbf,pbf_compression=lz4 \
@@ -503,8 +509,10 @@ AREAL_GEOJSON="${BASE_PREFIX}_proposed_areal.geojson"
 # standalone to rebuild the sub-PBFs while iterating on the Python extraction).
 DERIVE_DRY=""
 [[ "$DRY_RUN" -eq 1 ]] && DERIVE_DRY="--dry-run"
+TRIM_ARGS=()
+[[ "$OSM_TRIM_BEFORE_WRITE" -eq 0 ]] || TRIM_ARGS=(--trim)
 osm_step_start derive
-osm_run "$SCRIPT_DIR/derive_subpbfs.sh" "$FILTERED_PBF" $DERIVE_DRY
+osm_run "$SCRIPT_DIR/derive_subpbfs.sh" "$FILTERED_PBF" $DERIVE_DRY "${TRIM_ARGS[@]}"
 osm_step_end
 
 # Backfill geometry for construction elements re-tagged by the diffs. Their
@@ -528,7 +536,7 @@ if [[ "$DO_BACKFILL" -eq 1 ]]; then
     osm_run "$SCRIPT_DIR/backfill_geometry.sh" \
         "$WAYS_PBF" "$AREAL_PBF" "$FILTERED_PBF" \
         --detect "$WAYS_PBF" --detect "$AREAL_PBF" \
-        $BACKFILL_DRY \
+        $BACKFILL_DRY "${TRIM_ARGS[@]}" \
         || BACKFILL_RC=$?
     case "$BACKFILL_RC" in
         0) BACKFILL_STATUS=success ;;

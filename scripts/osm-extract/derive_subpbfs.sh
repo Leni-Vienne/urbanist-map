@@ -14,17 +14,19 @@
 # the sub-PBFs when iterating on the Python extraction, without re-applying diffs.
 #
 # Usage:
-#   ./derive_subpbfs.sh <base>_proposed.osm.pbf [--dry-run]
+#   ./derive_subpbfs.sh <base>_proposed.osm.pbf [--dry-run] [--trim]
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/osm_log.sh"
+source "$SCRIPT_DIR/osm_disk.sh"
 
 DRY_RUN=0
 SOURCE=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --trim)        OSM_TRIM_BEFORE_WRITE=1 ;;
         --dry-run) DRY_RUN=1 ;;
         --*)       log_error "Unknown flag: $1"; exit 1 ;;
         *)
@@ -36,7 +38,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$SOURCE" ]]; then
-    log_error "Usage: $0 <base>_proposed.osm.pbf [--dry-run]"
+    log_error "Usage: $0 <base>_proposed.osm.pbf [--dry-run] [--trim]"
     exit 1
 fi
 if [[ ! -f "$SOURCE" ]]; then
@@ -67,6 +69,8 @@ RELATIONS_PBF="${BASE_PREFIX}_proposed_relations.osm.pbf"
 # 1/2/3/6/8 for these three concurrent workers. `num_threads` is not an osmium
 # option; it is silently ignored, so do not pass it.
 osm_step_start derive "input=$SOURCE" "workers=3" "pool=${OSMIUM_POOL_THREADS:-auto}"
+# All three outputs share a directory; finish one trim before any worker writes.
+osm_trim_before_write "$WAYS_PBF"
 run osmium tags-filter --overwrite --input-format=pbf \
     -o "$WAYS_PBF" "$SOURCE" -e "$LINEAR_FILTERS" &
 PID_WAYS=$!

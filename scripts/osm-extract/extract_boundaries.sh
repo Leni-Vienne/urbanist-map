@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Usage:
-#   ./extract_boundaries.sh [--output-dir <dir>] <source.osm.pbf>
+#   ./extract_boundaries.sh [--output-dir <dir>] [--trim] <source.osm.pbf>
 #
 # Extracts administrative boundaries (boundary=administrative relations) from an OSM
 # PBF and writes them as newline-delimited GeoJSON (one Feature per line), consumed by
@@ -21,19 +21,29 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/osm_log.sh"
+source "$SCRIPT_DIR/osm_disk.sh"
 
 trap 'trap - INT TERM; log_warn "Interrupted, killing child processes..."; kill 0; exit 1' INT TERM
 
 OUTPUT_DIR_OVERRIDE=""
-while [[ "$1" == --* ]]; do
+SOURCE=""
+while [[ $# -gt 0 ]]; do
     case "$1" in
         --output-dir) OUTPUT_DIR_OVERRIDE="${2:?--output-dir requires a path}"; shift ;;
-        *) log_error "Unknown flag: $1"; exit 1 ;;
+        --trim) OSM_TRIM_BEFORE_WRITE=1 ;;
+        --*) log_error "Unknown flag: $1"; exit 1 ;;
+        *)
+            if [[ -n "$SOURCE" ]]; then log_error "Unexpected argument: $1"; exit 1; fi
+            SOURCE="$1"
+            ;;
     esac
     shift
 done
 
-SOURCE="${1:?Usage: $0 [--output-dir <dir>] <source.osm.pbf>}"
+if [[ -z "$SOURCE" ]]; then
+    log_error "Usage: $0 [--output-dir <dir>] [--trim] <source.osm.pbf>"
+    exit 1
+fi
 if [ ! -f "$SOURCE" ]; then
     log_error "File $SOURCE not found!"
     exit 1
@@ -57,6 +67,7 @@ if [ -f "$BOUNDARIES_PBF" ] && [ "$BOUNDARIES_PBF" -nt "$SOURCE" ]; then
     osm_step_skip filter cached_artifact
 else
     osm_step_start filter "input=$SOURCE" "output=$BOUNDARIES_PBF"
+    osm_trim_before_write "$BOUNDARIES_PBF"
     osm_run osmium tags-filter "$SOURCE" \
         r/boundary=administrative \
         --output "$BOUNDARIES_PBF" \

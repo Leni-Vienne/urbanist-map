@@ -46,6 +46,7 @@
 #   --detect <pbf>       Scan this file for missing refs (repeatable). Should be a
 #                        subset/derivative of the targets. Default: the first target.
 #   --dry-run            Print what would be fetched, do not call the network or write
+#   --trim               Trim the destination filesystem before each large merge
 #   --endpoint URL       Overpass interpreter URL (default: public instance)
 #   --osm-api URL        OSM API base for node multi-fetch (default: public instance)
 #   --max-iters N        Max fetch/merge passes (default: 3)
@@ -58,6 +59,7 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/osm_log.sh"
+source "$SCRIPT_DIR/osm_disk.sh"
 
 # ---------------------------------------------------------------------------
 # Argument parsing
@@ -88,6 +90,7 @@ UA="UrbanistMap-backfill/1.0 (osm-extract daily geometry backfill)"
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --detect)      DETECT_FILES+=("${2:?--detect requires a path}"); shift ;;
+        --trim)        OSM_TRIM_BEFORE_WRITE=1 ;;
         --dry-run)     DRY_RUN=1 ;;
         --endpoint)    ENDPOINT="${2:?--endpoint requires a URL}"; shift ;;
         --osm-api)     OSM_API="${2:?--osm-api requires a URL}"; shift ;;
@@ -102,7 +105,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ ${#TARGET_FILES[@]} -eq 0 ]]; then
-    log_error "Usage: $0 <target.osm.pbf> [more-targets...] [--detect <pbf>] [--dry-run]"
+    log_error "Usage: $0 <target.osm.pbf> [more-targets...] [--detect <pbf>] [--dry-run] [--trim]"
     exit 1
 fi
 
@@ -382,6 +385,7 @@ while ((iter < MAX_ITERS)); do
             inputs=("${FETCHED_PBFS[@]}")
             log_info "Creating $tgt from ${#FETCHED_PBFS[@]} fetched batch(es)"
         fi
+        osm_trim_before_write "$merged"
         if osmium merge --overwrite \
             --output-format=pbf,pbf_compression=lz4 \
             -o "$merged" "${inputs[@]}" && mv -f "$merged" "$tgt"; then
