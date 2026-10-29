@@ -6,6 +6,7 @@ import { mobileAwareFlyTo } from "@/services/core/mapNavigation";
 import { useAuthStore } from "@/stores/authStore";
 import { useModerationStore } from "@/stores/moderationStore";
 import { loadOrNull } from "@/services/core/errorHandling";
+import { canModerateCountry } from "@/services/moderation/moderationCountrySync";
 
 interface Options {
   // Invoked when the active country changes and the moderation list needs to be (re)fetched.
@@ -21,21 +22,9 @@ export function useModerationCountrySelector({ onCountryDataNeeded }: Options) {
 
   const { selectedCountryCode } = storeToRefs(moderationStore);
 
-  const availableCountries = computed(() => {
-    const userCountries = authStore.user?.moderatedCountries;
-
-    // Admin (null/undefined moderatedCountries) sees all countries.
-    if (userCountries === null || userCountries === undefined) {
-      return moderationStore.allCountries;
-    }
-
-    if (!Array.isArray(userCountries)) {
-      console.warn("moderatedCountries is not an array:", userCountries);
-      return moderationStore.allCountries;
-    }
-
-    return moderationStore.allCountries.filter((country) => userCountries.includes(country.code));
-  });
+  const availableCountries = computed(() =>
+    moderationStore.allCountries.filter((country) => canModerateCountry(country.code)),
+  );
 
   const showCountrySelector = computed(() => {
     const user = authStore.user;

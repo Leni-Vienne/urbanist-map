@@ -11,7 +11,11 @@ import { useChangeRequestStore } from "./changeRequestStore";
 import { useUserContributions } from "@/composables/project/useUserContributions";
 import { createLocalProject, overlayWireToData } from "@/utils/typeFactories";
 import { openProjectDetailById } from "@/services/core/projectSelection";
-import { getStagedOverlayModifications, isOverlayUnsaved } from "@/services/overlay/unsavedState";
+import {
+  getStagedOverlayModifications,
+  hasUnsavedChanges,
+  isOverlayUnsaved,
+} from "@/services/overlay/unsavedState";
 import { getEditModeRestingCorners, hasOpenChangeRequest } from "@/services/overlay/positionState";
 import { resolveOverlayCorners } from "@/services/overlay/data";
 import { buildOwnOverlayProposal } from "../../../back/src/db/overlayProposal";
@@ -127,6 +131,7 @@ function activateFreshPinia() {
 function projectDraftTest() {
   const store = useProjectStore();
   store.upsertProjectSummary(makePersistedProject("Server name", "First description"));
+  expect(hasUnsavedChanges()).toBeFalse();
   store.updateProjectDraft("project-1", { name: "Draft name" });
   store.upsertProjectSummary(makePersistedProject("New server name", "Fresh description"));
 
@@ -134,9 +139,11 @@ function projectDraftTest() {
   expect(store.projectDrafts["project-1"]).toEqual({ id: "project-1", name: "Draft name" });
   expect(store.projects["project-1"]?.name).toBe("Draft name");
   expect(store.projects["project-1"]?.description).toBe("Fresh description");
+  expect(hasUnsavedChanges()).toBeTrue();
 
   store.discardProjectDraft("project-1");
   expect(store.projects["project-1"]?.name).toBe("New server name");
+  expect(hasUnsavedChanges()).toBeFalse();
 }
 
 function tileTest() {

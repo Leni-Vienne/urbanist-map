@@ -44,7 +44,6 @@ function findProjectShapesChange(
 
 export const useChangeRequestStore = defineStore("changeRequest", () => {
   const pendingChangeRequests = ref<PendingChangeRequest[]>([]);
-  const loaded = ref(false);
 
   const previewIntent = ref<PreviewIntent>(null);
 
@@ -112,7 +111,6 @@ export const useChangeRequestStore = defineStore("changeRequest", () => {
 
   function setPendingChangeRequests(items: PendingChangeRequest[]) {
     pendingChangeRequests.value = items;
-    loaded.value = true;
   }
 
   function removeChangeRequest(id: string) {
@@ -124,27 +122,20 @@ export const useChangeRequestStore = defineStore("changeRequest", () => {
     pendingChangeRequests.value = pendingChangeRequests.value.filter((cr) => !idSet.has(cr.id));
   }
 
-  function resetLoaded() {
-    loaded.value = false;
-  }
-
   // Clear user-specific state on logout or account switch.
   function clearAllState() {
     pendingChangeRequests.value = [];
-    loaded.value = false;
     previewIntent.value = null;
   }
 
   return {
     pendingChangeRequests,
-    loaded,
     previewIntent,
     previewState,
     getRelevantChangeRequest,
     setPendingChangeRequests,
     removeChangeRequest,
     removeChangeRequests,
-    resetLoaded,
     clearAllState,
   };
 });

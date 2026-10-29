@@ -11,6 +11,7 @@ import { t } from "@/locales";
 import { toastError } from "@/services/core/toast";
 import { overlayWireToData } from "@/utils/typeFactories";
 import { invalidateLatestContributions } from "@/services/feed/latestContributions";
+import { canModerateCountry } from "@/services/moderation/moderationCountrySync";
 
 // Result type for approval operations
 export type ApprovalResult = {
@@ -249,16 +250,8 @@ export function useModeration() {
   }
 
   onMounted(() => {
-    const user = authStore.user;
-    if (!user) return;
-
-    const isAdmin = user.role === "admin";
     const mapCountryCode = moderationStore.selectedCountryCode;
-    const canAccessMapCountry =
-      !user.moderatedCountries ||
-      (mapCountryCode !== null && user.moderatedCountries.includes(mapCountryCode));
-
-    if (mapCountryCode && (isAdmin || canAccessMapCountry)) {
+    if (mapCountryCode && canModerateCountry(mapCountryCode)) {
       void fetchPendingSubmissions({ force: true });
     }
   });

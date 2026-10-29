@@ -77,6 +77,7 @@ export function hasUnsavedChanges(): boolean {
 
   if (hasStagedRenders()) return true;
   if (Object.values(overlayStore.liveOverlays).some(isOverlayUnsaved)) return true;
-  if (Object.values(projectStore.projects).some(isProjectUnsaved)) return true;
-  return false;
+  return Object.values(projectStore.projects).some(
+    (project) => project.status === null || projectStore.hasProjectDraft(project.id),
+  );
 }

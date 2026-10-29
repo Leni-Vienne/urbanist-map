@@ -57,7 +57,7 @@ export function useContributeActions(projectOverlayIds: ComputedRef<Record<strin
 
   function isProjectModified(projectId: string): boolean {
     const projectInStore = projectStore.projects[projectId];
-    if (projectInStore && isProjectUnsaved(projectInStore)) return true;
+    if (projectInStore) return isProjectUnsaved(projectInStore);
     if (hasStagedRender(projectId)) return true;
 
     return projectOverlayIds.value[projectId]?.some(isOverlayModified) ?? false;

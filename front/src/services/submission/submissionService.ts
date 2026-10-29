@@ -17,10 +17,7 @@ import {
   type ProjectPatch,
 } from "@shared/validation/schemas";
 import { t } from "@/locales";
-import {
-  getProjectValidationErrors,
-  prepareOverlayValidationData,
-} from "@/utils/validationHelpers";
+import { getProjectValidationErrors } from "@/utils/validationHelpers";
 import { resolveOverlaySubmissionCorners } from "@/services/overlay/data";
 import { acknowledgeSubmission } from "./submissionReceipt";
 import {
@@ -98,13 +95,12 @@ function validateOverlay(overlay: OverlayObject, proposed: ProposedOverlayValues
   const corners = proposed.corners ?? resolveOverlaySubmissionCorners(overlay) ?? [];
 
   // filename is validated server-side only (the client may not have it yet), so it's omitted here.
-  const validationData = prepareOverlayValidationData({
+  const result = overlayClientSchema.safeParse({
     id: overlay.id,
     caption: proposed.caption === undefined ? overlay.caption : proposed.caption,
     projectId: overlay.projectId,
-    corners: corners.map((c: { lat: number; lng: number }) => ({ lat: c.lat, lng: c.lng })),
+    corners,
   });
-  const result = overlayClientSchema.safeParse(validationData);
   return result.success ? [] : zodErrorsToMessages(result.error);
 }
 

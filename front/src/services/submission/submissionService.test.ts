@@ -411,6 +411,23 @@ describe("submission acknowledgement", () => {
     expect(useProjectStore().getProjectById(PROJECT_ID)?.name).toBe("Corrected project name");
   });
 
+  test("rejects an overlay without a project before starting a render upload", async () => {
+    seedLocal();
+    useOverlayStore().addLocalOverlay(OVERLAY_ID, { ...localOverlay(), projectId: null });
+    const file = new File(["render"], "render.png", { type: "image/png" });
+    const fetchSpy = spyOn(globalThis, "fetch").mockRejectedValue(new Error("Unexpected request"));
+    const submission = {
+      ...draft(),
+      pendingRender: { id: crypto.randomUUID(), file, previewUrl: "render" },
+    };
+
+    expect(await submitDraft(submission, "").catch((error: unknown) => error)).toBeInstanceOf(
+      Error,
+    );
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(isSubmitting.value).toBeFalse();
+  });
+
   test("reuses an uploaded overlay and render after a failed mutation", async () => {
     seedLocal();
     const imageUrl = "data:image/png;base64,aGVsbG8=";

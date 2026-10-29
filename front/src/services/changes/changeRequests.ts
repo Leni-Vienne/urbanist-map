@@ -5,9 +5,6 @@ import { refreshUserContributions } from "@/services/project/userContributions";
 export async function approveChangeRequests(changeRequestIds: string[]) {
   try {
     await trpc.changes.approveChangeRequests.mutate({ changeRequestIds });
-
-    useChangeRequestStore().resetLoaded();
-
     return true;
   } catch (error) {
     console.error("Failed to approve change requests:", error);

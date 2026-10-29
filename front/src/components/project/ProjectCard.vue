@@ -55,7 +55,11 @@
     >
       <div class="flex flex-row items-start gap-y-3">
         <div class="flex-1 min-w-0">
-          <ProjectMetadataCard :project="project" show-wikidata-media />
+          <ProjectMetadataCard
+            :project="project"
+            :wikidata-entity="wikidataEntity"
+            show-wikidata-media
+          />
 
           <p
             v-if="isContributePanel && project.status === 'rejected' && project.rejectionReason"
