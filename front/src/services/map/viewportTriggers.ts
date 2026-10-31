@@ -8,7 +8,6 @@
 import { watch } from "vue";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { useOverlayStore } from "@/stores/overlayStore";
-import { useProjectStore } from "@/stores/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useModerationStore } from "@/stores/moderationStore";
@@ -17,57 +16,12 @@ import { isOverlayVisible } from "@/services/overlay/visibility";
 import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 import { clearOverlayRenderState } from "@/services/overlay/teardown";
 import * as registry from "@/services/overlay/mapLayers";
-import { projectFromWire, type ProjectWire } from "@/utils/typeFactories";
 import {
   renderMapSessionPendingSources,
   watchPendingProjectSources,
 } from "@/services/map/tiles/pendingSources";
-import { clearMapSessionSnapshot, replaceMapSessionSnapshot } from "@/services/map/mapSessionState";
-import type { BackendOverlayData } from "@/types/index";
+import { clearMapSessionSnapshot } from "@/services/map/mapSessionState";
 import type { AppMode } from "@shared/types";
-
-function cacheMapSessionOverlays(overlaysData: BackendOverlayData[]): string[] {
-  const overlayStore = useOverlayStore();
-  return overlaysData.map((overlayData) => overlayStore.ingestBackendOverlay(overlayData).id);
-}
-
-function cacheMapSessionProjects(projects: ProjectWire[]): string[] {
-  const projectStore = useProjectStore();
-  const projectIds: string[] = [];
-  for (const project of projects) {
-    const stored = projectStore.upsertProjectSummary(projectFromWire(project));
-    projectIds.push(stored.id);
-  }
-  return projectIds;
-}
-
-// The edit-session set contains every overlay the user has an open change request on, so an
-// overlay carrying change-request state but absent from it has none anymore (it was resolved).
-function clearResolvedChangeRequestState(sessionOverlayIds: string[]): void {
-  const sessionIds = new Set(sessionOverlayIds);
-  const overlayStore = useOverlayStore();
-
-  for (const overlay of Object.values(overlayStore.liveOverlays)) {
-    if (overlay.ownProposal !== undefined && !sessionIds.has(overlay.id)) {
-      overlayStore.clearPendingChangeRequest(overlay.id);
-    }
-  }
-}
-
-// Cache a fetched session set into the stores, then make it the mode's snapshot and render it.
-export function applyMapSessionRows(
-  mode: "edit" | "moderation",
-  projects: ProjectWire[],
-  overlays: BackendOverlayData[],
-): string[] {
-  const projectIds = cacheMapSessionProjects(projects);
-  const overlayIds = cacheMapSessionOverlays(overlays);
-  if (mode === "edit") clearResolvedChangeRequestState(overlayIds);
-  replaceMapSessionSnapshot({ mode, overlayIds, projectIds });
-  renderMapSessionPendingSources();
-  runViewportRenderLoop();
-  return projectIds;
-}
 
 const debouncedRefreshViewport = debounce(runViewportRenderLoop, 100);
 

@@ -6,7 +6,7 @@ import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useContributionStore } from "@/stores/contributionStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useUiStore } from "@/stores/uiStore";
-import { applyMapSessionRows } from "@/services/map/viewportTriggers";
+import { applyMapSessionRows } from "@/services/map/mapSessionState";
 import { overlayWireToData, projectFromWire } from "@/utils/typeFactories";
 
 let loadToken = 0;

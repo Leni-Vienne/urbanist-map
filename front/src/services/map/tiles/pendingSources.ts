@@ -1,4 +1,4 @@
-import { watch } from "vue";
+import { watchEffect } from "vue";
 import {
   updatePendingProjectPointsSource,
   updatePendingProjectShapesSource,
@@ -9,7 +9,7 @@ import { useProjectStore } from "@/stores/projectStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
 import { getMapSessionSnapshot, type MapSessionMode } from "@/services/map/mapSessionState";
-import { activeFilters, matchesProjectFilters } from "@/services/core/filters";
+import { matchesProjectFilters } from "@/services/core/filters";
 
 function matchesPendingProjectFilters(project: Project, imageProjectIds: Set<string>): boolean {
   const lastModified = project.externalLastModified ?? project.updatedAt;
@@ -34,13 +34,11 @@ function collectLocalProjectShapes(
 ): void {
   if (mode !== "edit") return;
   const projectStore = useProjectStore();
-  for (const project of Object.values(projectStore.projects)) {
-    const hasDraft = projectStore.hasProjectDraft(project.id);
-    if (!hasDraft && project.status !== null) continue;
+  for (const id of Object.keys(projectStore.projectDrafts)) {
+    const project = projectStore.getProjectById(id);
+    if (!project) continue;
     if (!matchesPendingProjectFilters(project, imageProjectIds)) continue;
-    const originalGeometry = hasDraft
-      ? projectStore.getPersistedProject(project.id)?.geometry
-      : null;
+    const originalGeometry = projectStore.getPersistedProject(project.id)?.geometry;
     if (originalGeometry && JSON.stringify(originalGeometry) !== JSON.stringify(project.geometry)) {
       shapes.push(
         createProjectShapeFeature(project, originalGeometry, {
@@ -63,11 +61,10 @@ function collectLocalProjectPoints(
 ): void {
   if (mode !== "edit") return;
   const projectStore = useProjectStore();
-  for (const project of Object.values(projectStore.projects)) {
-    if (
-      (projectStore.hasProjectDraft(project.id) || project.status === null) &&
-      matchesPendingProjectFilters(project, imageProjectIds)
-    ) {
+  for (const id of Object.keys(projectStore.projectDrafts)) {
+    const project = projectStore.getProjectById(id);
+    if (!project) continue;
+    if (matchesPendingProjectFilters(project, imageProjectIds)) {
       addProjectToMap(project, true, standaloneShapeProjectIds, pendingProjects);
     }
   }
@@ -293,13 +290,14 @@ export function renderMapSessionPendingSources(): void {
   const overlays: RuntimeOverlayData[] = [];
   const imageProjectIds = new Set<string>();
   for (const id of session.overlayIds) {
-    const overlay = overlayStore.liveOverlays[id];
+    const overlay = overlayStore.getOverlayById(id);
     if (!overlay) continue;
     overlays.push(overlay);
     if (overlay.projectId) imageProjectIds.add(overlay.projectId);
   }
-  for (const overlay of Object.values(overlayStore.liveOverlays)) {
-    if (overlay.status === null && overlay.projectId) imageProjectIds.add(overlay.projectId);
+  for (const id of Object.keys(overlayStore.overlayDrafts)) {
+    const overlay = overlayStore.getOverlayById(id);
+    if (overlay?.status === null && overlay.projectId) imageProjectIds.add(overlay.projectId);
   }
   const projects: Project[] = [];
   for (const id of session.projectIds) {
@@ -309,49 +307,8 @@ export function renderMapSessionPendingSources(): void {
   renderPendingProjectSources(overlays, projects, session.mode, imageProjectIds);
 }
 
-function localProjectSourceKey(project: Project): string {
-  return JSON.stringify({
-    id: project.id,
-    status: project.status,
-    name: project.name,
-    tags: project.tags,
-    timelineStatus: project.timelineStatus,
-    hasImage: project.hasImage,
-    render: project.render,
-    geometrySizeM: project.geometrySizeM,
-    externalLastModified: project.externalLastModified,
-    updatedAt: project.updatedAt,
-    geometry: project.geometry,
-    lat: project.lat,
-    lng: project.lng,
-  });
-}
-
-function localProjectSourcesKey(): string {
-  const keys: string[] = [];
-  for (const project of Object.values(useProjectStore().projects)) {
-    if (useProjectStore().hasProjectDraft(project.id) || project.status === null) {
-      keys.push(localProjectSourceKey(project));
-    }
-  }
-  return keys.toSorted().join("\u0000");
-}
-
-function localOverlayImageKey(): string {
-  const keys: string[] = [];
-  for (const overlay of Object.values(useOverlayStore().liveOverlays)) {
-    if (overlay.status === null) keys.push(`${overlay.id}:${overlay.projectId ?? ""}`);
-  }
-  return keys.toSorted().join("\u0000");
-}
-
-function appliedFilters() {
-  return activeFilters.value;
-}
-
+// Track the state actually read by the source projection, including persisted session entities.
+// With no matching session the effect only tracks mode and membership, avoiding entity work.
 export function watchPendingProjectSources(): () => void {
-  return watch(
-    [localProjectSourcesKey, localOverlayImageKey, appliedFilters],
-    renderMapSessionPendingSources,
-  );
+  return watchEffect(renderMapSessionPendingSources);
 }

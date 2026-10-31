@@ -1,5 +1,6 @@
 import { watch } from "vue";
 import type { LngLatBounds } from "maplibre-gl";
+import { useProjectStore } from "@/stores/projectStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -204,6 +205,20 @@ export function installViewportRenderLoop(): () => void {
 
 export function watchOverlayReconciliation(): () => void {
   const stopFilterWatch = watch(activeFilters, runViewportRenderLoop);
+  // Receipts can update a retained moderation entity after the user leaves edit mode.
+  // Observe the current session's entities as well as membership, so application writes never
+  // need to request rendering, even when the set of ids is unchanged.
+  const stopSessionWatch = watch(() => {
+    const session = getMapSessionSnapshot();
+    if (!session || session.mode !== useUiStore().mode) return null;
+    return {
+      session,
+      overlays: session.overlayIds.map((id) => useOverlayStore().getOverlayById(id)),
+      projects: session.projectIds.map((id) =>
+        useProjectStore().getMapProjectById(id, session.mode),
+      ),
+    };
+  }, runViewportRenderLoop);
 
   // A moderation change-request preview resolves position from previewState; a change to it (set,
   // toggle, clear) must re-run convergence so the previewed overlay follows or returns to baseline.
@@ -214,6 +229,7 @@ export function watchOverlayReconciliation(): () => void {
     },
   );
   return function stopOverlayReconciliationWatchers(): void {
+    stopSessionWatch();
     stopPreviewWatch();
     stopFilterWatch();
   };

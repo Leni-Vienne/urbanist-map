@@ -7,8 +7,6 @@ import { useUiStore } from "@/stores/uiStore";
 import { overlayWireToData, projectFromWire } from "@/utils/typeFactories";
 import { changeRequestFromWire } from "@/services/changes/changeRequestData";
 import { mergeEditSession } from "@/services/map/mapSessionState";
-import { renderMapSessionPendingSources } from "@/services/map/tiles/pendingSources";
-import { scheduleOverlayReconcile } from "@/services/overlay/mapLayers";
 import { invalidateContributionRequests } from "@/services/project/userContributions";
 import { acknowledgeStagedRender } from "./stagedRenderState";
 import type { SubmissionBatchInput } from "@shared/validation/schemas";
@@ -47,6 +45,4 @@ export function acknowledgeSubmission(result: SubmissionResult, batch: Submissio
     acknowledgeStagedRender(batch.projectId);
   }
   if (useUiStore().mode === "edit") mergeEditSession(batch.projectId, [...overlayIds]);
-  renderMapSessionPendingSources();
-  scheduleOverlayReconcile();
 }

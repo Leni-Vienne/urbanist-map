@@ -6,7 +6,7 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
 import { removeOverlayFromMapAndStore } from "@/services/entity/entityRemoval";
-import { applyMapSessionRows } from "@/services/map/viewportTriggers";
+import { applyMapSessionRows } from "@/services/map/mapSessionState";
 import { t } from "@/locales";
 import { toastError } from "@/services/core/toast";
 import { overlayWireToData } from "@/utils/typeFactories";
