@@ -31,9 +31,7 @@ const latestProjectCount = ref<number | null>(null);
 export const isOsmIncluded = ref(false);
 export const mapArea = ref<MapArea | null>(null);
 
-export const source = computed<ContributionSource>(() =>
-  isOsmIncluded.value ? "all" : "community",
-);
+const source = computed<ContributionSource>(() => (isOsmIncluded.value ? "all" : "community"));
 
 // Identifies the query the loaded rows belong to. Comparing it against the live one tells whether
 // the list is stale without keeping a copy of the filter state.

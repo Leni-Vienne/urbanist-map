@@ -4,7 +4,7 @@ import { useI18n } from "vue-i18n";
 import { isMobile } from "@/services/core/viewport";
 import { deleteChangeRequest } from "@/services/changes/changeRequests";
 import { confirmAndDeleteOverlay, confirmAndDeleteProject } from "@/services/entity/entityRemoval";
-import { prepareSubmission } from "@/services/submission/submissionDialog";
+import { prepareSubmission } from "@/services/submission/submissionWorkflow";
 import { useUiStore } from "@/stores/uiStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";

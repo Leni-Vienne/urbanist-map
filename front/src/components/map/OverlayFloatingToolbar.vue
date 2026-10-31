@@ -132,7 +132,7 @@ import { closeDetail } from "@/services/overlay/selection";
 import { showEditHandles, hideEditHandles } from "@/services/overlay/editing";
 import { undo, redo } from "@/services/overlay/history";
 import { showCropHandles, hideCropHandles, applyCrop } from "@/services/overlay/cropHandles";
-import { prepareOverlaySubmission } from "@/services/submission/submissionDialog";
+import { prepareOverlaySubmission } from "@/services/submission/submissionWorkflow";
 import { isOverlayUnsaved, isProjectUnsaved } from "@/services/overlay/unsavedState";
 import { confirmAndDeleteOverlay } from "@/services/entity/entityRemoval";
 

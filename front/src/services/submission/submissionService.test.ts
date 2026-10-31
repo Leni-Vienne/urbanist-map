@@ -12,6 +12,7 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useContributionStore } from "@/stores/contributionStore";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useUiStore } from "@/stores/uiStore";
+import { useFocusStore } from "@/stores/focusStore";
 import { createLocalProject, overlayWireToData, projectFromWire } from "@/utils/typeFactories";
 import {
   getMapSessionSnapshot,
@@ -26,7 +27,12 @@ import {
   setStagedRender,
 } from "./stagedRenderState";
 import type { SubmissionDraft } from "./submissionTypes";
-import { isSubmitting } from "./submissionState";
+import {
+  isSubmitting,
+  pendingSubmission,
+  showSubmissionDialog,
+  resetSubmissionState,
+} from "./submissionState";
 
 const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
 const OVERLAY_ID = "22222222-2222-4222-8222-222222222222";
@@ -34,6 +40,10 @@ const USER_ID = "33333333-3333-4333-8333-333333333333";
 const originalFetch = globalThis.fetch;
 const originalMatchMedia = globalThis.matchMedia;
 const originalStorage = globalThis.localStorage;
+const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
+// Sign-out schedules a viewport refresh; with no map mounted its callback has no work.
+globalThis.requestAnimationFrame = (callback) =>
+  Number(setTimeout(() => callback(performance.now()), 0));
 // The map modules register their viewport listener at import. These tests run without a DOM.
 globalThis.matchMedia = (media) =>
   Object.assign(new EventTarget(), {
@@ -62,9 +72,12 @@ globalThis.localStorage = {
 };
 const { detectProjectChanges, submitDraft } = await import("./submissionService");
 const { refreshUserContributions } = await import("@/services/project/userContributions");
+const { prepareSubmission, confirmSubmission } = await import("./submissionWorkflow");
+const { signOut } = await import("@/services/auth/signOut");
 afterAll(() => {
   globalThis.matchMedia = originalMatchMedia;
   globalThis.localStorage = originalStorage;
+  globalThis.requestAnimationFrame = originalRequestAnimationFrame;
 });
 type SubmissionResult = RouterOutput["submission"]["submit"];
 const corners = [
@@ -174,6 +187,7 @@ function response(result: SubmissionResult): Response {
 
 beforeEach(() => {
   setActivePinia(createPinia());
+  resetSubmissionState();
   clearMapSessionSnapshot();
   clearAllStagedRenders();
   useAuthStore().user = {
@@ -188,6 +202,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   globalThis.fetch = originalFetch;
+  resetSubmissionState();
 });
 
 describe("submission acknowledgement", () => {
@@ -479,28 +494,44 @@ describe("submission acknowledgement", () => {
     expect(getMapSessionSnapshot()?.overlayIds).toContain(OVERLAY_ID);
   });
 
-  test("a late mutation response cannot populate a different account's stores", async () => {
+  test("sign-out clears confirmation immediately and a late response leaves the next account alone", async () => {
     seedLocal();
+    prepareSubmission(useProjectStore().getProjectById(PROJECT_ID));
+    expect(showSubmissionDialog.value).toBeTrue();
     const started = Promise.withResolvers<undefined>();
     const delayed = Promise.withResolvers<Response>();
+    const delayedLogout = Promise.withResolvers<Response>();
     spyOn(globalThis, "fetch").mockImplementation(
       Object.assign(
-        async () => {
+        async (url: URL | RequestInfo) => {
+          if (String(url).includes("/api/logout")) return delayedLogout.promise;
           started.resolve(undefined);
           return delayed.promise;
         },
         { preconnect: originalFetch.preconnect },
       ),
     );
-    const request = submitDraft(draft(), "");
+    const request = confirmSubmission("");
     await started.promise;
-    useAuthStore().user = { ...useAuthStore().user!, id: "another-user" };
-    useProjectStore().clearAllState();
-    useOverlayStore().clearAllState();
+    const nextUser = { ...useAuthStore().user!, id: "another-user" };
+    const logout = signOut();
+    expect(showSubmissionDialog.value).toBeFalse();
+    expect(pendingSubmission.value).toBeNull();
+    expect(isSubmitting.value).toBeTrue();
+    delayedLogout.resolve(new Response(null, { status: 204 }));
+    await logout;
+
+    useAuthStore().user = nextUser;
+    const nextProject = createLocalProject({ id: "another-project", name: "Next project" });
+    prepareSubmission(nextProject);
+    useFocusStore().setSelectionTarget({ kind: "project", projectId: nextProject.id });
     delayed.resolve(response(receipt()));
     await request;
     expect(useProjectStore().getProjectById(PROJECT_ID)).toBeNull();
     expect(useOverlayStore().getOverlayById(OVERLAY_ID)).toBeNull();
     expect(useContributionStore().projectIds).toEqual([]);
+    expect(pendingSubmission.value?.projectId).toBe(nextProject.id);
+    expect(useFocusStore().selectedProjectId).toBe(nextProject.id);
+    expect(isSubmitting.value).toBeFalse();
   });
 });
