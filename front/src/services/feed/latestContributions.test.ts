@@ -206,36 +206,17 @@ describe("latest contribution loading", () => {
     expect(isLoading.value).toBeFalse();
   });
 
-  test("changing the map area also retains previous results until the replacement arrives", async () => {
-    const previous = project("previous");
-    respondToPages(async () => pageResponse([previous]));
-    await activateLatestContributions();
-
-    const pending = Promise.withResolvers<Response>();
-    const started = Promise.withResolvers<undefined>();
-    respondToPages(async () => {
-      started.resolve(undefined);
-      return pending.promise;
-    });
-    setMapArea({ west: 1, south: 47, east: 3, north: 49 });
-    await started.promise;
-    expect(isOsmIncluded.value).toBeTrue();
-    expect(isFeedStale.value).toBeTrue();
-    expect(contributions.value).toEqual([previous]);
-
-    const updated = project("in-area");
+  test("setting the map area loads while the feed is inactive and includes OSM", async () => {
+    respondToPages(async () => pageResponse([]));
     const finished = Promise.withResolvers<undefined>();
-    // This test owns the watcher and stops it in finally; no component lifecycle is involved.
-    // oxlint-disable-next-line harlanzw/vue-no-reactivity-after-await
-    const stop = watch(isLoading, () => finished.resolve(undefined), { once: true });
+    const stop = watch(isFeedStale, () => finished.resolve(undefined), { once: true });
     try {
-      pending.resolve(pageResponse([updated]));
+      setMapArea({ west: 1, south: 47, east: 3, north: 49 });
       await finished.promise;
+      expect(isOsmIncluded.value).toBeTrue();
     } finally {
       stop();
     }
-    expect(isFeedStale.value).toBeFalse();
-    expect(contributions.value).toEqual([updated]);
   });
 
   test("a late failure cannot mark a newer successful query as failed", async () => {

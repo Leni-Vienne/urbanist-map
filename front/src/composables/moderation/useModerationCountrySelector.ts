@@ -1,10 +1,11 @@
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, onScopeDispose, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 import { trpc } from "@/client";
 import { mobileAwareFlyTo } from "@/services/core/mapNavigation";
 import { useAuthStore } from "@/stores/authStore";
 import { useModerationStore } from "@/stores/moderationStore";
+import { useUiStore } from "@/stores/uiStore";
 import { loadOrNull } from "@/services/core/errorHandling";
 import { canModerateCountry } from "@/services/moderation/moderationCountrySync";
 
@@ -17,6 +18,23 @@ export function useModerationCountrySelector({ onCountryDataNeeded }: Options) {
   const { t } = useI18n();
   const authStore = useAuthStore();
   const moderationStore = useModerationStore();
+  const uiStore = useUiStore();
+  const sessionEpoch = authStore.getSessionEpoch();
+  const userId = authStore.user?.id;
+  let disposed = false;
+
+  onScopeDispose(() => {
+    disposed = true;
+  });
+
+  function isCurrentPanel(): boolean {
+    return (
+      !disposed &&
+      userId !== undefined &&
+      sessionEpoch === authStore.getSessionEpoch() &&
+      userId === authStore.user?.id
+    );
+  }
 
   const countriesLoading = ref(false);
 
@@ -42,6 +60,7 @@ export function useModerationCountrySelector({ onCountryDataNeeded }: Options) {
 
   // The dropdown's v-model already wrote the new value; this handler only flies to the country.
   function handleCountryChange() {
+    if (!isCurrentPanel() || uiStore.mode !== "moderation") return;
     if (moderationStore.selectedCountryCode) {
       flyToCountry(moderationStore.selectedCountryCode);
     }
@@ -52,11 +71,12 @@ export function useModerationCountrySelector({ onCountryDataNeeded }: Options) {
   }
 
   async function refetchPendingCounts() {
+    if (!isCurrentPanel()) return;
     moderationStore.resetPendingCounts();
     const counts = await loadOrNull(async () => trpc.moderation.getPendingCountsByCountry.query(), {
       errorMessage: t("moderation.refreshCountsFailed"),
     });
-    if (counts) {
+    if (counts && isCurrentPanel()) {
       moderationStore.setPendingCounts(counts);
     }
   }
@@ -64,7 +84,7 @@ export function useModerationCountrySelector({ onCountryDataNeeded }: Options) {
   watch(
     () => moderationStore.selectedCountryCode,
     (newCode) => {
-      if (newCode) {
+      if (newCode && isCurrentPanel() && uiStore.mode === "moderation") {
         void onCountryDataNeeded();
       }
     },
@@ -75,6 +95,7 @@ export function useModerationCountrySelector({ onCountryDataNeeded }: Options) {
       const countries = await loadOrNull(async () => trpc.country.getAllCountries.query(), {
         errorMessage: t("moderation.failedToLoadCountries"),
       });
+      // Country metadata is account-independent and can outlive this panel.
       if (countries) {
         moderationStore.setAllCountries(countries);
       }
@@ -83,14 +104,15 @@ export function useModerationCountrySelector({ onCountryDataNeeded }: Options) {
   }
 
   async function initPendingCounts() {
-    if (moderationStore.pendingCountsLoaded) return;
+    if (!isCurrentPanel() || moderationStore.pendingCountsLoaded) return;
     const counts = await loadOrNull(async () => trpc.moderation.getPendingCountsByCountry.query());
-    if (counts) {
+    if (counts && isCurrentPanel()) {
       moderationStore.setPendingCounts(counts);
     }
   }
 
   function autoSelectSingleCountry() {
+    if (!isCurrentPanel() || uiStore.mode !== "moderation") return;
     if (moderationStore.selectedCountryCode) return;
     if (authStore.user?.role === "admin") return;
     if (availableCountries.value.length !== 1) return;
@@ -105,7 +127,7 @@ export function useModerationCountrySelector({ onCountryDataNeeded }: Options) {
   async function loadCountriesAndCounts() {
     countriesLoading.value = true;
     await Promise.all([initCountries(), initPendingCounts()]);
-    countriesLoading.value = false;
+    if (isCurrentPanel()) countriesLoading.value = false;
   }
 
   onMounted(() => {

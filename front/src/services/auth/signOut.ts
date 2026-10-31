@@ -9,6 +9,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { clearOverlayDisplayPrefs } from "@/services/overlay/mapLayers";
 import { clearAllStagedRenders } from "@/services/submission/stagedRenderState";
 import { resetMapSessionState } from "@/services/map/viewportTriggers";
+import { resetSubmissionState } from "@/services/submission/submissionState";
 
 // Orchestrates sign-out: authStore handles the auth session itself, then all
 // user-scoped state is cleared here to prevent data leakage between accounts.
@@ -19,6 +20,7 @@ export async function signOut() {
   const authStore = useAuthStore();
   const signOutRequest = authStore.signOut();
 
+  resetSubmissionState();
   useUiStore().clearAllState();
   useProjectStore().clearAllState();
   useOverlayStore().clearAllState();

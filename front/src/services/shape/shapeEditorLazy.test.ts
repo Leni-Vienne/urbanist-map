@@ -51,7 +51,7 @@ function makeGeometryChange(
   };
 }
 
-function activateFreshPinia(): void {
+beforeEach(() => {
   setActivePinia(createPinia());
   useAuthStore().user = {
     id: "user-1",
@@ -61,99 +61,80 @@ function activateFreshPinia(): void {
     moderatedCountries: [],
     emailVerified: true,
   };
-}
+});
 
 function seedPersistedProject(geometry: GeoJSON.GeometryCollection | null): void {
   useProjectStore().upsertProjectSummary(makePersistedProject(geometry));
 }
 
-beforeEach(activateFreshPinia);
+describe("shape editor geometry ownership", () => {
+  test("uses persisted geometry when no draft or pending proposal exists", () => {
+    const baseline = makeGeometry(0);
+    seedPersistedProject(baseline);
 
-function usesPersistedGeometry(): void {
-  const baseline = makeGeometry(0);
-  seedPersistedProject(baseline);
+    expect(resolveShapeEditorGeometry("project-1")).toEqual(baseline);
+  });
 
-  expect(resolveShapeEditorGeometry("project-1")).toEqual(baseline);
-}
+  test("uses the current user's pending geometry proposal over persisted geometry", () => {
+    const pending = makeGeometry(10);
+    seedPersistedProject(makeGeometry(0));
+    useChangeRequestStore().setPendingChangeRequests([makeGeometryChange(pending)]);
 
-function usesPendingGeometry(): void {
-  const pending = makeGeometry(10);
-  seedPersistedProject(makeGeometry(0));
-  useChangeRequestStore().setPendingChangeRequests([makeGeometryChange(pending)]);
+    expect(resolveShapeEditorGeometry("project-1")).toEqual(pending);
+  });
 
-  expect(resolveShapeEditorGeometry("project-1")).toEqual(pending);
-}
+  test("uses an explicit geometry draft over a pending proposal", () => {
+    const draft = makeGeometry(20);
+    seedPersistedProject(makeGeometry(0));
+    useChangeRequestStore().setPendingChangeRequests([makeGeometryChange(makeGeometry(10))]);
+    useProjectStore().updateProjectDraft("project-1", { geometry: draft });
 
-function usesExplicitGeometryDraft(): void {
-  const draft = makeGeometry(20);
-  seedPersistedProject(makeGeometry(0));
-  useChangeRequestStore().setPendingChangeRequests([makeGeometryChange(makeGeometry(10))]);
-  useProjectStore().updateProjectDraft("project-1", { geometry: draft });
+    expect(resolveShapeEditorGeometry("project-1")).toEqual(draft);
+  });
 
-  expect(resolveShapeEditorGeometry("project-1")).toEqual(draft);
-}
+  test("preserves an explicit null geometry draft", () => {
+    seedPersistedProject(makeGeometry(0));
+    useChangeRequestStore().setPendingChangeRequests([makeGeometryChange(makeGeometry(10))]);
+    useProjectStore().updateProjectDraft("project-1", { geometry: null });
 
-function preservesExplicitNullDraft(): void {
-  seedPersistedProject(makeGeometry(0));
-  useChangeRequestStore().setPendingChangeRequests([makeGeometryChange(makeGeometry(10))]);
-  useProjectStore().updateProjectDraft("project-1", { geometry: null });
+    expect(resolveShapeEditorGeometry("project-1")).toBeNull();
+  });
 
-  expect(resolveShapeEditorGeometry("project-1")).toBeNull();
-}
+  test("does not let an unrelated draft hide a pending geometry proposal", () => {
+    const pending = makeGeometry(10);
+    seedPersistedProject(makeGeometry(0));
+    useChangeRequestStore().setPendingChangeRequests([makeGeometryChange(pending)]);
+    useProjectStore().updateProjectDraft("project-1", { name: "Draft name" });
 
-function ignoresUnrelatedDraft(): void {
-  const pending = makeGeometry(10);
-  seedPersistedProject(makeGeometry(0));
-  useChangeRequestStore().setPendingChangeRequests([makeGeometryChange(pending)]);
-  useProjectStore().updateProjectDraft("project-1", { name: "Draft name" });
+    expect(resolveShapeEditorGeometry("project-1")).toEqual(pending);
+  });
 
-  expect(resolveShapeEditorGeometry("project-1")).toEqual(pending);
-}
+  test("uses the base geometry owned by a new local project", () => {
+    const local = makeGeometry(30);
+    useProjectStore().addLocalProject(createLocalProject({ id: "project-1", geometry: local }));
+    useChangeRequestStore().setPendingChangeRequests([makeGeometryChange(makeGeometry(10))]);
 
-function usesLocalProjectGeometry(): void {
-  const local = makeGeometry(30);
-  useProjectStore().addLocalProject(createLocalProject({ id: "project-1", geometry: local }));
-  useChangeRequestStore().setPendingChangeRequests([makeGeometryChange(makeGeometry(10))]);
+    expect(resolveShapeEditorGeometry("project-1")).toEqual(local);
+  });
 
-  expect(resolveShapeEditorGeometry("project-1")).toEqual(local);
-}
+  test("preserves a pending removal of all shapes", () => {
+    seedPersistedProject(makeGeometry(0));
+    useChangeRequestStore().setPendingChangeRequests([makeGeometryChange(null)]);
+    expect(resolveShapeEditorGeometry("project-1")).toBeNull();
+  });
 
-function preservesPendingShapeRemoval(): void {
-  seedPersistedProject(makeGeometry(0));
-  useChangeRequestStore().setPendingChangeRequests([makeGeometryChange(null)]);
-  expect(resolveShapeEditorGeometry("project-1")).toBeNull();
-}
-
-function ignoresMalformedPendingGeometry(): void {
-  const baseline = makeGeometry(0);
-  seedPersistedProject(baseline);
-  useChangeRequestStore().setPendingChangeRequests([
-    changeRequestFromWire({
-      ...makeGeometryChange(null),
-      newValue: {
-        type: "GeometryCollection",
-        geometries: [{ type: "LineString", coordinates: null }],
-      },
-    }),
-  ]);
-  expect(resolveShapeEditorGeometry("project-1")).toEqual(baseline);
-}
-
-function shapeEditorGeometryOwnership(): void {
-  test("uses persisted geometry when no draft or pending proposal exists", usesPersistedGeometry);
-  test(
-    "uses the current user's pending geometry proposal over persisted geometry",
-    usesPendingGeometry,
-  );
-  test("uses an explicit geometry draft over a pending proposal", usesExplicitGeometryDraft);
-  test("preserves an explicit null geometry draft", preservesExplicitNullDraft);
-  test("does not let an unrelated draft hide a pending geometry proposal", ignoresUnrelatedDraft);
-  test("uses the base geometry owned by a new local project", usesLocalProjectGeometry);
-  test("preserves a pending removal of all shapes", preservesPendingShapeRemoval);
-  test(
-    "falls back to approved shapes for malformed pending geometry",
-    ignoresMalformedPendingGeometry,
-  );
-}
-
-describe("shape editor geometry ownership", shapeEditorGeometryOwnership);
+  test("falls back to approved shapes for malformed pending geometry", () => {
+    const baseline = makeGeometry(0);
+    seedPersistedProject(baseline);
+    useChangeRequestStore().setPendingChangeRequests([
+      changeRequestFromWire({
+        ...makeGeometryChange(null),
+        newValue: {
+          type: "GeometryCollection",
+          geometries: [{ type: "LineString", coordinates: null }],
+        },
+      }),
+    ]);
+    expect(resolveShapeEditorGeometry("project-1")).toEqual(baseline);
+  });
+});

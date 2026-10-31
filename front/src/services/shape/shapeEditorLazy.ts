@@ -1,9 +1,14 @@
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useProjectStore } from "@/stores/projectStore";
+import { useUiStore } from "@/stores/uiStore";
+import { getMapOrNull } from "@/services/core/map";
+import type * as ShapeEditor from "./shapeEditing";
 
 // Single boundary for the heavy shape-editing chunk (Terra Draw). The dynamic
 // imports live here so every caller shares one split.
+let shapeEditor: typeof ShapeEditor | null = null;
+let editorRequest = 0;
 
 /**
  * Resolve the best available geometry to pre-load into the editor.
@@ -41,15 +46,29 @@ export function resolveShapeEditorGeometry(projectId: string): GeoJSON.GeometryC
  * Resolve the best available geometry, then lazy-load the editor and start it.
  */
 export async function startShapeEditing(projectId: string): Promise<void> {
-  const existingGeometry = resolveShapeEditorGeometry(projectId);
-  const { initShapeEditor } = await import("@/services/shape/shapeEditing");
-  await initShapeEditor(existingGeometry ?? undefined);
+  editorRequest += 1;
+  const request = editorRequest;
+  const target = getMapOrNull();
+  if (!target) return;
+
+  const loaded = await import("@/services/shape/shapeEditing");
+  const uiStore = useUiStore();
+  if (
+    request !== editorRequest ||
+    getMapOrNull() !== target ||
+    uiStore.mode !== "edit" ||
+    uiStore.shapeEditorProjectId !== projectId
+  )
+    return;
+
+  shapeEditor = loaded;
+  shapeEditor.destroyShapeEditor();
+  await shapeEditor.initShapeEditor(resolveShapeEditorGeometry(projectId) ?? undefined);
 }
 
-/**
- * Lazy-load the editor chunk and tear down any active editor.
- */
-export async function stopShapeEditing(): Promise<void> {
-  const { destroyShapeEditor } = await import("@/services/shape/shapeEditing");
-  await destroyShapeEditor();
+/** Stop synchronously before map removal, without loading an unused editor chunk. */
+export function stopShapeEditing(): void {
+  editorRequest += 1;
+  shapeEditor?.destroyShapeEditor();
+  useUiStore().closeShapeEditor();
 }

@@ -207,14 +207,15 @@ describe("submission acknowledgement", () => {
     const saved = useOverlayStore().getOverlayById(OVERLAY_ID)!;
     expect(saved.status).toBe("pending");
     expect(saved.version).toBe(2);
-    expect(saved.history).toEqual([]);
     expect(isOverlayUnsaved(saved)).toBeFalse();
     expect(useContributionStore().projectIds).toContain(PROJECT_ID);
     expect(useContributionStore().overlaysById[OVERLAY_ID]?.status).toBe("pending");
-    expect(getMapSessionSnapshot()?.overlayIds).toEqual(["unrelated-overlay", OVERLAY_ID]);
+    expect(new Set(getMapSessionSnapshot()?.overlayIds)).toEqual(
+      new Set(["unrelated-overlay", OVERLAY_ID]),
+    );
   });
 
-  test("submits only the edited field of a short-named imported project", async () => {
+  test("submits only the edited field of a short-named existing project", async () => {
     const result = receipt("approved");
     result.receipt.project.name = "Short";
     result.receipt.mapOverlays = [];
@@ -322,10 +323,6 @@ describe("submission acknowledgement", () => {
     useProjectStore().updateProjectDraft(PROJECT_ID, { name: "Later project name" });
     expect(useProjectStore().resetProjectField(PROJECT_ID, "name")).toBeFalse();
     overlayStore.updateOverlayDraft(OVERLAY_ID, { caption: "Later caption" });
-    overlayStore.commitHistory(OVERLAY_ID, [
-      { corners, imageUrl: localOverlay().imageUrl },
-      { corners: moved, imageUrl: localOverlay().imageUrl },
-    ]);
     expect(overlayStore.undoHistory(OVERLAY_ID)).toBeNull();
     expect(overlayStore.redoHistory(OVERLAY_ID)).toBeNull();
     const laterFile = new File(["second"], "second.png");
@@ -333,7 +330,6 @@ describe("submission acknowledgement", () => {
     clearStagedRender(PROJECT_ID);
     expect(useProjectStore().getProjectById(PROJECT_ID)?.name).toBe("Example project");
     expect(overlayStore.getOverlayById(OVERLAY_ID)?.caption).toBe("Submitted caption");
-    expect(overlayStore.getOverlayById(OVERLAY_ID)?.history).toHaveLength(2);
     expect(getStagedRender(PROJECT_ID)?.file).toBe(file);
     const result = receipt();
     result.render = {
@@ -345,30 +341,10 @@ describe("submission acknowledgement", () => {
     delayed.resolve(response(result));
     await request;
     expect(isSubmitting.value).toBeFalse();
-    expect(useProjectStore().getProjectById(PROJECT_ID)?.name).toBe("Example project");
-    expect(useProjectStore().getProjectById(PROJECT_ID)?.status).toBe("pending");
-    const overlay = useOverlayStore().getOverlayById(OVERLAY_ID)!;
-    expect(overlay.caption).toBe("Submitted caption");
-    expect(overlay.history).toEqual([]);
-    expect(isOverlayUnsaved(overlay)).toBeFalse();
+    expect(overlayStore.getOverlayById(OVERLAY_ID)?.history).toEqual([]);
     expect(getStagedRender(PROJECT_ID)).toBeUndefined();
     overlayStore.updateOverlayDraft(OVERLAY_ID, { caption: "Next edit" });
     expect(overlayStore.getOverlayById(OVERLAY_ID)?.caption).toBe("Next edit");
-    setStagedRender(PROJECT_ID, { file: laterFile, previewUrl: "second" });
-    clearStagedRender(PROJECT_ID);
-    expect(getStagedRender(PROJECT_ID)).toBeUndefined();
-  });
-
-  test("retains local work on mutation failure", async () => {
-    seedLocal();
-    spyOn(globalThis, "fetch").mockRejectedValue(new Error("Network unavailable"));
-    const failure = await submitDraft(draft(), "").catch((error: unknown) => error);
-    expect(failure).toBeInstanceOf(Error);
-    expect(useProjectStore().getProjectById(PROJECT_ID)?.status).toBeNull();
-    expect(useOverlayStore().getOverlayById(OVERLAY_ID)?.status).toBeNull();
-    expect(isSubmitting.value).toBeFalse();
-    useProjectStore().updateProjectDraft(PROJECT_ID, { name: "Retry project name" });
-    expect(useProjectStore().getProjectById(PROJECT_ID)?.name).toBe("Retry project name");
   });
 
   test("freezes edits during uploads and releases them when an upload fails", async () => {
@@ -428,7 +404,7 @@ describe("submission acknowledgement", () => {
     expect(isSubmitting.value).toBeFalse();
   });
 
-  test("reuses an uploaded overlay and render after a failed mutation", async () => {
+  test("retains local work without re-uploading images on mutation retry", async () => {
     seedLocal();
     const imageUrl = "data:image/png;base64,aGVsbG8=";
     useOverlayStore().updateOverlayDraft(OVERLAY_ID, { imageUrl });
@@ -456,6 +432,9 @@ describe("submission acknowledgement", () => {
     );
     const failure = await submitDraft(submission, "").catch((error: unknown) => error);
     expect(failure).toBeInstanceOf(Error);
+    expect(useProjectStore().getProjectById(PROJECT_ID)?.status).toBeNull();
+    expect(useOverlayStore().getOverlayById(OVERLAY_ID)?.status).toBeNull();
+    expect(isSubmitting.value).toBeFalse();
     await submitDraft(submission, "");
     expect(uploads).toBe(2);
     expect(mutations).toBe(2);

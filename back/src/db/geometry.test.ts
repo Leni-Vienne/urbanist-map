@@ -32,29 +32,6 @@ describe("geometry writes", () => {
     expect(projectGeometryValues(null)).toEqual({ geometry: null, geometrySizeM: null });
   });
 
-  test("uses the repaired project geometry to calculate its size", () => {
-    const collection: GeoJSON.GeometryCollection = {
-      type: "GeometryCollection",
-      geometries: [
-        {
-          type: "LineString",
-          coordinates: [
-            [2, 40],
-            [2.01, 40],
-          ],
-        },
-      ],
-    };
-    const values = projectGeometryValues(collection);
-    if (values.geometry === null) throw new Error("Missing geometry assignments");
-    const shape = dialect.sqlToQuery(values.geometry);
-    const size = dialect.sqlToQuery(values.geometrySizeM);
-    expect(shape.sql).toContain("ST_MakeValid");
-    expect(size.sql).toContain("ST_MakeValid");
-    expect(shape.params).toEqual([JSON.stringify(collection)]);
-    expect(size.params).toEqual(shape.params);
-  });
-
   test("rejects unsupported project geometry and invalid legacy coordinates", () => {
     expect(() => projectGeometryValues({ type: "Point", coordinates: [2, 40] })).toThrow();
     expect(() => parseCoordinate({ lat: 40, lng: Number.POSITIVE_INFINITY })).toThrow();

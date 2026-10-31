@@ -41,7 +41,7 @@
       <ShapeEditorPanel
         v-if="uiStore.shapeEditorProjectId"
         @done="handleShapesDone"
-        @cancel="handleShapesCancel"
+        @cancel="stopShapeEditing"
       />
     </div>
 
@@ -143,28 +143,20 @@ watch(maintenanceBannerText, (value) => {
 // Discard in-progress shape edits when leaving edit mode.
 watch(
   () => uiStore.mode,
-  async (newMode, oldMode) => {
-    if (oldMode === "edit" && newMode !== "edit" && uiStore.shapeEditorProjectId) {
-      await stopShapeEditing();
-      uiStore.closeShapeEditor();
-    }
+  (newMode, oldMode) => {
+    if (oldMode === "edit" && newMode !== "edit") stopShapeEditing();
   },
+  { flush: "sync" },
 );
 
-async function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
+function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
   const projectId = uiStore.shapeEditorProjectId;
   if (!projectId) return;
   const project = projectStore.projects[projectId];
   if (!project) return;
   projectStore.updateProjectDraft(projectId, { geometry });
-  await stopShapeEditing();
-  uiStore.closeShapeEditor();
+  stopShapeEditing();
   toastSuccess(t("shapes.savedLocally"));
-}
-
-async function handleShapesCancel() {
-  await stopShapeEditing();
-  uiStore.closeShapeEditor();
 }
 
 onMounted(() => {

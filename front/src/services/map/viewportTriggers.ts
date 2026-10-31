@@ -104,6 +104,7 @@ export function syncSessionDataForMode(newMode: AppMode): void {
 
   // The snapshot is mode-scoped; the loader for the mode being entered publishes its own.
   clearMapSessionSnapshot();
+  renderMapSessionPendingSources();
 
   // Switching TO edit or moderation: hide overlays not visible in the new mode
   const overlayStore = useOverlayStore();

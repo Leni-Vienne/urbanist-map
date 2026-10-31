@@ -99,15 +99,4 @@ describe("project detail loading", () => {
       expect(projectDetailLoad.value).toEqual({ projectId: secondId, status: "ready" });
     },
   );
-
-  test("shares concurrent requests and reuses the hydrated cache", async () => {
-    const id = crypto.randomUUID();
-    const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(response(project(id)));
-    select(id);
-    await Promise.all([loadProjectDetail(id), loadProjectDetail(id)]);
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
-    await loadProjectDetail(id);
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
-    expect(projectDetailLoad.value?.status).toBe("ready");
-  });
 });

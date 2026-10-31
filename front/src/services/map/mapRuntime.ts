@@ -10,6 +10,7 @@ import { hideEditHandles } from "@/services/overlay/editing";
 import { hideCropHandles } from "@/services/overlay/cropHandles";
 import { clearOverlayRenderObjects } from "@/services/overlay/teardown";
 import { installOverlayStyleSwitchHandling } from "@/services/overlay/mapLayers";
+import { stopShapeEditing } from "@/services/shape/shapeEditorLazy";
 
 // Toggling the rotation setting locks/unlocks drag-rotate, pitch-with-rotate and two-finger touch
 // pitch; locking also snaps the camera back to north so the map never stays stuck at an angle.
@@ -43,6 +44,7 @@ export function startMapRuntime(target: MaplibreMap): () => void {
 
   return function stopMapRuntime(): void {
     // Active gestures own map objects and hold their own listeners, so they end first.
+    stopShapeEditing();
     hideCropHandles();
     hideEditHandles();
 

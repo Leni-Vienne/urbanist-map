@@ -1,5 +1,10 @@
-import { computed, ref } from "vue";
-import { showSubmissionDialog, isSubmitting } from "@/services/submission/submissionState";
+import { computed } from "vue";
+import {
+  showSubmissionDialog,
+  isSubmitting,
+  pendingSubmission,
+  resetSubmissionState,
+} from "@/services/submission/submissionState";
 import { getStagedRender, clearStagedRender } from "@/services/submission/stagedRenderState";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
@@ -26,14 +31,6 @@ import { deleteOverlayDirect } from "@/services/entity/entityRemoval";
 import { closeDetail } from "@/services/overlay/selection";
 import { scheduleOverlayReconcile } from "@/services/overlay/mapLayers";
 import type { PendingOverlayModification, OverlayObject, Project } from "@/types/index";
-
-interface PendingSubmission {
-  projectId: string;
-  entityName: string | null;
-  renderId?: string;
-}
-
-const pendingSubmission = ref<PendingSubmission | null>(null);
 
 function buildOverlayModificationChanges(
   mods: PendingOverlayModification[],
@@ -75,11 +72,6 @@ function getSuccessMessage(outcome: { createdEntities: number; changeRequests: n
   if (outcome.createdEntities > 0) return t("submission.submissionSuccessful");
   if (outcome.changeRequests > 0) return t("submission.changeRequestSubmitted");
   return t("submission.changesSaved");
-}
-
-function resetSubmissionState(): void {
-  showSubmissionDialog.value = false;
-  pendingSubmission.value = null;
 }
 
 // Build changes for NEW overlays (status is null, never submitted to backend)
@@ -244,16 +236,19 @@ export function prepareOverlaySubmission(overlay: OverlayObject): void {
 }
 
 export async function confirmSubmission(reason: string): Promise<void> {
+  const pending = pendingSubmission.value;
   const draft = buildSubmissionDraft();
   if (!draft || isSubmitting.value) return;
 
   try {
     const outcome = await submitDraft(draft, reason);
+    if (pendingSubmission.value !== pending) return;
     closeDetail();
     toastSuccess(getSuccessMessage(outcome));
     resetSubmissionState();
   } catch (error: unknown) {
     console.error("Error submitting:", error);
+    if (pendingSubmission.value !== pending) return;
     toastError(
       error instanceof Error ? error.message : t("errors.submissionFailed"),
       t("toast.submissionFailed"),

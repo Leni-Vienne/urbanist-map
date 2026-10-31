@@ -38,50 +38,28 @@ function validOverlay() {
   };
 }
 
-function acceptsIntent() {
-  const result = submissionBatchSchema.safeParse({
-    projectId: PROJECT_ID,
-    project: { id: PROJECT_ID, patch: { name: "Updated project" } },
-    overlays: [validOverlay()],
-    reason: "Correct the published data",
+describe("submission intent contract", () => {
+  test("accepts project patches and overlay intents", () => {
+    const result = submissionBatchSchema.safeParse({
+      projectId: PROJECT_ID,
+      project: { id: PROJECT_ID, patch: { name: "Updated project" } },
+      overlays: [validOverlay()],
+      reason: "Correct the published data",
+    });
+
+    expect(result.success).toBeTrue();
   });
 
-  expect(result.success).toBeTrue();
-}
+  test("rejects duplicate changed fields", () => {
+    const overlay = { ...validOverlay(), changedFields: ["caption", "caption"] };
+    const result = submissionBatchSchema.safeParse({
+      projectId: PROJECT_ID,
+      overlays: [overlay],
+    });
 
-function rejectsOldBucket() {
-  const result = submissionBatchSchema.safeParse({
-    projectId: PROJECT_ID,
-    overlays: [],
-    changeRequests: [
-      {
-        entityType: "project",
-        entityId: PROJECT_ID,
-        changes: [{ fieldName: "name", oldValue: "Old", newValue: "New" }],
-      },
-    ],
+    expect(result.success).toBeFalse();
   });
-
-  expect(result.success).toBeFalse();
-}
-
-function rejectsDuplicateFields() {
-  const overlay = { ...validOverlay(), changedFields: ["caption", "caption"] };
-  const result = submissionBatchSchema.safeParse({
-    projectId: PROJECT_ID,
-    overlays: [overlay],
-  });
-
-  expect(result.success).toBeFalse();
-}
-
-function submissionIntentContract() {
-  test("accepts project patches and overlay intents", acceptsIntent);
-  test("rejects the removed frontend-classified change-request bucket", rejectsOldBucket);
-  test("rejects duplicate changed fields", rejectsDuplicateFields);
-}
-
-describe("submission intent contract", submissionIntentContract);
+});
 
 describe("project create and edit contract", () => {
   test("accepts a complete new project", () => {

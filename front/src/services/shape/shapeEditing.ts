@@ -151,9 +151,11 @@ export async function initShapeEditor(
     draw.start();
   }
 
+  const editor = draw;
   if (existingGeometry) {
     await addLayersFromGeometry(existingGeometry);
   }
+  if (draw !== editor) return;
 
   // Restore the last tool the user picked. If none yet, leave Terra Draw in its
   // default "static" mode so no tool is selected.
@@ -185,7 +187,7 @@ export function deleteSelectedShape(): void {
 /**
  * Remove all drawn layers and tear down the editor.
  */
-export async function destroyShapeEditor(): Promise<void> {
+export function destroyShapeEditor(): void {
   if (!draw) return;
   selectedShapeId.value = null;
   getMap().getCanvasContainer().removeEventListener("contextmenu", handleDrawingRightClick);
@@ -258,6 +260,7 @@ export async function addLayersFromGeometry(
   geometry: GeoJSON.GeometryCollection,
 ): Promise<LngLatBounds | null> {
   if (!draw) return null;
+  const editor = draw;
 
   const drawableGeoms = geometry.geometries.filter((item) => drawableGeometryTypes.has(item.type));
   if (drawableGeoms.length === 0) return null;
@@ -270,10 +273,11 @@ export async function addLayersFromGeometry(
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
     }
 
+    if (draw !== editor) return null;
     // oxlint-disable-next-line no-non-null-assertion
     const geom = drawableGeoms[i]!;
 
-    draw.addFeatures(geometryToFeatures(geom));
+    editor.addFeatures(geometryToFeatures(geom));
 
     bounds = extendBoundsWithGeometry(bounds, geom);
   }

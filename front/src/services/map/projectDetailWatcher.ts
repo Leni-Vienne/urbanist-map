@@ -103,7 +103,8 @@ function watchSelectedPanelCleanup(): void {
 function watchModerationSelectionIsolation(): void {
   const uiStore = useUiStore();
 
-  watch(() => uiStore.mode === "moderation", closeDetail);
+  // Clear the old context before a mode-switching action can establish its new selection.
+  watch(() => uiStore.mode === "moderation", closeDetail, { flush: "sync" });
 }
 
 /**
