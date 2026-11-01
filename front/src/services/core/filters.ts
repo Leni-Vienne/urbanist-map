@@ -2,20 +2,12 @@
 // surface that narrows the project set.
 
 import { ref, computed, watch } from "vue";
-import type { TimelineStatus } from "../../../../back/src/db/schema";
-
-const TIMELINE_STATUSES = [
-  "proposed",
-  "planned",
-  "under_construction",
-  "completed",
-  "canceled",
-] as const satisfies readonly TimelineStatus[];
+import { TIMELINE_STATUS_VALUES, type TimelineStatus } from "@shared/types/project";
 
 // Narrow a raw status string (vector tile property, wire payload) to a known status, or null.
 export function parseTimelineStatus(value: string | null | undefined): TimelineStatus | null {
   if (!value) return null;
-  return TIMELINE_STATUSES.find((status) => status === value) ?? null;
+  return TIMELINE_STATUS_VALUES.find((status) => status === value) ?? null;
 }
 
 // Empty array = show all statuses.

@@ -2,8 +2,8 @@ import { defineStore } from "pinia";
 import { shallowRef } from "vue";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
-import { projectFromWire, type ProjectWire } from "@/utils/typeFactories";
-import type { BackendOverlayData } from "@/types/index";
+import { projectFromWire } from "@/utils/typeFactories";
+import type { BackendOverlayData, ProjectWire } from "@/types/index";
 import type { AppMode } from "@shared/types";
 
 export type MapSessionMode = Exclude<AppMode, "view">;

@@ -1,5 +1,5 @@
 import type { ExpressionSpecification } from "maplibre-gl";
-import type { TimelineStatus } from "../../../../../back/src/db/schema";
+import type { TimelineStatus } from "@shared/types/project";
 
 // Shared project-shape stroke styling. Used by both the view-mode MVT layers and the
 // edit/moderation GeoJSON layers so a shape renders identically across modes.

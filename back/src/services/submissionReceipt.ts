@@ -2,7 +2,12 @@ import { and, eq, inArray, or } from "drizzle-orm";
 import type { SubmissionBatchInput } from "@shared/validation/schemas";
 import type { Transaction } from "../database";
 import { changeRequests, importSources, overlays, projects } from "../db/schema";
-import { buildOverlayModerationQuery, fetchOverlaysForMap, PROJECT_COLUMNS } from "../db/helpers";
+import {
+  buildOverlayModerationQuery,
+  fetchOverlaysForMap,
+  PROJECT_COLUMNS,
+  IMPORT_SOURCE_COLUMNS,
+} from "../db/helpers";
 import type { SessionUser } from "../lib/types";
 import { getMyChangeRequests } from "../db/changeRequests";
 
@@ -17,7 +22,7 @@ export async function getSubmissionReceipt(
   const imageIds = input.render ? [...overlayIds, input.render.id] : overlayIds;
   const [[project], mapData, imageRows, requests] = await Promise.all([
     tx
-      .select({ ...PROJECT_COLUMNS, importSource: importSources })
+      .select({ ...PROJECT_COLUMNS, importSource: IMPORT_SOURCE_COLUMNS })
       .from(projects)
       .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
       .where(eq(projects.id, input.projectId)),

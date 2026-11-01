@@ -16,7 +16,7 @@
 
 <script setup lang="ts">
 import { STATUS_PREVIEW_DASHARRAY } from "@/services/map/shapes/styleConstants";
-import type { TimelineStatus } from "../../../../back/src/db/schema";
+import type { TimelineStatus } from "@shared/types/project";
 
 defineProps<{
   // Null renders solid.

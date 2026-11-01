@@ -1,5 +1,5 @@
 import type { RouterOutput } from "@/client";
-import type { DBProject, DBImportSource, ApprovalStatus } from "../../../back/src/db/schema";
+import type { ApprovalStatus, TimelineStatus } from "@shared/types/project";
 import type { ChangeRequestFieldName } from "@shared/validation/schemas";
 import type { DatePrecision } from "@shared/types/flexibleDate";
 
@@ -55,24 +55,17 @@ export type PendingChangeRequest = Omit<
 
 export type LatestContribution = RouterOutput["feed"]["getLatestContributions"]["items"][number];
 
-// Base runtime project type with frontend state and server-only storage fields omitted.
-interface ProjectFields extends Omit<
-  DBProject,
-  | "status"
-  | "tags"
-  | "slug"
-  | "indexable"
-  | "centerCoordinate"
-  | "adminBoundaryId"
-  | "lastImportedAt"
-  | "importLockedAt"
-  | "detachedAt"
-  | "rejectionReason"
-> {
+// API shapes are the source for server data; frontend models normalize tags and add local state.
+type ApiProjectSummary =
+  RouterOutput["project"]["getUsersContributions"]["editSession"]["projects"][number];
+// Moderation summaries carry the same core fields without the joined import source.
+export type ProjectWire = Omit<ApiProjectSummary, "importSource"> &
+  Partial<Pick<ApiProjectSummary, "importSource">>;
+export type HydratedProjectWire = NonNullable<RouterOutput["project"]["getById"]>;
+
+interface ProjectFields extends Omit<ProjectWire, "status" | "tags"> {
   // Always an array on the frontend, null coerced to [] at DB boundary
   tags: string[];
-  // Joined import source details (null for user-created projects)
-  importSource?: DBImportSource | null;
   hasImage?: boolean;
   // Included by the contributor's list so moderation feedback stays with the submission.
   rejectionReason?: string | null;
@@ -88,27 +81,13 @@ interface ProjectFields extends Omit<
 }
 
 export interface ProjectSummary extends ProjectFields {
-  status: ApprovalStatus;
+  status: ProjectWire["status"];
 }
 
-export interface ProjectDetailFields {
-  // Permanent SEO slug for the /project/<slug> deep link.
-  slug: string | null;
-  // The project's render, scoped server-side to approved or the requester's own pending render.
-  render: ProjectRender | null;
-  // Approved map images in stable presentation order for the project detail gallery.
-  mapOverlays: ProjectMapOverlay[];
-  ownerUsername: string | null;
-  // Administrative breadcrumb ordered deepest-first. [] means no matching boundary.
-  boundaryPath:
-    | {
-        name: string;
-        nameEn: string | null;
-        names: Record<string, string> | null;
-        adminLevel: number;
-      }[]
-    | null;
-}
+type ProjectDetailFields = Pick<
+  HydratedProjectWire,
+  "slug" | "render" | "mapOverlays" | "ownerUsername" | "boundaryPath"
+>;
 
 // Most consumers only need the summary. Detail fields stay optional until getById/getBySlug supplies
 // all of them; HydratedProject represents that complete state without a separate completeness ledger.
@@ -118,18 +97,7 @@ export type Project = (ProjectSummary | LocalProject) & Partial<ProjectDetailFie
 
 export type HydratedProject = ProjectSummary & ProjectDetailFields;
 
-export interface ProjectMapOverlay {
-  id: string;
-  filename: string;
-  caption: string | null;
-}
-
-// A non-georeferenced project image (artist's impression). Stored as a kind='render' overlay.
-interface ProjectRender {
-  filename: string;
-  caption: string | null;
-  status: ApprovalStatus;
-}
+export type ProjectMapOverlay = ProjectDetailFields["mapOverlays"][number];
 
 export interface ProjectFormData {
   name: string;
@@ -142,7 +110,7 @@ export interface ProjectFormData {
   endDatePrecision: DatePrecision | null;
   sourceUrl: string | null;
   tags: string[];
-  timelineStatus: "proposed" | "planned" | "under_construction" | "completed" | "canceled";
+  timelineStatus: TimelineStatus;
 }
 
 // Wire format from backend API - derived automatically from tRPC route output

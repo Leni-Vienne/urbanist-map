@@ -142,6 +142,14 @@ export function buildOverlayQuery(database: Database) {
     .leftJoin(projects, eq(overlays.projectId, projects.id));
 }
 
+// Public source metadata, excluding importer scheduling and synchronization state.
+export const IMPORT_SOURCE_COLUMNS = {
+  id: importSources.id,
+  name: importSources.name,
+  type: importSources.type,
+  urlTemplate: importSources.urlTemplate,
+} as const;
+
 // Project fields returned to frontend project consumers.
 export const PROJECT_COLUMNS = {
   id: projects.id,
@@ -179,7 +187,7 @@ export function buildProjectWithLocationQuery(database: Database, requestLanguag
       rejectionReason: projects.rejectionReason,
       countryName: countryNameSql,
       boundaryPath: boundaryPathSql(requestLanguage),
-      importSource: importSources,
+      importSource: IMPORT_SOURCE_COLUMNS,
     })
     .from(projects)
     .leftJoin(importSources, eq(importSources.id, projects.importSourceId));
@@ -334,7 +342,7 @@ async function fetchOverlayLocationRows(database: DatabaseExecutor, whereConditi
     .select({
       overlay: OVERLAY_COLUMNS,
       project: PROJECT_COLUMNS,
-      importSource: importSources,
+      importSource: IMPORT_SOURCE_COLUMNS,
     })
     .from(overlays)
     .innerJoin(projects, eq(projects.id, overlays.projectId))

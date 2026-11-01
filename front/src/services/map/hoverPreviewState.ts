@@ -4,7 +4,7 @@
 
 import { ref } from "vue";
 import { isMobile } from "@/services/core/viewport";
-import type { TimelineStatus } from "../../../../back/src/db/schema";
+import type { TimelineStatus } from "@shared/types/project";
 
 // Inline data sourced directly from vector tile feature properties, no backend call needed.
 export type HoverProjectData = {

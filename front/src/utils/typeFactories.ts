@@ -1,8 +1,9 @@
 // Factory functions for creating type instances to reduce duplication
 import type {
   Project,
-  ProjectDetailFields,
   ProjectSummary,
+  ProjectWire,
+  HydratedProjectWire,
   LocalProject,
   HydratedProject,
   LatLng,
@@ -11,12 +12,6 @@ import type {
 export type LocalProjectInput = Partial<Omit<ProjectSummary, "id" | "status">> & {
   id?: string;
 };
-
-export type ProjectWire = Omit<ProjectSummary, "tags"> & {
-  tags: string[] | null;
-};
-
-type HydratedProjectWire = ProjectWire & ProjectDetailFields;
 
 // Rename a complete backend overlay's `corners` to the frontend domain baseline fields.
 export function overlayWireToData<T extends { corners: LatLng[]; caption?: string | null }>(

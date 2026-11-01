@@ -204,7 +204,8 @@ import { prepareProjectValidationData } from "@/utils/validationHelpers";
 import { PROJECT_TAGS, PROJECT_TAG_MAP } from "@/constants/projectTags";
 import { projectFormFieldsDiffer } from "@/utils/projectFormHelpers";
 
-import TimelineStatusSelector, { type TimelineStatus } from "./TimelineStatusSelector.vue";
+import TimelineStatusSelector from "./TimelineStatusSelector.vue";
+import type { TimelineStatus } from "@shared/types/project";
 import FlexibleDatePicker from "./FlexibleDatePicker.vue";
 import ChangeIndicator from "./ChangeIndicator.vue";
 import FormField from "./FormField.vue";

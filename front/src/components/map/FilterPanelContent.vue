@@ -195,7 +195,7 @@ import {
   posToDaysAgo,
   posToMs,
 } from "@/services/core/filters";
-import type { TimelineStatus } from "../../../../back/src/db/schema";
+import type { TimelineStatus } from "@shared/types/project";
 import {
   PROJECT_TAGS,
   PROJECT_TAG_MAP,

@@ -5,6 +5,7 @@ import {
   fetchOverlaysForMap,
   getUserOverlayChangeRequestIds,
   PROJECT_COLUMNS,
+  IMPORT_SOURCE_COLUMNS,
 } from "../db/helpers";
 import type { SessionUser } from "../lib/types";
 
@@ -36,7 +37,7 @@ export async function getEditSessionData(database: DatabaseExecutor, user: Sessi
   const projectRows = await database
     .select({
       ...PROJECT_COLUMNS,
-      importSource: importSources,
+      importSource: IMPORT_SOURCE_COLUMNS,
       hasImage: sql<boolean>`EXISTS (
         SELECT 1
         FROM overlays AS project_image

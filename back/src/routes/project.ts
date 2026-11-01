@@ -17,6 +17,7 @@ import {
   buildOverlayModerationQuery,
   buildOverlayVisibilityCondition,
   PROJECT_COLUMNS,
+  IMPORT_SOURCE_COLUMNS,
 } from "../db/helpers";
 import { deleteLocalImages } from "../lib/imageCleanup";
 import { resolveBoundaryPath } from "../db/boundaryAssignment";
@@ -164,7 +165,7 @@ export const projectRouter = router({
           ...PROJECT_COLUMNS,
           adminBoundaryId: projects.adminBoundaryId,
           slug: projects.slug,
-          importSource: importSources,
+          importSource: IMPORT_SOURCE_COLUMNS,
           ownerUsername: users.username,
         })
         .from(projects)
@@ -204,7 +205,7 @@ export const projectRouter = router({
           ...PROJECT_COLUMNS,
           adminBoundaryId: projects.adminBoundaryId,
           slug: projects.slug,
-          importSource: importSources,
+          importSource: IMPORT_SOURCE_COLUMNS,
           ownerUsername: users.username,
         })
         .from(projects)

@@ -1,4 +1,4 @@
-import type { TimelineStatus } from "../../../back/src/db/schema";
+import type { TimelineStatus } from "@shared/types/project";
 import type { ProjectFormData } from "@/types/index";
 import type { DatePrecision } from "@shared/types/flexibleDate";
 

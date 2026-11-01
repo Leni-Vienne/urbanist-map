@@ -32,13 +32,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
-
-export type TimelineStatus =
-  | "proposed"
-  | "planned"
-  | "under_construction"
-  | "completed"
-  | "canceled";
+import type { TimelineStatus } from "@shared/types/project";
 
 interface Props {
   modelValue: TimelineStatus;

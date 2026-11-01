@@ -15,10 +15,13 @@ import {
   customType,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
-import { sql, type InferSelectModel } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import type { SessionData } from "hono-sessions";
 import type { DatePrecision } from "@shared/types/flexibleDate";
+import { APPROVAL_STATUS_VALUES, type TimelineStatus } from "@shared/types/project";
 import { jsonObject } from "./jsonObject";
+
+export type { ApprovalStatus, TimelineStatus } from "@shared/types/project";
 
 // Custom column type for PostGIS GeometryCollection.
 // Drizzle's built-in geometry() hardcodes getSQLType() to "geometry(point)" and
@@ -59,13 +62,7 @@ const polygonType = customType<{
   },
 });
 
-export const approvalStatusEnum = pgEnum("approval_status", [
-  "pending",
-  "approved",
-  "rejected",
-  "replaced",
-]);
-export type ApprovalStatus = (typeof approvalStatusEnum.enumValues)[number];
+export const approvalStatusEnum = pgEnum("approval_status", APPROVAL_STATUS_VALUES);
 
 // Exported so drizzle-kit collects it; unexported pgEnum declarations are invisible to the
 // migration generator, which then reads the type as dropped.
@@ -77,17 +74,6 @@ export const changeRequestStatusEnum = pgEnum("change_request_status", [
 ]);
 
 export type ChangeRequestStatus = (typeof changeRequestStatusEnum.enumValues)[number];
-
-// Timeline status values - project lifecycle stage
-// Using const array + text column (not enum) for easier modification
-const TIMELINE_STATUS_VALUES = [
-  "proposed", // Just an idea/proposal
-  "planned", // Approved/funded but not yet started
-  "under_construction", // Active construction
-  "completed", // Finished
-  "canceled", // Abandoned/canceled
-] as const;
-export type TimelineStatus = (typeof TIMELINE_STATUS_VALUES)[number];
 
 export type EntityType = "project" | "overlay";
 
@@ -525,16 +511,3 @@ export const deletedProjects = pgTable(
   },
   (table) => [index("idx_deleted_projects_deleted_at").on(table.deletedAt)],
 );
-
-export type DBDeletedProject = InferSelectModel<typeof deletedProjects>;
-
-// Export Drizzle-inferred types for frontend consumption
-export type DBProject = Omit<InferSelectModel<typeof projects>, "externalRevision">;
-export type DBOverlay = InferSelectModel<typeof overlays>;
-export type DBUser = InferSelectModel<typeof users>;
-export type DBChangeRequest = InferSelectModel<typeof changeRequests>;
-export type DBChangeHistory = InferSelectModel<typeof changeHistory>;
-export type DBConfig = InferSelectModel<typeof config>;
-export type DBUserReport = InferSelectModel<typeof userReports>;
-export type DBImportSource = InferSelectModel<typeof importSources>;
-export type DBAdminBoundary = InferSelectModel<typeof adminBoundaries>;
