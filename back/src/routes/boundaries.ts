@@ -4,6 +4,7 @@ import { adminBoundaries } from "../db/schema";
 import { sql } from "drizzle-orm";
 import { db } from "../database";
 import { countAlphanumeric, MIN_LOCATION_SEARCH_ALNUM } from "@shared/locationSearch";
+import type { LocalizedBoundaryName } from "@shared/types/boundary";
 
 const searchBoundariesNearLocationSchema = z.object({
   lat: z.number().min(-90).max(90),
@@ -11,13 +12,6 @@ const searchBoundariesNearLocationSchema = z.object({
   search: z.string().min(1).max(100),
   limit: z.number().min(1).max(25).default(10),
 });
-
-// Name variants of one boundary, shipped locale-agnostically so the client picks by UI locale.
-type LocalizedBoundaryName = {
-  name: string; // OSM `name` (usually local language)
-  nameEn: string | null; // OSM `name:en`
-  names: Record<string, string> | null; // all `name:*` variants, keyed by language code
-};
 
 type Ancestors = {
   city: LocalizedBoundaryName | null; // deepest of admin_level 6..8

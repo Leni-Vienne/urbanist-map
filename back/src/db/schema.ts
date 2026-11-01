@@ -17,6 +17,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql, type InferSelectModel } from "drizzle-orm";
 import type { SessionData } from "hono-sessions";
+import type { DatePrecision } from "@shared/types/flexibleDate";
 import { jsonObject } from "./jsonObject";
 
 // Custom column type for PostGIS GeometryCollection.
@@ -76,11 +77,6 @@ export const changeRequestStatusEnum = pgEnum("change_request_status", [
 ]);
 
 export type ChangeRequestStatus = (typeof changeRequestStatusEnum.enumValues)[number];
-
-// Date precision values - used for flexible date display
-// Using const array + text column (not enum) for easier modification
-const DATE_PRECISION_VALUES = ["year", "month", "day"] as const;
-export type DatePrecision = (typeof DATE_PRECISION_VALUES)[number];
 
 // Timeline status values - project lifecycle stage
 // Using const array + text column (not enum) for easier modification

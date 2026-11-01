@@ -1,5 +1,9 @@
 import type { PendingOverlayModification, Project } from "@/types/index";
-import { PROJECT_CHANGE_FIELDS, type OverlayFieldName } from "@shared/validation/schemas";
+import {
+  PROJECT_CHANGE_FIELDS,
+  type ProjectFieldName,
+  type OverlayFieldName,
+} from "@shared/validation/schemas";
 
 export { PROJECT_CHANGE_FIELDS } from "@shared/validation/schemas";
 
@@ -9,26 +13,25 @@ const OVERLAY_CHANGE_FIELDS = ["caption", "corners", "new_overlay"] as const sat
   | "new_overlay"
 )[];
 
-export type ProjectChangeField = (typeof PROJECT_CHANGE_FIELDS)[number];
 export type OverlayChangeField = (typeof OVERLAY_CHANGE_FIELDS)[number];
 
 // Every row kind the confirmation dialog can display and remove.
-export type RemovableChange = ProjectChangeField | OverlayChangeField | "render";
+export type RemovableChange = ProjectFieldName | OverlayChangeField | "render";
 
 export function isOverlayChangeField(field: RemovableChange): field is OverlayChangeField {
   return (OVERLAY_CHANGE_FIELDS as readonly string[]).includes(field);
 }
 
-export function isProjectChangeField(field: RemovableChange): field is ProjectChangeField {
+export function isProjectChangeField(field: RemovableChange): field is ProjectFieldName {
   return (PROJECT_CHANGE_FIELDS as readonly string[]).includes(field);
 }
 
 export type ProjectFieldChange =
   | { fieldName: "geometry"; oldValue: Project["geometry"]; newValue: Project["geometry"] }
   | {
-      fieldName: Exclude<ProjectChangeField, "geometry">;
-      oldValue: Project[Exclude<ProjectChangeField, "geometry">];
-      newValue: Project[Exclude<ProjectChangeField, "geometry">];
+      fieldName: Exclude<ProjectFieldName, "geometry">;
+      oldValue: Project[Exclude<ProjectFieldName, "geometry">];
+      newValue: Project[Exclude<ProjectFieldName, "geometry">];
     };
 
 export interface SubmissionDraft {

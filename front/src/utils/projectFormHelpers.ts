@@ -1,5 +1,6 @@
 import type { TimelineStatus } from "../../../back/src/db/schema";
 import type { ProjectFormData } from "@/types/index";
+import type { DatePrecision } from "@shared/types/flexibleDate";
 
 function toDateObject(value: Date | string | null | undefined): Date | null {
   if (value instanceof Date) return value;
@@ -12,11 +13,11 @@ export function projectToFormData(p: {
   name?: string | null;
   description?: string | null;
   proposalDate?: Date | string | null;
-  proposalDatePrecision?: "year" | "month" | "day" | null;
+  proposalDatePrecision?: DatePrecision | null;
   startDate?: Date | string | null;
-  startDatePrecision?: "year" | "month" | "day" | null;
+  startDatePrecision?: DatePrecision | null;
   endDate?: Date | string | null;
-  endDatePrecision?: "year" | "month" | "day" | null;
+  endDatePrecision?: DatePrecision | null;
   sourceUrl?: string | null;
   tags?: string[] | null;
   timelineStatus?: TimelineStatus | null;

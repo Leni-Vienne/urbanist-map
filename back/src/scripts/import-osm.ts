@@ -43,7 +43,7 @@ import {
   mapTimelineStatus,
   parseOsmDate,
 } from "./osmDerive";
-import { buildProjectSlug } from "@shared/projectSlug";
+import { buildProjectSlug } from "../utils/projectSlug";
 import { refreshAllIndexable } from "../db/indexable";
 import { computeOsmFeatureRevision, shouldSkipOsmFeature } from "./osmRevision";
 import { logOsmEvent } from "./osmLog";

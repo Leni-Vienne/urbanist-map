@@ -1,10 +1,11 @@
-import { Hono } from "hono";
+import { Hono, type TypedResponse } from "hono";
 import { eq, and, sql, desc } from "drizzle-orm";
 import { db } from "../database";
 import { projects, overlays, deletedProjects } from "../db/schema";
 import { resolveBoundaryPath } from "../db/boundaryAssignment";
 import { config } from "../config";
 import type { JsonObject } from "@shared/json";
+import type { SeoLocation, SeoProject, SeoProjectResponse } from "@shared/types/seo";
 
 // Public, cookie-free endpoints consumed by the Cloudflare Pages Function (and any link-preview
 // scraper). They return JSON the Function splices into the static index.html shell, plus the
@@ -16,20 +17,13 @@ const CITY_LEVEL = 8;
 const STATE_LEVEL = 4;
 const COUNTRY_LEVEL = 2;
 
-interface LocationLabel {
-  city: string | null;
-  state: string | null;
-  country: string | null;
-  label: string | null; // "City, State, Country" with missing levels dropped
-}
-
 // Walk the admin-boundary chain to a human location string. Prefers the English name. Falls back to
 // the bare country code when the project has no assigned boundary (still common pending the boundary
 // assign pass).
 async function resolveLocationLabel(
   adminBoundaryId: string | null,
   countryCode: string | null,
-): Promise<LocationLabel> {
+): Promise<SeoLocation> {
   if (!adminBoundaryId) {
     return { city: null, state: null, country: countryCode, label: countryCode };
   }
@@ -84,7 +78,7 @@ async function resolvePrimaryImageUrl(
 
 // GET /seo/project/:slug -> JSON the Pages Function turns into <head> tags.
 // 200 for a live project, 410 + tombstone coords for a deleted one, 404 otherwise.
-seoApp.get("/seo/project/:slug", async (c) => {
+seoApp.get("/seo/project/:slug", async (c): Promise<TypedResponse<SeoProjectResponse>> => {
   const slug = c.req.param("slug");
 
   try {
@@ -156,12 +150,12 @@ seoApp.get("/seo/project/:slug", async (c) => {
           project.geometryBboxMaxLat !== null &&
           project.geometryBboxMinLng !== null &&
           project.geometryBboxMaxLng !== null
-            ? [
+            ? ([
                 project.geometryBboxMinLng,
                 project.geometryBboxMinLat,
                 project.geometryBboxMaxLng,
                 project.geometryBboxMaxLat,
-              ]
+              ] satisfies NonNullable<SeoProject["bounds"]>)
             : null,
         // The page is only indexable when approved AND it carries showable content (see indexable.ts).
         indexable: project.indexable,

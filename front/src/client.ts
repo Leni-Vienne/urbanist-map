@@ -1,10 +1,11 @@
 import { createTRPCClient, httpBatchLink, httpLink, splitLink } from "@trpc/client";
-import type { inferRouterOutputs } from "@trpc/server";
+import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "../../back/src/routes";
 import superjson from "superjson";
 import { getApiUrl } from "@/utils/apiUrl";
 
 export type RouterOutput = inferRouterOutputs<AppRouter>;
+export type RouterInput = inferRouterInputs<AppRouter>;
 
 const httpOptions = {
   url: `${getApiUrl()}/trpc`,

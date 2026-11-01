@@ -1,6 +1,6 @@
 import { computed, onScopeDispose, ref, shallowRef, watch } from "vue";
 import { defineStore } from "pinia";
-import { trpc, type RouterOutput } from "@/client";
+import { trpc, type RouterInput, type RouterOutput } from "@/client";
 import { loadOrNull } from "@/services/core/errorHandling";
 import { useUiStore } from "@/stores/uiStore";
 import { feedFilterInput } from "@/services/core/filters";
@@ -9,12 +9,7 @@ import type { LatestContribution } from "@/types/index";
 type FeedCursor = RouterOutput["feed"]["getLatestContributions"]["nextCursor"];
 
 type ContributionSource = "all" | "community";
-export type MapArea = {
-  west: number;
-  south: number;
-  east: number;
-  north: number;
-};
+export type MapArea = NonNullable<RouterInput["feed"]["getLatestContributions"]["mapArea"]>;
 
 const PAGE_SIZE = 20;
 

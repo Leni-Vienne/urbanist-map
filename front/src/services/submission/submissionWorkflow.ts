@@ -14,7 +14,6 @@ import {
   isProjectChangeField,
   type OverlayChangeField,
   type ProjectFieldChange,
-  type ProjectChangeField,
   type RemovableChange,
   type SubmissionDraft,
   type SubmissionSummary,
@@ -25,6 +24,7 @@ import { buildSubmissionSummary } from "./submissionSummary";
 import { deleteOverlayDirect } from "@/services/entity/entityRemoval";
 
 import type { OverlayObject, Project } from "@/types/index";
+import type { ProjectFieldName } from "@shared/validation/schemas";
 
 function getSuccessMessage(outcome: { createdEntities: number; changeRequests: number }): string {
   if (outcome.createdEntities > 0) return t("submission.submissionSuccessful");
@@ -167,7 +167,7 @@ async function handleRemoveOverlayChange(
   }
 }
 
-function handleRemoveProjectChange(field: ProjectChangeField): void {
+function handleRemoveProjectChange(field: ProjectFieldName): void {
   const pending = useSubmissionStore().pendingSubmission;
   if (!pending) return;
 

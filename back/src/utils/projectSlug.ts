@@ -1,4 +1,4 @@
-// Deterministic, permanent project slug generation, shared by the OSM import, the user-create
+// Deterministic, permanent project slug generation, used by the OSM import, the user-create
 // mutation and the one-time backfill. The slug must stay stable for the life of a project's URL:
 // it is derived from the project's natural key (the OSM external id, else the row uuid), never from
 // a sequential counter, so a hard-deleted OSM feature that reappears regenerates the identical slug

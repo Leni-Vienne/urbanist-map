@@ -1,4 +1,5 @@
-export type DatePrecision = "year" | "month" | "day";
+export const DATE_PRECISION_VALUES = ["year", "month", "day"] as const;
+export type DatePrecision = (typeof DATE_PRECISION_VALUES)[number];
 
 export interface FlexibleDateInput {
   year: number;

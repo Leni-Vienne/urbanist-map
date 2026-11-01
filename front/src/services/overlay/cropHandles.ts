@@ -21,20 +21,11 @@ import { updateMarkerPosition } from "@/services/overlay/markers";
 import { imageRequiresCredentials } from "@/utils/imageUrl";
 import { createSvgCanvasLayer, createSvgPath } from "@/utils/svgCanvasLayer";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
-import type { OverlayObject } from "@/types/index";
+import type { OverlayObject, NormalizedRect } from "@/types/index";
 import { resolveOverlayCorners } from "@/services/overlay/data";
 import { useOverlayStore } from "@/stores/overlayStore";
 
 type Edge = "top" | "bottom" | "left" | "right";
-
-// Normalized crop window in the overlay's local (un-rotated) frame. u runs left->right along
-// width, v runs top->bottom along height. Starts at the full image and can only shrink.
-interface CropBounds {
-  u0: number;
-  u1: number;
-  v0: number;
-  v1: number;
-}
 
 interface CropSession {
   id: string;
@@ -42,7 +33,8 @@ interface CropSession {
   // The full-image rigid rectangle captured when crop mode opened; the crop frame is expressed
   // relative to this, so the session is reversible until the user confirms.
   baseTransform: OverlayTransform;
-  bounds: CropBounds;
+  // Normalized crop window relative to baseTransform. Starts at the full image and can only shrink.
+  bounds: NormalizedRect;
   handles: Record<Edge, maplibregl.Marker>;
   svgContainer: SVGSVGElement;
   maskPath: SVGPathElement;
@@ -65,7 +57,7 @@ function clamp(value: number, lo: number, hi: number): number {
 
 // Map a sub-rectangle expressed relative to `base` into the frame `base` itself lives in. Used to
 // turn a crop window drawn on the displayed (already-cropped) image back into the original's frame.
-function composeRect(base: CropBounds, sub: CropBounds): CropBounds {
+function composeRect(base: NormalizedRect, sub: NormalizedRect): NormalizedRect {
   const bw = base.u1 - base.u0;
   const bh = base.v1 - base.v0;
   return {
@@ -86,7 +78,7 @@ function handleElement(edge: Edge): HTMLElement {
 }
 
 // Each edge handle sits at the midpoint of its edge of the crop window.
-function handleNorm(edge: Edge, b: CropBounds): NormPoint {
+function handleNorm(edge: Edge, b: NormalizedRect): NormPoint {
   const midU = (b.u0 + b.u1) / 2;
   const midV = (b.v0 + b.v1) / 2;
   if (edge === "top") return { u: midU, v: b.v0 };
@@ -186,7 +178,7 @@ export function showCropHandles(overlayObject: OverlayObject): void {
   if (!corners) return;
   const baseTransform = cornersToTransform(corners);
 
-  const bounds: CropBounds = { u0: 0, u1: 1, v0: 0, v1: 1 };
+  const bounds: NormalizedRect = { u0: 0, u1: 1, v0: 0, v1: 1 };
 
   const svgContainer = createSvgCanvasLayer();
 
@@ -260,7 +252,7 @@ export function hideCropHandles(): void {
 // Read the source image into a canvas and return the crop window as a fresh WebP data URL.
 // crossOrigin matches the existing credentialed-vs-public rule so pending /uploads images are
 // readable; data URLs need no crossOrigin.
-async function cropImageToDataUrl(url: string, bounds: CropBounds): Promise<string> {
+async function cropImageToDataUrl(url: string, bounds: NormalizedRect): Promise<string> {
   const img = await new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image();
     if (imageRequiresCredentials(url)) image.crossOrigin = "use-credentials";

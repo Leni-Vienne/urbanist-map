@@ -13,6 +13,7 @@ import { findOrCreateOAuthUser } from "../utils/oauthAccounts";
 import { buildOsmAuthorizeUrl, exchangeOsmCodeForUser, isOsmConfigured } from "../utils/osmAuth";
 import { SYNTHETIC_EMAIL_DOMAIN } from "@shared/types";
 import type { AppEnv, SessionUser } from "../lib/types";
+import type { AuthUser } from "@shared/types/auth";
 
 // Cookie-session HTTP endpoints (login, OAuth, logout, session check).
 // The tRPC account router (./account) covers registration/verification/reset.
@@ -136,7 +137,7 @@ authApp.post("/api/login", async (c) => {
         role: user.role,
         moderatedCountries: user.moderatedCountries,
         emailVerified: user.emailVerified,
-      },
+      } satisfies AuthUser,
     });
   } catch (error) {
     console.error("Login error:", error);
@@ -188,7 +189,7 @@ authApp.post("/api/google-login", async (c) => {
         role: user.role,
         moderatedCountries: user.moderatedCountries,
         emailVerified: user.emailVerified,
-      },
+      } satisfies AuthUser,
     });
   } catch (error: any) {
     console.error("Google login error:", error);

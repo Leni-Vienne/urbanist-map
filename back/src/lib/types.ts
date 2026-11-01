@@ -2,15 +2,9 @@
 // For shared types (ApprovalStatus, AppMode), see @shared/types
 
 import type { Session } from "hono-sessions";
+import type { AuthUser } from "@shared/types/auth";
 
-export type SessionUser = {
-  id: string;
-  email: string;
-  username: string | null;
-  role: string | null;
-  moderatedCountries: string[] | null;
-  emailVerified: boolean;
-};
+export type SessionUser = AuthUser;
 
 type SessionData = {
   user?: SessionUser;

@@ -10,6 +10,7 @@ import {
   importSources,
 } from "./schema";
 import type { AppMode } from "@shared/types";
+import type { LocalizedBoundaryName } from "@shared/types/boundary";
 import { buildOwnOverlayProposal } from "./overlayProposal";
 import { overlayCornersJsonSql } from "./geometry";
 
@@ -63,14 +64,6 @@ function boundaryPathSql(requestLanguage: string): SQL<
   FROM chain
 ), '[]'::json)`;
 }
-
-// Name variants of one boundary. Shipping every locale the UI can render, rather than a single
-// resolved name, keeps a response free of a locale param and its cached pages locale-agnostic.
-export type LocalizedBoundaryName = {
-  name: string; // OSM `name` (usually local language)
-  nameEn: string | null; // OSM `name:en`
-  names: Record<string, string> | null; // `name:*` variants for BOUNDARY_NAME_LOCALES
-};
 
 // Binds one param per element, so the value reaches Postgres as an array rather than as a
 // comma-separated parameter list.

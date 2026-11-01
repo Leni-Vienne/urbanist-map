@@ -19,7 +19,7 @@ import { SQL } from "bun";
 import { sql, isNull } from "drizzle-orm";
 import { config } from "../config";
 import { projects } from "../db/schema";
-import { buildProjectSlug } from "@shared/projectSlug";
+import { buildProjectSlug } from "../utils/projectSlug";
 
 // Small enough that the UPDATE's (VALUES ...) join keeps an index-driven nested loop over the
 // projects primary key instead of flipping to a seq scan + hash join of the whole table.

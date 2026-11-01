@@ -1,6 +1,7 @@
 import type { RouterOutput } from "@/client";
 import type { DBProject, DBImportSource, ApprovalStatus } from "../../../back/src/db/schema";
 import type { ChangeRequestFieldName } from "@shared/validation/schemas";
+import type { DatePrecision } from "@shared/types/flexibleDate";
 
 export type LatLng = { lat: number; lng: number };
 
@@ -134,11 +135,11 @@ export interface ProjectFormData {
   name: string;
   description: string | null;
   proposalDate: Date | null;
-  proposalDatePrecision: "year" | "month" | "day" | null;
+  proposalDatePrecision: DatePrecision | null;
   startDate: Date | null;
-  startDatePrecision: "year" | "month" | "day" | null;
+  startDatePrecision: DatePrecision | null;
   endDate: Date | null;
-  endDatePrecision: "year" | "month" | "day" | null;
+  endDatePrecision: DatePrecision | null;
   sourceUrl: string | null;
   tags: string[];
   timelineStatus: "proposed" | "planned" | "under_construction" | "completed" | "canceled";

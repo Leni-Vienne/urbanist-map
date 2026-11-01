@@ -5,7 +5,7 @@ import {
   type SubmittedProject,
 } from "@shared/validation/schemas";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
-import { buildProjectSlug } from "@shared/projectSlug";
+import { buildProjectSlug } from "../utils/projectSlug";
 import { db, type Transaction } from "../database";
 import { changeRequests, overlays, projects } from "../db/schema";
 import { isUserBlocked } from "../db/helpers";
@@ -30,13 +30,14 @@ import {
 import { loggedInProcedure, router, TRPCError } from "../trpc";
 import { getClientIp } from "../utils/ip";
 import type { SessionUser } from "../lib/types";
+import type { DatePrecision } from "@shared/types/flexibleDate";
 
 const MAX_PENDING_CONTRIBUTIONS = 50;
 const MAX_TOTAL_CONTRIBUTIONS = 2000;
 
 function normalizePrecisionForStorage(
   date: Date | null | undefined,
-  precision: "year" | "month" | "day" | null | undefined,
+  precision: DatePrecision | null | undefined,
 ) {
   return date ? (precision ?? "day") : null;
 }

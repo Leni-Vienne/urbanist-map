@@ -11,6 +11,7 @@ import {
 } from "@shared/osmRules";
 import type { TimelineStatus } from "../db/schema";
 import type { JsonObject } from "@shared/json";
+import type { DatePrecision } from "@shared/types/flexibleDate";
 
 export function mapTimelineStatus(projectStatus: string | undefined): TimelineStatus {
   switch (projectStatus) {
@@ -58,13 +59,11 @@ export function extractTags(props: JsonObject): string[] {
 }
 
 // OSM dates can be "YYYY", "YYYY-MM", or "YYYY-MM-DD".
-export function parseOsmDate(
-  value: unknown,
-): { date: Date; precision: "year" | "month" | "day" } | null {
+export function parseOsmDate(value: unknown): { date: Date; precision: DatePrecision } | null {
   if (!value || typeof value !== "string") return null;
   const s = value.trim();
   let date: Date;
-  let precision: "year" | "month" | "day";
+  let precision: DatePrecision;
 
   if (/^\d{4}$/.test(s)) {
     date = new Date(`${s}-01-01T00:00:00Z`);

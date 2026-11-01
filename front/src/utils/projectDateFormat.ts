@@ -4,17 +4,16 @@
  */
 
 import { dbToFlexibleDate, formatFlexibleDate } from "./flexibleDateHelpers";
-
-type DatePrecision = "year" | "month" | "day" | null | undefined;
+import type { DatePrecision } from "@shared/types/flexibleDate";
 
 interface ProjectDateFields {
   timelineStatus: string | null | undefined;
   startDate: Date | null | undefined;
   endDate: Date | null | undefined;
   proposalDate: Date | null | undefined;
-  startDatePrecision?: DatePrecision;
-  endDatePrecision?: DatePrecision;
-  proposalDatePrecision?: DatePrecision;
+  startDatePrecision?: DatePrecision | null;
+  endDatePrecision?: DatePrecision | null;
+  proposalDatePrecision?: DatePrecision | null;
 }
 
 type ResolvedDateRange =

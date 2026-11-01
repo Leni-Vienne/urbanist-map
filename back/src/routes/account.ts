@@ -18,6 +18,7 @@ import {
 import { sendEmail } from "../services/emailService";
 import { verifyTurnstileToken } from "../utils/captcha";
 import { renderEmailTemplate } from "../email/templateRenderer";
+import type { AuthUser } from "@shared/types/auth";
 
 // Use shared validation schemas
 
@@ -250,7 +251,7 @@ export const accountRouter = router({
             role: matchedUser.role,
             moderatedCountries: matchedUser.moderatedCountries,
             emailVerified: true,
-          },
+          } satisfies AuthUser,
         };
       } catch (error) {
         if (error instanceof TRPCError) throw error;

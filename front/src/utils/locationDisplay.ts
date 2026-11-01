@@ -1,19 +1,14 @@
-// One admin boundary, carrying every name variant the UI can render so the caller picks by locale.
-interface BoundaryName {
-  name: string;
-  nameEn: string | null;
-  names: Record<string, string> | null;
-}
+import type { LocalizedBoundaryName } from "@shared/types/boundary";
 
 export interface BoundaryLevels {
-  city: BoundaryName | null;
-  state: BoundaryName | null;
-  country: BoundaryName | null;
+  city: LocalizedBoundaryName | null;
+  state: LocalizedBoundaryName | null;
+  country: LocalizedBoundaryName | null;
   countryCode: string | null;
 }
 
 // Prefer the name in the current UI locale, falling back to English, then the boundary's local name.
-function localizedBoundaryName(level: BoundaryName | null, locale: string): string | null {
+function localizedBoundaryName(level: LocalizedBoundaryName | null, locale: string): string | null {
   if (!level) {
     return null;
   }

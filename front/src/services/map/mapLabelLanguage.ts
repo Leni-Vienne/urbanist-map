@@ -1,6 +1,7 @@
 import { ref } from "vue";
 import type { AllLayoutProperties, Map as MaplibreMap, ExpressionSpecification } from "maplibre-gl";
 import { getMapOrNull } from "@/services/core/map";
+import type { LocalizedBoundaryName } from "@shared/types/boundary";
 
 const STORAGE_KEY = "urbanist-map-label-lang";
 
@@ -34,18 +35,12 @@ function readStoredPreference(): MapLabelLanguage {
 // the UI locale.
 export const mapLabelLanguageRef = ref<MapLabelLanguage>(readStoredPreference());
 
-type BoundaryNameVariants = {
-  name: string; // OSM `name` (native/local language)
-  nameEn: string | null; // OSM `name:en`
-  names: Record<string, string> | null; // available `name:*` variants, keyed by OSM language code
-};
-
 // Pick a boundary's display name honouring the map label language, falling back to the UI locale,
 // then English, then the native name. "local" forces the native name; "default" defers to the UI
 // locale; "auto" uses the browser language's OSM name:<code> first, so a zh user gets Chinese names
 // that the en/fr-only UI locale could never provide.
 export function pickBoundaryName(
-  entry: BoundaryNameVariants,
+  entry: LocalizedBoundaryName,
   preference: MapLabelLanguage,
   uiLocale: string,
 ): string {

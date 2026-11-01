@@ -2,18 +2,9 @@ import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref, computed } from "vue";
 import { trpc } from "@/client";
 import { getApiUrl } from "@/utils/apiUrl";
+import type { AuthUser } from "@shared/types/auth";
 
-// User type for our custom authentication
-interface User {
-  id: string;
-  email: string;
-  username: string | null;
-  role: string | null;
-  moderatedCountries: string[] | null; // Array of ISO 3-letter country codes (null = admin with all countries)
-  emailVerified: boolean;
-}
-
-type AuthResult = { success: boolean; user: User | null; error: string | null };
+type AuthResult = { success: boolean; user: AuthUser | null; error: string | null };
 
 async function loadGoogleIdentityScript() {
   return new Promise<void>((resolve, reject) => {
@@ -79,7 +70,7 @@ async function sendGoogleTokenToBackend(credential: string, rememberMe: boolean)
     credentials: "include",
   });
 
-  const data: { success: boolean; user?: User; error?: string } = await response.json();
+  const data: { success: boolean; user?: AuthUser; error?: string } = await response.json();
 
   if (!response.ok || !data.success) {
     throw new Error(data.error ?? "Google authentication failed");
@@ -93,7 +84,7 @@ async function sendGoogleTokenToBackend(credential: string, rememberMe: boolean)
 // the outer promise with a uniform AuthResult shape regardless of provider.
 function createOAuthCallbackHandler<TResponse>(options: {
   provider: "google";
-  exchangeToken: (response: TResponse) => Promise<User | null>;
+  exchangeToken: (response: TResponse) => Promise<AuthUser | null>;
   timeoutId: ReturnType<typeof setTimeout>;
   resolve: (value: AuthResult) => void;
 }) {
@@ -178,7 +169,7 @@ async function resetPassword(token: string, password: string) {
 }
 
 export const useAuthStore = defineStore("auth", () => {
-  const user = ref<User | null>(null);
+  const user = ref<AuthUser | null>(null);
   const infoMessage = ref<string | null>(null);
 
   // Set when infoMessage is a bare semver (e.g. "v1.2.5"), shown as the footer version instead of a banner.
@@ -224,7 +215,7 @@ export const useAuthStore = defineStore("auth", () => {
       if (epoch !== sessionEpoch) return;
 
       if (response.ok) {
-        const result: { user: User | null; infoMessage: string | null } = await response.json();
+        const result: { user: AuthUser | null; infoMessage: string | null } = await response.json();
         if (epoch !== sessionEpoch) return;
         user.value = result.user;
         infoMessage.value = result.infoMessage;
@@ -262,7 +253,7 @@ export const useAuthStore = defineStore("auth", () => {
         credentials: "include",
       });
 
-      const result: { success: boolean; user?: User; error?: string; message?: string } =
+      const result: { success: boolean; user?: AuthUser; error?: string; message?: string } =
         await response.json();
 
       if (response.ok && result.success) {

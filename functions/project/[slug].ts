@@ -8,35 +8,7 @@
 //
 // Status codes pass through from the backend: 200 (live), 410 (deleted -> de-index), 404 (unknown).
 
-interface SeoLocation {
-  city: string | null;
-  state: string | null;
-  country: string | null;
-  label: string | null;
-}
-
-interface SeoProject {
-  status: "ok" | "gone" | "not_found" | "error";
-  name?: string | null;
-  description?: string | null;
-  slug?: string;
-  timelineStatus?: string | null;
-  proposalDate?: string | null;
-  proposalDatePrecision?: string | null;
-  startDate?: string | null;
-  startDatePrecision?: string | null;
-  endDate?: string | null;
-  endDatePrecision?: string | null;
-  tags?: string[] | null;
-  externalLastModified?: string | null;
-  lat?: number | null;
-  lng?: number | null;
-  indexable?: boolean;
-  bounds?: [number, number, number, number] | null;
-  location?: SeoLocation;
-  image?: string | null;
-  canonical?: string;
-}
+import type { SeoLocation, SeoProject, SeoProjectResponse } from "../../shared/types/seo";
 
 interface PagesContext {
   request: Request;
@@ -133,7 +105,7 @@ function formatSeoDate(iso: string, precision: string | null | undefined): strin
 
 // Resolve the date sentence shown for a project, mirroring the SPA's proposed/period/start/end
 // priority (see utils/projectDateFormat.ts). Returns "" when no date is available.
-function resolveSeoDateLabel(data: SeoProject): string {
+function resolveSeoDateLabel(data: Partial<SeoProject>): string {
   if (data.timelineStatus === "proposed" && data.proposalDate) {
     return `Proposed ${formatSeoDate(data.proposalDate, data.proposalDatePrecision)}`;
   }
@@ -164,7 +136,7 @@ function serializeJsonLd(value: unknown): string {
 // Build the schema.org Place JSON-LD string, including the timeline stage/dates as PropertyValue
 // entries and the project tags as keywords.
 function buildJsonLd(
-  data: SeoProject,
+  data: Partial<SeoProject>,
   name: string,
   description: string,
   canonical: string,
@@ -271,7 +243,8 @@ function resolveSeoProjectName(
   return `${fallbackName}${titleLocation ? ` in ${titleLocation}` : ""}`;
 }
 
-function buildLiveTags(data: SeoProject): SeoTags {
+// Keep rendering fallbacks for incomplete metadata from older backend deployments.
+function buildLiveTags(data: Partial<SeoProject>): SeoTags {
   const projectName = (data.name ?? "").trim() || null;
   const locationLabel = data.location?.label ?? null;
   const canonical = data.canonical ?? `${SITE_URL}/project/${data.slug ?? ""}`;
@@ -382,13 +355,13 @@ function injectLiveContent(html: string, parts: SeoTags): string {
 // body such as a gateway error page or a plain-text 404 from a misrouted request). Returning null
 // keeps these failures distinct from the backend's deliberate ok/gone/not_found JSON contract, so a
 // transient hiccup never gets turned into a crawler-visible error status.
-async function fetchSeoProject(backend: string, slug: string): Promise<SeoProject | null> {
+async function fetchSeoProject(backend: string, slug: string): Promise<SeoProjectResponse | null> {
   try {
     const response = await fetch(`${backend}/seo/project/${encodeURIComponent(slug)}`);
     const contentType = response.headers.get("content-type") ?? "";
     if (!contentType.includes("application/json")) return null;
     // oxlint-disable-next-line no-unsafe-type-assertion
-    const data = (await response.json()) as SeoProject | null;
+    const data = (await response.json()) as SeoProjectResponse | null;
     return data && typeof data.status === "string" ? data : null;
   } catch {
     return null;

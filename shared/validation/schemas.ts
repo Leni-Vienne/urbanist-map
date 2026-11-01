@@ -2,6 +2,7 @@
 import * as z from "zod";
 import { GeoJSONGeometryCollectionSchema } from "zod-geojson";
 import { validateOverlaySize } from "../overlayValidation";
+import { DATE_PRECISION_VALUES } from "../types/flexibleDate";
 
 // From Zod doc, way safer than plain z.url(). https://zod.dev/api?id=urls
 const safeUrl = z.url({ protocol: /^https?$/, message: "validation.invalidUrl" });
@@ -34,11 +35,11 @@ const projectFieldsSchema = z.object({
     .min(-180, "validation.invalidLongitude")
     .max(180, "validation.invalidLongitude"),
   proposalDate: z.date({ message: "validation.invalidDate" }).nullable().optional(),
-  proposalDatePrecision: z.enum(["year", "month", "day"]).nullable().optional(),
+  proposalDatePrecision: z.enum(DATE_PRECISION_VALUES).nullable().optional(),
   startDate: z.date({ message: "validation.invalidDate" }).nullable().optional(),
-  startDatePrecision: z.enum(["year", "month", "day"]).nullable().optional(),
+  startDatePrecision: z.enum(DATE_PRECISION_VALUES).nullable().optional(),
   endDate: z.date({ message: "validation.invalidDate" }).nullable().optional(),
-  endDatePrecision: z.enum(["year", "month", "day"]).nullable().optional(),
+  endDatePrecision: z.enum(DATE_PRECISION_VALUES).nullable().optional(),
   timelineStatus: z
     .enum(["proposed", "planned", "under_construction", "completed", "canceled"])
     .optional(),
