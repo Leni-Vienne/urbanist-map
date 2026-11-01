@@ -3,11 +3,7 @@ import { useMapSessionStore } from "@/stores/mapSessionStore";
 import { watch } from "vue";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { getMapOrNull } from "@/services/core/map";
-import {
-  watchEditHandles,
-  syncEditHandlesForMode,
-  syncEditHandlesForCurrentState,
-} from "@/services/overlay/editing";
+import { watchEditHandles, syncEditHandlesForCurrentState } from "@/services/overlay/editing";
 import { watchMarkerColors } from "@/services/overlay/markers";
 import { watchOverlayReconciliation } from "@/services/map/viewportRenderLoop";
 import { syncSessionDataForMode } from "@/services/map/viewportTriggers";
@@ -26,26 +22,21 @@ import {
   watchProjectShapePreview,
 } from "@/services/map/shapes/previewCoordinator";
 import { useUiStore } from "@/stores/uiStore";
-import type { AppMode } from "@shared/types";
-
-async function applyModeTransition(newMode: AppMode): Promise<void> {
-  syncEditHandlesForMode(newMode);
-  const retainedSession = useMapSessionStore().snapshot?.mode === newMode;
-  if (!retainedSession) {
-    syncSessionDataForMode(newMode);
-    if (newMode === "edit") await useContributionStore().refresh();
-  }
-  syncModeVectorFilters();
-}
 
 function watchModeTransitions(): () => void {
   const uiStore = useUiStore();
   return watch(
     () => uiStore.mode,
     (newMode) => {
-      void applyModeTransition(newMode).catch((error: unknown) =>
-        console.error("Mode session sync failed", error),
-      );
+      const retainedSession = useMapSessionStore().snapshot?.mode === newMode;
+      if (!retainedSession) syncSessionDataForMode(newMode);
+      syncModeVectorFilters();
+
+      if (newMode === "edit" && !retainedSession) {
+        void useContributionStore()
+          .refresh()
+          .catch((error: unknown) => console.error("Contribution refresh failed", error));
+      }
     },
     { immediate: true },
   );

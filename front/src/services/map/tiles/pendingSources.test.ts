@@ -6,6 +6,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
+import { useFocusStore } from "@/stores/focusStore";
 import { createLocalProject } from "@/utils/typeFactories";
 
 // Map rendering modules read the viewport media query at import; no DOM or map is mounted here.
@@ -38,6 +39,7 @@ globalThis.matchMedia = (media) =>
   });
 const sources = await import("./basemap");
 const { watchPendingProjectSources } = await import("./pendingSources");
+const { syncSessionDataForMode } = await import("../viewportTriggers");
 globalThis.matchMedia = originalMatchMedia;
 globalThis.localStorage = originalStorage;
 
@@ -104,8 +106,13 @@ test("source observer follows persisted session changes and catches up after dis
   stop = watchPendingProjectSources();
   expect(latestPoints()?.[0]?.properties?.name).toBe("While unmounted");
 
-  useMapSessionStore().clearAllState();
+  // Returning to view mode drops session sources while keeping the selected project open.
+  const focus = useFocusStore();
+  focus.setSelectionTarget({ kind: "project", projectId: project.id });
+  useUiStore().setMode("view");
+  syncSessionDataForMode("view");
   await nextTick();
+  expect(focus.selectedProjectId).toBe(project.id);
   expect(latestPoints()).toEqual([]);
   expect(shapes.mock.calls.at(-1)?.[0].features).toEqual([]);
 });

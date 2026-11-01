@@ -9,8 +9,10 @@ import { clearPendingProjectSourceCache } from "@/services/map/tiles/basemap";
 import { clearPreviewShapes } from "@/services/map/shapes/rendering";
 import { hideEditHandles, refreshEditHandlesGeometry } from "@/services/overlay/editing";
 import { hideCropHandles } from "@/services/overlay/cropHandles";
-import { clearOverlayRenderObjects } from "@/services/overlay/teardown";
-import { installOverlayStyleSwitchHandling } from "@/services/overlay/mapLayers";
+import {
+  clearMapObjectRegistry,
+  installOverlayStyleSwitchHandling,
+} from "@/services/overlay/mapLayers";
 import { stopShapeEditing } from "@/services/shape/shapeEditorLazy";
 import { onStyleSwitch } from "@/services/core/map";
 import { createViewportRenderLoop } from "@/services/map/viewportRenderLoop";
@@ -38,7 +40,7 @@ function clearMapObjects(): void {
   stopShapeEditing();
   hideCropHandles();
   hideEditHandles();
-  clearOverlayRenderObjects();
+  clearMapObjectRegistry();
   clearPreviewShapes();
 }
 

@@ -11,7 +11,6 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { debounce } from "@/utils/debounce";
 import { isOverlayVisible } from "@/services/overlay/visibility";
-import { clearOverlayRenderState } from "@/services/overlay/teardown";
 import * as registry from "@/services/overlay/mapLayers";
 import { renderMapSessionPendingSources } from "@/services/map/tiles/pendingSources";
 import type { AppMode } from "@shared/types";
@@ -36,7 +35,7 @@ export function setupEventListeners(target: MaplibreMap, renderOverlays: () => v
  */
 function resetMapSessionState(): void {
   useMapSessionStore().clearAllState();
-  clearOverlayRenderState();
+  registry.clearAll();
   renderMapSessionPendingSources();
 }
 

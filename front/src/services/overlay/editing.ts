@@ -583,26 +583,22 @@ export function syncEditHandlesForCurrentState(): void {
   syncEditHandles(useFocusStore().selectedOverlayId, useUiStore().mode);
 }
 
-export function syncEditHandlesForMode(mode: AppMode): void {
-  syncEditHandles(useFocusStore().selectedOverlayId, mode);
-}
-
 export function watchEditHandles(): () => void {
   const submissionStore = useSubmissionStore();
   const uiStore = useUiStore();
   const focus = useFocusStore();
 
-  const stopSelectionWatch = watch(
-    [() => focus.selectedOverlayId, () => submissionStore.isSubmitting],
-    ([selectedId]) => {
-      syncEditHandles(selectedId, uiStore.mode);
+  const stopStateWatch = watch(
+    [() => focus.selectedOverlayId, () => uiStore.mode, () => submissionStore.isSubmitting],
+    ([selectedId, mode]) => {
+      syncEditHandles(selectedId, mode);
     },
-    { flush: "sync" },
+    { immediate: true, flush: "sync" },
   );
   const stopStyleSwitchWatch = onStyleSwitch(reattachEditHandlesAfterStyleSwitch);
 
   return function stopEditHandleWatchers(): void {
     stopStyleSwitchWatch();
-    stopSelectionWatch();
+    stopStateWatch();
   };
 }
