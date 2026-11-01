@@ -97,8 +97,6 @@ function applyPositionPreview(
     }
   }
 
-  registry.scheduleOverlayReconcile();
-
   const targetLatLngs = targetCorners.map((c) => new LngLat(c.lng, c.lat));
   navigateToPosition(targetLatLngs, previousBounds);
 }

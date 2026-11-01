@@ -39,7 +39,6 @@ import {
   lastModifiedDateRange,
   showOnlyWithImages,
 } from "@/services/core/filters";
-import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 import { syncOverlaysFromTiles } from "@/services/map/tiles/sync";
 import { toastError } from "@/services/core/toast";
 
@@ -469,7 +468,6 @@ async function switchToStyle(style: StyleSpecification | string): Promise<void> 
       } finally {
         // Unconditional: the phase fires even when re-applying the project layers threw.
         emitStyleSwitch("after");
-        runViewportRenderLoop();
         resolve();
       }
     });

@@ -2,17 +2,12 @@ import { watch } from "vue";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { getMapOrNull } from "@/services/core/map";
 import {
-  installEditHandleSync,
   watchEditHandles,
   syncEditHandlesForMode,
   syncEditHandlesForCurrentState,
 } from "@/services/overlay/editing";
 import { watchMarkerColors } from "@/services/overlay/markers";
-import {
-  installViewportRenderLoop,
-  stopViewportRenderLoop,
-  watchOverlayReconciliation,
-} from "@/services/map/viewportRenderLoop";
+import { watchOverlayReconciliation } from "@/services/map/viewportRenderLoop";
 import { watchViewportModeData, syncSessionDataForMode } from "@/services/map/viewportTriggers";
 import { refreshUserContributions } from "@/services/project/userContributions";
 import { renderMapSessionPendingSources } from "@/services/map/tiles/pendingSources";
@@ -54,16 +49,14 @@ function watchModeTransitions(): () => void {
 }
 
 /**
- * Install the watchers and callback registrations owned by one MapView mount.
+ * Install the state watchers owned by one MapView mount.
  * MapLibre layers may not exist when these watchers first run, so callbacks must guard layer access.
  */
-export function startMapStateCoordinator(): () => void {
-  const unregisterReconcile = installViewportRenderLoop();
-  const unregisterEditHandleSync = installEditHandleSync();
+export function startMapStateCoordinator(renderOverlays: () => void): () => void {
   const stops = [
     watchModeTransitions(),
     watchEditHandles(),
-    watchOverlayReconciliation(),
+    watchOverlayReconciliation(renderOverlays),
     watchMarkerColors(),
     watchViewportModeData(),
     watchTileLayerState(),
@@ -76,9 +69,6 @@ export function startMapStateCoordinator(): () => void {
     if (stopped) return;
     stopped = true;
     for (const stop of stops.toReversed()) stop();
-    unregisterReconcile();
-    stopViewportRenderLoop();
-    unregisterEditHandleSync();
   };
 }
 

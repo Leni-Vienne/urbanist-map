@@ -232,7 +232,7 @@ function syncSvgOutline(): void {
 
 // Sync the outline/fill polygon and reposition corner markers from the live transform.
 // skipCorner leaves the actively-dragged marker on the cursor until dragend.
-function refreshEditHandlesGeometry(skipCorner = -1): void {
+export function refreshEditHandlesGeometry(skipCorner = -1): void {
   if (!session) return;
   const mlMap = getMap();
   const overlay = getSessionOverlay(session);
@@ -585,11 +585,6 @@ export function syncEditHandlesForCurrentState(): void {
 
 export function syncEditHandlesForMode(mode: AppMode): void {
   syncEditHandles(useFocusStore().selectedOverlayId, mode);
-}
-
-/** Install the map-instance callback the reconciler uses after moving an overlay image. */
-export function installEditHandleSync(): () => void {
-  return registry.registerEditHandleSync(refreshEditHandlesGeometry);
 }
 
 export function watchEditHandles(): () => void {

@@ -5,7 +5,6 @@ import {
   getImageHandle,
   deriveOverlayFilename,
   isGestureOwned,
-  scheduleOverlayReconcile,
 } from "@/services/overlay/mapLayers";
 import { isValidQuad } from "@/services/overlay/transform";
 import { getEditModeRestingCorners } from "@/services/overlay/positionState";
@@ -86,8 +85,6 @@ function applyHistoryAction(action: "undo" | "redo") {
       filename: deriveOverlayFilename(id, target.imageUrl, overlay.filename),
     });
   }
-
-  scheduleOverlayReconcile();
 }
 
 function handleKeyDown(event: KeyboardEvent) {

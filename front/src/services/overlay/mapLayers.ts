@@ -67,42 +67,6 @@ export function finishGestureOwnership(id: string, corners: LatLng[]): void {
   gestureTransforms.delete(id);
 }
 
-// The reconciler moves an overlay's image, then the edit-handle outline/corner markers must follow.
-// editing.ts registers its refresh here so the reconciler can call it without importing editing.ts
-// (a cycle, since editing.ts imports the reconciler). No-op until an edit session registers; the
-// refresh itself only acts on the currently-edited overlay.
-let editHandleSync: (() => void) | null = null;
-
-export function registerEditHandleSync(fn: () => void): () => void {
-  editHandleSync = fn;
-
-  return function unregisterEditHandleSync(): void {
-    if (editHandleSync === fn) editHandleSync = null;
-  };
-}
-
-export function runEditHandleSync(): void {
-  editHandleSync?.();
-}
-
-// Store writers (sync.ts, editing.ts) that change an overlay's resolved position schedule a
-// reconcile through this low-level registry. They must not import viewportRenderLoop directly,
-// which would create a dependency cycle. The map coordinator installs the scheduler for each
-// MapView mount and removes it before the map is torn down.
-let overlayReconcileScheduler: (() => void) | null = null;
-
-export function registerOverlayReconcileScheduler(fn: () => void): () => void {
-  overlayReconcileScheduler = fn;
-
-  return function unregisterOverlayReconcileScheduler(): void {
-    if (overlayReconcileScheduler === fn) overlayReconcileScheduler = null;
-  };
-}
-
-export function scheduleOverlayReconcile(): void {
-  overlayReconcileScheduler?.();
-}
-
 export function hasReadyLayer(id: string): boolean {
   return (entries.get(id)?.imageHandle ?? null) !== null;
 }

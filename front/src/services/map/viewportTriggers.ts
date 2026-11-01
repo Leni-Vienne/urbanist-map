@@ -4,7 +4,7 @@
 // Moderation: no independent data loading; it renders the published session snapshot
 // moveend re-runs the render loop off the in-memory session snapshot; it performs NO network fetch, and no
 // zoom decisions: the reconciler owns what exists on the map at the current zoom.
-// All state is module-scoped: every consumer drives the same single map viewport.
+// The map runtime owns the camera listener; session snapshots survive map remounts.
 import { watch } from "vue";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { useOverlayStore } from "@/stores/overlayStore";
@@ -13,7 +13,6 @@ import { useAuthStore } from "@/stores/authStore";
 import { useModerationStore } from "@/stores/moderationStore";
 import { debounce } from "@/utils/debounce";
 import { isOverlayVisible } from "@/services/overlay/visibility";
-import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 import { clearOverlayRenderState } from "@/services/overlay/teardown";
 import * as registry from "@/services/overlay/mapLayers";
 import {
@@ -23,13 +22,12 @@ import {
 import { clearMapSessionSnapshot } from "@/services/map/mapSessionState";
 import type { AppMode } from "@shared/types";
 
-const debouncedRefreshViewport = debounce(runViewportRenderLoop, 100);
-
 /**
  * Re-render the viewport whenever `target`'s camera settles. Zooming is a camera move in MapLibre,
  * so moveend also fires after zooms. Returns the disposer.
  */
-export function setupEventListeners(target: MaplibreMap): () => void {
+export function setupEventListeners(target: MaplibreMap, renderOverlays: () => void): () => void {
+  const debouncedRefreshViewport = debounce(renderOverlays, 100);
   target.on("moveend", debouncedRefreshViewport);
 
   return function stopViewportMoveListener(): void {
@@ -46,7 +44,6 @@ export function resetMapSessionState(): void {
   clearMapSessionSnapshot();
   clearOverlayRenderState();
   renderMapSessionPendingSources();
-  runViewportRenderLoop();
 }
 
 export function syncSessionDataForMode(newMode: AppMode): void {
@@ -68,8 +65,6 @@ export function syncSessionDataForMode(newMode: AppMode): void {
       registry.clearEntry(id);
     }
   }
-
-  runViewportRenderLoop();
 }
 
 export function watchViewportModeData(): () => void {
@@ -86,7 +81,6 @@ export function watchViewportModeData(): () => void {
       if (uiStore.mode === "moderation") {
         clearMapSessionSnapshot();
         renderMapSessionPendingSources();
-        runViewportRenderLoop();
       }
     },
     { flush: "sync" },

@@ -6,11 +6,13 @@ import { mapRotationEnabled } from "@/services/core/settings";
 import { setupEventListeners } from "@/services/map/viewportTriggers";
 import { clearPendingProjectSourceCache } from "@/services/map/tiles/basemap";
 import { clearPreviewShapes } from "@/services/map/shapes/rendering";
-import { hideEditHandles } from "@/services/overlay/editing";
+import { hideEditHandles, refreshEditHandlesGeometry } from "@/services/overlay/editing";
 import { hideCropHandles } from "@/services/overlay/cropHandles";
 import { clearOverlayRenderObjects } from "@/services/overlay/teardown";
 import { installOverlayStyleSwitchHandling } from "@/services/overlay/mapLayers";
 import { stopShapeEditing } from "@/services/shape/shapeEditorLazy";
+import { onStyleSwitch } from "@/services/core/map";
+import { createViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 
 // Toggling the rotation setting locks/unlocks drag-rotate, pitch-with-rotate and two-finger touch
 // pitch; locking also snaps the camera back to north so the map never stays stuck at an angle.
@@ -32,17 +34,22 @@ function watchRotationSetting(target: MaplibreMap): () => void {
 }
 
 /**
- * Bind the instance-scoped behaviour to `target` and return its teardown. The teardown must run
+ * Bind the instance-scoped behaviour to `target`. The teardown must run
  * before the map is removed: it hands every map object back to the still-live instance.
  */
-export function startMapRuntime(target: MaplibreMap): () => void {
+export function startMapRuntime(target: MaplibreMap) {
+  const renderLoop = createViewportRenderLoop(target, refreshEditHandlesGeometry);
   const stops = [
     watchRotationSetting(target),
-    setupEventListeners(target),
+    setupEventListeners(target, renderLoop.run),
     installOverlayStyleSwitchHandling(),
+    onStyleSwitch((phase) => {
+      if (phase === "after") renderLoop.run();
+    }),
   ];
 
-  return function stopMapRuntime(): void {
+  function stopMapRuntime(): void {
+    renderLoop.stop();
     // Active gestures own map objects and hold their own listeners, so they end first.
     stopShapeEditing();
     hideCropHandles();
@@ -56,5 +63,7 @@ export function startMapRuntime(target: MaplibreMap): () => void {
     // Pending-source payloads belong to this MapLibre instance. The application session snapshot
     // survives so the next map can project it without another backend request.
     clearPendingProjectSourceCache();
-  };
+  }
+
+  return { renderOverlays: renderLoop.run, stop: stopMapRuntime };
 }

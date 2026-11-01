@@ -8,7 +8,6 @@ import {
   hasReadyLayer,
   whenImageReady,
   raiseOverlayImage,
-  scheduleOverlayReconcile,
 } from "@/services/overlay/mapLayers";
 import type { LatLng } from "@/types/index";
 import { syncModerationCountryFromMapClick } from "@/services/moderation/moderationCountrySync";
@@ -38,7 +37,6 @@ export function openOverlayDetail(overlayId: string): void {
     projectId: newlySelected.projectId ?? null,
   });
   focus.setHoverTarget(null);
-  scheduleOverlayReconcile();
 
   // Raise the clicked image above its siblings so the one the user picked is never hidden.
   raiseOverlayImage(overlayId);

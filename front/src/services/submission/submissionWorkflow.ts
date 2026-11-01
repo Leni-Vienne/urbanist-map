@@ -28,7 +28,6 @@ import { t } from "@/locales";
 import { buildSubmissionSummary } from "./submissionSummary";
 import { deleteOverlayDirect } from "@/services/entity/entityRemoval";
 import { closeDetail } from "@/services/overlay/selection";
-import { scheduleOverlayReconcile } from "@/services/overlay/mapLayers";
 import type { OverlayObject, Project } from "@/types/index";
 
 function getSuccessMessage(outcome: { createdEntities: number; changeRequests: number }): string {
@@ -165,7 +164,6 @@ async function handleRemoveOverlayChange(
     } else {
       const corners = getEditModeRestingCorners(overlayObject);
       if (corners?.length === 4) useOverlayStore().resetHistoryBaseline(overlayId, corners);
-      scheduleOverlayReconcile();
     }
   }
 }

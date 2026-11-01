@@ -1,12 +1,12 @@
 import { watch } from "vue";
-import type { LngLatBounds } from "maplibre-gl";
+import type { LngLatBounds, Map as MaplibreMap } from "maplibre-gl";
 import { useProjectStore } from "@/stores/projectStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useFocusStore } from "@/stores/focusStore";
-import { getMap, getMapOrNull } from "@/services/core/map";
+import { getMapOrNull } from "@/services/core/map";
 import { shouldDisplayOverlay } from "@/services/overlay/visibility";
 import type { OverlayObject } from "@/types/index";
 import { activeFilters } from "@/services/core/filters";
@@ -18,50 +18,6 @@ import { createRafBatchQueue } from "@/utils/rafBatchQueue";
 import { cornersIntersectBounds } from "@/utils/cornersBounds";
 import { getMapSessionSnapshot } from "@/services/map/mapSessionState";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
-
-let renderLoopRafId: number | null = null;
-
-/**
- * Coalesces repeated calls into a single run on the next animation frame.
- * The loop reads live map state, so collapsing same-frame calls is safe and
- * avoids redundant work when several triggers fire together (page load,
- * style switch, or a prune + full render within one viewport refresh).
- */
-export function runViewportRenderLoop(): void {
-  if (renderLoopRafId !== null) return;
-  renderLoopRafId = requestAnimationFrame(() => {
-    renderLoopRafId = null;
-    runViewportRenderLoopNow();
-  });
-}
-
-/**
- * Drop the pending reconcile and the queued teardown batches, so a frame scheduled against the
- * outgoing map cannot run once it is gone. Store writers may keep scheduling; the pass they get is
- * the next map's.
- */
-export function stopViewportRenderLoop(): void {
-  if (renderLoopRafId !== null) {
-    cancelAnimationFrame(renderLoopRafId);
-    renderLoopRafId = null;
-  }
-  destructionQueue.clear();
-}
-
-function runViewportRenderLoopNow(): void {
-  // Scheduled work can survive into a frame where MapView has already unmounted.
-  const mlMap = getMapOrNull();
-  if (!mlMap) return;
-
-  reconcileOverlayExistence(mlMap.getBounds());
-}
-
-// Drains in batches of 10 per frame to spread bulk teardown (e.g. Edit -> View) across frames.
-const destructionQueue = createRafBatchQueue<null>((_, id) => registry.clearEntry(id), 10);
-
-function queueForDestruction(id: string): void {
-  destructionQueue.enqueue(id, null);
-}
 
 // Whether an overlay's source data intersects the viewport at its store-derived display position.
 // Keying membership on the resolved position keeps an open change request's
@@ -103,134 +59,156 @@ function convergeOverlayDisplay(overlayObject: OverlayObject): boolean {
   return false;
 }
 
-/**
- * Single existence pass: for every overlay the map could show, decide whether its image/marker
- * should exist right now, and create or destroy to match. In edit and moderation mode it also
- * converges each existing image/marker to its desired store-derived position via
- * convergeOverlayDisplay.
- *
- * Candidate ids come from every set that can want an overlay on the map:
- *   - tileOverlays: approved overlays represented by MapLibre's renderable in-view tiles.
- *   - active map session: pending + session change-request overlays (edit/moderation only).
- *   - liveOverlays(status === null): local/unsaved overlays.
- *   - current registry ids: so entries that left every live set get destroyed.
- *
- * Tile-managed approved overlays use their renderable tile as the spatial gate. Session, selected,
- * and local overlays use mode/user visibility, map filters, and their resolved corners.
- */
-// oxlint-disable-next-line complexity
-function reconcileOverlayExistence(bounds: LngLatBounds): void {
-  const overlayStore = useOverlayStore();
-  const uiStore = useUiStore();
-  const authStore = useAuthStore();
-  const mode = uiStore.mode;
-  const userId = authStore.user?.id;
-  // Edit/moderation show a clickable status pin per overlay, and converge each image onto its
-  // store-derived position. View mode relies on the overlay-footprints MVT layer for clicks (so
-  // approved images get no DOM marker) and leaves approved overlays at their baseline footprint.
-  const isSessionMode = mode !== "view";
-  let handlesNeedSync = false;
+/** Own the scheduled reconciliation and teardown work for one mounted map. */
+export function createViewportRenderLoop(target: MaplibreMap, onDisplayChanged: () => void) {
+  let renderLoopRafId: number | null = null;
+  let stopped = false;
+  // Drains in batches of 10 per frame to spread bulk teardown (e.g. Edit -> View) across frames.
+  const destructionQueue = createRafBatchQueue<null>((_, id) => registry.clearEntry(id), 10);
 
-  // Below the threshold the map holds no overlay content: tear down every entry and skip the pass.
-  // Crossing back up re-creates images and markers from the store and the tile cache.
-  if (getMap().getZoom() < getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS)) {
-    for (const id of registry.getEntryIds()) {
-      if (!registry.isGestureOwned(id)) queueForDestruction(id);
+  // Coalesce camera, style and state changes into one pass over the latest state per frame.
+  function run(): void {
+    if (stopped || renderLoopRafId !== null) return;
+    renderLoopRafId = requestAnimationFrame(() => {
+      renderLoopRafId = null;
+      if (getMapOrNull() !== target) return;
+      reconcileOverlayExistence(target.getBounds());
+    });
+  }
+
+  function stop(): void {
+    stopped = true;
+    if (renderLoopRafId !== null) {
+      cancelAnimationFrame(renderLoopRafId);
+      renderLoopRafId = null;
     }
-    return;
+    destructionQueue.clear();
   }
 
-  const tileManaged = overlayStore.tileOverlays;
-  const mapSession = getMapSessionSnapshot();
-  const sessionOverlayIds = isSessionMode && mapSession?.mode === mode ? mapSession.overlayIds : [];
-  const sessionOverlayIdSet = new Set(sessionOverlayIds);
-
-  const candidateIds = new Set<string>();
-  for (const id of Object.keys(tileManaged)) candidateIds.add(id);
-  for (const id of sessionOverlayIds) candidateIds.add(id);
-  const selectedOverlayId = useFocusStore().selectedOverlayId;
-  if (selectedOverlayId) candidateIds.add(selectedOverlayId);
-  for (const [id, overlay] of Object.entries(overlayStore.liveOverlays)) {
-    if (overlay.status === null) candidateIds.add(id);
+  function queueForDestruction(id: string): void {
+    destructionQueue.enqueue(id, null);
   }
-  for (const id of registry.getEntryIds()) candidateIds.add(id);
 
-  for (const id of candidateIds) {
-    // Mid-gesture the GL image is deliberately ahead of the store; leave those overlays alone.
-    if (registry.isGestureOwned(id)) continue;
+  /**
+   * Single existence pass: for every overlay the map could show, decide whether its image/marker
+   * should exist right now, and create or destroy to match. In edit and moderation mode it also
+   * converges each existing image/marker to its desired store-derived position via
+   * convergeOverlayDisplay.
+   *
+   * Candidate ids come from every set that can want an overlay on the map:
+   *   - tileOverlays: approved overlays represented by MapLibre's renderable in-view tiles.
+   *   - active map session: pending + session change-request overlays (edit/moderation only).
+   *   - liveOverlays(status === null): local/unsaved overlays.
+   *   - current registry ids: so entries that left every live set get destroyed.
+   *
+   * Tile-managed approved overlays use their renderable tile as the spatial gate. Session, selected,
+   * and local overlays use mode/user visibility, map filters, and their resolved corners.
+   */
+  // oxlint-disable-next-line complexity
+  function reconcileOverlayExistence(bounds: LngLatBounds): void {
+    const overlayStore = useOverlayStore();
+    const uiStore = useUiStore();
+    const authStore = useAuthStore();
+    const mode = uiStore.mode;
+    const userId = authStore.user?.id;
+    // Edit/moderation show a clickable status pin per overlay, and converge each image onto its
+    // store-derived position. View mode relies on the overlay-footprints MVT layer for clicks (so
+    // approved images get no DOM marker) and leaves approved overlays at their baseline footprint.
+    const isSessionMode = mode !== "view";
+    let handlesNeedSync = false;
 
-    const liveObject = overlayStore.liveOverlays[id];
-    const hasImage = registry.getImageHandle(id) !== null;
-    const hasMarker = registry.getMarker(id) !== null;
-
-    const tileData = tileManaged[id];
-    const isTileManaged = tileData !== undefined;
-    const isStoreManaged =
-      liveObject?.status === null || sessionOverlayIdSet.has(id) || id === selectedOverlayId;
-    const desired =
-      isTileManaged ||
-      (liveObject !== undefined &&
-        isStoreManaged &&
-        shouldDisplayOverlay(liveObject, mode, userId) &&
-        resolvedCornersInBounds(liveObject, bounds));
-
-    if (desired) {
-      const overlayObject = tileData ? overlayStore.getOverlayById(id) : liveObject;
-      if (!overlayObject) continue;
-      destructionQueue.delete(id);
-      if (isSessionMode && !hasMarker) {
-        createOverlayMarker(overlayObject);
+    // Below the threshold the map holds no overlay content: tear down every entry and skip the pass.
+    // Crossing back up re-creates images and markers from the store and the tile cache.
+    if (target.getZoom() < getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS)) {
+      for (const id of registry.getEntryIds()) {
+        if (!registry.isGestureOwned(id)) queueForDestruction(id);
       }
-      if (!hasImage) {
-        registry.createOverlayImage(
-          overlayObject.id,
-          overlayObject.imageUrl,
-          resolveOverlayCorners(overlayObject),
-        );
-      } else if (isSessionMode && convergeOverlayDisplay(overlayObject)) {
-        handlesNeedSync = true;
-      }
-    } else if (hasImage || hasMarker) {
-      queueForDestruction(id);
+      return;
     }
+
+    const tileManaged = overlayStore.tileOverlays;
+    const mapSession = getMapSessionSnapshot();
+    const sessionOverlayIds =
+      isSessionMode && mapSession?.mode === mode ? mapSession.overlayIds : [];
+    const sessionOverlayIdSet = new Set(sessionOverlayIds);
+
+    const candidateIds = new Set<string>();
+    for (const id of Object.keys(tileManaged)) candidateIds.add(id);
+    for (const id of sessionOverlayIds) candidateIds.add(id);
+    const selectedOverlayId = useFocusStore().selectedOverlayId;
+    if (selectedOverlayId) candidateIds.add(selectedOverlayId);
+    for (const [id, overlay] of Object.entries(overlayStore.liveOverlays)) {
+      if (overlay.status === null) candidateIds.add(id);
+    }
+    for (const id of registry.getEntryIds()) candidateIds.add(id);
+
+    for (const id of candidateIds) {
+      // Mid-gesture the GL image is deliberately ahead of the store; leave those overlays alone.
+      if (registry.isGestureOwned(id)) continue;
+
+      const liveObject = overlayStore.liveOverlays[id];
+      const hasImage = registry.getImageHandle(id) !== null;
+      const hasMarker = registry.getMarker(id) !== null;
+
+      const tileData = tileManaged[id];
+      const isTileManaged = tileData !== undefined;
+      const isStoreManaged =
+        liveObject?.status === null || sessionOverlayIdSet.has(id) || id === selectedOverlayId;
+      const desired =
+        isTileManaged ||
+        (liveObject !== undefined &&
+          isStoreManaged &&
+          shouldDisplayOverlay(liveObject, mode, userId) &&
+          resolvedCornersInBounds(liveObject, bounds));
+
+      if (desired) {
+        const overlayObject = tileData ? overlayStore.getOverlayById(id) : liveObject;
+        if (!overlayObject) continue;
+        destructionQueue.delete(id);
+        if (isSessionMode && !hasMarker) {
+          createOverlayMarker(overlayObject);
+        }
+        if (!hasImage) {
+          registry.createOverlayImage(
+            overlayObject.id,
+            overlayObject.imageUrl,
+            resolveOverlayCorners(overlayObject),
+          );
+        } else if (isSessionMode && convergeOverlayDisplay(overlayObject)) {
+          handlesNeedSync = true;
+        }
+      } else if (hasImage || hasMarker) {
+        queueForDestruction(id);
+      }
+    }
+
+    if (handlesNeedSync) onDisplayChanged();
   }
 
-  if (handlesNeedSync) registry.runEditHandleSync();
+  return { run, stop };
 }
 
-/** Install the map-instance scheduler used by overlay store writers. */
-export function installViewportRenderLoop(): () => void {
-  return registry.registerOverlayReconcileScheduler(runViewportRenderLoop);
-}
-
-export function watchOverlayReconciliation(): () => void {
-  const stopFilterWatch = watch(activeFilters, runViewportRenderLoop);
-  // Receipts can update a retained moderation entity after the user leaves edit mode.
-  // Observe the current session's entities as well as membership, so application writes never
-  // need to request rendering, even when the set of ids is unchanged.
-  const stopSessionWatch = watch(() => {
-    const session = getMapSessionSnapshot();
-    if (!session || session.mode !== useUiStore().mode) return null;
-    return {
-      session,
-      overlays: session.overlayIds.map((id) => useOverlayStore().getOverlayById(id)),
-      projects: session.projectIds.map((id) =>
-        useProjectStore().getMapProjectById(id, session.mode),
-      ),
-    };
-  }, runViewportRenderLoop);
-
-  // A moderation change-request preview resolves position from previewState; a change to it (set,
-  // toggle, clear) must re-run convergence so the previewed overlay follows or returns to baseline.
-  const stopPreviewWatch = watch(
-    () => useChangeRequestStore().previewState,
-    () => {
-      runViewportRenderLoop();
-    },
+/** Observe state changes instead of requiring writers to request map rendering. */
+export function watchOverlayReconciliation(renderOverlays: () => void): () => void {
+  return watch(
+    [
+      activeFilters,
+      // Includes tile arrivals and local overlays outside the retained edit/moderation session.
+      () => useOverlayStore().liveOverlays,
+      () => useFocusStore().selectedOverlayId,
+      () => useUiStore().mode,
+      () => useChangeRequestStore().previewState,
+      () => {
+        const session = getMapSessionSnapshot();
+        if (!session || session.mode !== useUiStore().mode) return null;
+        return {
+          session,
+          projects: session.projectIds.map((id) =>
+            useProjectStore().getMapProjectById(id, session.mode),
+          ),
+        };
+      },
+    ],
+    renderOverlays,
   );
-  return function stopOverlayReconciliationWatchers(): void {
-    stopSessionWatch();
-    stopPreviewWatch();
-    stopFilterWatch();
-  };
 }

@@ -64,7 +64,6 @@ import {
   startMapStateCoordinator,
   activateMapStateCoordinator,
 } from "@/services/map/globalWatchers";
-import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 
 import { useI18n } from "vue-i18n";
 import { useUiStore } from "@/stores/uiStore";
@@ -107,7 +106,8 @@ async function initializeMapAndOverlays() {
   try {
     const target = createMap();
     mountedMap = target;
-    stopMapRuntime = startMapRuntime(target);
+    const runtime = startMapRuntime(target);
+    stopMapRuntime = runtime.stop;
 
     // Settle the canvas to the container size before wiring layers, so MapLibre doesn't
     // fetch tiles twice (once per view change) when the dimensions correct.
@@ -123,10 +123,10 @@ async function initializeMapAndOverlays() {
     // clean frame, which satisfies both. Afterwards moveend drives the refreshes.
     void target.once("idle", () => {
       if (mountedMap !== target) return;
-      runViewportRenderLoop();
+      runtime.renderOverlays();
     });
 
-    stopMapStateCoordinator = startMapStateCoordinator();
+    stopMapStateCoordinator = startMapStateCoordinator(runtime.renderOverlays);
 
     stopWaitingForMap = onMapReady((readyMap) => {
       if (mountedMap !== readyMap) return;

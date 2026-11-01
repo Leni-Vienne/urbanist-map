@@ -16,7 +16,6 @@ import { throttle } from "@/utils/throttle";
 import { useOverlayStore } from "@/stores/overlayStore";
 import type { TileOverlayData, TileProperties } from "@/types/index";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
-import { runViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 import { matchesProjectFilters, type FilterableProject } from "@/services/core/filters";
 
 interface DecodedFootprint {
@@ -112,9 +111,6 @@ export function syncOverlaysFromTiles(): void {
     }
 
     useOverlayStore().replaceTileOverlays(featureMap);
-
-    // Creation and eviction from the cache is owned by the reconciler; just schedule it.
-    runViewportRenderLoop();
   } catch (error) {
     console.error("sync error:", error);
   }
