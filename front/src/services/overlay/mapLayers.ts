@@ -1,4 +1,4 @@
-import { reactive } from "vue";
+import { useOverlayStore } from "@/stores/overlayStore";
 import type {
   Marker as MaplibreMarker,
   ImageSource,
@@ -237,7 +237,7 @@ export function installOverlayStyleSwitchHandling(): () => void {
 }
 
 // Remove an overlay's image source + raster layer from the MapLibre map. Entries can outlive the
-// map (sign-out on a non-map route), and a removed map took its sources and layers with it.
+// map, and a removed map took its sources and layers with it.
 function removeImageFromMap(handle: OverlayImageHandle): void {
   const mlMap = getMapOrNull();
   if (!mlMap) return;
@@ -269,15 +269,6 @@ export function clearAll(): void {
   for (const id of entries.keys()) clearEntry(id);
 }
 
-// Per-overlay display choices (front/back pinning, opacity) and pending image-ready waiters. Held
-// off the entry lifecycle so they survive handle re-creation, so nothing above evicts them. Reset
-// on sign-out to keep them from carrying one account's session state into the next.
-export function clearOverlayDisplayPrefs(): void {
-  frontOverlayIds.clear();
-  overlayOpacities.clear();
-  cancelImageReadyWaiters();
-}
-
 /**
  * Drop every map object and per-instance bookkeeping the registry holds, so nothing can refer to a
  * map that is about to be removed. Runs while the map is still alive. Display preferences survive:
@@ -299,21 +290,12 @@ function overlayRasterLayerId(id: string): string {
 
 type ImageCoordinates = [[number, number], [number, number], [number, number], [number, number]];
 
-// Overlay IDs the user pinned to the front (above the geometry); otherwise inter-image order follows
-// selection (clicked image rises to its band top). Held off the handle so the choice survives handle
-// re-creation (zoom threshold crossing, style switch, viewport re-entry). Reactive so UI state
-// (front/back toggle) can be computed from it.
-const frontOverlayIds = reactive(new Set<string>());
-
-// Per-overlay raster opacity (0..1), held off the handle for the same reason. Absent = full opacity.
-const overlayOpacities = new Map<string, number>();
-
 export function isOverlayInFront(id: string): boolean {
-  return frontOverlayIds.has(id);
+  return useOverlayStore().frontOverlayIds.has(id);
 }
 
 export function getOverlayOpacity(id: string): number {
-  return overlayOpacities.get(id) ?? 1;
+  return useOverlayStore().overlayOpacities.get(id) ?? 1;
 }
 
 // Front rasters move to the top of the stack; back rasters move just under the project geometry.
@@ -331,12 +313,12 @@ export function raiseOverlayImage(id: string): void {
   const mlMap = getMap();
   const handle = getImageHandle(id);
   if (!handle || !mlMap.getLayer(handle.rasterLayerId)) return;
-  raiseToBandTop(mlMap, handle.rasterLayerId, frontOverlayIds.has(id));
+  raiseToBandTop(mlMap, handle.rasterLayerId, useOverlayStore().frontOverlayIds.has(id));
 }
 
 export function setOverlayInFront(id: string, front: boolean): void {
-  if (front) frontOverlayIds.add(id);
-  else frontOverlayIds.delete(id);
+  if (front) useOverlayStore().frontOverlayIds.add(id);
+  else useOverlayStore().frontOverlayIds.delete(id);
 
   const mlMap = getMap();
   const handle = getImageHandle(id);
@@ -416,7 +398,9 @@ export function createOverlayImage(id: string, imageUrl: string, corners: LatLng
         minzoom: getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS),
         paint: { "raster-opacity": opacity, "raster-fade-duration": 0 },
       },
-      frontOverlayIds.has(id) ? undefined : projectDataLayersBottomId(mlMap.getStyle().layers),
+      useOverlayStore().frontOverlayIds.has(id)
+        ? undefined
+        : projectDataLayersBottomId(mlMap.getStyle().layers),
     );
     registerImageHandle(
       id,
@@ -479,7 +463,7 @@ export function replaceOverlayImageSource(id: string, imageUrl: string, corners:
 
 // Set raster opacity (0..1) for one overlay.
 export function setOverlayImageOpacity(id: string, opacity: number): void {
-  overlayOpacities.set(id, opacity);
+  useOverlayStore().overlayOpacities.set(id, opacity);
   const mlMap = getMap();
   const handle = getImageHandle(id);
   if (!handle) return;

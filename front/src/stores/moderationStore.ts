@@ -1,13 +1,22 @@
+import { useAuthStore } from "@/stores/authStore";
+import { useUiStore } from "@/stores/uiStore";
+import { useMapSessionStore } from "@/stores/mapSessionStore";
+import { overlayWireToData } from "@/utils/typeFactories";
+import { t } from "@/locales";
+import { toastError } from "@/services/core/toast";
 import { defineStore, acceptHMRUpdate } from "pinia";
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import type { Overlay, Project, PendingChangeRequest } from "@/types/index";
-import type { RouterOutput } from "@/client";
+import { trpc, type RouterOutput } from "@/client";
 import { useProjectStore } from "@/stores/projectStore";
 
 type CountryItem = RouterOutput["country"]["getAllCountries"][0];
 type ModerationLoadStatus = "idle" | "loading" | "loaded";
 
 export const useModerationStore = defineStore("moderation", () => {
+  const authStore = useAuthStore();
+  const uiStore = useUiStore();
+  let moderationFetchToken = 0;
   const selectedCountryCode = ref<string | null>(null);
   const projectIds = ref<string[]>([]);
   const overlaysById = ref<Record<string, Overlay>>({});
@@ -53,22 +62,75 @@ export const useModerationStore = defineStore("moderation", () => {
     moderationLoadStatus.value = "loaded";
   }
 
-  function startModerationLoading() {
-    moderationLoadStatus.value = "loading";
-  }
-
-  function stopModerationLoading() {
-    if (moderationLoadStatus.value === "loading") {
-      moderationLoadStatus.value = "idle";
-    }
-  }
-
   function invalidateModerationData() {
+    moderationFetchToken += 1;
+    const mapSession = useMapSessionStore();
+    if (mapSession.snapshot?.mode === "moderation") mapSession.clearAllState();
     moderationLoadStatus.value = "idle";
     projectIds.value = [];
     overlaysById.value = {};
     changeRequests.value = [];
   }
+
+  async function fetchPendingSubmissions(options?: { force?: boolean }) {
+    const mapSessionStore = useMapSessionStore();
+    const countryCode = selectedCountryCode.value;
+    if (!countryCode) return;
+    if (!options?.force && moderationLoadStatus.value !== "idle") {
+      return;
+    }
+
+    moderationFetchToken += 1;
+    const requestToken = moderationFetchToken;
+    const userId = authStore.user?.id;
+    const epoch = authStore.getSessionEpoch();
+    moderationLoadStatus.value = "loading";
+
+    function isCurrentRequest(): boolean {
+      return (
+        requestToken === moderationFetchToken &&
+        uiStore.mode === "moderation" &&
+        selectedCountryCode.value === countryCode &&
+        authStore.user?.id === userId &&
+        epoch === authStore.getSessionEpoch()
+      );
+    }
+
+    try {
+      const [response, { changeRequestFromWire }] = await Promise.all([
+        trpc.moderation.getPendingSubmissions.query({ countryCode }),
+        import("@/services/changes/changeRequestData"),
+      ]);
+
+      if (!isCurrentRequest()) return;
+
+      const parsedChanges = response.changeRequests.map(changeRequestFromWire);
+
+      const mapProjects = [];
+      for (const project of Object.values(response.projectsById)) {
+        mapProjects.push({ ...project, tags: project.tags ?? [] });
+      }
+
+      const fetchedProjectIds = mapSessionStore.applyMapSessionRows(
+        "moderation",
+        mapProjects,
+        response.mapOverlays.map(overlayWireToData),
+      );
+
+      setModerationData({
+        projectIds: fetchedProjectIds,
+        overlaysById: response.overlaysById,
+        changeRequests: parsedChanges,
+      });
+    } catch (error) {
+      if (!isCurrentRequest()) return;
+      moderationLoadStatus.value = "idle";
+      console.error("Failed to load pending submissions:", error);
+      toastError(t("moderation.fetchSubmissionsFailed"));
+    }
+  }
+
+  watch(selectedCountryCode, invalidateModerationData, { flush: "sync" });
 
   function setAllCountries(countries: CountryItem[]) {
     allCountries.value = countries;
@@ -87,10 +149,7 @@ export const useModerationStore = defineStore("moderation", () => {
   // Clear all state on logout or account switch.
   function clearAllState() {
     selectedCountryCode.value = null;
-    projectIds.value = [];
-    overlaysById.value = {};
-    changeRequests.value = [];
-    moderationLoadStatus.value = "idle";
+    invalidateModerationData();
     allCountries.value = [];
     countriesLoaded.value = false;
     pendingCountsByCountry.value.clear();
@@ -109,9 +168,7 @@ export const useModerationStore = defineStore("moderation", () => {
     pendingCountsByCountry,
     pendingCountsLoaded,
     setModerationData,
-    startModerationLoading,
-    stopModerationLoading,
-    invalidateModerationData,
+    fetchPendingSubmissions,
     setAllCountries,
     setPendingCounts,
     resetPendingCounts,

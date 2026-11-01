@@ -1,10 +1,10 @@
 // Single source of truth for "does this entity have local state not yet on the server?".
 // Used by the beforeunload guard, toolbar/popup save buttons, and the contributions sidebar.
 
+import { useSubmissionStore } from "@/stores/submissionStore";
 import type { LatLng, OverlayObject, PendingOverlayModification, Project } from "@/types/index";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
-import { hasStagedRender, hasStagedRenders } from "@/services/submission/stagedRenderState";
 import { getEditModeDefaultCaption } from "@/services/overlay/defaultState";
 
 type OverlayLike = Pick<OverlayObject, "id" | "status">;
@@ -64,7 +64,7 @@ export function isOverlayUnsaved(overlay: OverlayLike): boolean {
 export function isProjectUnsaved(project: ProjectLike): boolean {
   if (project.status === null) return true;
   if (useProjectStore().hasProjectDraft(project.id)) return true;
-  if (hasStagedRender(project.id)) return true;
+  if (useSubmissionStore().hasStagedRender(project.id)) return true;
   const overlayStore = useOverlayStore();
   return Object.values(overlayStore.liveOverlays).some(
     (o) => o.projectId === project.id && isOverlayUnsaved(o),
@@ -75,7 +75,7 @@ export function hasUnsavedChanges(): boolean {
   const projectStore = useProjectStore();
   const overlayStore = useOverlayStore();
 
-  if (hasStagedRenders()) return true;
+  if (useSubmissionStore().hasStagedRenders()) return true;
   if (Object.values(overlayStore.liveOverlays).some(isOverlayUnsaved)) return true;
   return Object.values(projectStore.projects).some(
     (project) => project.status === null || projectStore.hasProjectDraft(project.id),

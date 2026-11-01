@@ -1,11 +1,7 @@
+import { useFocusStore } from "@/stores/focusStore";
 // Owns the confirmation workflow: prepare a target, review current drafts, submit or cancel.
+import { useSubmissionStore } from "@/stores/submissionStore";
 import { computed } from "vue";
-import {
-  isSubmitting,
-  pendingSubmission,
-  resetSubmissionState,
-} from "@/services/submission/submissionState";
-import { getStagedRender, clearStagedRender } from "@/services/submission/stagedRenderState";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -27,7 +23,7 @@ import { toastError, toastSuccess } from "@/services/core/toast";
 import { t } from "@/locales";
 import { buildSubmissionSummary } from "./submissionSummary";
 import { deleteOverlayDirect } from "@/services/entity/entityRemoval";
-import { closeDetail } from "@/services/overlay/selection";
+
 import type { OverlayObject, Project } from "@/types/index";
 
 function getSuccessMessage(outcome: { createdEntities: number; changeRequests: number }): string {
@@ -47,14 +43,14 @@ function buildProjectDraft(
 }
 
 function buildSubmissionDraft(): SubmissionDraft | null {
-  const pending = pendingSubmission.value;
+  const pending = useSubmissionStore().pendingSubmission;
   if (!pending) return null;
 
   const projectStore = useProjectStore();
   const project = projectStore.getProjectById(pending.projectId);
   const projectChanges =
     project && projectStore.hasProjectDraft(pending.projectId) ? detectProjectChanges(project) : [];
-  const stagedRender = getStagedRender(pending.projectId);
+  const stagedRender = useSubmissionStore().getStagedRender(pending.projectId);
   return {
     projectId: pending.projectId,
     entityName: pending.entityName,
@@ -80,7 +76,9 @@ function getSubmissionSummary(): SubmissionSummary | null {
   );
 }
 
-export const submissionSummary = computed(getSubmissionSummary);
+export function useSubmissionSummary() {
+  return computed(getSubmissionSummary);
+}
 
 function getNewOverlaysForProject(projectId: string): OverlayObject[] {
   return Object.values(useOverlayStore().liveOverlays).filter(
@@ -98,9 +96,9 @@ export function prepareSubmission(project: Project | null, overlay?: OverlayObje
 
   const projectStore = useProjectStore();
   const submissionProject = projectStore.projects[projectId] ?? project;
-  const stagedRender = getStagedRender(projectId);
+  const stagedRender = useSubmissionStore().getStagedRender(projectId);
 
-  pendingSubmission.value = {
+  useSubmissionStore().pendingSubmission = {
     projectId,
     entityName: submissionProject?.name ?? overlay?.caption ?? t("submission.newOverlay"),
     renderId: stagedRender ? crypto.randomUUID() : undefined,
@@ -116,19 +114,20 @@ export function prepareOverlaySubmission(overlay: OverlayObject): void {
 }
 
 export async function confirmSubmission(reason: string): Promise<void> {
-  const pending = pendingSubmission.value;
+  const submissionStore = useSubmissionStore();
+  const pending = submissionStore.pendingSubmission;
   const draft = buildSubmissionDraft();
-  if (!draft || isSubmitting.value) return;
+  if (!draft || submissionStore.isSubmitting) return;
 
   try {
     const outcome = await submitDraft(draft, reason);
-    if (pendingSubmission.value !== pending) return;
-    closeDetail();
+    if (submissionStore.pendingSubmission !== pending) return;
+    useFocusStore().setSelectionTarget(null);
     toastSuccess(getSuccessMessage(outcome));
-    resetSubmissionState();
+    submissionStore.clearPendingSubmission();
   } catch (error: unknown) {
     console.error("Error submitting:", error);
-    if (pendingSubmission.value !== pending) return;
+    if (submissionStore.pendingSubmission !== pending) return;
     toastError(
       error instanceof Error ? error.message : t("errors.submissionFailed"),
       t("toast.submissionFailed"),
@@ -137,8 +136,8 @@ export async function confirmSubmission(reason: string): Promise<void> {
 }
 
 export function cancelSubmission(): void {
-  if (isSubmitting.value) return;
-  resetSubmissionState();
+  if (useSubmissionStore().isSubmitting) return;
+  useSubmissionStore().clearPendingSubmission();
 }
 
 async function handleRemoveOverlayChange(
@@ -169,7 +168,7 @@ async function handleRemoveOverlayChange(
 }
 
 function handleRemoveProjectChange(field: ProjectChangeField): void {
-  const pending = pendingSubmission.value;
+  const pending = useSubmissionStore().pendingSubmission;
   if (!pending) return;
 
   useProjectStore().resetProjectField(pending.projectId, field);
@@ -191,12 +190,12 @@ export async function handleRemoveChange(
   field: RemovableChange,
   overlayId?: string,
 ): Promise<void> {
-  if (isSubmitting.value) return;
-  const pending = pendingSubmission.value;
+  if (useSubmissionStore().isSubmitting) return;
+  const pending = useSubmissionStore().pendingSubmission;
   if (!pending) return;
 
   if (field === "render") {
-    clearStagedRender(pending.projectId);
+    useSubmissionStore().clearStagedRender(pending.projectId);
   } else if (overlayId && isOverlayChangeField(field)) {
     await handleRemoveOverlayChange(overlayId, field);
   } else if (isProjectChangeField(field)) {
@@ -205,6 +204,6 @@ export async function handleRemoveChange(
 
   const draft = buildSubmissionDraft();
   if (!draft || !hasSubmissionWork(draft)) {
-    resetSubmissionState();
+    useSubmissionStore().clearPendingSubmission();
   }
 }

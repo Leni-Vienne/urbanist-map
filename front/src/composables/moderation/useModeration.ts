@@ -3,14 +3,9 @@ import { trpc } from "@/client";
 
 import { useModerationStore } from "@/stores/moderationStore";
 import { useOverlayStore } from "@/stores/overlayStore";
-import { useUiStore } from "@/stores/uiStore";
-import { useAuthStore } from "@/stores/authStore";
-import { removeOverlayFromMapAndStore } from "@/services/entity/entityRemoval";
-import { applyMapSessionRows } from "@/services/map/mapSessionState";
+import { removeOverlayFromState } from "@/services/entity/entityRemoval";
 import { t } from "@/locales";
-import { toastError } from "@/services/core/toast";
-import { overlayWireToData } from "@/utils/typeFactories";
-import { invalidateLatestContributions } from "@/services/feed/latestContributions";
+import { useLatestContributionsStore } from "@/stores/latestContributionsStore";
 import { canModerateCountry } from "@/services/moderation/moderationCountrySync";
 
 export type ApprovalResult = {
@@ -27,71 +22,14 @@ type ApprovalRequest = {
   rejectAllOverlays?: boolean;
 };
 
-let moderationFetchToken = 0;
-
 export function useModeration() {
   const moderationStore = useModerationStore();
-  const uiStore = useUiStore();
-  const authStore = useAuthStore();
 
   const projects = computed(() => moderationStore.projects);
   const overlays = computed(() => Object.values(moderationStore.overlaysById));
   const changeRequests = computed(() => moderationStore.changeRequests);
 
-  async function fetchPendingSubmissions(options?: { force?: boolean }) {
-    const countryCode = moderationStore.selectedCountryCode;
-    if (!countryCode) return;
-    if (!options?.force && moderationStore.moderationLoadStatus !== "idle") {
-      return;
-    }
-
-    moderationFetchToken += 1;
-    const requestToken = moderationFetchToken;
-    const userId = authStore.user?.id;
-    moderationStore.startModerationLoading();
-
-    function isCurrentRequest(): boolean {
-      return (
-        requestToken === moderationFetchToken &&
-        uiStore.mode === "moderation" &&
-        moderationStore.selectedCountryCode === countryCode &&
-        authStore.user?.id === userId
-      );
-    }
-
-    try {
-      const [response, { changeRequestFromWire }] = await Promise.all([
-        trpc.moderation.getPendingSubmissions.query({ countryCode }),
-        import("@/services/changes/changeRequestData"),
-      ]);
-
-      if (!isCurrentRequest()) return;
-
-      const parsedChanges = response.changeRequests.map(changeRequestFromWire);
-
-      const mapProjects = [];
-      for (const project of Object.values(response.projectsById)) {
-        mapProjects.push({ ...project, tags: project.tags ?? [] });
-      }
-
-      const projectIds = applyMapSessionRows(
-        "moderation",
-        mapProjects,
-        response.mapOverlays.map(overlayWireToData),
-      );
-
-      moderationStore.setModerationData({
-        projectIds,
-        overlaysById: response.overlaysById,
-        changeRequests: parsedChanges,
-      });
-    } catch (error) {
-      if (!isCurrentRequest()) return;
-      moderationStore.stopModerationLoading();
-      console.error("Failed to load pending submissions:", error);
-      toastError(t("moderation.fetchSubmissionsFailed"));
-    }
-  }
+  const { fetchPendingSubmissions } = moderationStore;
 
   async function setApprovalStatus(request: ApprovalRequest): Promise<ApprovalResult> {
     const { id, status, itemType } = request;
@@ -164,7 +102,7 @@ export function useModeration() {
       };
     }
 
-    invalidateLatestContributions();
+    useLatestContributionsStore().invalidateLatestContributions();
 
     return {
       success: true,
@@ -197,14 +135,14 @@ export function useModeration() {
 
       // If a replacement overlay was approved, remove the original and any competing replacements
       if (status === "approved" && replacesOverlayId) {
-        removeOverlayFromMapAndStore(replacesOverlayId);
+        removeOverlayFromState(replacesOverlayId);
 
         const competingReplacements = Object.values(overlayStore.liveOverlays).filter(
           (o) => o.replacesOverlayId === replacesOverlayId && o.id !== id,
         );
 
         for (const competing of competingReplacements) {
-          removeOverlayFromMapAndStore(competing.id);
+          removeOverlayFromState(competing.id);
         }
       }
     }

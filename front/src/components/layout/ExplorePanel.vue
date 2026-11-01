@@ -309,22 +309,8 @@ import {
 import { useI18n } from "vue-i18n";
 import Listbox, { type ListboxChangeEvent } from "primevue/listbox";
 import type { VirtualScrollerLazyEvent } from "primevue/virtualscroller";
-import {
-  contributions,
-  isLoading,
-  isLoadingMore,
-  hasLoadError,
-  hasLoadMoreError,
-  isCountStale,
-  isFeedStale,
-  projectCount,
-  hasMore,
-  isOsmIncluded,
-  mapArea,
-  activateLatestContributions,
-  loadMoreLatestContributions,
-  clearMapArea,
-} from "@/services/feed/latestContributions";
+import { storeToRefs } from "pinia";
+import { useLatestContributionsStore } from "@/stores/latestContributionsStore";
 import {
   activeFilters,
   clearActiveFilter,
@@ -354,8 +340,24 @@ import {
 import type { LatestContribution } from "@/types/index";
 import { handleOverlayClickNavigation } from "@/services/overlay/clickHandler";
 import { getMapOrNull } from "@/services/core/map";
-import { closeDetail } from "@/services/overlay/selection";
+
 import { LngLatBounds, Marker } from "maplibre-gl";
+
+const feedStore = useLatestContributionsStore();
+const {
+  contributions,
+  isLoading,
+  isLoadingMore,
+  hasLoadError,
+  hasLoadMoreError,
+  isCountStale,
+  isFeedStale,
+  projectCount,
+  hasMore,
+  isOsmIncluded,
+  mapArea,
+} = storeToRefs(feedStore);
+const { activateLatestContributions, loadMoreLatestContributions, clearMapArea } = feedStore;
 
 const ProjectDetailPanel = defineAsyncComponent(() => import("./ProjectDetailPanel.vue"));
 
@@ -725,7 +727,7 @@ const virtualScrollerOptions = computed(() => ({
 
 function handleRowChange(event: ListboxChangeEvent): void {
   if (event.value === null) {
-    closeDetail();
+    useFocusStore().setSelectionTarget(null);
     return;
   }
   const row = rows.value.find((item) => item.contribution.id === event.value);

@@ -1,5 +1,5 @@
+import { useFocusStore } from "@/stores/focusStore";
 import * as registry from "@/services/overlay/mapLayers";
-import { closeDetail } from "@/services/overlay/selection";
 
 /**
  * Remove every overlay map object (images, markers, gesture ownership, image-ready
@@ -18,6 +18,6 @@ export function clearOverlayRenderObjects(): void {
  * without losing work.
  */
 export function clearOverlayRenderState(): void {
-  closeDetail();
+  useFocusStore().setSelectionTarget(null);
   registry.clearAll();
 }

@@ -87,6 +87,8 @@ test("tile arrivals, selection and draft history request rendering without a mod
       overlays.addLocalOverlay("local", { ...overlay, id: "local", status: null }),
     );
 
+    await expectRender(() => overlays.removeOverlay("local"));
+
     stop();
     render.mockClear();
     overlays.updateOverlayDraft(tile.id, { caption: "After unmount" });

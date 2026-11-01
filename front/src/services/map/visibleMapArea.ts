@@ -1,7 +1,7 @@
 import { LngLatBounds, type Map as MaplibreMap } from "maplibre-gl";
 import { getMapOrNull } from "@/services/core/map";
 import { getMobileDrawerOcclusionPx } from "@/services/core/mapNavigation";
-import type { MapArea } from "@/services/feed/latestContributions";
+import type { MapArea } from "@/stores/latestContributionsStore";
 
 // Widest view worth filtering to, in degrees of longitude. Gating on the ground the view spans
 // rather than on a zoom level keeps the threshold the same everywhere: a phone covers far less at a

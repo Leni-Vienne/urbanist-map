@@ -1,6 +1,7 @@
 // Application resources tied to a MapLibre instance and released while it is still alive.
 // Application state (overlay store, focus, history, preferences) outlives any one map.
 import { watch } from "vue";
+import { useAuthStore } from "@/stores/authStore";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { mapRotationEnabled } from "@/services/core/settings";
 import { setupEventListeners } from "@/services/map/viewportTriggers";
@@ -33,14 +34,33 @@ function watchRotationSetting(target: MaplibreMap): () => void {
   return watch(mapRotationEnabled, applyRotation);
 }
 
+function clearMapObjects(): void {
+  stopShapeEditing();
+  hideCropHandles();
+  hideEditHandles();
+  clearOverlayRenderObjects();
+  clearPreviewShapes();
+}
+
 /**
  * Bind the instance-scoped behaviour to `target`. The teardown must run
  * before the map is removed: it hands every map object back to the still-live instance.
  */
 export function startMapRuntime(target: MaplibreMap) {
+  const authStore = useAuthStore();
   const renderLoop = createViewportRenderLoop(target, refreshEditHandlesGeometry);
+
   const stops = [
     watchRotationSetting(target),
+    // Remove the previous account's map objects immediately, including active editing gestures.
+    watch(
+      () => authStore.user?.id,
+      () => {
+        clearMapObjects();
+        renderLoop.run();
+      },
+      { flush: "sync" },
+    ),
     setupEventListeners(target, renderLoop.run),
     installOverlayStyleSwitchHandling(),
     onStyleSwitch((phase) => {
@@ -50,15 +70,8 @@ export function startMapRuntime(target: MaplibreMap) {
 
   function stopMapRuntime(): void {
     renderLoop.stop();
-    // Active gestures own map objects and hold their own listeners, so they end first.
-    stopShapeEditing();
-    hideCropHandles();
-    hideEditHandles();
-
     for (const stop of stops.toReversed()) stop();
-
-    clearOverlayRenderObjects();
-    clearPreviewShapes();
+    clearMapObjects();
 
     // Pending-source payloads belong to this MapLibre instance. The application session snapshot
     // survives so the next map can project it without another backend request.

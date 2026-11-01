@@ -1,3 +1,4 @@
+import { useMapSessionStore } from "@/stores/mapSessionStore";
 import { watch } from "vue";
 import type { LngLatBounds, Map as MaplibreMap } from "maplibre-gl";
 import { useProjectStore } from "@/stores/projectStore";
@@ -16,7 +17,6 @@ import { isValidQuad, sameCorners } from "@/services/overlay/transform";
 import * as registry from "@/services/overlay/mapLayers";
 import { createRafBatchQueue } from "@/utils/rafBatchQueue";
 import { cornersIntersectBounds } from "@/utils/cornersBounds";
-import { getMapSessionSnapshot } from "@/services/map/mapSessionState";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 
 // Whether an overlay's source data intersects the viewport at its store-derived display position.
@@ -127,7 +127,7 @@ export function createViewportRenderLoop(target: MaplibreMap, onDisplayChanged: 
     }
 
     const tileManaged = overlayStore.tileOverlays;
-    const mapSession = getMapSessionSnapshot();
+    const mapSession = useMapSessionStore().snapshot;
     const sessionOverlayIds =
       isSessionMode && mapSession?.mode === mode ? mapSession.overlayIds : [];
     const sessionOverlayIdSet = new Set(sessionOverlayIds);
@@ -199,7 +199,7 @@ export function watchOverlayReconciliation(renderOverlays: () => void): () => vo
       () => useUiStore().mode,
       () => useChangeRequestStore().previewState,
       () => {
-        const session = getMapSessionSnapshot();
+        const session = useMapSessionStore().snapshot;
         if (!session || session.mode !== useUiStore().mode) return null;
         return {
           session,

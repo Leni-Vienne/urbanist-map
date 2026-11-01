@@ -12,7 +12,7 @@ import type { OverlayObject, RuntimeOverlayData, MarkerColor, LatLng } from "@/t
 import type { ApprovalStatus } from "@shared/types";
 import { t } from "@/locales";
 import * as registry from "@/services/overlay/mapLayers";
-import { closeDetail, openOverlayDetail } from "@/services/overlay/selection";
+import { openOverlayDetail } from "@/services/overlay/selection";
 import { useFocusStore } from "@/stores/focusStore";
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { resolveOverlayCorners } from "@/services/overlay/data";
@@ -75,7 +75,7 @@ function onMarkerClick(overlayId: string): void {
 
   // Second click on the selected marker deselects.
   if (useFocusStore().selectedOverlayId === overlayId) {
-    closeDetail();
+    useFocusStore().setSelectionTarget(null);
     return;
   }
 

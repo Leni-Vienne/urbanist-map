@@ -194,6 +194,7 @@
 </template>
 
 <script setup lang="ts">
+import { useSubmissionStore } from "@/stores/submissionStore";
 import { toastError, toastSuccess } from "@/services/core/toast";
 
 import { ref, computed } from "vue";
@@ -203,7 +204,6 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
 
 import { createLocalOverlay } from "@/services/overlay/editing";
-import { setStagedRender } from "@/services/submission/stagedRenderState";
 import { MAX_UPLOAD_FILE_SIZE_BYTES, MAX_UPLOAD_FILE_SIZE_MB } from "@shared/uploadLimits";
 
 type UploadMode = "choose" | "overlay" | "render";
@@ -355,7 +355,10 @@ async function confirmOverlay(targetProjectId: string) {
 
 function confirmRender(targetProjectId: string, file: File) {
   try {
-    setStagedRender(targetProjectId, { file, previewUrl: imagePreviewUrl.value });
+    useSubmissionStore().setStagedRender(targetProjectId, {
+      file,
+      previewUrl: imagePreviewUrl.value,
+    });
     toastSuccess(t("imageUpload.renderStagedDetail"), t("imageUpload.renderStaged"));
     handleClose();
   } catch (error) {

@@ -276,7 +276,6 @@ import { navigateToOverlay, viewOriginalOverlay } from "@/services/overlay/navig
 import { flyToGeometry, mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
 import { buildShapeBounds } from "@/utils/cornersBounds";
 import { openProjectForEditing } from "@/services/core/projectSelection";
-import { closeDetail } from "@/services/overlay/selection";
 
 import { buildImageUrl, buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { formatConstructionName } from "@shared/osmRules";
@@ -468,7 +467,7 @@ async function handleRetry(): Promise<void> {
 
 // Back returns to the panel's tab list, closing whichever detail is open.
 function handleBack() {
-  closeDetail();
+  useFocusStore().setSelectionTarget(null);
 }
 </script>
 

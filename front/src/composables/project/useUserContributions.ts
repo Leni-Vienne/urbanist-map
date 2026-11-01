@@ -1,3 +1,4 @@
+import { useSubmissionStore } from "@/stores/submissionStore";
 import { computed, ref } from "vue";
 import { useProjectStore } from "@/stores/projectStore";
 import { useContributionStore } from "@/stores/contributionStore";
@@ -6,12 +7,12 @@ import { useAuthStore } from "@/stores/authStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { t } from "@/locales";
-import { getStagedRender } from "@/services/submission/stagedRenderState";
 import type { Project, ProjectPanelOverlay } from "@/types/index";
 
 type ContributionFilter = "all" | "pending" | "reviewed";
 
 export function useUserContributions() {
+  const submissionStore = useSubmissionStore();
   const projectStore = useProjectStore();
   const contributionStore = useContributionStore();
   const authStore = useAuthStore();
@@ -102,7 +103,7 @@ export function useUserContributions() {
     const projectIds = allContributions.value.map((project) => project.id);
     if (pinnedExternalProject.value) projectIds.push(pinnedExternalProject.value.id);
     for (const projectId of projectIds) {
-      const render = getStagedRender(projectId);
+      const render = submissionStore.getStagedRender(projectId);
       if (render) urls[projectId] = render.previewUrl;
     }
     return urls;

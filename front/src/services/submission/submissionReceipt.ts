@@ -1,3 +1,5 @@
+import { useMapSessionStore } from "@/stores/mapSessionStore";
+import { useSubmissionStore } from "@/stores/submissionStore";
 import type { RouterOutput } from "@/client";
 import { useProjectStore } from "@/stores/projectStore";
 import { useOverlayStore } from "@/stores/overlayStore";
@@ -6,9 +8,6 @@ import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useUiStore } from "@/stores/uiStore";
 import { overlayWireToData, projectFromWire } from "@/utils/typeFactories";
 import { changeRequestFromWire } from "@/services/changes/changeRequestData";
-import { mergeEditSession } from "@/services/map/mapSessionState";
-import { invalidateContributionRequests } from "@/services/project/userContributions";
-import { acknowledgeStagedRender } from "./stagedRenderState";
 import type { SubmissionBatchInput } from "@shared/validation/schemas";
 
 type SubmissionResult = RouterOutput["submission"]["submit"];
@@ -18,7 +17,7 @@ export function acknowledgeSubmission(result: SubmissionResult, batch: Submissio
   const contributionStore = useContributionStore();
   const changeStore = useChangeRequestStore();
   const { receipt, render } = result;
-  invalidateContributionRequests();
+  contributionStore.invalidateRequests();
   projectStore.upsertProjectSummary(projectFromWire(receipt.project));
   if (batch.project) projectStore.discardProjectDraft(batch.projectId);
 
@@ -42,7 +41,8 @@ export function acknowledgeSubmission(result: SubmissionResult, batch: Submissio
     projectStore.updatePersistedProject(batch.projectId, {
       render: { filename: render.filename, caption: null, status: render.status },
     });
-    acknowledgeStagedRender(batch.projectId);
+    useSubmissionStore().acknowledgeStagedRender(batch.projectId);
   }
-  if (useUiStore().mode === "edit") mergeEditSession(batch.projectId, [...overlayIds]);
+  if (useUiStore().mode === "edit")
+    useMapSessionStore().mergeEditSession(batch.projectId, [...overlayIds]);
 }

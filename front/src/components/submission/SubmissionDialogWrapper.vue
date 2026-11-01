@@ -12,12 +12,15 @@
 </template>
 
 <script setup lang="ts">
-import { showSubmissionDialog, isSubmitting } from "@/services/submission/submissionState";
+import { storeToRefs } from "pinia";
+import { useSubmissionStore } from "@/stores/submissionStore";
 import {
-  submissionSummary,
+  useSubmissionSummary,
   confirmSubmission,
   cancelSubmission,
   handleRemoveChange,
 } from "@/services/submission/submissionWorkflow";
 import SubmissionConfirmationDialog from "@/components/submission/SubmissionConfirmationDialog.vue";
+const { showSubmissionDialog, isSubmitting } = storeToRefs(useSubmissionStore());
+const submissionSummary = useSubmissionSummary();
 </script>

@@ -2,7 +2,7 @@ import type { GeoJSONSource, Map as MaplibreMap } from "maplibre-gl";
 import type { Feature, FeatureCollection, MultiPolygon, Polygon, Position } from "geojson";
 import { computed, watch } from "vue";
 import { getMapOrNull, onStyleSwitch, type StyleSwitchPhase } from "@/services/core/map";
-import { mapArea, type MapArea } from "@/services/feed/latestContributions";
+import { useLatestContributionsStore, type MapArea } from "@/stores/latestContributionsStore";
 import { projectDataLayersBottomId } from "@/services/map/layerOrder";
 import { useUiStore } from "@/stores/uiStore";
 
@@ -130,7 +130,7 @@ export function syncMapAreaOutline(): void {
   const mlMap = getMapOrNull();
   if (!mlMap?.getSource("project-sources")) return;
 
-  const area = isAreaFilterOnScreen.value ? mapArea.value : null;
+  const area = isAreaFilterOnScreen.value ? useLatestContributionsStore().mapArea : null;
   if (!area) {
     removeAreaLayers(mlMap);
     return;
@@ -152,7 +152,10 @@ function reattachAfterStyleSwitch(phase: StyleSwitchPhase): void {
 
 /** Keep the drawn bounds in step with the filter and with the tab that owns it. */
 export function watchMapAreaOutline(): () => void {
-  const stopAreaWatch = watch([mapArea, isAreaFilterOnScreen], syncMapAreaOutline);
+  const stopAreaWatch = watch(
+    [() => useLatestContributionsStore().mapArea, isAreaFilterOnScreen],
+    syncMapAreaOutline,
+  );
   const stopStyleSwitchWatch = onStyleSwitch(reattachAfterStyleSwitch);
 
   return function stopMapAreaOutline(): void {

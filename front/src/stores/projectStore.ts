@@ -1,12 +1,14 @@
+import { useSubmissionStore } from "@/stores/submissionStore";
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { computed, ref } from "vue";
 import type { Project, HydratedProject, LocalProject } from "@/types/index";
 import type { AppMode } from "@shared/types";
-import { hasProjectDetailFields } from "@/utils/typeFactories";
-import { isSubmitting } from "@/services/submission/submissionState";
+import { trpc } from "@/client";
+import { hasProjectDetailFields, hydratedProjectFromWire } from "@/utils/typeFactories";
 
 type ProjectDraft = Partial<Project> & Pick<Project, "id">;
 type ProjectIndex = Record<string, Project>;
+type DetailStatus = "loading" | "ready" | "error" | "unavailable";
 
 function mergeProject(project: Project, draft: ProjectDraft | undefined): Project {
   return draft ? { ...project, ...draft } : project;
@@ -21,8 +23,46 @@ function isLocalProjectDraft(draft: ProjectDraft): draft is LocalProject {
 }
 
 export const useProjectStore = defineStore("project", () => {
+  const submissionStore = useSubmissionStore();
   const persistedProjects = ref<ProjectIndex>({});
   const projectDrafts = ref<Record<string, ProjectDraft>>({});
+  const detailStatusById = ref<Record<string, DetailStatus>>({});
+  const pendingDetails = new Map<string, Promise<HydratedProject | null>>();
+  let detailGeneration = 0;
+
+  async function fetchProjectDetail(projectId: string): Promise<HydratedProject | null> {
+    const generation = detailGeneration;
+    detailStatusById.value[projectId] = "loading";
+    try {
+      const fresh = await trpc.project.getById.query({ id: projectId });
+      // A reset ends this cache's session, including requests still in flight.
+      if (generation !== detailGeneration) return null;
+      detailStatusById.value[projectId] = fresh ? "ready" : "unavailable";
+      return fresh ? upsertHydratedProject(hydratedProjectFromWire(fresh)) : null;
+    } catch (error) {
+      if (generation !== detailGeneration) return null;
+      console.error("Failed to load project detail:", error);
+      detailStatusById.value[projectId] = "error";
+      return null;
+    }
+  }
+
+  async function loadProjectDetail(projectId: string): Promise<HydratedProject | null> {
+    const cached = getHydratedProject(projectId);
+    if (cached || getProjectById(projectId)?.status === null) return cached;
+
+    let request = pendingDetails.get(projectId);
+    if (!request) {
+      request = fetchProjectDetail(projectId);
+      pendingDetails.set(projectId, request);
+    }
+    try {
+      return await request;
+    } finally {
+      if (pendingDetails.get(projectId) === request) pendingDetails.delete(projectId);
+    }
+  }
+
   function getEffectiveProjects() {
     const effective: ProjectIndex = {};
     Object.assign(effective, persistedProjects.value);
@@ -82,13 +122,13 @@ export const useProjectStore = defineStore("project", () => {
   }
 
   function addLocalProject(project: LocalProject) {
-    if (isSubmitting.value) return;
+    if (submissionStore.isSubmitting) return;
     if (getProjectById(project.id)) return;
     projectDrafts.value[project.id] = { ...project };
   }
 
   function updateProjectDraft(projectId: string, updates: Partial<Project>) {
-    if (isSubmitting.value) return;
+    if (submissionStore.isSubmitting) return;
     const current = getProjectById(projectId);
     if (!current) return;
     projectDrafts.value[projectId] = {
@@ -105,7 +145,7 @@ export const useProjectStore = defineStore("project", () => {
   }
 
   function resetProjectField(projectId: string, fieldName: keyof Project): boolean {
-    if (isSubmitting.value) return false;
+    if (submissionStore.isSubmitting) return false;
     const draft = projectDrafts.value[projectId];
     if (!draft || !(fieldName in draft)) return false;
     // oxlint-disable-next-line no-dynamic-delete
@@ -123,6 +163,9 @@ export const useProjectStore = defineStore("project", () => {
   }
 
   function clearAllState(): void {
+    detailGeneration += 1;
+    pendingDetails.clear();
+    detailStatusById.value = {};
     persistedProjects.value = {};
     projectDrafts.value = {};
   }
@@ -130,6 +173,8 @@ export const useProjectStore = defineStore("project", () => {
   return {
     persistedProjects,
     projectDrafts,
+    detailStatusById,
+    loadProjectDetail,
     projects,
     addLocalProject,
     upsertProjectSummary,

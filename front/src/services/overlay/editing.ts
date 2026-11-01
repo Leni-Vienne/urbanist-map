@@ -1,3 +1,4 @@
+import { useSubmissionStore } from "@/stores/submissionStore";
 import * as registry from "@/services/overlay/mapLayers";
 import { mobileAwareFlyTo } from "@/services/core/mapNavigation";
 import { createSvgCanvasLayer, createSvgPath } from "@/utils/svgCanvasLayer";
@@ -34,7 +35,6 @@ import { makeHistoryState, commitOverlayEdit } from "@/services/overlay/history"
 import { watch } from "vue";
 import { toastWarn } from "@/services/core/toast";
 import { resolveOverlayCorners } from "@/services/overlay/data";
-import { isSubmitting } from "@/services/submission/submissionState";
 import { isCroppingOverlay } from "@/services/overlay/cropHandles";
 
 // Overlay editing operations
@@ -89,7 +89,7 @@ export async function createLocalOverlay(
   projectId: string,
   replacesOverlayId?: string,
 ): Promise<boolean> {
-  if (isSubmitting.value) return false;
+  if (useSubmissionStore().isSubmitting) return false;
   const target = getMap();
   const overlayStore = useOverlayStore();
   const project = useProjectStore().projects[projectId];
@@ -121,7 +121,7 @@ export async function createLocalOverlay(
   const aspect = await loadImageAspect(imageUrl);
   // Submission can start while the image is being decoded.
   // oxlint-disable-next-line typescript/no-unnecessary-condition
-  if (isSubmitting.value) return false;
+  if (useSubmissionStore().isSubmitting) return false;
   if (getMapOrNull() !== target) throw new Error("Map closed while creating an overlay");
 
   const corners = defaultCorners(placementCenter, aspect);
@@ -427,7 +427,7 @@ function wireSurfaceDrag(s: EditSession): void {
  * transparent whole-surface drag layer, and 4 aspect-locked corner handles.
  */
 export function showEditHandles(overlayObject: OverlayObject): void {
-  if (isSubmitting.value || isCroppingOverlay(overlayObject.id)) return;
+  if (useSubmissionStore().isSubmitting || isCroppingOverlay(overlayObject.id)) return;
   if (session?.id === overlayObject.id) return;
 
   const mlMap = getMap();
@@ -588,11 +588,12 @@ export function syncEditHandlesForMode(mode: AppMode): void {
 }
 
 export function watchEditHandles(): () => void {
+  const submissionStore = useSubmissionStore();
   const uiStore = useUiStore();
   const focus = useFocusStore();
 
   const stopSelectionWatch = watch(
-    [() => focus.selectedOverlayId, isSubmitting],
+    [() => focus.selectedOverlayId, () => submissionStore.isSubmitting],
     ([selectedId]) => {
       syncEditHandles(selectedId, uiStore.mode);
     },

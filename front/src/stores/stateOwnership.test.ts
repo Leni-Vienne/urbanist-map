@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { createPinia, setActivePinia } from "pinia";
+import { useSubmissionStore } from "./submissionStore";
+import { useMapSessionStore } from "./mapSessionStore";
 import { useOverlayStore } from "./overlayStore";
 import { useProjectStore } from "./projectStore";
 import { useFocusStore } from "./focusStore";
@@ -461,3 +463,25 @@ beforeEach(activateFreshPinia);
 describe("project state ownership", projectStateOwnership);
 describe("overlay state ownership", overlayStateOwnership);
 describe("moderation state ownership", moderationStateOwnership);
+
+test("a fresh application does not inherit submission drafts, locks, or map membership", () => {
+  const submission = useSubmissionStore();
+  const session = useMapSessionStore();
+  submission.pendingSubmission = { projectId: "project-1", entityName: "Draft" };
+  submission.setStagedRender("project-1", {
+    file: new File(["image"], "render.png", { type: "image/png" }),
+    previewUrl: "data:image/png;base64,aW1hZ2U=",
+  });
+  submission.isSubmitting = true;
+  session.mergeEditSession("project-1", ["overlay-1"]);
+
+  const fresh = createPinia();
+  const freshSubmission = useSubmissionStore(fresh);
+  expect(freshSubmission.pendingSubmission).toBeNull();
+  expect(freshSubmission.isSubmitting).toBeFalse();
+  expect(freshSubmission.hasStagedRenders()).toBeFalse();
+  expect(useMapSessionStore(fresh).snapshot).toBeNull();
+  // Creating another application must not clear work in the original one either.
+  expect(submission.hasStagedRender("project-1")).toBeTrue();
+  expect(session.snapshot?.overlayIds).toEqual(["overlay-1"]);
+});

@@ -1,6 +1,8 @@
+import { useMapSessionStore } from "@/stores/mapSessionStore";
+import { useSubmissionStore } from "@/stores/submissionStore";
 // The single-overlay fixtures and seeded stores below guarantee these lookups exist.
 /* oxlint-disable typescript/no-non-null-assertion */
-import { afterAll, afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { createPinia, setActivePinia } from "pinia";
 import superjson from "superjson";
 import type { RouterOutput } from "@/client";
@@ -14,71 +16,17 @@ import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { createLocalProject, overlayWireToData, projectFromWire } from "@/utils/typeFactories";
-import {
-  getMapSessionSnapshot,
-  clearMapSessionSnapshot,
-  replaceMapSessionSnapshot,
-} from "@/services/map/mapSessionState";
 import { getStagedOverlayModifications, isOverlayUnsaved } from "@/services/overlay/unsavedState";
-import {
-  clearAllStagedRenders,
-  clearStagedRender,
-  getStagedRender,
-  setStagedRender,
-} from "./stagedRenderState";
 import type { SubmissionDraft } from "./submissionTypes";
-import {
-  isSubmitting,
-  pendingSubmission,
-  showSubmissionDialog,
-  resetSubmissionState,
-} from "./submissionState";
+
+import { detectProjectChanges, submitDraft } from "./submissionService";
+import { prepareSubmission, confirmSubmission } from "./submissionWorkflow";
+import { signOut } from "@/services/auth/signOut";
 
 const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
 const OVERLAY_ID = "22222222-2222-4222-8222-222222222222";
 const USER_ID = "33333333-3333-4333-8333-333333333333";
 const originalFetch = globalThis.fetch;
-const originalMatchMedia = globalThis.matchMedia;
-const originalStorage = globalThis.localStorage;
-const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
-// Sign-out schedules a viewport refresh; with no map mounted its callback has no work.
-globalThis.requestAnimationFrame = (callback) =>
-  Number(setTimeout(() => callback(performance.now()), 0));
-// The map modules register their viewport listener at import. These tests run without a DOM.
-globalThis.matchMedia = (media) =>
-  Object.assign(new EventTarget(), {
-    media,
-    matches: false,
-    onchange: null,
-    addListener: () => undefined,
-    removeListener: () => undefined,
-  });
-const stored = new Map<string, string>();
-globalThis.localStorage = {
-  get length() {
-    return stored.size;
-  },
-  getItem: (key) => stored.get(key) ?? null,
-  setItem: (key, value) => {
-    stored.set(key, value);
-  },
-  removeItem: (key) => {
-    stored.delete(key);
-  },
-  clear: () => {
-    stored.clear();
-  },
-  key: (index) => [...stored.keys()][index] ?? null,
-};
-const { detectProjectChanges, submitDraft } = await import("./submissionService");
-const { refreshUserContributions } = await import("@/services/project/userContributions");
-const { prepareSubmission, confirmSubmission } = await import("./submissionWorkflow");
-const { signOut } = await import("@/services/auth/signOut");
-afterAll(() => {
-  globalThis.matchMedia = originalMatchMedia;
-  globalThis.localStorage = originalStorage;
-  globalThis.requestAnimationFrame = originalRequestAnimationFrame;
-});
 type SubmissionResult = RouterOutput["submission"]["submit"];
 const corners = [
   { lat: 48, lng: 2 },
@@ -187,9 +135,6 @@ function response(result: SubmissionResult): Response {
 
 beforeEach(() => {
   setActivePinia(createPinia());
-  resetSubmissionState();
-  clearMapSessionSnapshot();
-  clearAllStagedRenders();
   useAuthStore().user = {
     id: USER_ID,
     email: "user@example.com",
@@ -202,17 +147,16 @@ beforeEach(() => {
 });
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  resetSubmissionState();
 });
 
 describe("submission acknowledgement", () => {
   test("acknowledges new entities and list membership without a contributions request", async () => {
     seedLocal();
-    replaceMapSessionSnapshot({
+    useMapSessionStore().snapshot = {
       mode: "edit",
       projectIds: ["unrelated-project"],
       overlayIds: ["unrelated-overlay"],
-    });
+    };
     const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(response(receipt()));
     await submitDraft(draft(), "");
     expect(fetchSpy).toHaveBeenCalledTimes(1);
@@ -225,7 +169,7 @@ describe("submission acknowledgement", () => {
     expect(isOverlayUnsaved(saved)).toBeFalse();
     expect(useContributionStore().projectIds).toContain(PROJECT_ID);
     expect(useContributionStore().overlaysById[OVERLAY_ID]?.status).toBe("pending");
-    expect(new Set(getMapSessionSnapshot()?.overlayIds)).toEqual(
+    expect(new Set(useMapSessionStore().snapshot?.overlayIds)).toEqual(
       new Set(["unrelated-overlay", OVERLAY_ID]),
     );
   });
@@ -312,7 +256,7 @@ describe("submission acknowledgement", () => {
     ]);
     overlayStore.updateOverlayDraft(OVERLAY_ID, { redoStack: [{ corners: moved, imageUrl }] });
     const file = new File(["first"], "first.png", { type: "image/png" });
-    setStagedRender(PROJECT_ID, { file, previewUrl: "first" });
+    useSubmissionStore().setStagedRender(PROJECT_ID, { file, previewUrl: "first" });
     const started = Promise.withResolvers<undefined>();
     const delayed = Promise.withResolvers<Response>();
     spyOn(globalThis, "fetch").mockImplementation(
@@ -331,21 +275,21 @@ describe("submission acknowledgement", () => {
       "",
     );
     await started.promise;
-    expect(isSubmitting.value).toBeTrue();
+    expect(useSubmissionStore().isSubmitting).toBeTrue();
     const duplicate = await submitDraft(draft(), "").catch((error: unknown) => error);
     expect(duplicate).toBeInstanceOf(Error);
-    expect(isSubmitting.value).toBeTrue();
+    expect(useSubmissionStore().isSubmitting).toBeTrue();
     useProjectStore().updateProjectDraft(PROJECT_ID, { name: "Later project name" });
     expect(useProjectStore().resetProjectField(PROJECT_ID, "name")).toBeFalse();
     overlayStore.updateOverlayDraft(OVERLAY_ID, { caption: "Later caption" });
     expect(overlayStore.undoHistory(OVERLAY_ID)).toBeNull();
     expect(overlayStore.redoHistory(OVERLAY_ID)).toBeNull();
     const laterFile = new File(["second"], "second.png");
-    setStagedRender(PROJECT_ID, { file: laterFile, previewUrl: "second" });
-    clearStagedRender(PROJECT_ID);
+    useSubmissionStore().setStagedRender(PROJECT_ID, { file: laterFile, previewUrl: "second" });
+    useSubmissionStore().clearStagedRender(PROJECT_ID);
     expect(useProjectStore().getProjectById(PROJECT_ID)?.name).toBe("Example project");
     expect(overlayStore.getOverlayById(OVERLAY_ID)?.caption).toBe("Submitted caption");
-    expect(getStagedRender(PROJECT_ID)?.file).toBe(file);
+    expect(useSubmissionStore().getStagedRender(PROJECT_ID)?.file).toBe(file);
     const result = receipt();
     result.render = {
       id: crypto.randomUUID(),
@@ -355,9 +299,9 @@ describe("submission acknowledgement", () => {
     };
     delayed.resolve(response(result));
     await request;
-    expect(isSubmitting.value).toBeFalse();
+    expect(useSubmissionStore().isSubmitting).toBeFalse();
     expect(overlayStore.getOverlayById(OVERLAY_ID)?.history).toEqual([]);
-    expect(getStagedRender(PROJECT_ID)).toBeUndefined();
+    expect(useSubmissionStore().getStagedRender(PROJECT_ID)).toBeUndefined();
     overlayStore.updateOverlayDraft(OVERLAY_ID, { caption: "Next edit" });
     expect(overlayStore.getOverlayById(OVERLAY_ID)?.caption).toBe("Next edit");
   });
@@ -381,12 +325,12 @@ describe("submission acknowledgement", () => {
       "",
     );
     await started.promise;
-    expect(isSubmitting.value).toBeTrue();
+    expect(useSubmissionStore().isSubmitting).toBeTrue();
     useOverlayStore().updateOverlayDraft(OVERLAY_ID, { caption: "Blocked edit" });
     expect(useOverlayStore().getOverlayById(OVERLAY_ID)?.caption).toBe("Submitted caption");
     delayed.resolve(Response.json({ error: "upload.error.uploadFailed" }, { status: 500 }));
     expect(await request.catch((error: unknown) => error)).toBeInstanceOf(Error);
-    expect(isSubmitting.value).toBeFalse();
+    expect(useSubmissionStore().isSubmitting).toBeFalse();
     useOverlayStore().updateOverlayDraft(OVERLAY_ID, { caption: "Retry caption" });
     expect(useOverlayStore().getOverlayById(OVERLAY_ID)?.caption).toBe("Retry caption");
   });
@@ -397,7 +341,7 @@ describe("submission acknowledgement", () => {
     const fetchSpy = spyOn(globalThis, "fetch").mockRejectedValue(new Error("Unexpected request"));
     expect(await submitDraft(draft(), "").catch((error: unknown) => error)).toBeInstanceOf(Error);
     expect(fetchSpy).not.toHaveBeenCalled();
-    expect(isSubmitting.value).toBeFalse();
+    expect(useSubmissionStore().isSubmitting).toBeFalse();
     useProjectStore().updateProjectDraft(PROJECT_ID, { name: "Corrected project name" });
     expect(useProjectStore().getProjectById(PROJECT_ID)?.name).toBe("Corrected project name");
   });
@@ -416,7 +360,7 @@ describe("submission acknowledgement", () => {
       Error,
     );
     expect(fetchSpy).not.toHaveBeenCalled();
-    expect(isSubmitting.value).toBeFalse();
+    expect(useSubmissionStore().isSubmitting).toBeFalse();
   });
 
   test("retains local work without re-uploading images on mutation retry", async () => {
@@ -449,7 +393,7 @@ describe("submission acknowledgement", () => {
     expect(failure).toBeInstanceOf(Error);
     expect(useProjectStore().getProjectById(PROJECT_ID)?.status).toBeNull();
     expect(useOverlayStore().getOverlayById(OVERLAY_ID)?.status).toBeNull();
-    expect(isSubmitting.value).toBeFalse();
+    expect(useSubmissionStore().isSubmitting).toBeFalse();
     await submitDraft(submission, "");
     expect(uploads).toBe(2);
     expect(mutations).toBe(2);
@@ -471,7 +415,7 @@ describe("submission acknowledgement", () => {
         { preconnect: originalFetch.preconnect },
       ),
     );
-    const refresh = refreshUserContributions();
+    const refresh = useContributionStore().refresh();
     await started.promise;
     await submitDraft(draft(), "");
     delayed.resolve(
@@ -491,13 +435,54 @@ describe("submission acknowledgement", () => {
     await refresh;
     expect(useContributionStore().projectIds).toContain(PROJECT_ID);
     expect(useOverlayStore().getOverlayById(OVERLAY_ID)?.status).toBe("pending");
-    expect(getMapSessionSnapshot()?.overlayIds).toContain(OVERLAY_ID);
+    expect(useMapSessionStore().snapshot?.overlayIds).toContain(OVERLAY_ID);
+  });
+
+  test("resetting contributions invalidates a request without needing an auth or map change", async () => {
+    const started = Promise.withResolvers<undefined>();
+    const delayed = Promise.withResolvers<Response>();
+    const fetchSpy = spyOn(globalThis, "fetch").mockImplementation(
+      Object.assign(
+        async () => {
+          started.resolve(undefined);
+          return delayed.promise;
+        },
+        { preconnect: originalFetch.preconnect },
+      ),
+    );
+    const store = useContributionStore();
+    const request = store.refresh();
+    await started.promise;
+    store.clearAllState();
+    delayed.resolve(
+      Response.json([
+        {
+          result: {
+            data: superjson.serialize({
+              projectsById: {},
+              overlaysById: {},
+              changeRequests: [],
+              editSession: { projects: [], overlays: [] },
+            }),
+          },
+        },
+      ]),
+    );
+    await request;
+    expect(store.loaded).toBeFalse();
+    expect(useMapSessionStore().snapshot).toBeNull();
+    fetchSpy.mockRestore();
   });
 
   test("sign-out clears confirmation immediately and a late response leaves the next account alone", async () => {
     seedLocal();
+    useSubmissionStore().setStagedRender("other-project", {
+      file: new File(["image"], "render.png", { type: "image/png" }),
+      previewUrl: "data:image/png;base64,aW1hZ2U=",
+    });
+    useMapSessionStore().mergeEditSession(PROJECT_ID, [OVERLAY_ID]);
     prepareSubmission(useProjectStore().getProjectById(PROJECT_ID));
-    expect(showSubmissionDialog.value).toBeTrue();
+    expect(useSubmissionStore().showSubmissionDialog).toBeTrue();
     const started = Promise.withResolvers<undefined>();
     const delayed = Promise.withResolvers<Response>();
     const delayedLogout = Promise.withResolvers<Response>();
@@ -515,9 +500,11 @@ describe("submission acknowledgement", () => {
     await started.promise;
     const nextUser = { ...useAuthStore().user!, id: "another-user" };
     const logout = signOut();
-    expect(showSubmissionDialog.value).toBeFalse();
-    expect(pendingSubmission.value).toBeNull();
-    expect(isSubmitting.value).toBeTrue();
+    expect(useSubmissionStore().showSubmissionDialog).toBeFalse();
+    expect(useSubmissionStore().pendingSubmission).toBeNull();
+    expect(useSubmissionStore().hasStagedRenders()).toBeFalse();
+    expect(useMapSessionStore().snapshot).toBeNull();
+    expect(useSubmissionStore().isSubmitting).toBeTrue();
     delayedLogout.resolve(new Response(null, { status: 204 }));
     await logout;
 
@@ -530,8 +517,8 @@ describe("submission acknowledgement", () => {
     expect(useProjectStore().getProjectById(PROJECT_ID)).toBeNull();
     expect(useOverlayStore().getOverlayById(OVERLAY_ID)).toBeNull();
     expect(useContributionStore().projectIds).toEqual([]);
-    expect(pendingSubmission.value?.projectId).toBe(nextProject.id);
+    expect(useSubmissionStore().pendingSubmission?.projectId).toBe(nextProject.id);
     expect(useFocusStore().selectedProjectId).toBe(nextProject.id);
-    expect(isSubmitting.value).toBeFalse();
+    expect(useSubmissionStore().isSubmitting).toBeFalse();
   });
 });

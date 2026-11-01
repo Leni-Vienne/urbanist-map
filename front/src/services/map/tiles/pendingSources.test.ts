@@ -1,3 +1,4 @@
+import { useMapSessionStore } from "@/stores/mapSessionStore";
 import { afterAll, afterEach, expect, spyOn, test } from "bun:test";
 import { createPinia, setActivePinia } from "pinia";
 import { nextTick } from "vue";
@@ -6,7 +7,6 @@ import { useProjectStore } from "@/stores/projectStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
 import { createLocalProject } from "@/utils/typeFactories";
-import { clearMapSessionSnapshot, replaceMapSessionSnapshot } from "@/services/map/mapSessionState";
 
 // Map rendering modules read the viewport media query at import; no DOM or map is mounted here.
 const originalStorage = globalThis.localStorage;
@@ -50,7 +50,7 @@ afterAll(() => {
 let stop: (() => void) | null = null;
 afterEach(() => {
   stop?.();
-  clearMapSessionSnapshot();
+  useMapSessionStore().clearAllState();
   points.mockClear();
   shapes.mockClear();
 });
@@ -72,7 +72,11 @@ test("source observer follows persisted session changes and catches up after dis
     status: "pending" as const,
   };
   projectStore.upsertProjectSummary(project);
-  replaceMapSessionSnapshot({ mode: "edit", projectIds: [project.id], overlayIds: [] });
+  useMapSessionStore().snapshot = {
+    mode: "edit",
+    projectIds: [project.id],
+    overlayIds: [],
+  };
   stop = watchPendingProjectSources();
   function latestPoints() {
     return points.mock.calls.at(-1)?.[0].features;
@@ -100,7 +104,7 @@ test("source observer follows persisted session changes and catches up after dis
   stop = watchPendingProjectSources();
   expect(latestPoints()?.[0]?.properties?.name).toBe("While unmounted");
 
-  clearMapSessionSnapshot();
+  useMapSessionStore().clearAllState();
   await nextTick();
   expect(latestPoints()).toEqual([]);
   expect(shapes.mock.calls.at(-1)?.[0].features).toEqual([]);

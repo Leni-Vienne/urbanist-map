@@ -1,3 +1,5 @@
+import { useContributionStore } from "@/stores/contributionStore";
+import { useMapSessionStore } from "@/stores/mapSessionStore";
 import { watch } from "vue";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { getMapOrNull } from "@/services/core/map";
@@ -8,10 +10,11 @@ import {
 } from "@/services/overlay/editing";
 import { watchMarkerColors } from "@/services/overlay/markers";
 import { watchOverlayReconciliation } from "@/services/map/viewportRenderLoop";
-import { watchViewportModeData, syncSessionDataForMode } from "@/services/map/viewportTriggers";
-import { refreshUserContributions } from "@/services/project/userContributions";
-import { renderMapSessionPendingSources } from "@/services/map/tiles/pendingSources";
-import { getMapSessionSnapshot } from "@/services/map/mapSessionState";
+import { syncSessionDataForMode } from "@/services/map/viewportTriggers";
+import {
+  renderMapSessionPendingSources,
+  watchPendingProjectSources,
+} from "@/services/map/tiles/pendingSources";
 import {
   watchTileLayerState,
   syncTileLayerState,
@@ -27,10 +30,10 @@ import type { AppMode } from "@shared/types";
 
 async function applyModeTransition(newMode: AppMode): Promise<void> {
   syncEditHandlesForMode(newMode);
-  const retainedSession = getMapSessionSnapshot()?.mode === newMode;
+  const retainedSession = useMapSessionStore().snapshot?.mode === newMode;
   if (!retainedSession) {
     syncSessionDataForMode(newMode);
-    if (newMode === "edit") await refreshUserContributions();
+    if (newMode === "edit") await useContributionStore().refresh();
   }
   syncModeVectorFilters();
 }
@@ -58,7 +61,7 @@ export function startMapStateCoordinator(renderOverlays: () => void): () => void
     watchEditHandles(),
     watchOverlayReconciliation(renderOverlays),
     watchMarkerColors(),
-    watchViewportModeData(),
+    watchPendingProjectSources(),
     watchTileLayerState(),
     watchMapAreaOutline(),
     watchProjectShapePreview(),

@@ -1,30 +1,25 @@
+import { useContributionStore } from "@/stores/contributionStore";
+import { useMapSessionStore } from "@/stores/mapSessionStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useFocusStore } from "@/stores/focusStore";
-import { clearEntry as clearRegistryEntry } from "@/services/overlay/mapLayers";
-import { closeDetail } from "@/services/overlay/selection";
+
 import { trpc } from "@/client";
-import { removeMapSessionOverlay } from "@/services/map/mapSessionState";
-import { refreshUserContributions } from "@/services/project/userContributions";
 
 import { t } from "@/locales";
 import { toastSuccess, toastError } from "@/services/core/toast";
 
-export function removeOverlayFromMapAndStore(overlayId: string) {
+export function removeOverlayFromState(overlayId: string) {
   const overlayStore = useOverlayStore();
-  const overlayObject = overlayStore.liveOverlays[overlayId];
-  if (!overlayObject) return;
 
   // Close selected detail before removing the overlay it reads from live store state.
   if (useFocusStore().selectedOverlayId === overlayId) {
-    closeDetail();
+    useFocusStore().setSelectionTarget(null);
   }
-
-  clearRegistryEntry(overlayId);
 
   overlayStore.removeOverlay(overlayId);
 
-  removeMapSessionOverlay(overlayId);
+  useMapSessionStore().removeMapSessionOverlay(overlayId);
 }
 
 function removeProject(projectId: string) {
@@ -32,7 +27,7 @@ function removeProject(projectId: string) {
   const overlayStore = useOverlayStore();
 
   for (const overlay of Object.values(overlayStore.liveOverlays)) {
-    if (overlay.projectId === projectId) removeOverlayFromMapAndStore(overlay.id);
+    if (overlay.projectId === projectId) removeOverlayFromState(overlay.id);
   }
 
   projectStore.removeProject(projectId);
@@ -61,8 +56,8 @@ export async function deleteOverlayDirect(
       await trpc.overlay.deleteOverlay.mutate({ id: overlayId });
     }
 
-    removeOverlayFromMapAndStore(overlayId);
-    if (existsInBackend) await refreshUserContributions();
+    removeOverlayFromState(overlayId);
+    if (existsInBackend) await useContributionStore().refresh();
 
     if (showToast) {
       toastSuccess(t("contribute.overlayDeleted"));
@@ -98,7 +93,7 @@ async function deleteProjectDirect(
     }
 
     removeProject(projectId);
-    if (!isLocalOnly) await refreshUserContributions();
+    if (!isLocalOnly) await useContributionStore().refresh();
 
     if (showToast) {
       toastSuccess(t("contribute.projectDeleted"));
@@ -142,7 +137,7 @@ export async function confirmAndDeleteProject(
 
   const focusStore = useFocusStore();
   if (focusStore.selectedProjectId === projectId) {
-    closeDetail();
+    useFocusStore().setSelectionTarget(null);
   }
   return true;
 }

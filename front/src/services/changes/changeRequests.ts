@@ -1,6 +1,6 @@
+import { useContributionStore } from "@/stores/contributionStore";
 import { trpc } from "@/client";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
-import { refreshUserContributions } from "@/services/project/userContributions";
 
 export async function approveChangeRequests(changeRequestIds: string[]) {
   try {
@@ -33,7 +33,7 @@ export async function deleteChangeRequest(changeRequestId: string): Promise<bool
 
     store.removeChangeRequest(changeRequestId);
 
-    await refreshUserContributions();
+    await useContributionStore().refresh();
 
     return true;
   } catch (error) {

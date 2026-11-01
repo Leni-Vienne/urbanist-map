@@ -1,3 +1,4 @@
+import { useMapSessionStore, type MapSessionMode } from "@/stores/mapSessionStore";
 import { watchEffect } from "vue";
 import {
   updatePendingProjectPointsSource,
@@ -8,7 +9,6 @@ import { isValidQuad } from "@/services/overlay/transform";
 import { useProjectStore } from "@/stores/projectStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
-import { getMapSessionSnapshot, type MapSessionMode } from "@/services/map/mapSessionState";
 import { matchesProjectFilters } from "@/services/core/filters";
 
 function matchesPendingProjectFilters(project: Project, imageProjectIds: Set<string>): boolean {
@@ -279,7 +279,7 @@ function collectPendingPoints(
 }
 
 export function renderMapSessionPendingSources(): void {
-  const session = getMapSessionSnapshot();
+  const session = useMapSessionStore().snapshot;
   if (!session || session.mode !== useUiStore().mode) {
     updatePendingProjectPointsSource({ type: "FeatureCollection", features: [] });
     updatePendingProjectShapesSource({ type: "FeatureCollection", features: [] });

@@ -4,7 +4,6 @@ import { storeToRefs } from "pinia";
 import { useFocusStore } from "@/stores/focusStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
-import { loadProjectDetail, projectDetailLoad } from "@/services/project/projectDetail";
 import type { OverlayObject, Project } from "@/types/index";
 
 /**
@@ -34,16 +33,13 @@ export function useDetailProject() {
   const loadStatus = computed(() => {
     const id = focusStore.selectedProjectId;
     if (!id) return "unavailable";
-    const state = projectDetailLoad.value;
-    if (state?.projectId === id) return state.status;
-    return projectStore.getHydratedProject(id) || project.value?.status === null
-      ? "ready"
-      : "loading";
+    if (projectStore.getHydratedProject(id) || project.value?.status === null) return "ready";
+    return projectStore.detailStatusById[id] ?? "loading";
   });
 
   async function retry(): Promise<void> {
     const id = focusStore.selectedProjectId;
-    if (id) await loadProjectDetail(id);
+    if (id) await projectStore.loadProjectDetail(id);
   }
 
   return { project, overlay, loadStatus, retry };

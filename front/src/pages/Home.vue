@@ -60,6 +60,8 @@
 </template>
 
 <script setup lang="ts">
+import { storeToRefs } from "pinia";
+import { useSubmissionStore } from "@/stores/submissionStore";
 import { toastSuccess, toastError } from "@/services/core/toast";
 
 import { onMounted, ref, onUnmounted, computed, defineAsyncComponent, watch } from "vue";
@@ -71,7 +73,6 @@ import { useProjectStore } from "@/stores/projectStore";
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { stopShapeEditing } from "@/services/shape/shapeEditorLazy";
-import { showSubmissionDialog } from "@/services/submission/submissionState";
 
 import { handleProjectDeepLink } from "@/services/project/projectDeepLink";
 import { isMobile } from "@/services/core/viewport";
@@ -95,6 +96,8 @@ const ImageUploadDialog = defineAsyncComponent(
 const SubmissionDialogWrapper = defineAsyncComponent(
   () => import("@/components/submission/SubmissionDialogWrapper.vue"),
 );
+
+const { showSubmissionDialog } = storeToRefs(useSubmissionStore());
 
 const infoBannerDismissed = ref(false);
 const maintenanceBannerDismissed = ref(false);

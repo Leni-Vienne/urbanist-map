@@ -128,7 +128,7 @@ import {
 } from "@/services/overlay/mapLayers";
 import { resolveOverlayCorners } from "@/services/overlay/data";
 import { transformToCorners } from "@/services/overlay/transform";
-import { closeDetail } from "@/services/overlay/selection";
+
 import { showEditHandles, hideEditHandles } from "@/services/overlay/editing";
 import { undo, redo } from "@/services/overlay/history";
 import { showCropHandles, hideCropHandles, applyCrop } from "@/services/overlay/cropHandles";
@@ -219,7 +219,7 @@ function syncAnchor() {
   const lngLat = getAnchorLngLat();
   if (!lngLat) {
     // The image left the registry (e.g. unloaded on zoom-out) while still selected.
-    closeDetail();
+    useFocusStore().setSelectionTarget(null);
     return;
   }
   anchorMarker.setLngLat(lngLat);
@@ -395,7 +395,7 @@ async function onDelete() {
   if (!id) return;
   const overlay = overlayStore.liveOverlays[id];
   if (!overlay) return;
-  // Deselection (handles, highlight, docked detail) happens in removeOverlayFromMapAndStore.
+  // Deselection (handles, highlight, docked detail) happens in removeOverlayFromState.
   await confirmAndDeleteOverlay(id, overlay.caption ?? null);
 }
 

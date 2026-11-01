@@ -211,7 +211,7 @@ export default defineConfig(({ mode }) => {
               {
                 name: "app-core",
                 test: (id: string) =>
-                  /\/front\/src\/stores\/(?:authStore|uiStore|projectStore|overlayStore|focusStore|moderationStore|changeRequestStore)\.ts/.test(
+                  /\/front\/src\/stores\/(?:authStore|uiStore|projectStore|overlayStore|focusStore|moderationStore|changeRequestStore|submissionStore)\.ts/.test(
                     id,
                   ) ||
                   /\/front\/src\/services\/core\/(?:toast|errorHandling|map|viewport|filters|settings|mapNavigation|projectSelection|markersSvg)\.ts/.test(
@@ -220,7 +220,7 @@ export default defineConfig(({ mode }) => {
                   /\/front\/src\/services\/overlay\/(?:markers|visibility|data|selection|mapLayers|transform|history|editing|unsavedState)\.ts/.test(
                     id,
                   ) ||
-                  /\/front\/src\/services\/(?:moderation\/moderationCountrySync|submission\/stagedRenderState|project\/projectMutations)\.ts/.test(
+                  /\/front\/src\/services\/(?:moderation\/moderationCountrySync|project\/projectMutations)\.ts/.test(
                     id,
                   ) ||
                   /\/front\/src\/utils\/(?:typeFactories|geojson|imageUrl|cornersBounds)\.ts/.test(

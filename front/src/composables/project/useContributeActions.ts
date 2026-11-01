@@ -1,3 +1,4 @@
+import { useSubmissionStore } from "@/stores/submissionStore";
 import type { ComputedRef } from "vue";
 import { useI18n } from "vue-i18n";
 
@@ -11,10 +12,9 @@ import { useAuthStore } from "@/stores/authStore";
 import { isProjectUnsaved } from "@/services/overlay/unsavedState";
 import { startShapeEditing } from "@/services/shape/shapeEditorLazy";
 import { openProjectDetail } from "@/services/core/projectSelection";
-import { closeDetail } from "@/services/overlay/selection";
+
 import { ensureOverlayLoaded } from "@/services/overlay/navigation";
 import { flyToGeometry } from "@/services/core/mapNavigation";
-import { clearStagedRender, hasStagedRender } from "@/services/submission/stagedRenderState";
 import type { Project, ProjectPanelOverlay, PendingChangeRequest } from "@/types/index";
 import { toastError, toastSuccess, toastWarn } from "@/services/core/toast";
 
@@ -29,7 +29,7 @@ function handleNewProjectClick(): void {
   }
 
   // Close any open detail and clear selection for a clean slate
-  closeDetail();
+  useFocusStore().setSelectionTarget(null);
 
   // Always switch to edit mode when contributing (no-op if already in edit mode)
   uiStore.setMode("edit");
@@ -53,7 +53,8 @@ export function useContributeActions(projectOverlayIds: ComputedRef<Record<strin
 
   async function handleDeleteProjectClick(project: Project): Promise<void> {
     const imageCount =
-      (projectOverlayIds.value[project.id]?.length ?? 0) + Number(hasStagedRender(project.id));
+      (projectOverlayIds.value[project.id]?.length ?? 0) +
+      Number(useSubmissionStore().hasStagedRender(project.id));
     await confirmAndDeleteProject(project.id, project.name, imageCount);
   }
 
@@ -90,7 +91,7 @@ export function useContributeActions(projectOverlayIds: ComputedRef<Record<strin
       return;
     }
 
-    closeDetail();
+    useFocusStore().setSelectionTarget(null);
 
     uiStore.openShapeEditor(project.id);
     await startShapeEditing(project.id);
@@ -112,7 +113,7 @@ export function useContributeActions(projectOverlayIds: ComputedRef<Record<strin
   return {
     handleNewProjectClick,
     handleDeleteOverlayClick,
-    handleDeleteStagedRender: clearStagedRender,
+    handleDeleteStagedRender: useSubmissionStore().clearStagedRender,
     handleDeleteProjectClick,
     handleDeleteChangeRequestClick,
     handleEditOverlayClick,

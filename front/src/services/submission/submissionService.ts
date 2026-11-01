@@ -1,9 +1,9 @@
+import { useSubmissionStore } from "@/stores/submissionStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { trpc, type RouterOutput } from "@/client";
 import { uploadImageFile } from "@/services/submission/uploadImageFile";
 import { useAuthStore } from "@/stores/authStore";
-import { isSubmitting } from "./submissionState";
 import type { Project, OverlayObject, PendingOverlayModification } from "@/types/index";
 import {
   projectSchema,
@@ -264,8 +264,9 @@ export async function submitDraft(
   draft: SubmissionDraft,
   reason: string,
 ): Promise<RouterOutput["submission"]["submit"]["outcome"]> {
-  if (isSubmitting.value) throw new Error(t("errors.submissionFailed"));
-  isSubmitting.value = true;
+  const submissionStore = useSubmissionStore();
+  if (submissionStore.isSubmitting) throw new Error(t("errors.submissionFailed"));
+  submissionStore.isSubmitting = true;
   try {
     const projectStore = useProjectStore();
     const authStore = useAuthStore();
@@ -283,6 +284,6 @@ export async function submitDraft(
     }
     return result.outcome;
   } finally {
-    isSubmitting.value = false;
+    submissionStore.isSubmitting = false;
   }
 }

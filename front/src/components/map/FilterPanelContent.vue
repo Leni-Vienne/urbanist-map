@@ -174,7 +174,8 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 import { useI18n } from "vue-i18n";
 import { onMapReady } from "@/services/core/map";
 import { canFilterVisibleArea, getVisibleMapArea } from "@/services/map/visibleMapArea";
-import { clearMapArea, mapArea, setMapArea } from "@/services/feed/latestContributions";
+import { storeToRefs } from "pinia";
+import { useLatestContributionsStore } from "@/stores/latestContributionsStore";
 import {
   selectedStatusFilters,
   selectedProjectTags,
@@ -204,6 +205,10 @@ import {
 import { useTheme } from "@/composables/core/useTheme";
 import { markFiltersSeen } from "@/services/core/settings";
 import LinePreview from "@/components/common/LinePreview.vue";
+
+const feedStore = useLatestContributionsStore();
+const { mapArea } = storeToRefs(feedStore);
+const { clearMapArea, setMapArea } = feedStore;
 
 withDefaults(defineProps<{ showHeading?: boolean }>(), { showHeading: true });
 

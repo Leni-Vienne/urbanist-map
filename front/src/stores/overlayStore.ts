@@ -1,8 +1,8 @@
+import { useSubmissionStore } from "@/stores/submissionStore";
 import { defineStore, acceptHMRUpdate } from "pinia";
-import { computed, ref } from "vue";
+import { computed, reactive, ref } from "vue";
 import { buildImageUrl } from "@/utils/imageUrl";
 import { getEditModeDefaultCaption } from "@/services/overlay/defaultState";
-import { isSubmitting } from "@/services/submission/submissionState";
 import type {
   BackendOverlayData,
   LatLng,
@@ -58,11 +58,15 @@ function copyCorner(corner: LatLng): LatLng {
 }
 
 export const useOverlayStore = defineStore("overlay", () => {
+  const submissionStore = useSubmissionStore();
   const persistedOverlays = ref<Record<string, BackendOverlayData>>({});
   const tileOverlays = ref<Record<string, TileOverlayData>>({});
   const selectedTileOverlay = ref<TileOverlayData | null>(null);
   const overlayDrafts = ref<Record<string, OverlayDraft>>({});
   const replacementOverlayId = ref<string | null>(null);
+  // Persist through map remounts and source rebuilds; reset with the user's overlay state.
+  const frontOverlayIds = reactive(new Set<string>());
+  const overlayOpacities = reactive(new Map<string, number>());
 
   function getOverlayById(overlayId: string): OverlayObject | null {
     const draft = overlayDrafts.value[overlayId];
@@ -97,7 +101,7 @@ export const useOverlayStore = defineStore("overlay", () => {
   const liveOverlays = computed<Record<string, OverlayObject>>(getEffectiveOverlays);
 
   function addLocalOverlay(overlayId: string, overlay: OverlayObject) {
-    if (isSubmitting.value) return;
+    if (submissionStore.isSubmitting) return;
     overlayDrafts.value[overlayId] = {
       base: toRuntimeOverlayData(overlay),
       caption: overlay.caption,
@@ -111,7 +115,7 @@ export const useOverlayStore = defineStore("overlay", () => {
   }
 
   function updateOverlayDraft(overlayId: string, updates: OverlayDraft) {
-    if (isSubmitting.value) return;
+    if (submissionStore.isSubmitting) return;
     const overlay = getOverlayById(overlayId);
     if (!overlay) return;
     let existing = overlayDrafts.value[overlayId];
@@ -217,7 +221,7 @@ export const useOverlayStore = defineStore("overlay", () => {
   }
 
   function undoHistory(overlayId: string): OverlayHistoryState | null {
-    if (isSubmitting.value) return null;
+    if (submissionStore.isSubmitting) return null;
     const overlay = getOverlayById(overlayId);
     if (!overlay || overlay.history.length <= 1) return null;
     const history = overlay.history.slice(0, -1);
@@ -233,7 +237,7 @@ export const useOverlayStore = defineStore("overlay", () => {
   }
 
   function redoHistory(overlayId: string): OverlayHistoryState | null {
-    if (isSubmitting.value) return null;
+    if (submissionStore.isSubmitting) return null;
     const overlay = getOverlayById(overlayId);
     const target = overlay?.redoStack.at(-1);
     if (!overlay || !target) return null;
@@ -253,6 +257,8 @@ export const useOverlayStore = defineStore("overlay", () => {
     // oxlint-disable-next-line no-dynamic-delete
     delete overlayDrafts.value[overlayId];
     if (selectedTileOverlay.value?.id === overlayId) clearSelectedTileOverlay();
+    frontOverlayIds.delete(overlayId);
+    overlayOpacities.delete(overlayId);
   }
 
   function requestOverlayReplacement(overlayId: string) {
@@ -273,6 +279,8 @@ export const useOverlayStore = defineStore("overlay", () => {
   function clearAllState() {
     clearLiveOverlays();
     resetReplacement();
+    frontOverlayIds.clear();
+    overlayOpacities.clear();
   }
 
   return {
@@ -281,6 +289,8 @@ export const useOverlayStore = defineStore("overlay", () => {
     overlayDrafts,
     liveOverlays,
     replacementOverlayId,
+    frontOverlayIds,
+    overlayOpacities,
     getOverlayById,
     hasFullOverlayData,
     addLocalOverlay,

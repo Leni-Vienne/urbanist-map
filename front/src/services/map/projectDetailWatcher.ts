@@ -1,10 +1,9 @@
 import { watch } from "vue";
-import { closeDetail } from "@/services/overlay/selection";
+
 import { useUiStore } from "@/stores/uiStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { syncModerationCountryFromMapClick } from "@/services/moderation/moderationCountrySync";
-import { loadProjectDetail } from "@/services/project/projectDetail";
 
 // "/" and "/project/:slug" are the only paths that render the map, so they are the only ones whose
 // path describes the open project. On any other route (legal, contact, admin) a selection change
@@ -57,7 +56,7 @@ async function hydrateSelectedProject(projectId: string): Promise<void> {
 
   if (focus.selectedProjectId !== projectId) return;
   if (current) syncModerationCountryFromMapClick(current.countryCode);
-  const hydrated = await loadProjectDetail(projectId);
+  const hydrated = await projectStore.loadProjectDetail(projectId);
   if (!hydrated || focus.selectedProjectId !== projectId) return;
   if (hydrated.countryCode !== current?.countryCode) {
     syncModerationCountryFromMapClick(hydrated.countryCode);
@@ -104,7 +103,11 @@ function watchModerationSelectionIsolation(): void {
   const uiStore = useUiStore();
 
   // Clear the old context before a mode-switching action can establish its new selection.
-  watch(() => uiStore.mode === "moderation", closeDetail, { flush: "sync" });
+  watch(
+    () => uiStore.mode === "moderation",
+    () => useFocusStore().setSelectionTarget(null),
+    { flush: "sync" },
+  );
 }
 
 /**

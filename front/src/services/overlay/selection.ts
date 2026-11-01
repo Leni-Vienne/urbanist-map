@@ -48,11 +48,6 @@ export function openOverlayDetail(overlayId: string): void {
   syncModerationCountryFromMapClick(project?.countryCode);
 }
 
-export function closeDetail(): void {
-  useOverlayStore().clearSelectedTileOverlay();
-  useFocusStore().setSelectionTarget(null);
-}
-
 // ~5s budget for an overlay's image layer to render before we stop waiting.
 const OVERLAY_READY_TIMEOUT_MS = 5000;
 
@@ -158,5 +153,5 @@ export function handleBackgroundClick(lngLat: { lng: number; lat: number }): voi
   }
 
   // No overlay under the click: clear whichever detail (overlay or project) is open.
-  closeDetail();
+  useFocusStore().setSelectionTarget(null);
 }

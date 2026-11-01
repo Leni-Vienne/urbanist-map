@@ -5,21 +5,15 @@
 // moveend re-runs the render loop off the in-memory session snapshot; it performs NO network fetch, and no
 // zoom decisions: the reconciler owns what exists on the map at the current zoom.
 // The map runtime owns the camera listener; session snapshots survive map remounts.
-import { watch } from "vue";
+import { useMapSessionStore } from "@/stores/mapSessionStore";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { useOverlayStore } from "@/stores/overlayStore";
-import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
-import { useModerationStore } from "@/stores/moderationStore";
 import { debounce } from "@/utils/debounce";
 import { isOverlayVisible } from "@/services/overlay/visibility";
 import { clearOverlayRenderState } from "@/services/overlay/teardown";
 import * as registry from "@/services/overlay/mapLayers";
-import {
-  renderMapSessionPendingSources,
-  watchPendingProjectSources,
-} from "@/services/map/tiles/pendingSources";
-import { clearMapSessionSnapshot } from "@/services/map/mapSessionState";
+import { renderMapSessionPendingSources } from "@/services/map/tiles/pendingSources";
 import type { AppMode } from "@shared/types";
 
 /**
@@ -40,8 +34,8 @@ export function setupEventListeners(target: MaplibreMap, renderOverlays: () => v
  * the map to its tiles. Overlay store data is kept, so in-progress edits survive a round trip back
  * to edit mode. Safe to call with no map mounted.
  */
-export function resetMapSessionState(): void {
-  clearMapSessionSnapshot();
+function resetMapSessionState(): void {
+  useMapSessionStore().clearAllState();
   clearOverlayRenderState();
   renderMapSessionPendingSources();
 }
@@ -54,7 +48,7 @@ export function syncSessionDataForMode(newMode: AppMode): void {
   }
 
   // The snapshot is mode-scoped; the loader for the mode being entered publishes its own.
-  clearMapSessionSnapshot();
+  useMapSessionStore().clearAllState();
   renderMapSessionPendingSources();
 
   // Switching TO edit or moderation: hide overlays not visible in the new mode
@@ -65,28 +59,4 @@ export function syncSessionDataForMode(newMode: AppMode): void {
       registry.clearEntry(id);
     }
   }
-}
-
-export function watchViewportModeData(): () => void {
-  const uiStore = useUiStore();
-  const moderationStore = useModerationStore();
-
-  const stopPendingProjectWatch = watchPendingProjectSources();
-
-  // Invalidate all country-scoped moderation state synchronously.
-  const stopCountryWatch = watch(
-    () => moderationStore.selectedCountryCode,
-    () => {
-      moderationStore.invalidateModerationData();
-      if (uiStore.mode === "moderation") {
-        clearMapSessionSnapshot();
-        renderMapSessionPendingSources();
-      }
-    },
-    { flush: "sync" },
-  );
-  return function stopViewportModeDataWatchers(): void {
-    stopCountryWatch();
-    stopPendingProjectWatch();
-  };
 }

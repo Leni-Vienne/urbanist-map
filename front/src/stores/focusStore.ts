@@ -1,5 +1,6 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { computed, ref } from "vue";
+import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 import type { Project } from "@/types/index";
@@ -51,12 +52,13 @@ export const useFocusStore = defineStore("focus", () => {
   }
 
   function setSelectionTarget(target: FocusTarget | null): void {
+    if (target?.kind !== "overlay") useOverlayStore().clearSelectedTileOverlay();
     selection.value = target;
   }
 
   function clearAllState(): void {
     hover.value = null;
-    selection.value = null;
+    setSelectionTarget(null);
   }
 
   return {
