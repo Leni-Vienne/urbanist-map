@@ -45,14 +45,5 @@ export function projectFormFieldsDiffer(
     return original.getTime() !== current.getTime();
   }
 
-  const isOriginalEmpty = original === null || original === "";
-  const isCurrentEmpty = current === null || current === "";
-  if (
-    (original instanceof Date && isCurrentEmpty) ||
-    (isOriginalEmpty && current instanceof Date)
-  ) {
-    return true;
-  }
-
   return original !== current;
 }

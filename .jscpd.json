@@ -1,7 +1,9 @@
 {
   "threshold": 1,
-  "minTokens": 40,
+  "min-lines": 3,
   "ignore": [
+    "grafana.yml",
+    "grafana-osm.yml",
     "**/*.spec.ts",
     "**/*.test.ts",
     "**/node_modules/**",

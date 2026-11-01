@@ -1,9 +1,7 @@
-// Factory functions for creating type instances to reduce duplication
 import type {
   Project,
   ProjectSummary,
   ProjectWire,
-  HydratedProjectWire,
   LocalProject,
   HydratedProject,
   LatLng,
@@ -28,14 +26,9 @@ export function overlayWireToData<T extends { corners: LatLng[]; caption?: strin
   };
 }
 
-export function projectFromWire(data: ProjectWire): ProjectSummary {
-  return {
-    ...data,
-    tags: data.tags ?? [],
-  };
-}
-
-export function hydratedProjectFromWire(data: HydratedProjectWire): HydratedProject {
+export function projectFromWire<T extends ProjectWire>(
+  data: T,
+): Omit<T, "tags"> & { tags: string[] } {
   return {
     ...data,
     tags: data.tags ?? [],

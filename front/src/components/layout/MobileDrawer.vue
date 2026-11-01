@@ -56,7 +56,6 @@ import PanelFooter from "./PanelFooter.vue";
 import PanelTabs from "./PanelTabs.vue";
 import SatellitePreview from "@/components/map/SatellitePreview.vue";
 
-// Lazy loaded so the detail panel shares the same async chunk scope as PanelContent's copy.
 const ProjectDetailPanel = defineAsyncComponent(() => import("./ProjectDetailPanel.vue"));
 
 const uiStore = useUiStore();

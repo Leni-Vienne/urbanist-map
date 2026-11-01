@@ -32,5 +32,4 @@ const trpc = createTRPCClient<AppRouter>({
   ],
 });
 
-// Export as named export to prevent tree-shaking issues
 export { trpc };

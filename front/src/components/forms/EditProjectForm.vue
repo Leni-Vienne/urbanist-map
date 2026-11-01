@@ -4,12 +4,10 @@
       <ProjectFormFields
         :form-data="formData"
         :original-data="originalData"
-        :show-change-indicators="true"
         id-prefix="edit"
         @update:form-data="Object.assign(formData, $event)"
       />
 
-      <!-- Form actions -->
       <div
         class="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-6 pt-4 border-t border-surface"
       >

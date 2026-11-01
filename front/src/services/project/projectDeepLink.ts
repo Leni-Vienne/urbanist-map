@@ -1,7 +1,7 @@
 import { trpc } from "@/client";
 
 import { useProjectStore } from "@/stores/projectStore";
-import { hydratedProjectFromWire } from "@/utils/typeFactories";
+import { projectFromWire } from "@/utils/typeFactories";
 import { openProjectDetail } from "@/services/core/projectSelection";
 import { nextTick } from "vue";
 import {
@@ -35,7 +35,7 @@ export async function handleProjectDeepLink(
   if (!result) return;
 
   if (result.found) {
-    const project = hydratedProjectFromWire(result.project);
+    const project = projectFromWire(result.project);
     projectStore.upsertHydratedProject(project);
     const { lat, lng } = project;
     // In production the map already booted framed on this project (the SEO shell injected its

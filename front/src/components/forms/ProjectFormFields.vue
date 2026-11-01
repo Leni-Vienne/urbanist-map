@@ -1,6 +1,4 @@
 <template>
-  <!-- Shared project form fields component used by both CreateProjectForm and EditProjectForm -->
-  <!-- Edits made through this form are not propagated to OpenStreetMap -->
   <div
     class="flex items-start gap-2 p-2.5 rounded-md text-xs leading-relaxed bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200"
   >
@@ -8,7 +6,6 @@
     <span>{{ $t("common.osmSyncNotice") }}</span>
   </div>
 
-  <!-- Project name field -->
   <FormField
     :label="`${$t('project.name')} *`"
     :error="getFieldError('name')"
@@ -30,7 +27,6 @@
     />
   </FormField>
 
-  <!-- Project description field -->
   <FormField
     :label="$t('common.description')"
     :error="getFieldError('description')"
@@ -49,16 +45,13 @@
     />
   </FormField>
 
-  <!-- Timeline status selector -->
   <TimelineStatusSelector v-model="timelineStatus" :id-prefix="idPrefix" />
   <ChangeIndicator
     :show="showChange('timelineStatus')"
     :original-value="formatTimelineStatus(originalData?.timelineStatus)"
   />
 
-  <!-- Start and end date fields (always shown) -->
   <div class="flex flex-col gap-4">
-    <!-- Start Date -->
     <div class="flex flex-col gap-1">
       <FlexibleDatePicker
         v-model="flexibleStartDate"
@@ -74,7 +67,6 @@
       />
     </div>
 
-    <!-- End Date -->
     <div class="flex flex-col gap-1">
       <FlexibleDatePicker
         v-model="flexibleEndDate"
@@ -91,10 +83,8 @@
     </div>
   </div>
 
-  <!-- Additional details section (collapsible) -->
   <Panel :header="$t('project.additionalDetails')" toggleable collapsed>
     <div class="flex flex-col gap-4">
-      <!-- Proposal date field -->
       <div class="flex flex-col gap-1">
         <FlexibleDatePicker
           v-model="flexibleProposalDate"
@@ -117,7 +107,6 @@
     </div>
   </Panel>
 
-  <!-- Source URL field -->
   <FormField
     :label="$t('project.sourceUrl')"
     :error="getFieldError('sourceUrl')"
@@ -137,7 +126,6 @@
     />
   </FormField>
 
-  <!-- Tags field -->
   <div class="flex flex-col gap-2">
     <span class="text-sm text-(--p-text-color-secondary)">
       {{ $t("project.tags") }}
@@ -171,7 +159,6 @@
       </div>
     </div>
 
-    <!-- Available tags to add -->
     <div v-if="availableTags.length > 0" class="flex flex-wrap gap-2">
       <button
         v-for="tag in availableTags"
@@ -213,13 +200,11 @@ import FormField from "./FormField.vue";
 interface Props {
   formData: ProjectFormData;
   originalData?: ProjectFormData;
-  showChangeIndicators?: boolean;
   idPrefix?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   originalData: undefined,
-  showChangeIndicators: false,
   idPrefix: "project",
 });
 
@@ -262,10 +247,9 @@ function tagLabel(slug: string) {
   return te(`tags.${slug}`) ? t(`tags.${slug}`) : slug;
 }
 
-// A change indicator appears only in change-request mode, and only for a field the user edited.
 function showChange(...fieldNames: (keyof ProjectFormData)[]): boolean {
   const originalData = props.originalData;
-  if (!props.showChangeIndicators || !originalData) return false;
+  if (!originalData) return false;
 
   for (const fieldName of fieldNames) {
     if (projectFormFieldsDiffer(originalData[fieldName], props.formData[fieldName])) return true;

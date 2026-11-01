@@ -156,9 +156,9 @@
       </Accordion>
     </template>
 
-    <!-- Unified Delete Confirmation Dialog -->
     <Dialog
-      v-model:visible="showDeleteDialog"
+      :visible="deleteTarget !== null"
+      @update:visible="!$event && (deleteTarget = null)"
       :header="deleteDialogHeader"
       :modal="true"
       :style="{ width: '450px' }"
@@ -179,11 +179,7 @@
         />
       </div>
       <template #footer>
-        <Button
-          :label="t('common.cancel')"
-          severity="secondary"
-          @click="showDeleteDialog = false"
-        />
+        <Button :label="t('common.cancel')" severity="secondary" @click="deleteTarget = null" />
         <Button
           :label="t('admin.userContributions.deleteDialog.confirm')"
           severity="danger"
@@ -225,23 +221,22 @@ const countryDetails = reactive<
   Record<string, { projects: ProjectType[]; overlays: OverlayType[] }>
 >({});
 
-const showDeleteDialog = ref(false);
-const deleteTargetType = ref<"project" | "overlay" | null>(null);
-const projectToDelete = ref<ProjectType | null>(null);
-let overlayToDelete: OverlayType | null = null;
+const deleteTarget = ref<
+  { kind: "project"; project: ProjectType } | { kind: "overlay"; overlay: OverlayType } | null
+>(null);
 const deleteReason = ref("");
 const isDeleting = ref(false);
 
 const deleteDialogHeader = computed(() => {
-  return deleteTargetType.value === "project"
+  return deleteTarget.value?.kind === "project"
     ? t("admin.userContributions.deleteProjectDialog.title")
     : t("admin.userContributions.deleteOverlayDialog.title");
 });
 
 const deleteDialogMessage = computed(() => {
-  return deleteTargetType.value === "project"
+  return deleteTarget.value?.kind === "project"
     ? t("admin.userContributions.deleteProjectDialog.message", {
-        name: projectToDelete.value?.name,
+        name: deleteTarget.value.project.name,
       })
     : t("admin.userContributions.deleteOverlayDialog.message");
 });
@@ -301,32 +296,26 @@ function getThumbnailUrl(filename: string): string {
 }
 
 function confirmDeleteProject(project: ProjectType) {
-  projectToDelete.value = project;
-  deleteTargetType.value = "project";
   deleteReason.value = "";
-  showDeleteDialog.value = true;
+  deleteTarget.value = { kind: "project", project };
 }
 
 function confirmDeleteOverlay(overlay: OverlayType) {
-  overlayToDelete = overlay;
-  deleteTargetType.value = "overlay";
   deleteReason.value = "";
-  showDeleteDialog.value = true;
+  deleteTarget.value = { kind: "overlay", overlay };
 }
 
 async function executeDelete() {
-  if (deleteTargetType.value === "project") {
-    await adminDeleteProject();
+  const target = deleteTarget.value;
+  if (!target) return;
+  if (target.kind === "project") {
+    await adminDeleteProject(target.project.id);
   } else {
-    await adminDeleteOverlay();
+    await adminDeleteOverlay(target.overlay.id);
   }
 }
 
-async function adminDeleteProject() {
-  if (!projectToDelete.value) return;
-
-  const projectId = projectToDelete.value.id;
-
+async function adminDeleteProject(projectId: string) {
   isDeleting.value = true;
   try {
     await trpc.admin.deleteProject.mutate({
@@ -355,7 +344,7 @@ async function adminDeleteProject() {
 
     toastSuccess(t("admin.userContributions.messages.projectDeleted"));
 
-    showDeleteDialog.value = false;
+    deleteTarget.value = null;
   } catch (error) {
     console.error("Error deleting project:", error);
     toastError(
@@ -367,11 +356,7 @@ async function adminDeleteProject() {
   }
 }
 
-async function adminDeleteOverlay() {
-  if (!overlayToDelete) return;
-
-  const overlayId = overlayToDelete.id;
-
+async function adminDeleteOverlay(overlayId: string) {
   isDeleting.value = true;
   try {
     await trpc.moderation.adminDeleteOverlay.mutate({
@@ -398,7 +383,7 @@ async function adminDeleteOverlay() {
 
     toastSuccess(t("admin.userContributions.messages.overlayDeleted"));
 
-    showDeleteDialog.value = false;
+    deleteTarget.value = null;
   } catch (error) {
     console.error("Error deleting overlay:", error);
     toastError(

@@ -1,6 +1,7 @@
 <template>
   <Dialog
-    v-model:visible="isVisible"
+    :visible="visible"
+    @update:visible="!$event && requestClose()"
     modal
     :closable="!isSubmitting"
     :close-on-escape="!isSubmitting"
@@ -73,7 +74,7 @@
               rounded
               class="shrink-0"
               :disabled="isSubmitting"
-              @click="handleRemoveChange(change.field, change.overlayId)"
+              @click="emit('remove-change', change.field, change.overlayId)"
               v-tooltip.top="$t('submission.removeChange')"
             />
           </div>
@@ -81,7 +82,7 @@
       </section>
 
       <!-- Reason for changes input (optional) -->
-      <section v-if="summary?.requiresModeration" class="flex flex-col gap-2">
+      <section v-if="summary.requiresModeration" class="flex flex-col gap-2">
         <label
           for="changeReason"
           class="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-muted-color"
@@ -114,7 +115,7 @@
           :label="$t('common.cancel')"
           severity="secondary"
           :disabled="isSubmitting"
-          @click="handleCancel"
+          @click="requestClose"
         />
         <Button
           :label="$t('submission.confirmSubmit')"
@@ -129,7 +130,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 import type { RemovableChange, SubmissionSummary } from "@/services/submission/submissionTypes";
 import { handleImageError } from "@/utils/imageErrorHandler";
@@ -144,43 +145,23 @@ interface Props {
   isSubmitting?: boolean;
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   isSubmitting: false,
 });
 
 const emit = defineEmits<{
-  "update:visible": [value: boolean];
   confirm: [reason: string];
   cancel: [];
   "remove-change": [field: RemovableChange, overlayId?: string];
 }>();
-
-const isVisible = computed({
-  get: () => props.visible,
-  set: (value: boolean) => {
-    if (!value) {
-      requestClose();
-      return;
-    }
-    emit("update:visible", value);
-  },
-});
 
 function requestClose() {
   changeReason.value = "";
   emit("cancel");
 }
 
-function handleCancel() {
-  requestClose();
-}
-
 function handleConfirm() {
   emit("confirm", changeReason.value);
   changeReason.value = "";
-}
-
-function handleRemoveChange(field: RemovableChange, overlayId?: string) {
-  emit("remove-change", field, overlayId);
 }
 </script>

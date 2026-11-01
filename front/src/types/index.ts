@@ -20,7 +20,6 @@ export type PendingOverlayModification = { overlayId: string } & (
   | { caption: CaptionChange; corners?: CornersChange }
 );
 
-// Type for marker colors used throughout the application
 export type MarkerColor = "blue" | "green" | "orange" | "red" | "yellow" | "purple" | "grey";
 
 /**
@@ -61,7 +60,6 @@ type ApiProjectSummary =
 // Moderation summaries carry the same core fields without the joined import source.
 export type ProjectWire = Omit<ApiProjectSummary, "importSource"> &
   Partial<Pick<ApiProjectSummary, "importSource">>;
-export type HydratedProjectWire = NonNullable<RouterOutput["project"]["getById"]>;
 
 interface ProjectFields extends Omit<ProjectWire, "status" | "tags"> {
   // Always an array on the frontend, null coerced to [] at DB boundary
@@ -85,7 +83,7 @@ export interface ProjectSummary extends ProjectFields {
 }
 
 type ProjectDetailFields = Pick<
-  HydratedProjectWire,
+  NonNullable<RouterOutput["project"]["getById"]>,
   "slug" | "render" | "mapOverlays" | "ownerUsername" | "boundaryPath"
 >;
 

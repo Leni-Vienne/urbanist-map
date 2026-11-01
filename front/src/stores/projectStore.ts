@@ -4,7 +4,7 @@ import { computed, ref } from "vue";
 import type { Project, HydratedProject, LocalProject } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import { trpc } from "@/client";
-import { hasProjectDetailFields, hydratedProjectFromWire } from "@/utils/typeFactories";
+import { hasProjectDetailFields, projectFromWire } from "@/utils/typeFactories";
 
 type ProjectDraft = Partial<Project> & Pick<Project, "id">;
 type ProjectIndex = Record<string, Project>;
@@ -38,7 +38,7 @@ export const useProjectStore = defineStore("project", () => {
       // A reset ends this cache's session, including requests still in flight.
       if (generation !== detailGeneration) return null;
       detailStatusById.value[projectId] = fresh ? "ready" : "unavailable";
-      return fresh ? upsertHydratedProject(hydratedProjectFromWire(fresh)) : null;
+      return fresh ? upsertHydratedProject(projectFromWire(fresh)) : null;
     } catch (error) {
       if (generation !== detailGeneration) return null;
       console.error("Failed to load project detail:", error);

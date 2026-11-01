@@ -1,5 +1,4 @@
 <template>
-  <!-- Project Dialog for create/edit -->
   <CreateProjectDialog
     v-if="uiStore.projectCreationSeed"
     :project="uiStore.projectCreationSeed"
@@ -7,7 +6,6 @@
     @close="uiStore.closeProjectDialog"
   />
 
-  <!-- Project Edit Form Dialog -->
   <Dialog
     v-if="projectEditTarget"
     :visible="true"
@@ -24,7 +22,6 @@
     <EditProjectForm :project="projectEditTarget" @close="uiStore.closeProjectEditForm" />
   </Dialog>
 
-  <!-- Marker Placement Dialog -->
   <MarkerPlacementBar
     ref="markerPlacementBar"
     v-model:visible="uiStore.markerPlacementBarVisible"

@@ -1,8 +1,3 @@
-/**
- * Project-specific date formatting utilities that depend on flexible date precision.
- * Kept separate from dateFormat.ts to avoid pulling zod into the initial bundle.
- */
-
 import { dbToFlexibleDate, formatFlexibleDate } from "./flexibleDateHelpers";
 import type { DatePrecision } from "@shared/types/flexibleDate";
 
@@ -16,19 +11,14 @@ interface ProjectDateFields {
   proposalDatePrecision?: DatePrecision | null;
 }
 
-type ResolvedDateRange =
-  | { kind: "proposed"; value: string }
-  | { kind: "period"; start: string; end: string }
-  | { kind: "start"; value: string }
-  | { kind: "end"; value: string }
-  | { kind: "none" };
-
-// Resolve which date(s) a project row should show so the proposed/period/start/end priority lives
-// in one place.
-function resolveProjectDateRange(f: ProjectDateFields): ResolvedDateRange {
+/** Return the preferred project date/range and its translated label. */
+export function formatProjectDateRangeParts(
+  f: ProjectDateFields,
+  t: (key: string) => string,
+): { label: string; value: string } | null {
   if (f.timelineStatus === "proposed" && f.proposalDate) {
     return {
-      kind: "proposed",
+      label: t("project.proposalDate"),
       value: formatFlexibleDate(dbToFlexibleDate(f.proposalDate, f.proposalDatePrecision)),
     };
   }
@@ -40,39 +30,15 @@ function resolveProjectDateRange(f: ProjectDateFields): ResolvedDateRange {
     ? formatFlexibleDate(dbToFlexibleDate(f.endDate, f.endDatePrecision))
     : null;
 
-  if (start && end) return { kind: "period", start, end };
-  if (start) return { kind: "start", value: start };
-  if (end) return { kind: "end", value: end };
+  if (start && end) return { label: t("project.period"), value: `${start} - ${end}` };
+  if (start) return { label: t("project.startDate"), value: start };
+  if (end) return { label: t("project.estimatedCompletion"), value: end };
   if (f.proposalDate) {
     return {
-      kind: "proposed",
+      label: t("project.proposalDate"),
       value: formatFlexibleDate(dbToFlexibleDate(f.proposalDate, f.proposalDatePrecision)),
     };
   }
 
-  return { kind: "none" };
-}
-
-/**
- * Returns a separate label and value for use in labeled UI rows.
- * The label is descriptive ("Estimated Completion", "Period", etc.)
- * and the value is just the date/range without a verb prefix.
- */
-export function formatProjectDateRangeParts(
-  fields: ProjectDateFields,
-  t: (key: string) => string,
-): { label: string; value: string } | null {
-  const resolved = resolveProjectDateRange(fields);
-  switch (resolved.kind) {
-    case "proposed":
-      return { label: t("project.proposalDate"), value: resolved.value };
-    case "period":
-      return { label: t("project.period"), value: `${resolved.start} - ${resolved.end}` };
-    case "start":
-      return { label: t("project.startDate"), value: resolved.value };
-    case "end":
-      return { label: t("project.estimatedCompletion"), value: resolved.value };
-    default:
-      return null;
-  }
+  return null;
 }
