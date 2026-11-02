@@ -217,7 +217,7 @@ async function fetchR2File(
 }
 
 // Only use this for approved images, which have already been published to the CDN.
-export async function readPublicR2File(filename: string, publicUrl: string) {
+export function readPublicR2File(filename: string, publicUrl: string) {
   return fetchR2File(`${publicUrl.replace(/\/+$/, "")}/${filename}`, filename);
 }
 
@@ -273,9 +273,7 @@ export class R2StorageS3 implements StorageInterface {
     }
   }
 
-  public async get(
-    filename: string,
-  ): Promise<{ body: ReadableStream; contentType?: string } | null> {
+  public get(filename: string): Promise<{ body: ReadableStream; contentType?: string } | null> {
     // Read through a signed GET so the HTTP status is available before returning the stream.
     // Bun's stat() can report both missing objects and access denials as UnknownError.
     const url = this.client.file(filename).presign({ method: "GET", expiresIn: 60 });

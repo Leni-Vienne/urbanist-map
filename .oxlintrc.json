@@ -1,11 +1,15 @@
 {
   "ignorePatterns": [
     "**/*tests*/**",
+    "*.test.ts",
     "**shim.ts",
     "**/scripts/**",
     "tools/oxlint/**",
     ".agents/**"
   ],
+  "options": {
+    "typeAware": true
+  },
   "plugins": ["unicorn", "oxc", "eslint", "typescript", "vue"], // "import", "node", "promise"
   "jsPlugins": [
     { "name": "anti-slop", "specifier": "./tools/oxlint/anti-slop/index.ts" },
@@ -20,7 +24,7 @@
     "nursery": "warn",
     "style": "warn",
     "restriction": "warn",
-    "pedantic": "off"
+    "pedantic": "warn"
   },
   "rules": {
     "import/no-named-export": "off",
@@ -30,17 +34,27 @@
     "import/prefer-default-export": "off",
     "import/consistent-type-specifier-style": "off",
 
-    "anti-slop/no-chained-type-assertions": "warn",
-    "anti-slop/no-conditional-empty-object-spread": "warn",
-    "anti-slop/no-known-value-widening": "warn", // temp
-    "anti-slop/no-object-parameters": "warn",
-    "anti-slop/no-runtime-typeof": "off", // off for now
-    "anti-slop/no-shape-in-symbol-names": "off", // bans the substring "shape", which is domain vocabulary here
-    // `error` joins the built-in `cause`: both name a rejection value, which TS types as unknown.
-    "anti-slop/no-unknown-parameters": ["off", { "allowedNames": ["cause", "error"] }], // off, 19 false positives
-    "anti-slop/no-unknown-type-aliases": "warn",
-    "anti-slop/no-unsafe-dictionary-type": "warn",
-    "anti-slop/no-widen-then-assert": "warn",
+    "oxc/no-accumulating-spread": "error",
+    "anti-slop/no-array-filter-map": "error",
+    "anti-slop/no-reduce-accumulator-copy": "error",
+    "anti-slop/no-chained-type-assertions": "error",
+    "anti-slop/no-conditional-empty-object-spread": "error",
+    "anti-slop/no-known-value-widening": "error",
+    "anti-slop/no-module-mocking": "error",
+    "anti-slop/no-object-parameters": "error",
+    "anti-slop/no-reflect-apply": "error",
+    "anti-slop/no-reflect-get": "error",
+    // Runtime discrimination is needed for nullable domain values and boundary decoders.
+    "anti-slop/no-runtime-typeof": "off",
+    "anti-slop/no-shape-in-symbol-names": "off",
+    // Parsers and rejection loggers must accept unknown; this rule rejects both.
+    "anti-slop/no-unknown-parameters": "off",
+    "anti-slop/no-unknown-returns": "error",
+    "anti-slop/no-unknown-type-aliases": "error",
+    "anti-slop/no-unsafe-dictionary-type": "error",
+    "anti-slop/no-widen-then-assert": "error",
+    "anti-slop/require-readable-spacing": "off",
+    "anti-slop/require-safety-comment-for-type-assertion": "off",
 
     // scayle: reactivity APIs called after an `await` lose the active component/effect scope
     "scayle/no-composable-after-await": "warn",
@@ -125,6 +139,30 @@
     "no-magic-numbers": "off",
     "unicorn/no-null": "off",
     "eslint/id-length": "off",
-    "no-async-await": "off"
-  }
+    "no-async-await": "off",
+    "eslint/require-await": "off",
+    "typescript/promise-function-async": "off",
+
+    //pedantic
+    "no-inline-comments": "off",
+    "eslint/no-negated-condition": "off",
+    "unicorn/no-negated-condition": "off",
+    "max-lines": "off",
+    "unicorn/prefer-string-replace-all": "off", //temp
+    "require-unicode-regexp": "off" // temp
+  },
+  "overrides": [
+    {
+      // MapLibre exposes untyped property/state bags; unknown forces checks before use.
+      // The decoder's tests also deliberately supply malformed property values.
+      "files": [
+        "front/src/services/map/renderImagePin.ts",
+        "front/src/services/map/renderImagePin.test.ts",
+        "front/src/components/map/RenderImageMarkers.vue"
+      ],
+      "rules": {
+        "anti-slop/no-unsafe-dictionary-type": "off"
+      }
+    }
+  ]
 }

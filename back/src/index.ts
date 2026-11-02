@@ -41,7 +41,7 @@ app.use(
 // Secure headers (Helmet equivalent)
 // Adds CSP, HSTS, X-Frame-Options, etc.
 // Exclude /uploads/* path from secureHeaders to allow cross-origin resource loading
-app.use("*", async (c, next) => {
+app.use("*", (c, next) => {
   if (c.req.path.startsWith("/uploads/")) {
     // Skip secureHeaders for uploads to allow custom CORS/CORP headers
     return next();

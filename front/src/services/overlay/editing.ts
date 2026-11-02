@@ -63,7 +63,7 @@ function buildLocalOverlay(id: string, imageUrl: string, projectId: string): Ove
   };
 }
 
-async function loadImageAspect(imageUrl: string): Promise<number> {
+function loadImageAspect(imageUrl: string): Promise<number> {
   return new Promise((resolve) => {
     const image = new Image();
     image.addEventListener("load", () => {

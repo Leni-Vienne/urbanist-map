@@ -144,7 +144,7 @@ export async function previewOverlayGeometry(options: PreviewGeometryOptions): P
   }
 }
 
-export async function previewShapes(options: PreviewShapesOptions): Promise<void> {
+export function previewShapes(options: PreviewShapesOptions): void {
   const { change, project, geometryValue, type } = options;
 
   const geometry = geometryValue;

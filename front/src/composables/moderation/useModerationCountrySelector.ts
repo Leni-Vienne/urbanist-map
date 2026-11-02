@@ -73,7 +73,7 @@ export function useModerationCountrySelector({ onCountryDataNeeded }: Options) {
   async function refetchPendingCounts() {
     if (!isCurrentPanel()) return;
     moderationStore.resetPendingCounts();
-    const counts = await loadOrNull(async () => trpc.moderation.getPendingCountsByCountry.query(), {
+    const counts = await loadOrNull(() => trpc.moderation.getPendingCountsByCountry.query(), {
       errorMessage: t("moderation.refreshCountsFailed"),
     });
     if (counts && isCurrentPanel()) {
@@ -92,7 +92,7 @@ export function useModerationCountrySelector({ onCountryDataNeeded }: Options) {
 
   async function initCountries() {
     if (!moderationStore.countriesLoaded) {
-      const countries = await loadOrNull(async () => trpc.country.getAllCountries.query(), {
+      const countries = await loadOrNull(() => trpc.country.getAllCountries.query(), {
         errorMessage: t("moderation.failedToLoadCountries"),
       });
       // Country metadata is account-independent and can outlive this panel.
@@ -105,7 +105,7 @@ export function useModerationCountrySelector({ onCountryDataNeeded }: Options) {
 
   async function initPendingCounts() {
     if (!isCurrentPanel() || moderationStore.pendingCountsLoaded) return;
-    const counts = await loadOrNull(async () => trpc.moderation.getPendingCountsByCountry.query());
+    const counts = await loadOrNull(() => trpc.moderation.getPendingCountsByCountry.query());
     if (counts && isCurrentPanel()) {
       moderationStore.setPendingCounts(counts);
     }

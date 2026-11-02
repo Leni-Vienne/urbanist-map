@@ -164,7 +164,7 @@ export const reportProcedures = {
   }),
 
   clearUserReports: adminProcedure
-    .input(z.object({ userId: z.string().uuid() }))
+    .input(z.object({ userId: z.uuid() }))
     .mutation(async ({ input }) => {
       try {
         await db.delete(userReports).where(eq(userReports.reportedUserId, input.userId));
@@ -180,7 +180,7 @@ export const reportProcedures = {
   banUser: adminProcedure
     .input(
       z.object({
-        userId: z.string().uuid(),
+        userId: z.uuid(),
         reason: z.string().min(1).max(500),
         deleteContent: z.boolean().default(false),
       }),

@@ -337,8 +337,8 @@ type MapProjectRow = OverlayLocationRow["project"] & {
   importSource: OverlayLocationRow["importSource"];
 };
 
-async function fetchOverlayLocationRows(database: DatabaseExecutor, whereConditions: SQL[]) {
-  return await database
+function fetchOverlayLocationRows(database: DatabaseExecutor, whereConditions: SQL[]) {
+  return database
     .select({
       overlay: OVERLAY_COLUMNS,
       project: PROJECT_COLUMNS,
@@ -388,11 +388,12 @@ async function fetchOwnOverlayChangeRequests(
 export async function fetchModerationMapOverlays(overlayIds: string[]) {
   if (overlayIds.length === 0) return [];
 
-  return db
+  const rows = await db
     .select(OVERLAY_COLUMNS)
     .from(overlays)
     .where(and(eq(overlays.kind, "map"), inArray(overlays.id, overlayIds)))
     .orderBy(overlays.createdAt);
+  return rows;
 }
 
 // Fetch overlays matching the given WHERE conditions, their parent projects, and the caller's own

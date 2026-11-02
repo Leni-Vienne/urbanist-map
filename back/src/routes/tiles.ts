@@ -176,7 +176,7 @@ function createTileService(
   // Coalesces concurrent generations of the same tile so a burst of identical requests runs the
   // expensive query once. The shared promise also performs the cache write, so the tile is stored
   // exactly once regardless of how many callers awaited it.
-  async function generateTileCoalesced(
+  function generateTileCoalesced(
     z: number,
     x: number,
     y: number,

@@ -1,7 +1,7 @@
 import { publicProcedure, router, TRPCError } from "../trpc";
 import { z } from "zod";
 import { db } from "../database";
-import { overlays, projects, importSources } from "../db/schema";
+import { overlays, projects } from "../db/schema";
 import { sql, eq, and, or, desc, type SQL } from "drizzle-orm";
 import { boundaryName, textArray } from "../db/helpers";
 import {
@@ -541,14 +541,6 @@ function shouldQueryStream(enabled: boolean, cursor: FeedStreamCursor | null | u
 }
 
 export const feedRouter = router({
-  getOsmSyncStatus: publicProcedure.query(async () => {
-    const [row] = await db
-      .select({ lastSyncedAt: sql<Date | null>`MAX(${importSources.lastSyncAt})` })
-      .from(importSources)
-      .where(and(eq(importSources.type, "osm"), eq(importSources.enabled, true)));
-    return { lastSyncedAt: row?.lastSyncedAt ?? null };
-  }),
-
   getContributionCount: publicProcedure.input(feedQuerySchema).query(async ({ input }) => {
     try {
       return { count: await getCachedContributionCount(input) };

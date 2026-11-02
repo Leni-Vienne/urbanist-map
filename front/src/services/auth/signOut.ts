@@ -12,7 +12,7 @@ import { useMapSessionStore } from "@/stores/mapSessionStore";
 // Orchestrates sign-out: authStore handles the auth session itself, then all
 // user-scoped state is cleared here to prevent data leakage between accounts.
 // Living outside authStore keeps it free of dependencies on the other stores.
-export async function signOut() {
+export function signOut() {
   const authStore = useAuthStore();
   const signOutRequest = authStore.signOut();
 
@@ -27,5 +27,5 @@ export async function signOut() {
 
   useMapSessionStore().clearAllState();
 
-  return await signOutRequest;
+  return signOutRequest;
 }

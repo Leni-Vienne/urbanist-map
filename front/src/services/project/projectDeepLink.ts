@@ -30,7 +30,7 @@ export async function handleProjectDeepLink(
 
   const projectStore = useProjectStore();
 
-  const result = await loadOrNull(async () => trpc.project.getBySlug.query({ slug: resolvedSlug }));
+  const result = await loadOrNull(() => trpc.project.getBySlug.query({ slug: resolvedSlug }));
 
   if (!result) return;
 

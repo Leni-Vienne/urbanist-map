@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div
     class="flex justify-center items-center min-h-screen bg-linear-to-br from-primary-color/5 to-primary-color/10 p-5"
   >
@@ -114,7 +114,7 @@ const confirmError = computed(() =>
 );
 const isFormValid = computed(() => !passwordError.value && !confirmError.value);
 
-async function checkTokenPresent() {
+function checkTokenPresent() {
   try {
     const token = route.query.token as string;
 

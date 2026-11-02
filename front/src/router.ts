@@ -19,39 +19,39 @@ const routes = [
   {
     path: "/verify",
     name: "EmailVerification",
-    component: async () => import("@/pages/EmailVerification.vue"),
+    component: () => import("@/pages/EmailVerification.vue"),
   },
   {
     path: "/reset-password",
     name: "PasswordReset",
-    component: async () => import("@/pages/PasswordReset.vue"),
+    component: () => import("@/pages/PasswordReset.vue"),
   },
   {
     path: "/legal",
     name: "Legal",
-    component: async () => import("@/pages/Legal.vue"),
+    component: () => import("@/pages/Legal.vue"),
   },
   {
     path: "/contact",
     name: "Contact",
-    component: async () => import("@/pages/Contact.vue"),
+    component: () => import("@/pages/Contact.vue"),
   },
   {
     path: "/admin/reports",
     name: "AdminReports",
-    component: async () => import("@/pages/AdminReportsPage.vue"),
+    component: () => import("@/pages/AdminReportsPage.vue"),
     meta: { requiresAuth: true, requiresAdmin: true },
   },
   {
     path: "/admin/user/:userId",
     name: "AdminUserContributions",
-    component: async () => import("@/pages/AdminUserContributionsPage.vue"),
+    component: () => import("@/pages/AdminUserContributionsPage.vue"),
     meta: { requiresAuth: true, requiresAdmin: true },
   },
   {
     path: "/admin/detached",
     name: "AdminDetachedProjects",
-    component: async () => import("@/pages/AdminDetachedProjectsPage.vue"),
+    component: () => import("@/pages/AdminDetachedProjectsPage.vue"),
     meta: { requiresAuth: true, requiresAdmin: true },
   },
   // Catch-all route, redirect unknown paths to home

@@ -233,7 +233,7 @@ async function buildSubmissionBatch(
         : { id: project.id, patch: buildProjectPatch(draft.projectChanges) };
   }
 
-  async function buildOverlayIntent(overlayId: string) {
+  function buildOverlayIntent(overlayId: string) {
     const overlay = getOverlayOrThrow(overlayId);
     return buildSubmittedOverlay(overlay, overlayFields.get(overlayId) ?? []);
   }

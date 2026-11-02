@@ -169,7 +169,7 @@ async function handleFileImport(event: Event) {
   }
 }
 
-async function handleSave() {
+function handleSave() {
   const geometry = getDrawnGeometry();
   emit("done", geometry);
 }

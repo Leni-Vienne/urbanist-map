@@ -553,7 +553,7 @@ async function handleApproveChange(changeId: string) {
   }
 }
 
-async function executePendingRejection(
+function executePendingRejection(
   rejection: PendingRejectionExecution,
   options: RejectionOptions,
 ): Promise<boolean> {

@@ -19,7 +19,7 @@ export async function uploadImageFile(file: File): Promise<string> {
   if (cached?.epoch === epoch && cached.userId === userId) return cached.request;
   // The single backend processes one upload at a time. Preserve batch submissions without
   // sending competing uploads, and never send queued file bytes after an account switch.
-  const request = uploadQueue.then(async () => {
+  const request = uploadQueue.then(() => {
     if (auth.getSessionEpoch() !== epoch || auth.user?.id !== userId) {
       throw new Error(t("upload.error.uploadFailed"));
     }

@@ -41,7 +41,7 @@ async function deleteLocalOriginal(compressedFilename: string): Promise<void> {
   await Promise.all(
     entries
       .filter((name) => name.replace(/\.[^./]+$/, "") === base)
-      .map(async (name) => localStorage.delete(`originals/${name}`)),
+      .map((name) => localStorage.delete(`originals/${name}`)),
   );
 }
 
@@ -65,7 +65,7 @@ async function deleteFromStorageBackends(
   filename: string,
   storageBackends: StorageInterface[],
 ): Promise<void> {
-  async function deleteFromStorage(storage: StorageInterface): Promise<void> {
+  function deleteFromStorage(storage: StorageInterface): Promise<void> {
     return deleteFilesFromStorage(storage, filename);
   }
 

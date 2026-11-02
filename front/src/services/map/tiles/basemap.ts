@@ -518,7 +518,7 @@ export async function switchTileLayer(layerType: TileLayerType): Promise<void> {
   }
 
   if (resolvedLayerType === "esri") {
-    void checkEsriMaxZoom();
+    checkEsriMaxZoom();
   }
 }
 
@@ -527,7 +527,7 @@ let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 const maxZoomCache = new Map<string, number>();
 
 /** Check and adjust the Esri max native zoom for the current location. */
-async function checkEsriMaxZoom() {
+function checkEsriMaxZoom() {
   if (currentTileLayer.value !== "esri") return;
 
   const mlMap = getMapOrNull();
@@ -651,6 +651,6 @@ async function checkAndAutoSwitchSatelliteLayer() {
 function initSatelliteMoveEndListener(mlMap: MaplibreMap) {
   mlMap.on("moveend", () => {
     void checkAndAutoSwitchSatelliteLayer();
-    void checkEsriMaxZoom();
+    checkEsriMaxZoom();
   });
 }

@@ -27,7 +27,7 @@ async function fileSize(path: string): Promise<number> {
 // the same. Approved overlays are excluded because their compressed image and thumbnail have
 // migrated to R2 and their retained original is permanent — charging it would let a contributor's
 // accepted work permanently consume the allowance for staging new work.
-async function chargeableUploads(
+function chargeableUploads(
   userId: string,
 ): Promise<{ filename: string; originalFilename: string | null }[]> {
   return (

@@ -10,7 +10,7 @@ export type RouterInput = inferRouterInputs<AppRouter>;
 const httpOptions = {
   url: `${getApiUrl()}/trpc`,
 
-  async fetch(url: URL | RequestInfo, options?: RequestInit) {
+  fetch(url: URL | RequestInfo, options?: RequestInit) {
     return fetch(url, {
       ...options,
       credentials: "include", // Include cookies in requests

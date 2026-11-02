@@ -40,7 +40,7 @@ export async function handleOverlayClickNavigation(overlay: NavigableOverlay): P
       useModerationStore().selectedCountryCode = countryCode;
     }
 
-    return navigateToOverlay(overlay.id);
+    return await navigateToOverlay(overlay.id);
   } catch (error) {
     console.error("Failed to navigate to overlay:", error);
     toastError(

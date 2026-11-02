@@ -52,7 +52,7 @@ function setUserSession(c: Context<AppEnv>, user: SessionUser, rememberMe: boole
   session.set("expiresAt", expiresAt.toISOString());
 }
 
-async function validateGoogleLoginRequest(body: unknown) {
+function validateGoogleLoginRequest(body: unknown) {
   const googleLoginSchema = z.object({
     token: z.string().min(1, "Google token is required"),
     rememberMe: z.boolean().optional().default(false),
@@ -159,7 +159,7 @@ authApp.post("/api/google-login", async (c) => {
     }
 
     const body = await c.req.json();
-    const { token, rememberMe } = await validateGoogleLoginRequest(body);
+    const { token, rememberMe } = validateGoogleLoginRequest(body);
 
     // Verify Google token
     const googleUser = await verifyGoogleToken(token);

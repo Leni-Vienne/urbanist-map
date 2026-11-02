@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div :class="['mt-4', containerClass]">
     <div class="mb-2.5">
       <div class="flex items-center gap-1.5">
@@ -232,7 +232,7 @@ async function previewGeometry(change: PendingChangeRequest, type: "old" | "new"
       type,
     });
   } else if (change.entityType === "project" && change.fieldName === "geometry" && props.project) {
-    await previewShapes({
+    previewShapes({
       change,
       project: props.project,
       geometryValue: type === "old" ? change.oldValue : change.newValue,

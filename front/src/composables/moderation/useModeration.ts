@@ -52,7 +52,7 @@ export function useModeration() {
 
     const expectedVersion = item.version;
 
-    async function submitApproval(): Promise<{ success: boolean }> {
+    function submitApproval(): Promise<{ success: boolean }> {
       if (isOverlay) {
         return trpc.moderation.setOverlayApprovalStatusWithVersion.mutate({
           id,
@@ -150,19 +150,19 @@ export function useModeration() {
     return result;
   }
 
-  async function approveOverlay(id: string): Promise<ApprovalResult> {
+  function approveOverlay(id: string): Promise<ApprovalResult> {
     return setOverlayStatus(id, "approved");
   }
 
-  async function rejectOverlay(id: string, rejectionReason?: string): Promise<ApprovalResult> {
+  function rejectOverlay(id: string, rejectionReason?: string): Promise<ApprovalResult> {
     return setOverlayStatus(id, "rejected", rejectionReason);
   }
 
-  async function approveProject(id: string): Promise<ApprovalResult> {
+  function approveProject(id: string): Promise<ApprovalResult> {
     return setApprovalStatus({ id, status: "approved", itemType: "project" });
   }
 
-  async function rejectProject(
+  function rejectProject(
     id: string,
     rejectionReason?: string,
     rejectAllOverlays?: boolean,

@@ -6,7 +6,7 @@ import type { AuthUser } from "@shared/types/auth";
 
 type AuthResult = { success: boolean; user: AuthUser | null; error: string | null };
 
-async function loadGoogleIdentityScript() {
+function loadGoogleIdentityScript(): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     if (globalThis.google) {
       resolve();
@@ -231,14 +231,12 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  // Idempotent: subsequent calls return the same promise
+  // Idempotent: subsequent calls share the same in-flight session check
   async function initialize(): Promise<void> {
     if (authMutationPending) return;
-    if (initPromise) return initPromise;
 
-    initPromise = loadSession(sessionEpoch);
-
-    return initPromise;
+    initPromise ??= loadSession(sessionEpoch);
+    await initPromise;
   }
 
   async function signIn(email: string, password: string, rememberMe = false) {
@@ -310,8 +308,7 @@ export const useAuthStore = defineStore("auth", () => {
           client_id: clientId,
           callback: createOAuthCallbackHandler<{ credential: string }>({
             provider,
-            exchangeToken: async (response) =>
-              sendGoogleTokenToBackend(response.credential, rememberMe),
+            exchangeToken: (response) => sendGoogleTokenToBackend(response.credential, rememberMe),
             timeoutId: timeout,
             resolve,
           }),

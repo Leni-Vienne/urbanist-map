@@ -103,7 +103,7 @@ function onSearch(event: { query: string }): void {
 async function search(query: string, searchId: number): Promise<void> {
   isLoading.value = true;
   const center = getMap().getCenter();
-  const matches = await loadOrNull(async () =>
+  const matches = await loadOrNull(() =>
     trpc.boundaries.searchBoundariesNearLocation.query({
       lat: center.lat,
       lng: center.lng,
