@@ -217,6 +217,20 @@ class OrphanGroupingTest(unittest.TestCase):
                         2: self.way([(gap, 0), (gap, 0.001)], **{tag: 'A'})}
                 self.assertEqual(count, len(self.groups(ways)))
 
+    def test_mid_latitude_name_merge_exercises_fallback_and_safe_reject(self):
+        # At latitude 60, lon_scale = 0.5. For a 100 m name limit:
+        # 150 m unscaled distance exceeds 100 m, but projected distance is 75 m <= 100 m.
+        # This exercises the fallback path where scale() is required.
+        # 250 m unscaled distance has projected distance 125 m > 100 m, exercising the safe reject.
+        lat = 60.0
+        ways_merge = {1: self.way([(0, lat), (0, lat + 0.001)], name='A'),
+                      2: self.way([(150.0 / 111320, lat), (150.0 / 111320, lat + 0.001)], name='A')}
+        self.assertEqual(1, len(self.groups(ways_merge)))
+
+        ways_reject = {1: self.way([(0, lat), (0, lat + 0.001)], name='A'),
+                       2: self.way([(250.0 / 111320, lat), (250.0 / 111320, lat + 0.001)], name='A')}
+        self.assertEqual(2, len(self.groups(ways_reject)))
+
     def test_same_name_does_not_override_status_or_identity_conflicts(self):
         for other in ({'status': 'construction'}, {'ref': 'B'}, {'wikidata': 'Q2'}):
             with self.subTest(other=other):

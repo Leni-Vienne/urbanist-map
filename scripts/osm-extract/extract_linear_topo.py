@@ -416,14 +416,23 @@ def _merge_components(cs, pairs):
             continue
         if max_distance_m is not None:
             geom, other = cs.geometry(ri), cs.geometry(rj)
-            # Use the same local scale for both lines, after the cheap checks.
-            latitude = (min(geom.bounds[1], other.bounds[1]) +
-                        max(geom.bounds[3], other.bounds[3])) / 2
-            lon_scale = math.cos(math.radians(latitude))
-            projected = scale(geom, xfact=lon_scale, origin=(0, 0))
-            other_projected = scale(other, xfact=lon_scale, origin=(0, 0))
-            if projected.distance(other_projected) > meters_to_degrees(max_distance_m):
-                continue
+            limit_deg = meters_to_degrees(max_distance_m)
+            # scale() rebuilds coordinates; the bounds below avoid it for pairs
+            # that are clearly in or out. Longitude compression (xfact = cos(lat) <= 1)
+            # can only shrink distances, so this unscaled distance upper-bounds the
+            # projected one.
+            dist = geom.distance(other)
+            if dist > limit_deg:
+                latitude = (min(geom.bounds[1], other.bounds[1]) +
+                            max(geom.bounds[3], other.bounds[3])) / 2
+                lon_scale = math.cos(math.radians(latitude))
+                # ...and shrinks it by at most lon_scale, so this is a safe reject.
+                if dist * lon_scale > limit_deg:
+                    continue
+                projected = scale(geom, xfact=lon_scale, origin=(0, 0))
+                other_projected = scale(other, xfact=lon_scale, origin=(0, 0))
+                if projected.distance(other_projected) > limit_deg:
+                    continue
         uf.union(a, b)
         if left:
             identities.setdefault(b, {}).update(identities.pop(a))
