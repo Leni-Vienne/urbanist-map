@@ -72,11 +72,9 @@ export const useLatestContributionsStore = defineStore("latestContributions", ()
     };
   }
 
-  async function fetchPage(pageCursor: FeedCursor) {
+  function fetchPage(pageCursor: FeedCursor) {
     // Errors are shown beside the results with a retry action.
-    return loadOrNull(async () =>
-      trpc.feed.getLatestContributions.query(buildQueryInput(pageCursor)),
-    );
+    return loadOrNull(() => trpc.feed.getLatestContributions.query(buildQueryInput(pageCursor)));
   }
 
   function ensureContributionCount(key: string): void {
@@ -96,7 +94,7 @@ export const useLatestContributionsStore = defineStore("latestContributions", ()
     requestedCountKey = key;
     loadedCountKey.value = null;
     try {
-      const result = await loadOrNull(async () =>
+      const result = await loadOrNull(() =>
         // Out of the batch: counting is far slower than fetching a page, and the list must not wait
         // on it.
         trpc.feed.getContributionCount.query(buildFilterQueryInput(), {
@@ -235,11 +233,8 @@ export const useLatestContributionsStore = defineStore("latestContributions", ()
     cursor,
     isLoading,
     isLoadingMore,
-    failedKey,
     hasLoadMoreError,
     projectCount,
-    loadedKey,
-    loadedCountKey,
     hasLoadError,
     isCountStale,
     isFeedStale,

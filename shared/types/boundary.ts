@@ -4,3 +4,7 @@ export interface LocalizedBoundaryName {
   nameEn: string | null; // OSM `name:en`
   names: Record<string, string> | null; // Available `name:*` variants, keyed by language code
 }
+
+export interface BoundaryPathEntry extends LocalizedBoundaryName {
+  adminLevel: number;
+}

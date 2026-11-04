@@ -180,7 +180,7 @@ export const projectRouter = router({
       const { adminBoundaryId, ...projectData } = project;
       const [images, boundaryPath] = await Promise.all([
         getProjectImages(project.id, ctx.user),
-        adminBoundaryId ? resolveBoundaryPath(adminBoundaryId) : [],
+        resolveBoundaryPath(adminBoundaryId),
       ]);
 
       return { ...projectData, ...images, boundaryPath };
@@ -219,7 +219,7 @@ export const projectRouter = router({
         const { adminBoundaryId, ...projectData } = project;
         const [images, boundaryPath] = await Promise.all([
           getProjectImages(project.id, ctx.user),
-          adminBoundaryId ? resolveBoundaryPath(adminBoundaryId) : [],
+          resolveBoundaryPath(adminBoundaryId),
         ]);
 
         return {

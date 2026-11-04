@@ -89,6 +89,15 @@ export const useContributionStore = defineStore("contribution", () => {
     loaded.value = true;
   }
 
+  function ingestReceipt(projectId: string, images: Overlay[]): void {
+    if (!projectIds.value.includes(projectId)) {
+      projectIds.value.push(projectId);
+    }
+    for (const image of images) {
+      overlaysById.value[image.id] = image;
+    }
+  }
+
   function clearAllState(): void {
     invalidateRequests();
     projectIds.value = [];
@@ -102,6 +111,7 @@ export const useContributionStore = defineStore("contribution", () => {
     loading,
     loaded,
     setData,
+    ingestReceipt,
     refresh,
     invalidateRequests,
     clearAllState,

@@ -10,7 +10,7 @@ import {
   importSources,
 } from "./schema";
 import type { AppMode } from "@shared/types";
-import type { LocalizedBoundaryName } from "@shared/types/boundary";
+import type { LocalizedBoundaryName, BoundaryPathEntry } from "@shared/types/boundary";
 import { buildOwnOverlayProposal } from "./overlayProposal";
 import { overlayCornersJsonSql } from "./geometry";
 
@@ -30,14 +30,7 @@ const BOUNDARY_NAME_LOCALES = ["fr"];
 // project.getById's resolveBoundaryPath so list views render the same location as the detail panel.
 // Walks the parent chain from the project's assigned boundary. NULL boundary or no chain yields [].
 // The depth guard stops a malformed parent cycle from looping forever.
-function boundaryPathSql(requestLanguage: string): SQL<
-  {
-    name: string;
-    nameEn: string | null;
-    names: Record<string, string> | null;
-    adminLevel: number;
-  }[]
-> {
+function boundaryPathSql(requestLanguage: string): SQL<BoundaryPathEntry[]> {
   const nameLocales =
     requestLanguage === "en"
       ? BOUNDARY_NAME_LOCALES

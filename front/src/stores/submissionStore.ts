@@ -66,7 +66,6 @@ export const useSubmissionStore = defineStore("submission", () => {
     pendingSubmission,
     showSubmissionDialog,
     isSubmitting,
-    stagedRenders,
     clearPendingSubmission,
     setStagedRender,
     getStagedRender,

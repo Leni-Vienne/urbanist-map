@@ -24,10 +24,7 @@ export function acknowledgeSubmission(result: SubmissionResult, batch: Submissio
   for (const overlay of receipt.mapOverlays) {
     useOverlayStore().ingestBackendOverlay(overlayWireToData(overlay), false);
   }
-  if (!contributionStore.projectIds.includes(batch.projectId)) {
-    contributionStore.projectIds.push(batch.projectId);
-  }
-  for (const image of receipt.images) contributionStore.overlaysById[image.id] = image;
+  contributionStore.ingestReceipt(batch.projectId, receipt.images);
   const overlayIds = new Set(batch.overlays.map((overlay) => overlay.id));
   changeStore.pendingChangeRequests = [
     ...changeStore.pendingChangeRequests.filter((request) =>

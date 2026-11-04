@@ -1,5 +1,6 @@
 import { sql, type SQL } from "drizzle-orm";
 import { db } from "../database";
+import type { BoundaryPathEntry } from "@shared/types/boundary";
 
 // Resolve a project's 3-letter country code from the admin boundaries covering (or nearest to) a
 // point. A point inside any boundary has distance 0, so the KNN ordering naturally returns a
@@ -19,23 +20,15 @@ export async function resolveCountryCode(lat: number, lng: number): Promise<stri
   return rows[0]?.country_code ?? null;
 }
 
-// Every `name:*` variant ships so a consumer can resolve any requested language, which keeps this
-// endpoint locale-agnostic.
-export interface BoundaryPathEntry {
-  osmId: string;
-  name: string; // OSM `name` (usually local language)
-  nameEn: string | null; // OSM `name:en`
-  names: Record<string, string> | null; // all `name:*` variants, keyed by language code
-  adminLevel: number;
-}
-
 // Walk the admin boundary parent chain from a project's assigned boundary up to the country,
 // returning the hierarchy ordered deepest-first (e.g. neighborhood, city, state, country) for a
 // location breadcrumb. The depth guard stops a malformed parent cycle from looping forever.
-export async function resolveBoundaryPath(adminBoundaryId: string): Promise<BoundaryPathEntry[]> {
+export async function resolveBoundaryPath(
+  adminBoundaryId: string | null | undefined,
+): Promise<BoundaryPathEntry[]> {
+  if (!adminBoundaryId) return [];
   try {
     const rows = await db.execute<{
-      osm_id: string;
       name: string;
       name_en: string | null;
       names: Record<string, string> | null;
@@ -51,11 +44,10 @@ export async function resolveBoundaryPath(adminBoundaryId: string): Promise<Boun
         JOIN chain c ON ab.osm_id = c.parent_id
         WHERE c.depth < 12
       )
-      SELECT osm_id, name, name_en, names, admin_level FROM chain ORDER BY admin_level DESC
+      SELECT name, name_en, names, admin_level FROM chain ORDER BY admin_level DESC
     `);
 
     return rows.map((r) => ({
-      osmId: r.osm_id,
       name: r.name,
       nameEn: r.name_en,
       names: r.names,
