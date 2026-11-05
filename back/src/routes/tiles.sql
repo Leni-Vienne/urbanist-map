@@ -127,98 +127,68 @@ points AS (
   -- Generate the 'project-points' vector tile layer containing center markers for projects.
   SELECT ST_AsMVT(q, 'project-points', 4096, 'mvt_geom') AS tile
   FROM (
-    WITH filtered_q AS MATERIALIZED (
+    WITH candidates AS (
+      -- Assign markers to a world-aligned grid without building an MVT geometry for every project.
       SELECT
-        raw_q.center_coordinate,
-        raw_q.id,
-        raw_q.name,
-        raw_q.tags,
-        raw_q.first_tag,
-        raw_q.timeline_status,
-        raw_q.has_image,
-        raw_q.has_map_image,
-        raw_q.render_filename,
-        raw_q.is_named,
-        raw_q.last_modified_s,
-        raw_q.geometry_size_m,
-        raw_q.grid_x,
-        raw_q.grid_y,
-        (
-          (CASE WHEN raw_q.is_named = 1 THEN 100 ELSE 0 END) +
-          (CASE WHEN raw_q.has_image THEN 100 ELSE 0 END) +
-          (CASE WHEN raw_q.first_tag != '' THEN 50 ELSE 0 END) +
-          (CASE WHEN raw_q.geometry_size_m > 0 THEN LN(raw_q.geometry_size_m + 1) * 15 ELSE 0 END)
-        )::int AS quality_score
-      FROM (
-        -- Assign markers to a world-aligned grid without building an MVT geometry for every project.
-        SELECT
-          p.center_coordinate,
-          p.id,
-          p.name,
-          COALESCE(p.tags, ARRAY[]::text[]) AS tags,
-          COALESCE(p.tags[1], '') AS first_tag,
-          p.timeline_status,
-          EXISTS (SELECT 1 FROM overlays image WHERE image.project_id = p.id AND image.status = 'approved') AS has_image,
-          EXISTS (SELECT 1 FROM overlays image WHERE image.project_id = p.id AND image.status = 'approved' AND image.kind = 'map') AS has_map_image,
-          render.filename AS render_filename,
-          ROUND(p.geometry_size_m)::int AS geometry_size_m,
-          CASE WHEN NULLIF(BTRIM(p.name), '') IS NOT NULL THEN 1 ELSE 0 END AS is_named,
-          EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s,
-          floor(
-            ((ST_X(p.center_coordinate) + 180.0) / 360.0) * te.grid_scale
-          )::integer - te.grid_x_offset AS grid_x,
-          floor(
-            (
-              1
-              - ln(
-                tan(radians(ST_Y(p.center_coordinate)))
-                + 1 / cos(radians(ST_Y(p.center_coordinate)))
-              ) / pi()
-            ) / 2 * te.grid_scale
-          )::integer - te.grid_y_offset AS grid_y
-        FROM projects p
-        LEFT JOIN LATERAL (
-          SELECT image.filename
-          FROM overlays image
-          WHERE image.project_id = p.id AND image.status = 'approved' AND image.kind = 'render'
-          ORDER BY image.updated_at DESC, image.id
-          LIMIT 1
-        ) render ON true
-        CROSS JOIN tile_env te
-        WHERE $1 >= 4
-          AND p.status = 'approved'
-          AND p.center_coordinate IS NOT NULL
-          AND p.center_coordinate && te.bounds_4326
-          -- Visible shapes carry their own render metadata; their centers must not enter clusters.
-          AND NOT (
-            p.geometry IS NOT NULL
-            AND ($4::float8 IS NULL OR COALESCE(p.geometry_size_m, 0) >= $4::float8)
-            AND NOT ($1 <= 12 AND 'building' = ANY(p.tags)
-                     AND (p.geometry_size_m IS NULL OR p.geometry_size_m < 1000)
-                     AND NULLIF(BTRIM(p.name), '') IS NULL)
-          )
-        OFFSET 0
-      ) raw_q
-      WHERE raw_q.center_coordinate IS NOT NULL
+        p.center_coordinate,
+        p.id,
+        p.name,
+        COALESCE(p.tags, ARRAY[]::text[]) AS tags,
+        COALESCE(p.tags[1], '') AS first_tag,
+        p.timeline_status,
+        ROUND(p.geometry_size_m)::int AS geometry_size_m,
+        CASE WHEN NULLIF(BTRIM(p.name), '') IS NOT NULL THEN 1 ELSE 0 END AS is_named,
+        EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s,
+        floor(
+          ((ST_X(p.center_coordinate) + 180.0) / 360.0) * te.grid_scale
+        )::integer - te.grid_x_offset AS grid_x,
+        floor(
+          (
+            1
+            - ln(
+              tan(radians(ST_Y(p.center_coordinate)))
+              + 1 / cos(radians(ST_Y(p.center_coordinate)))
+            ) / pi()
+          ) / 2 * te.grid_scale
+        )::integer - te.grid_y_offset AS grid_y
+      FROM projects p
+      CROSS JOIN tile_env te
+      WHERE $1 >= 4
+        AND p.status = 'approved'
+        AND p.center_coordinate IS NOT NULL
+        AND p.center_coordinate && te.bounds_4326
+        -- Visible shapes carry their own render metadata; their centers must not enter clusters.
+        AND NOT (
+          p.geometry IS NOT NULL
+          AND ($4::float8 IS NULL OR COALESCE(p.geometry_size_m, 0) >= $4::float8)
+          AND NOT ($1 <= 12 AND 'building' = ANY(p.tags)
+                   AND (p.geometry_size_m IS NULL OR p.geometry_size_m < 1000)
+                   AND NULLIF(BTRIM(p.name), '') IS NULL)
+        )
     ),
-    grouped_q AS (
-      -- Sparse cells retain real, individually clickable projects, regardless of metadata quality.
-      -- Stop grouping altogether at the source's maxzoom: overzooming must separate point-only
-      -- projects rather than magnifying a permanent cluster.
-      SELECT f.*,
-        CASE WHEN $1 >= 14 OR COUNT(*) OVER (PARTITION BY grid_x, grid_y) <= 3
-          THEN f.id END AS individual_id
-      FROM filtered_q f
+    cell_members AS (
+      -- At maxzoom every point is individual; the custom plan can omit the density window.
+      SELECT c.*,
+        CASE WHEN $1 >= 14 THEN 1
+          ELSE COUNT(*) OVER (PARTITION BY grid_x, grid_y) END AS cell_population
+      FROM candidates c
+    ),
+    visible_points AS MATERIALIZED (
+      -- Dense cells are invisible below z9. Reject them before image lookups and clustering.
+      -- Reuse the remaining points for individual markers, cluster ranking and tag counts.
+      SELECT c.*,
+        EXISTS (SELECT 1 FROM overlays image WHERE image.project_id = c.id AND image.status = 'approved') AS has_image
+      FROM cell_members c
+      WHERE $1 >= 9 OR c.cell_population <= 3
     ),
     cluster_agg AS (
       -- Per-cell tag breakdown so the client can show an accurate count when a tag filter is active.
       -- Each count_<tag> is the number of projects in the cell carrying that tag; count_untagged is
       -- the number with no tags (the LEFT JOIN LATERAL emits one NULL row per tagless project).
-      -- NULLIF strips zeros so ST_AsMVT omits the column for that feature (lone markers stay cheap).
+      -- Only actual clusters need tag counts. NULLIF omits zero counts from the tile.
       SELECT
         f.grid_x,
         f.grid_y,
-        f.individual_id,
         ',' || string_agg(DISTINCT t, ',') || ',' AS cluster_tags,
         ',' || string_agg(DISTINCT f.timeline_status, ',') || ',' AS cluster_statuses,
         NULLIF(COUNT(*) FILTER (WHERE t IS NULL), 0) AS count_untagged,
@@ -241,11 +211,41 @@ points AS (
         NULLIF(COUNT(*) FILTER (WHERE t = 'cable_car'), 0) AS count_cable_car,
         NULLIF(COUNT(*) FILTER (WHERE t = 'airport'), 0) AS count_airport,
         NULLIF(COUNT(*) FILTER (WHERE t = 'waterway'), 0) AS count_waterway
-      FROM grouped_q f
+      FROM visible_points f
       LEFT JOIN LATERAL unnest(f.tags) AS t ON true
-      GROUP BY f.grid_x, f.grid_y, f.individual_id
+      WHERE $1 >= 9 AND $1 < 14 AND f.cell_population > 3
+      GROUP BY f.grid_x, f.grid_y
+    ),
+    scored_clusters AS (
+      -- Quality only chooses and labels cluster representatives; individuals need no score.
+      SELECT f.*,
+        (
+          (CASE WHEN f.is_named = 1 THEN 100 ELSE 0 END) +
+          (CASE WHEN f.has_image THEN 100 ELSE 0 END) +
+          (CASE WHEN f.first_tag != '' THEN 50 ELSE 0 END) +
+          (CASE WHEN f.geometry_size_m > 0 THEN LN(f.geometry_size_m + 1) * 15 ELSE 0 END)
+        )::int AS quality_score
+      FROM visible_points f
+      WHERE $1 >= 9 AND $1 < 14 AND f.cell_population > 3
     ),
     ranked_q AS (
+      -- Individual markers need filter ranges, but no aggregation or representative ranking.
+      SELECT
+        f.*,
+        NULL::int AS quality_score,
+        f.has_image AS cluster_has_image,
+        cardinality(f.tags) = 0 AS cluster_has_untagged,
+        f.is_named = 1 AS cluster_has_named,
+        f.is_named = 0 AS cluster_has_unnamed,
+        f.last_modified_s AS min_last_modified_s,
+        f.last_modified_s AS max_last_modified_s,
+        f.geometry_size_m AS min_size_m,
+        f.geometry_size_m AS max_size_m,
+        1 AS cell_count,
+        1::bigint AS representative_rank
+      FROM visible_points f
+      WHERE f.cell_population <= 3
+      UNION ALL
       SELECT
         f.*,
         BOOL_OR(f.has_image) OVER w_cluster AS cluster_has_image,
@@ -256,11 +256,11 @@ points AS (
         MAX(f.last_modified_s) OVER w_cluster AS max_last_modified_s,
         MIN(f.geometry_size_m) OVER w_cluster AS min_size_m,
         MAX(f.geometry_size_m) OVER w_cluster AS max_size_m,
-        (COUNT(*) OVER w_cluster)::int AS cell_count,
+        f.cell_population::int AS cell_count,
         ROW_NUMBER() OVER w_cluster AS representative_rank
-      FROM grouped_q f
+      FROM scored_clusters f
       WINDOW w_cluster AS (
-        PARTITION BY f.grid_x, f.grid_y, f.individual_id
+        PARTITION BY f.grid_x, f.grid_y
         ORDER BY
           f.quality_score DESC,
           f.is_named DESC,
@@ -282,15 +282,18 @@ points AS (
       f.first_tag,
       f.timeline_status,
       f.cluster_has_image AS has_image,
-      f.has_map_image,
-      f.render_filename,
+      EXISTS (SELECT 1 FROM overlays image WHERE image.project_id = f.id AND image.status = 'approved' AND image.kind = 'map') AS has_map_image,
+      render.filename AS render_filename,
       f.is_named,
       f.cluster_has_untagged,
       f.cluster_has_named,
       f.cluster_has_unnamed,
       f.min_last_modified_s,
       f.max_last_modified_s,
-      ca.cluster_tags,
+      -- Keep exact tag matching for individuals too (e.g. rail must not match light_rail).
+      CASE WHEN f.cell_count = 1 AND cardinality(f.tags) > 0
+        THEN ',' || array_to_string(f.tags, ',') || ','
+        ELSE ca.cluster_tags END AS cluster_tags,
       ca.cluster_statuses,
       ca.count_untagged,
       ca.count_building,
@@ -320,11 +323,16 @@ points AS (
     LEFT JOIN cluster_agg ca
       ON ca.grid_x = f.grid_x
       AND ca.grid_y = f.grid_y
-      AND ca.individual_id IS NOT DISTINCT FROM f.individual_id
+      AND f.cell_count > 1
+    LEFT JOIN LATERAL (
+      SELECT image.filename
+      FROM overlays image
+      WHERE image.project_id = f.id AND image.status = 'approved' AND image.kind = 'render'
+      ORDER BY image.updated_at DESC, image.id
+      LIMIT 1
+    ) render ON true
     CROSS JOIN tile_env te
     WHERE f.representative_rank = 1
-      -- Below city zoom only real, individual projects are shown, never anonymous cluster dots.
-      AND ($1 >= 9 OR f.cell_count = 1)
   ) q
   WHERE q.mvt_geom IS NOT NULL
 )
