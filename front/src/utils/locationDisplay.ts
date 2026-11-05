@@ -28,12 +28,7 @@ export function boundaryLocationParts(levels: BoundaryLevels, locale: string): s
   return parts;
 }
 
-// Builds "City, State, Country (CODE)" from the boundary-derived levels. Falls back to the bare
-// country code, then to an empty string when nothing is known.
+// Builds "City, State, Country" from the boundary-derived levels.
 export function formatBoundaryLocation(levels: BoundaryLevels, locale: string): string {
-  const place = boundaryLocationParts(levels, locale).join(", ");
-  if (place && levels.countryCode) {
-    return `${place} (${levels.countryCode})`;
-  }
-  return place || levels.countryCode || "";
+  return boundaryLocationParts(levels, locale).join(", ");
 }

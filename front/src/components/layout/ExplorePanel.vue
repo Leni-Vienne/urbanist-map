@@ -525,14 +525,10 @@ function getHeadings(contribution: LatestContribution) {
   }
   const [place, ...ancestors] = boundaryLocationParts(contribution, locale.value);
   if (place) {
-    const trail = ancestors.join(", ");
-    const code = contribution.countryCode;
     return {
       title: place,
       isPlaceholder: false,
-      // The deepest place is the title, so the subtitle is the rest of the breadcrumb. Keep the
-      // country code even when no ancestor name is known, matching the named-project form.
-      subtitle: trail && code ? `${trail} (${code})` : trail || code || "",
+      subtitle: ancestors.join(", "),
     };
   }
   const fallback =
