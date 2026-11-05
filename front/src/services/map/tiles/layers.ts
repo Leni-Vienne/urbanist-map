@@ -61,13 +61,14 @@ import {
 const TILE_URL = `${getApiUrl()}/api/tiles/projects/{z}/{x}/{y}`;
 
 // ── Zoom level constants (native MapLibre zoom) ─────────────────────────────
-/** Source/layer minzoom for project points. Per-zoom thinning is done server-side via the
- *  quality-score gate */
-const PROJECT_POINTS_MIN_ZOOM = 0;
+/** Source/layer minzoom for project points. Density-based grouping is done server-side. */
+const PROJECT_POINTS_MIN_ZOOM = 4;
+/** Clusters only appear as numbered circles; no faint low-zoom cluster dots. */
+const PROJECT_CLUSTERS_MIN_ZOOM = 9;
 /** Zoom level at which project shapes (MVT) become visible.
- *  Large shapes appear earlier via getShapeZoomVisibilityFilter, see that function for the full table. */
-const PROJECT_SHAPES_MIN_ZOOM = 3;
-/** Max zoom for MVT tile source */
+ *  The server owns size-based visibility and the corresponding center-marker suppression. */
+const PROJECT_SHAPES_MIN_ZOOM = 4;
+/** Max zoom for MVT tile source. At this zoom every remaining point is individual. */
 const MVT_SOURCE_MAX_ZOOM = 14;
 
 // Overlay footprints use double width because half the stroke is covered by the overlay image.
@@ -204,9 +205,7 @@ function getClusterCountExpression(): ExpressionSpecification {
   return ["to-string", ["min", sum, ["get", "cell_count"]]] as ExpressionSpecification;
 }
 
-// Circle radius for project-points: lone markers stay small; cluster markers (cell_count > 1) step
-// up only when the count gains a digit (10, 100, 1000), so the circle hugs the label tightly at
-// every magnitude instead of ballooning with the raw count.
+// Lone markers stay small. Cluster radius follows the label's digit count rather than the raw count.
 // `hovered` adds a small bump applied to both via the hover/selected case in the layer paint.
 function getPointRadiusExpression(hovered: boolean): ExpressionSpecification {
   const bump = hovered ? 2 : 0;
@@ -217,7 +216,7 @@ function getPointRadiusExpression(hovered: boolean): ExpressionSpecification {
     [">", ["get", "cell_count"], 1],
     ["step", ["get", "cell_count"], 6 + bump, 10, 8 + bump, 100, 10 + bump, 1000, 13 + bump],
     4 + bump,
-  ] as ExpressionSpecification;
+  ];
 }
 
 // True when the feature carries the cursor "hover" state or the pinned "selected" state. Hover and
@@ -242,12 +241,10 @@ function getProjectPointPaint(): CircleLayerSpecification["paint"] {
   return {
     "circle-color": getProjectPointColorExpression(),
     "circle-opacity": ["case", thumbnailVisible, 0, 1],
-    "circle-radius": [
-      "case",
-      hoverOrSelectedCondition(),
-      getPointRadiusExpression(true),
+    "circle-radius": withHoverState(
       getPointRadiusExpression(false),
-    ] as ExpressionSpecification,
+      getPointRadiusExpression(true),
+    ),
     "circle-stroke-width": getPointStrokeWidthExpression(),
     "circle-stroke-color": getPointStrokeColorExpression(),
     "circle-stroke-opacity": ["case", thumbnailVisible, 0, getPointStrokeOpacityExpression()],
@@ -278,47 +275,6 @@ function mergeZoomHoverState(
     merged.push(base[i], ["case", hoverOrSelectedCondition(), hover[i + 1], base[i + 1]]);
   }
   return merged as ExpressionSpecification;
-}
-
-/**
- * Zoom-dependent size gate for the project-shapes layer.
- *   z13+ → all shapes
- *   z12  → geometry_size_m >= 50 m
- *   z11  → geometry_size_m >= 100 m
- *   z10  → geometry_size_m >= 200 m
- *   z9   → geometry_size_m >= 500 m
- *   z8   → geometry_size_m >= 1 km
- *   z7   → geometry_size_m >= 10 km
- *   z5   → geometry_size_m >= 50 km
- *   z4   → geometry_size_m >= 100 km
- * Projects with null geometry_size_m (point stand-ins) are never shown via this filter.
- */
-function getShapeZoomVisibilityFilter(): FilterSpecification {
-  return [
-    ">=",
-    ["coalesce", ["get", "geometry_size_m"], 0],
-    [
-      "step",
-      ["zoom"],
-      100_000,
-      5,
-      50_000,
-      7,
-      10_000,
-      8,
-      1000,
-      9,
-      500,
-      10,
-      200,
-      11,
-      100,
-      12,
-      50,
-      13,
-      0,
-    ],
-  ] as FilterSpecification;
 }
 
 const isProposedFilterExpression: FilterSpecification = [
@@ -581,6 +537,11 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
     baseFilter,
     getSizeFilterExpressionForPoints(),
     getOverlayCoveredPointFilter(),
+    [
+      "any",
+      ["==", ["get", "cell_count"], 1],
+      [">=", ["zoom"], PROJECT_CLUSTERS_MIN_ZOOM],
+    ] as FilterSpecification,
   );
 
   const pointColor = getProjectPointColorExpression();
@@ -612,7 +573,6 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
   }
 
   const shapeSpecs = getProjectShapeLayerSpecs();
-  const zoomFilter = getShapeZoomVisibilityFilter();
   const sizeFilter = getSizeFilterExpressionForShapes();
   const editorProjectId = useUiStore().shapeEditorProjectId;
   const pendingHiddenFilter = editorProjectId
@@ -621,15 +581,11 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
 
   for (const spec of shapeSpecs) {
     if (mlMap.getLayer(spec.id)) {
-      setLayerFilter(
-        mlMap,
-        spec.id,
-        combineFilters(spec.filter, zoomFilter, shapesBaseFilter, sizeFilter),
-      );
+      setLayerFilter(mlMap, spec.id, combineFilters(spec.filter, shapesBaseFilter, sizeFilter));
     }
 
-    // Pending geometry keeps the same discriminator, but is visible at every zoom and
-    // ignores view-mode filters so the user can always see their contributions.
+    // Pending geometry keeps the same discriminator and minimum zoom, but ignores view-mode
+    // filters so the user can always see their contributions from z4.
     const layerId = `pending-${spec.id}`;
     if (!mlMap.getLayer(layerId)) continue;
     setLayerFilter(
@@ -1392,14 +1348,13 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     paint: getProjectPointPaint(),
   });
 
-  // Cluster count, drawn over the (enlarged) cluster circles. Only cell_count > 1 gets a label;
-  // lone markers stay bare. allow-overlap/ignore-placement keep every count visible at any density.
+  // Clusters always have a count, starting at the same zoom as their circles.
   mlMap.addLayer({
     id: "project-points-count",
     type: "symbol",
     source: "project-sources",
     "source-layer": "project-points",
-    minzoom: PROJECT_POINTS_MIN_ZOOM,
+    minzoom: PROJECT_CLUSTERS_MIN_ZOOM,
     filter: [">", ["get", "cell_count"], 1],
     layout: {
       "text-field": ["to-string", ["get", "cell_count"]],
@@ -1435,6 +1390,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
     id: "pending-project-points",
     type: "circle",
     source: "pending-project-points-source",
+    minzoom: PROJECT_POINTS_MIN_ZOOM,
     paint: getProjectPointPaint(),
   });
 
@@ -1443,6 +1399,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       id: "pending-overlay-footprints-fill",
       type: "fill",
       source: "pending-project-shapes-source",
+      minzoom: PROJECT_SHAPES_MIN_ZOOM,
       filter: [
         "all",
         ["==", ["get", "sourceLayer"], "overlay-footprints"],
@@ -1461,6 +1418,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
       id: "pending-overlay-footprints-outline",
       type: "line",
       source: "pending-project-shapes-source",
+      minzoom: PROJECT_SHAPES_MIN_ZOOM,
       filter: ["==", ["get", "sourceLayer"], "overlay-footprints"] as FilterSpecification,
       layout: { "line-cap": "round" },
       paint: {
@@ -1480,6 +1438,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
         ...spec,
         id: `pending-${spec.id}`,
         source: "pending-project-shapes-source",
+        minzoom: PROJECT_SHAPES_MIN_ZOOM,
         filter: [
           "all",
           ["==", ["get", "sourceLayer"], "project-shapes"],

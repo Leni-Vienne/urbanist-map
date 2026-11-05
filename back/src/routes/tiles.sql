@@ -10,15 +10,21 @@
 -- The center marker is suppressed inline (see the points CTE) from the same $4 threshold, so a
 -- project's center marker disappears when its shape becomes visible. Render thumbnails are
 -- carried by the visible shape itself, independently of center-point clustering.
-WITH tile_env AS (
+WITH tile_grid AS (
+  -- 128px cells at continental zooms, 64px regionally and 32px from city zooms.
+  -- Keep the grid aligned to tile boundaries so neighbouring requests agree on cell membership.
+  SELECT CASE WHEN $1 >= 10 THEN 16 WHEN $1 >= 7 THEN 8 ELSE 4 END AS cells_per_tile
+),
+tile_env AS (
   -- Calculate the bounding box for the requested tile ($1=Z, $2=X, $3=Y) in Web Mercator (EPSG:3857)
   -- and also transform it to WGS84 (EPSG:4326) for quick intersection checks against table geometries.
   SELECT
     ST_TileEnvelope($1, $2, $3) AS bounds,
     ST_Transform(ST_TileEnvelope($1, $2, $3), 4326) AS bounds_4326,
-    power(2, $1 + 2)::float8 AS grid_scale,
-    $2::integer * 4 AS grid_x_offset,
-    $3::integer * 4 AS grid_y_offset
+    power(2, $1) * cells_per_tile AS grid_scale,
+    $2::integer * cells_per_tile AS grid_x_offset,
+    $3::integer * cells_per_tile AS grid_y_offset
+  FROM tile_grid
 ),
 shapes AS (
   -- Generate the 'project-shapes' vector tile layer containing physical structures (polygons/lines).
@@ -64,7 +70,7 @@ shapes AS (
       AND p.geometry IS NOT NULL
       AND p.geometry && te.bounds_4326
       AND ($4::float8 IS NULL OR p.geometry_size_m >= $4::float8)
-      -- Suppress unnamed building shapes below z13 (MapLibre z12), matching the point-layer suppression
+      -- Suppress unnamed building shapes below z13, matching the point-layer suppression
       -- threshold. Named buildings and large buildings (>= 1 km) render at their normal size-based zoom
       -- level, so notable structures (stadiums, hospitals, airports) are discoverable at city zooms.
       AND NOT ($1 <= 12 AND 'building' = ANY(p.tags)
@@ -144,9 +150,7 @@ points AS (
           (CASE WHEN raw_q.geometry_size_m > 0 THEN LN(raw_q.geometry_size_m + 1) * 15 ELSE 0 END)
         )::int AS quality_score
       FROM (
-        -- Assign approved markers to the same 1024-unit MVT grid cells without constructing an
-        -- MVT geometry for every project. The half-unit offset reproduces ST_AsMVTGeom's integer
-        -- coordinate snapping at cell boundaries.
+        -- Assign markers to a world-aligned grid without building an MVT geometry for every project.
         SELECT
           p.center_coordinate,
           p.id,
@@ -161,7 +165,7 @@ points AS (
           CASE WHEN NULLIF(BTRIM(p.name), '') IS NOT NULL THEN 1 ELSE 0 END AS is_named,
           EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s,
           floor(
-            ((ST_X(p.center_coordinate) + 180.0) / 360.0) * te.grid_scale + 1.0 / 2048.0
+            ((ST_X(p.center_coordinate) + 180.0) / 360.0) * te.grid_scale
           )::integer - te.grid_x_offset AS grid_x,
           floor(
             (
@@ -170,7 +174,7 @@ points AS (
                 tan(radians(ST_Y(p.center_coordinate)))
                 + 1 / cos(radians(ST_Y(p.center_coordinate)))
               ) / pi()
-            ) / 2 * te.grid_scale + 1.0 / 2048.0
+            ) / 2 * te.grid_scale
           )::integer - te.grid_y_offset AS grid_y
         FROM projects p
         LEFT JOIN LATERAL (
@@ -181,13 +185,14 @@ points AS (
           LIMIT 1
         ) render ON true
         CROSS JOIN tile_env te
-        WHERE p.status = 'approved'
+        WHERE $1 >= 4
+          AND p.status = 'approved'
           AND p.center_coordinate IS NOT NULL
           AND p.center_coordinate && te.bounds_4326
           -- Visible shapes carry their own render metadata; their centers must not enter clusters.
           AND NOT (
             p.geometry IS NOT NULL
-            AND ($4::float8 IS NULL OR p.geometry_size_m >= $4::float8)
+            AND ($4::float8 IS NULL OR COALESCE(p.geometry_size_m, 0) >= $4::float8)
             AND NOT ($1 <= 12 AND 'building' = ANY(p.tags)
                      AND (p.geometry_size_m IS NULL OR p.geometry_size_m < 1000)
                      AND NULLIF(BTRIM(p.name), '') IS NULL)
@@ -195,6 +200,15 @@ points AS (
         OFFSET 0
       ) raw_q
       WHERE raw_q.center_coordinate IS NOT NULL
+    ),
+    grouped_q AS (
+      -- Sparse cells retain real, individually clickable projects, regardless of metadata quality.
+      -- Stop grouping altogether at the source's maxzoom: overzooming must separate point-only
+      -- projects rather than magnifying a permanent cluster.
+      SELECT f.*,
+        CASE WHEN $1 >= 14 OR COUNT(*) OVER (PARTITION BY grid_x, grid_y) <= 3
+          THEN f.id END AS individual_id
+      FROM filtered_q f
     ),
     cluster_agg AS (
       -- Per-cell tag breakdown so the client can show an accurate count when a tag filter is active.
@@ -204,6 +218,7 @@ points AS (
       SELECT
         f.grid_x,
         f.grid_y,
+        f.individual_id,
         ',' || string_agg(DISTINCT t, ',') || ',' AS cluster_tags,
         ',' || string_agg(DISTINCT f.timeline_status, ',') || ',' AS cluster_statuses,
         NULLIF(COUNT(*) FILTER (WHERE t IS NULL), 0) AS count_untagged,
@@ -226,9 +241,9 @@ points AS (
         NULLIF(COUNT(*) FILTER (WHERE t = 'cable_car'), 0) AS count_cable_car,
         NULLIF(COUNT(*) FILTER (WHERE t = 'airport'), 0) AS count_airport,
         NULLIF(COUNT(*) FILTER (WHERE t = 'waterway'), 0) AS count_waterway
-      FROM filtered_q f
+      FROM grouped_q f
       LEFT JOIN LATERAL unnest(f.tags) AS t ON true
-      GROUP BY f.grid_x, f.grid_y
+      GROUP BY f.grid_x, f.grid_y, f.individual_id
     ),
     ranked_q AS (
       SELECT
@@ -243,14 +258,15 @@ points AS (
         MAX(f.geometry_size_m) OVER w_cluster AS max_size_m,
         (COUNT(*) OVER w_cluster)::int AS cell_count,
         ROW_NUMBER() OVER w_cluster AS representative_rank
-      FROM filtered_q f
+      FROM grouped_q f
       WINDOW w_cluster AS (
-        PARTITION BY f.grid_x, f.grid_y
+        PARTITION BY f.grid_x, f.grid_y, f.individual_id
         ORDER BY
           f.quality_score DESC,
           f.is_named DESC,
           f.geometry_size_m DESC NULLS LAST,
-          f.last_modified_s DESC NULLS LAST
+          f.last_modified_s DESC NULLS LAST,
+          f.id
         ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
       )
     )
@@ -304,13 +320,11 @@ points AS (
     LEFT JOIN cluster_agg ca
       ON ca.grid_x = f.grid_x
       AND ca.grid_y = f.grid_y
+      AND ca.individual_id IS NOT DISTINCT FROM f.individual_id
     CROSS JOIN tile_env te
     WHERE f.representative_rank = 1
-      AND (
-        $1 >= 12 OR
-        ($1 >= 10 AND f.quality_score >= 100) OR
-        f.quality_score >= 150
-      )
+      -- Below city zoom only real, individual projects are shown, never anonymous cluster dots.
+      AND ($1 >= 9 OR f.cell_count = 1)
   ) q
   WHERE q.mvt_geom IS NOT NULL
 )

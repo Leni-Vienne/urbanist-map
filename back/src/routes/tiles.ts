@@ -3,12 +3,13 @@ import { tilesSqlClientLowZoom, tilesSqlClientHighZoom } from "../database";
 import type { TileBounds } from "../db/projectMapState";
 
 // Tile cache tuning, shared by every tile variant.
-//   low-zoom  (z0-z6): ~5.5k tiles total, pre-warmed at startup and effectively permanent.
+//   low-zoom  (z4-z6): ~5.4k tiles total, pre-warmed at startup and effectively permanent.
 //   high-zoom (z7-z10): an LRU bounded by both entry count (mostly relevant for empty-tile
 //   entries, which hold no buffer) and total buffer bytes; cold tiles regenerate on demand.
 const LOW_ZOOM_MAX = 6;
+const MIN_PROJECT_ZOOM = 4;
 const HIGH_ZOOM_MAX = 10;
-const LOW_ZOOM_CACHE_MAX = 8000; // > 5461 (count of all z0-z6 tiles), so nothing ever evicts
+const LOW_ZOOM_CACHE_MAX = 8000; // > 5376 (count of all z4-z6 tiles), so nothing ever evicts
 const HIGH_ZOOM_CACHE_MAX_ENTRIES = 12_000;
 const HIGH_ZOOM_CACHE_MAX_BYTES = 256 * 1024 * 1024;
 
@@ -28,14 +29,15 @@ function lngLatToTileXY(lng: number, lat: number, z: number): [number, number] {
 // NULL means show all shapes (no size gate).
 // Passed as $4 to the variant SQL so the planner can use partial GIST indexes.
 function shapesMinSizeM(z: number): number | null {
-  if (z >= 11) return null;
+  if (z >= 13) return null;
+  if (z >= 12) return 50;
+  if (z >= 11) return 100;
   if (z >= 10) return 200;
   if (z >= 9) return 500;
   if (z >= 8) return 1000;
   if (z >= 7) return 10_000;
   if (z >= 5) return 50_000;
-  return 100_000; // z3-z4
-  // not including lower zoom levels because in dense area like China it gets messy
+  return 100_000; // z4
 }
 
 // In Docker prod, routes/ is bind-mounted next to the bundle at /home/bun/app.
@@ -117,7 +119,7 @@ function createTileService(
   function invalidateBbox(minLng: number, minLat: number, maxLng: number, maxLat: number) {
     cacheRevision += 1;
     inFlightTiles.clear();
-    for (let z = 0; z <= HIGH_ZOOM_MAX; z += 1) {
+    for (let z = MIN_PROJECT_ZOOM; z <= HIGH_ZOOM_MAX; z += 1) {
       const n = 2 ** z;
       const [xA, yA] = lngLatToTileXY(minLng, minLat, z);
       const [xB, yB] = lngLatToTileXY(maxLng, maxLat, z);
@@ -201,14 +203,14 @@ function createTileService(
     return promise;
   }
 
-  // Pre-generates every z0-z6 tile into the low-zoom cache so a continental zoom-out or pan is a
-  // memory hit instead of a cold 1-2s query. The z0-z6 set is fixed (~5.5k tiles) and the data is
+  // Pre-generates every z4-z6 tile into the low-zoom cache so a continental zoom-out or pan is a
+  // memory hit instead of a cold 1-2s query. The z4-z6 set is fixed (~5.4k tiles) and the data is
   // static OSM, so this is a one-time cost per process. Bounded concurrency on the low-zoom pool;
   // individual failures are logged and skipped.
   async function warm(): Promise<void> {
     const started = Date.now();
     const coords: [number, number, number][] = [];
-    for (let z = 0; z <= LOW_ZOOM_MAX; z += 1) {
+    for (let z = MIN_PROJECT_ZOOM; z <= LOW_ZOOM_MAX; z += 1) {
       const n = 2 ** z;
       for (let x = 0; x < n; x += 1) {
         for (let y = 0; y < n; y += 1) coords.push([z, x, y]);
@@ -265,6 +267,8 @@ function createTileService(
         return c.json({ error: "Invalid tile coordinates" }, 400);
       }
 
+      if (z < MIN_PROJECT_ZOOM) return new Response(null, { status: 204 });
+
       const cacheKey = `${z}/${x}/${y}`;
       // SQL edits require a server restart to flush the cache (a plain --hot reload won't).
       const useCache = z <= HIGH_ZOOM_MAX;
@@ -312,7 +316,7 @@ function createTileService(
 }
 
 function tileResponse(tileData: Uint8Array, z: number): Response {
-  // In prod: low-zoom tiles (z0-z6) contain only OSM-imported data that changes at most
+  // In prod: low-zoom tiles (z4-z6) contain only OSM-imported data that changes at most
   // monthly, so cache them aggressively. High-zoom tiles may include freshly approved
   // overlays, so keep their TTL short.
   const cacheControl = z <= 6 ? "public, max-age=86400" : "public, max-age=3600";
@@ -338,7 +342,7 @@ const tileService = createTileService("/projects/:z/:x/:y", "tiles.sql", (z, x, 
 
 export const tilesApp = tileService.app;
 
-// Pre-warm the low-zoom cache at startup so a continental zoom-out is a memory hit.
+// Pre-warm z4-z6 at startup so a continental zoom-out is a memory hit.
 export async function warmLowZoomTileCache(): Promise<void> {
   const started = Date.now();
   console.log("Starting low-zoom tile cache warm...");
