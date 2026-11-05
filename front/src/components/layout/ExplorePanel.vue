@@ -6,7 +6,7 @@
       class="explore-detail-section"
       :style="{ flexBasis: `${detailHeight}px` }"
     >
-      <ProjectDetailPanel />
+      <ProjectDetailPanel @content-height="fitDetailHeight" />
     </div>
     <div
       v-if="showDesktopDetail"
@@ -374,6 +374,8 @@ const MIN_LIST_HEIGHT = 160;
 const explorePanel = useTemplateRef<HTMLElement>("explorePanel");
 const panelHeight = ref(0);
 const preferredDetailHeight = ref(loadDetailHeight());
+const fittedDetailHeight = ref<number | null>(null);
+let detailFit: { rowId: string; limit: number } | null = null;
 const availableHeight = computed(() => Math.max(0, panelHeight.value - DETAIL_DIVIDER_HEIGHT));
 // On very short windows, share the available space rather than overflowing the sidebar.
 const minDetailHeight = computed(() => Math.min(120, availableHeight.value / 2));
@@ -382,10 +384,43 @@ const maxDetailHeight = computed(() =>
 );
 // Clamp only the rendered height; a shorter window must not overwrite the user's preference.
 const detailHeight = computed(() =>
-  Math.min(maxDetailHeight.value, Math.max(minDetailHeight.value, preferredDetailHeight.value)),
+  Math.min(
+    maxDetailHeight.value,
+    Math.max(minDetailHeight.value, fittedDetailHeight.value ?? preferredDetailHeight.value),
+  ),
 );
 let detailResize: { pointerId: number; startY: number; startHeight: number } | null = null;
 let panelObserver: ResizeObserver | null = null;
+
+function clearDetailFit(): void {
+  detailFit = null;
+  fittedDetailHeight.value = null;
+}
+
+function fitDetailHeight(height: number): void {
+  // Fitting and scroll anchoring both stop at the next user interaction.
+  if (!detailFit || !isAnchoring.value) return;
+  fittedDetailHeight.value = Math.min(height, detailFit.limit);
+}
+
+function startDetailFit(rowId: string, element: HTMLElement): void {
+  const area = scrollAreaRef.value;
+  if (!area) return;
+  // Keep the open panel steady until the next project's content can be measured.
+  const initialHeight = showDesktopDetail.value ? detailHeight.value : preferredDetailHeight.value;
+  // Controls and feed notices already sit above the scroll area. Leave 8px between its
+  // new top and the clicked row, accounting for an existing detail or a new divider.
+  const limit =
+    element.getBoundingClientRect().top -
+    area.getBoundingClientRect().top +
+    (showDesktopDetail.value ? detailHeight.value : -DETAIL_DIVIDER_HEIGHT) -
+    8;
+  clearDetailFit();
+  if (limit < minDetailHeight.value) return;
+
+  detailFit = { rowId, limit };
+  fittedDetailHeight.value = Math.min(initialHeight, limit);
+}
 
 function loadDetailHeight(): number {
   try {
@@ -406,6 +441,7 @@ function saveDetailHeight(): void {
 }
 
 function resetDetailHeight(): void {
+  clearDetailFit();
   preferredDetailHeight.value = DEFAULT_DETAIL_HEIGHT;
   saveDetailHeight();
 }
@@ -421,6 +457,7 @@ function observePanelHeight(): void {
 }
 
 function setDetailHeight(height: number): void {
+  clearDetailFit();
   preferredDetailHeight.value = Math.min(
     maxDetailHeight.value,
     Math.max(minDetailHeight.value, height),
@@ -702,7 +739,7 @@ const contentRef = computed(
   () => listElement.value?.querySelector<HTMLElement>(".explore-scroll-content") ?? null,
 );
 const { showScrollFade } = useScrollFade(scrollAreaRef, contentRef);
-const { captureRow, clearAnchor } = useScrollAnchor(scrollAreaRef);
+const { captureRow, clearAnchor, isAnchoring } = useScrollAnchor(scrollAreaRef);
 const selectedRowId = computed(
   () => rows.value.find((row) => isSelectedRow(row.contribution))?.contribution.id ?? null,
 );
@@ -713,6 +750,13 @@ function rememberSelectedRow(id: string | null): void {
 }
 
 watch(selectedRowId, rememberSelectedRow, { immediate: true });
+
+function clearUnselectedDetailFit(): void {
+  const row = rows.value.find((item) => item.contribution.id === detailFit?.rowId);
+  if (!row || !isSelectedRow(row.contribution)) clearDetailFit();
+}
+
+watch(() => focusStore.selection, clearUnselectedDetailFit);
 
 const virtualScrollerOptions = computed(() => ({
   itemSize: isMobile.value ? 68 : 76,
@@ -728,9 +772,12 @@ function handleRowChange(event: ListboxChangeEvent): void {
   }
   const row = rows.value.find((item) => item.contribution.id === event.value);
   if (!row) return;
-  if (!isMobile.value && !showDesktopDetail.value) {
+  if (!isMobile.value) {
     const option = rowElements.get(row.contribution.id);
-    if (option) captureRow(option);
+    if (option) {
+      startDetailFit(row.contribution.id, option);
+      captureRow(option);
+    }
   }
   void handleContributionClick(row.contribution);
 }
@@ -780,6 +827,7 @@ watch(isLoading, resetScrollForRefresh);
 
 function anchorClosingDetail(visible: boolean): void {
   if (visible) return;
+  clearDetailFit();
   const area = scrollAreaRef.value;
   if (!area) return;
   const top = area.getBoundingClientRect().top;
@@ -809,6 +857,7 @@ function handleActiveTabChange(activeTab: typeof uiStore.activeTab): void {
   if (activeTab === "explore") {
     void activateLatestContributions();
   } else {
+    clearDetailFit();
     clearAnchor();
     filterPopover.value?.hide();
     clearContributionHover();

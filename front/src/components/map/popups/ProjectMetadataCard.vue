@@ -137,7 +137,7 @@
       :href="externalImageUrl"
       target="_blank"
       rel="noopener noreferrer"
-      class="block"
+      class="flex h-36 items-center overflow-hidden rounded-lg bg-(--p-content-hover-background)"
       @click.stop
     >
       <img

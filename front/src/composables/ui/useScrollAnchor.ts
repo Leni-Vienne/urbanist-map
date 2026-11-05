@@ -1,7 +1,8 @@
-import { onBeforeUnmount, watch, type Ref } from "vue";
+import { onBeforeUnmount, ref, watch, type Ref } from "vue";
 
 /** Keep a row in place through layout changes until the next user interaction. */
 export function useScrollAnchor(scrollAreaRef: Readonly<Ref<HTMLElement | null>>) {
+  const isAnchoring = ref(false);
   let observer: ResizeObserver | null = null;
   let input: AbortController | null = null;
 
@@ -10,6 +11,7 @@ export function useScrollAnchor(scrollAreaRef: Readonly<Ref<HTMLElement | null>>
     input?.abort();
     observer = null;
     input = null;
+    isAnchoring.value = false;
   }
 
   function captureRow(element: HTMLElement): void {
@@ -35,6 +37,7 @@ export function useScrollAnchor(scrollAreaRef: Readonly<Ref<HTMLElement | null>>
     });
     observer.observe(area);
     input = new AbortController();
+    isAnchoring.value = true;
     for (const event of ["pointerdown", "wheel", "touchstart", "keydown"]) {
       area.ownerDocument.addEventListener(event, clearAnchor, {
         capture: true,
@@ -47,5 +50,5 @@ export function useScrollAnchor(scrollAreaRef: Readonly<Ref<HTMLElement | null>>
   watch(scrollAreaRef, clearAnchor);
   onBeforeUnmount(clearAnchor);
 
-  return { captureRow, clearAnchor };
+  return { captureRow, clearAnchor, isAnchoring };
 }

@@ -1,5 +1,5 @@
 <template>
-  <div class="project-detail-panel flex flex-col h-full min-h-0">
+  <div ref="detailPanel" class="project-detail-panel flex flex-col h-full min-h-0">
     <div v-if="!project || loadStatus === 'unavailable'" class="flex min-h-0 flex-1 flex-col">
       <div
         class="drawer-drag-handle flex shrink-0 items-center gap-2 pl-4 pr-2"
@@ -111,9 +111,8 @@
           <div
             ref="scrollAreaRef"
             class="detail-scroll-area h-full overflow-y-auto overscroll-contain"
-            :class="isMobile ? 'px-4 pt-3 pb-4' : 'px-4 pt-1 pb-3'"
           >
-            <div ref="contentRef">
+            <div ref="contentRef" :class="isMobile ? 'px-4 pt-3 pb-4' : 'px-4 pt-1 pb-3'">
               <div
                 v-if="loadStatus === 'error'"
                 role="status"
@@ -202,9 +201,11 @@
                 :key="image.url"
                 class="m-0 mt-2.5 pt-2.5 border-t border-surface flex flex-col gap-1.5"
               >
+                <!-- Reserve the preview height before the image loads for stable panel sizing. -->
                 <button
                   type="button"
-                  class="group relative block w-full p-0 overflow-hidden rounded-lg border-0 bg-transparent cursor-zoom-in focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color"
+                  class="group relative flex w-full items-center p-0 overflow-hidden rounded-lg border-0 bg-(--p-content-hover-background) cursor-zoom-in focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color"
+                  :class="isMobile ? 'h-48' : 'h-40'"
                   :aria-label="$t('overlay.viewFullImage')"
                   @click="lightbox?.open(image)"
                 >
@@ -294,6 +295,8 @@ interface DetailImage {
 }
 
 const { t } = useI18n();
+const emit = defineEmits<{ "content-height": [height: number] }>();
+const detailPanel = useTemplateRef<HTMLElement>("detailPanel");
 
 const closeButton = useTemplateRef<HTMLButtonElement>("closeButton");
 
@@ -314,6 +317,29 @@ const authStore = useAuthStore();
 const { imageErrors: thumbnailErrors, handleImageError: handleThumbnailError } = useImageErrors();
 
 const { project, overlay, loadStatus, retry } = useDetailProject();
+
+// Report the natural height, including the fixed header and scroll-area padding.
+// Observe the content as well as the panel so asynchronous text and images are included.
+function reportContentHeight(): void {
+  const panel = detailPanel.value;
+  const area = scrollAreaRef.value;
+  const content = contentRef.value;
+  if (isMobile.value || loadStatus.value === "loading" || !panel || !area || !content) return;
+  emit("content-height", panel.clientHeight - area.clientHeight + content.offsetHeight);
+}
+
+const contentHeightObserver = new ResizeObserver(reportContentHeight);
+function observeContentHeight(): void {
+  contentHeightObserver.disconnect();
+  if (detailPanel.value) contentHeightObserver.observe(detailPanel.value);
+  if (contentRef.value) contentHeightObserver.observe(contentRef.value);
+  reportContentHeight();
+}
+
+watch([detailPanel, contentRef, loadStatus, () => focusStore.selection], observeContentHeight, {
+  flush: "post",
+});
+onBeforeUnmount(() => contentHeightObserver.disconnect());
 
 const mapOverlays = computed(() => project.value?.mapOverlays ?? []);
 
