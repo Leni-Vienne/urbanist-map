@@ -59,6 +59,7 @@
               <img
                 v-if="wikidataEntity?.logoUrl"
                 :src="wikidataEntity.logoUrl"
+                alt=""
                 class="w-5 h-5 object-contain shrink-0"
                 referrerpolicy="no-referrer"
                 loading="eager"
@@ -180,7 +181,7 @@
                       <img
                         v-if="!thumbnailErrors[mapOverlay.id]"
                         :src="buildThumbnailUrl(mapOverlay.filename)"
-                        :alt="mapOverlay.caption ?? undefined"
+                        alt=""
                         class="w-full h-full object-cover"
                         loading="lazy"
                         :crossorigin="
@@ -199,18 +200,19 @@
               <figure
                 v-for="image in images"
                 :key="image.url"
-                class="m-0 mt-2.5 pt-2.5 border-t border-surface flex flex-col gap-1.5"
+                class="m-0 mt-2.5 pt-2.5 border-t border-surface"
               >
                 <!-- Reserve the preview height before the image loads for stable panel sizing. -->
                 <button
                   type="button"
                   class="group relative flex w-full items-center p-0 overflow-hidden rounded-lg border-0 bg-(--p-content-hover-background) cursor-zoom-in focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color"
                   :class="isMobile ? 'h-48' : 'h-40'"
-                  :aria-label="$t('overlay.viewFullImage')"
+                  :aria-label="`${$t('overlay.viewFullImage')} — ${image.header}`"
                   @click="lightbox?.open(image)"
                 >
                   <img
                     :src="image.url"
+                    :alt="image.header"
                     :crossorigin="image.crossorigin"
                     :referrerpolicy="image.referrerpolicy"
                     class="block w-full object-cover"
@@ -224,9 +226,6 @@
                     <i class="pi pi-search-plus text-xs"></i>
                   </span>
                 </button>
-                <figcaption v-if="image.label" class="text-xs text-muted-color">
-                  {{ image.label }}
-                </figcaption>
               </figure>
 
               <!-- Show view original button for pending replacements -->
@@ -245,12 +244,6 @@
               </div>
             </div>
           </div>
-          <!-- The fade matches the panel background, not the hover background the class defaults to. -->
-          <div
-            v-if="showScrollFade"
-            class="scroll-fade-overlay"
-            style="--scroll-fade-color: var(--p-content-background)"
-          ></div>
         </div>
       </div>
     </template>
@@ -265,7 +258,6 @@ import { useI18n } from "vue-i18n";
 
 import { useDetailProject } from "@/composables/project/useDetailProject";
 import { useWikidataEntity } from "@/composables/project/useWikidataEntity";
-import { useScrollFade } from "@/composables/ui/useScrollFade";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
 import { isMobile } from "@/services/core/viewport";
 
@@ -289,7 +281,6 @@ import ImageLightbox from "@/components/common/ImageLightbox.vue";
 interface DetailImage {
   url: string;
   header: string;
-  label?: string;
   crossorigin?: "use-credentials";
   referrerpolicy?: "no-referrer";
 }
@@ -306,10 +297,8 @@ const canScrollMapImagesBackward = ref(false);
 const canScrollMapImagesForward = ref(false);
 let mapImageResizeObserver: ResizeObserver | null = null;
 
-// Fade the bottom edge while there is more content to scroll.
 const scrollAreaRef = useTemplateRef<HTMLElement>("scrollAreaRef");
 const contentRef = useTemplateRef<HTMLElement>("contentRef");
-const { showScrollFade } = useScrollFade(scrollAreaRef, contentRef);
 
 const uiStore = useUiStore();
 const focusStore = useFocusStore();
@@ -419,7 +408,6 @@ const images = computed<DetailImage[]>(() => {
     list.push({
       url: renderUrl,
       header: t("render.label"),
-      label: t("render.label"),
       crossorigin: imageRequiresCredentials(renderUrl) ? "use-credentials" : undefined,
     });
   }

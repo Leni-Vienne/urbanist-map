@@ -12,17 +12,13 @@
       </div>
     </div>
 
-    <div
-      ref="scrollAreaRef"
-      class="flex-1 min-h-0 overflow-y-auto scrollbar-none [&::-webkit-scrollbar]:hidden"
-    >
+    <div class="flex-1 min-h-0 overflow-y-auto scrollbar-none [&::-webkit-scrollbar]:hidden">
       <div v-if="$slots['below-header']" class="px-4 pb-2 pr-3">
         <slot name="below-header"></slot>
       </div>
 
       <div
         v-if="selectedCard || projects.length > 0 || keepContentVisible || isLoading"
-        ref="contentRef"
         class="flex flex-col gap-2 pb-2 pr-3"
       >
         <!-- Selected project: a plain, always-open card bound to the current map selection (own or
@@ -138,13 +134,11 @@
         <p>{{ $t("overlay.loadingProjects") }}</p>
       </div>
     </div>
-
-    <div v-if="showScrollFade" class="scroll-fade-overlay"></div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, useTemplateRef } from "vue";
+import { computed } from "vue";
 import ProjectCard from "@/components/project/ProjectCard.vue";
 import PanelEmptyState from "@/components/common/PanelEmptyState.vue";
 
@@ -157,8 +151,6 @@ import type {
 
 import { useUiStore } from "@/stores/uiStore";
 import { handleOverlayClickNavigation } from "@/services/overlay/clickHandler";
-
-import { useScrollFade } from "@/composables/ui/useScrollFade";
 
 interface Props {
   projects: Project[];
@@ -213,10 +205,6 @@ const emit = defineEmits<{
 }>();
 
 const uiStore = useUiStore();
-
-const scrollAreaRef = useTemplateRef<HTMLElement>("scrollAreaRef");
-const contentRef = useTemplateRef<HTMLElement>("contentRef");
-const { showScrollFade } = useScrollFade(scrollAreaRef, contentRef);
 
 // The selected project as it appears in the list, if it is one of `projects`. Lifted into the card.
 const selectedInListProject = computed(() =>

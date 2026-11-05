@@ -161,7 +161,6 @@
           option: { class: 'p-0! rounded-none!', 'aria-setsize': hasMore ? -1 : rows.length },
           virtualScroller: {
             root: { class: 'contribution-scroll-area h-full! overscroll-contain' },
-            spacer: { class: 'explore-scroll-content' },
           },
         }"
         @change="handleRowChange"
@@ -248,7 +247,6 @@
         <i class="pi pi-spin pi-spinner text-2xl mb-4"></i>
         <p>{{ t("contribution.loadingContributions") }}</p>
       </div>
-      <div v-if="showScrollFade" class="scroll-fade-overlay"></div>
     </div>
 
     <template v-if="rows.length > 0">
@@ -331,7 +329,6 @@ import { useUiStore } from "@/stores/uiStore";
 import { isMobile } from "@/services/core/viewport";
 import { filtersSeen } from "@/services/core/settings";
 
-import { useScrollFade } from "@/composables/ui/useScrollFade";
 import { useScrollAnchor } from "@/composables/ui/useScrollAnchor";
 import {
   navigateToProject,
@@ -734,11 +731,6 @@ const listElement = computed(() => {
 const scrollAreaRef = computed(
   () => listElement.value?.querySelector<HTMLElement>(".contribution-scroll-area") ?? null,
 );
-// The spacer represents the full loaded list height, including rows outside the rendered window.
-const contentRef = computed(
-  () => listElement.value?.querySelector<HTMLElement>(".explore-scroll-content") ?? null,
-);
-const { showScrollFade } = useScrollFade(scrollAreaRef, contentRef);
 const { captureRow, clearAnchor, isAnchoring } = useScrollAnchor(scrollAreaRef);
 const selectedRowId = computed(
   () => rows.value.find((row) => isSelectedRow(row.contribution))?.contribution.id ?? null,
