@@ -56,14 +56,8 @@ import { toastError } from "@/services/core/toast";
 import { ref, onMounted, onUnmounted, nextTick, defineAsyncComponent } from "vue";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
-import { createMap, destroyMap, onMapReady } from "@/services/core/map";
+import { createMap, destroyMap } from "@/services/core/map";
 import { startMapRuntime } from "@/services/map/mapRuntime";
-import { addTileLayer } from "@/services/map/tiles/basemap";
-import { initVectorTileSync } from "@/services/map/tiles/sync";
-import {
-  startMapStateCoordinator,
-  activateMapStateCoordinator,
-} from "@/services/map/globalWatchers";
 
 import { useI18n } from "vue-i18n";
 import { useUiStore } from "@/stores/uiStore";
@@ -93,8 +87,6 @@ const isLoading = ref(true);
 // returning builds a clean one.
 let mountedMap: MaplibreMap | null = null;
 let stopMapRuntime: (() => void) | null = null;
-let stopMapStateCoordinator: (() => void) | null = null;
-let stopWaitingForMap: (() => void) | null = null;
 
 onMounted(() => {
   void initializeMapAndOverlays();
@@ -106,8 +98,6 @@ async function initializeMapAndOverlays() {
   try {
     const target = createMap();
     mountedMap = target;
-    const runtime = startMapRuntime(target);
-    stopMapRuntime = runtime.stop;
 
     // Settle the canvas to the container size before wiring layers, so MapLibre doesn't
     // fetch tiles twice (once per view change) when the dimensions correct.
@@ -115,24 +105,9 @@ async function initializeMapAndOverlays() {
     if (mountedMap !== target) return;
     target.resize();
 
-    // Initialize tile layers after dimensions are settled to avoid a redundant tile fetch.
-    addTileLayer();
-    initVectorTileSync();
-
-    // The first render loop needs a settled camera and a loaded style: "idle" fires on the first
-    // clean frame, which satisfies both. Afterwards moveend drives the refreshes.
-    void target.once("idle", () => {
-      if (mountedMap !== target) return;
-      runtime.renderOverlays();
-    });
-
-    stopMapStateCoordinator = startMapStateCoordinator(runtime.renderOverlays);
-
-    stopWaitingForMap = onMapReady((readyMap) => {
-      if (mountedMap !== readyMap) return;
-      void activateMapStateCoordinator(readyMap);
-    });
+    stopMapRuntime = startMapRuntime(target).stop;
   } catch (error) {
+    handleMapViewUnmount();
     console.error("Error initializing map and overlays:", error);
     toastError(t("pages.home.errors.initializationError"));
   } finally {
@@ -145,10 +120,6 @@ function handleMapViewUnmount(): void {
   mountedMap = null;
   if (!target) return;
 
-  stopWaitingForMap?.();
-  stopWaitingForMap = null;
-  stopMapStateCoordinator?.();
-  stopMapStateCoordinator = null;
   // Runs while the map is still alive: it hands every registry entry, marker and listener back.
   stopMapRuntime?.();
   stopMapRuntime = null;

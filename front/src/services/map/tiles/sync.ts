@@ -11,7 +11,7 @@
  */
 
 import type * as maplibregl from "maplibre-gl";
-import { getMapOrNull, onMapReady } from "@/services/core/map";
+import { getMapOrNull } from "@/services/core/map";
 import { throttle } from "@/utils/throttle";
 import { useOverlayStore } from "@/stores/overlayStore";
 import type { TileOverlayData, TileProperties } from "@/types/index";
@@ -131,15 +131,22 @@ export function syncOverlaysFromTiles(): void {
  * `idle` is intentionally NOT used: it fires after every repaint, including the in-place repaints
  * from hover feature-state, so it would call the sync on plain cursor movement.
  */
-export function initVectorTileSync(): void {
-  onMapReady((mlMap) => {
-    const runSync = throttle(syncOverlaysFromTiles, 150);
+export function initVectorTileSync(mlMap: maplibregl.Map): () => void {
+  const runSync = throttle(() => {
+    if (getMapOrNull() === mlMap) syncOverlaysFromTiles();
+  }, 150);
+  function onSourceData(event: maplibregl.MapSourceDataEvent): void {
+    if (event.sourceId === "project-sources" && event.isSourceLoaded) runSync();
+  }
 
-    mlMap.on("move", runSync);
-    mlMap.on("sourcedata", (e) => {
-      if (e.sourceId === "project-sources" && e.isSourceLoaded) runSync();
-    });
-    // Sync once now in case tiles loaded before the listeners registered.
-    syncOverlaysFromTiles();
-  });
+  mlMap.on("move", runSync);
+  mlMap.on("sourcedata", onSourceData);
+  // Sync once now in case tiles loaded before the listeners registered.
+  runSync();
+
+  return function stopVectorTileSync(): void {
+    mlMap.off("move", runSync);
+    mlMap.off("sourcedata", onSourceData);
+    runSync.cancel();
+  };
 }

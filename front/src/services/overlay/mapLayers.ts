@@ -128,7 +128,7 @@ export function whenImageReady(
   onReady: () => void,
   options: { timeoutMs?: number; onTimeout?: () => void } = {},
 ): () => void {
-  let settled = false;
+  let state: "waiting" | "queued" | "settled" = "waiting";
   let timer: ReturnType<typeof setTimeout> | undefined = undefined;
 
   function cleanup(): void {
@@ -141,31 +141,33 @@ export function whenImageReady(
   }
 
   function fire(): void {
-    if (settled) return;
-    settled = true;
-    cleanup();
-    queueMicrotask(onReady);
+    if (state !== "waiting") return;
+    state = "queued";
+    if (timer !== undefined) clearTimeout(timer);
+    // Keep the waiter registered until delivery so cancellation and map teardown
+    // can still suppress a callback queued during source creation.
+    queueMicrotask(() => {
+      if (state !== "queued") return;
+      state = "settled";
+      cleanup();
+      onReady();
+    });
   }
 
   function cancel(): void {
-    if (settled) return;
-    settled = true;
+    if (state === "settled") return;
+    state = "settled";
     cleanup();
   }
 
   function onExpire(): void {
-    if (settled) return;
-    settled = true;
+    if (state !== "waiting") return;
+    state = "settled";
     cleanup();
     options.onTimeout?.();
   }
 
   const waiter: ImageReadyWaiter = { fire, cancel };
-
-  if (hasReadyLayer(id)) {
-    fire();
-    return cancel;
-  }
 
   let waiters = imageReadyWaiters.get(id);
   if (!waiters) {
@@ -174,7 +176,9 @@ export function whenImageReady(
   }
   waiters.add(waiter);
 
-  if (options.timeoutMs !== undefined) {
+  if (hasReadyLayer(id)) {
+    fire();
+  } else if (options.timeoutMs !== undefined) {
     timer = setTimeout(onExpire, options.timeoutMs);
   }
 

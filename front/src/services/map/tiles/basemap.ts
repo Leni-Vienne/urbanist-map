@@ -70,11 +70,6 @@ function toBoundingBox(bbox: number[]): BoundingBox {
 // Default max native zoom for Esri layer (safe baseline)
 const BASELINE_ESRI_MAX_ZOOM = 18;
 
-// Live Esri max native zoom for the current location, refined at runtime from the Esri
-// metadata API. Kept separate from the static satelliteLayerConfigs entry so the config
-// stays immutable.
-let currentEsriMaxZoom = BASELINE_ESRI_MAX_ZOOM;
-
 // Satellite tile layer configurations. "plan" is the MapLibre vector basemap
 // and is not listed here (it uses the OpenFreeMap style URL directly).
 const satelliteLayerConfigs = {
@@ -275,70 +270,54 @@ async function detectCountryFromCoordinates(
 }
 
 /** Run a callback once the map style is loaded (immediately if it already is). */
-function whenStyleLoaded(mlMap: MaplibreMap, cb: () => void): void {
+function whenStyleLoaded(mlMap: MaplibreMap, cb: () => void): () => void {
   if (mlMap.isStyleLoaded()) {
     cb();
-    return;
+    return () => undefined;
   }
   // style.load fires once the style JSON is parsed, before the initial basemap tiles finish
   // downloading, so the backend tile source registers and fetches in parallel. "idle" is a
   // fallback covering the window where style.load has already fired but sources are still
   // loading (isStyleLoaded() false), which a once("style.load") registered late would miss.
-  let ran = false;
+  let active = true;
   function runOnce(): void {
-    if (ran) return;
-    ran = true;
+    if (!active) return;
+    stop();
     cb();
   }
-  void mlMap.once("style.load", runOnce);
-  void mlMap.once("idle", runOnce);
-}
-
-/**
- * Initialize the map's project data layers and interaction once the basemap style is ready. A fresh
- * map always boots on the plan style, so the tile-layer selection resets with it.
- */
-export function addTileLayer(): void {
-  const mlMap = getMap();
-  currentTileLayer.value = "plan";
-
-  // A dummy image prevents missing-style-image errors for missing cluster icons.
-  // The resolver lives on the map instance, so it persists across setStyle() satellite switches.
-  mlMap.setMissingStyleImageResolver((id) => {
-    mlMap.addImage(id, { width: 1, height: 1, data: new Uint8ClampedArray(4) });
-  });
-
-  whenStyleLoaded(mlMap, () => {
-    onFirstStyleReady(mlMap);
-  });
-
-  initSatelliteMoveEndListener(mlMap);
+  function stop(): void {
+    active = false;
+    mlMap.off("style.load", runOnce);
+    mlMap.off("idle", runOnce);
+  }
+  mlMap.on("style.load", runOnce);
+  mlMap.on("idle", runOnce);
+  return stop;
 }
 
 /**
  * Drop the pending-source payloads replayed onto a new style, so a new map starts with empty
  * pending sources instead of the previous mount's session content.
  */
-export function clearPendingProjectSourceCache(): void {
+function clearPendingProjectSourceCache(): void {
   lastPendingProjectPointsGeojson = null;
   lastPendingProjectShapesGeojson = null;
 }
 
-/** Wire up project data + interaction on first style load, then mark the map ready. */
-function onFirstStyleReady(mlMap: MaplibreMap): void {
+/** Rebuild the application layers on either the initial style or a replacement. */
+function initializeStyle(mlMap: MaplibreMap, plan: boolean): void {
   try {
-    applyPlanStyleRoadOverrides(mlMap);
-    applyRailStyleOverrides(mlMap);
-    applyPoiVisibilityOverrides(mlMap);
-    applySky(mlMap);
-    applyMapLabelLanguage(mlMap);
+    if (plan) {
+      applyPlanStyleRoadOverrides(mlMap);
+      applyRailStyleOverrides(mlMap);
+      applyPoiVisibilityOverrides(mlMap);
+      applySky(mlMap);
+      applyMapLabelLanguage(mlMap);
+      applyBuildings3DState(show3DBuildings.value);
+    }
     addProjectDataToMlMap(mlMap);
 
     initializeHybridInteractionHandlers();
-
-    markMapReady(mlMap);
-
-    applyBuildings3DState(show3DBuildings.value);
 
     if (lastPendingProjectPointsGeojson) {
       updatePendingProjectPointsSource(lastPendingProjectPointsGeojson);
@@ -346,6 +325,7 @@ function onFirstStyleReady(mlMap: MaplibreMap): void {
     if (lastPendingProjectShapesGeojson) {
       updatePendingProjectShapesSource(lastPendingProjectShapesGeojson);
     }
+    markMapReady(mlMap);
   } catch (error) {
     console.error("Failed to initialize MapLibre project layers:", error);
     toastError(error instanceof Error ? error.message : undefined, t("errors.mapInitFailed"));
@@ -400,11 +380,14 @@ export function updatePendingProjectShapesSource(geojson: GeoJSON.FeatureCollect
  * Build a minimal MapLibre style containing only the given satellite raster source.
  * Project data layers are re-added on top after the style loads.
  */
-function buildSatelliteSourceSpec(layerType: SatelliteLayerType): RasterSourceSpecification {
+function buildSatelliteSourceSpec(
+  layerType: SatelliteLayerType,
+  esriMaxZoom: number,
+): RasterSourceSpecification {
   const config = satelliteLayerConfigs[layerType];
   // Esri's usable max zoom varies by location and is refined at runtime; all other
   // layers use their fixed configured maxZoom.
-  const maxzoom = layerType === "esri" ? currentEsriMaxZoom : config.maxZoom;
+  const maxzoom = layerType === "esri" ? esriMaxZoom : config.maxZoom;
   return {
     type: "raster",
     tiles: config.tiles,
@@ -414,168 +397,210 @@ function buildSatelliteSourceSpec(layerType: SatelliteLayerType): RasterSourceSp
   };
 }
 
-function buildSatelliteStyle(layerType: SatelliteLayerType): StyleSpecification {
+function buildSatelliteStyle(
+  layerType: SatelliteLayerType,
+  esriMaxZoom: number,
+): StyleSpecification {
   return {
     version: 8,
     // Renders the project-points-count text-field with the same server-side Noto Sans Bold
     // as the plan style; without it MapLibre falls back to locally drawn TinySDF glyphs.
     glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
     sources: {
-      satellite: buildSatelliteSourceSpec(layerType),
+      satellite: buildSatelliteSourceSpec(layerType, esriMaxZoom),
     },
     layers: [{ id: "satellite", type: "raster", source: "satellite" }],
   };
 }
 
-/**
- * Switch the basemap style. Because project data now lives on the same map as the basemap,
- * setStyle() wipes the project source/layers, so they are re-added once the new style loads.
- */
-let styleSwitchGeneration = 0;
-
-async function switchToStyle(style: StyleSpecification | string): Promise<void> {
-  const mlMap = getMap();
-  styleSwitchGeneration += 1;
-  const generation = styleSwitchGeneration;
-  await new Promise<void>((resolve) => {
-    void mlMap.once("style.load", () => {
-      // A newer switch superseded this one: skip the work so it can't apply this call's
-      // (now stale) style overrides or double-add project sources on the final style.
-      if (generation !== styleSwitchGeneration) {
-        resolve();
-        return;
-      }
-      try {
-        // Re-apply road/rail overrides if switching back to the plan style.
-        if (style === OPENFREEMAP_STYLE_URL) {
-          applyPlanStyleRoadOverrides(mlMap);
-          applyRailStyleOverrides(mlMap);
-          applyPoiVisibilityOverrides(mlMap);
-          applySky(mlMap);
-          applyMapLabelLanguage(mlMap);
-          applyBuildings3DState(show3DBuildings.value);
-        }
-        addProjectDataToMlMap(mlMap);
-        if (lastPendingProjectPointsGeojson) {
-          updatePendingProjectPointsSource(lastPendingProjectPointsGeojson);
-        }
-        if (lastPendingProjectShapesGeojson) {
-          updatePendingProjectShapesSource(lastPendingProjectShapesGeojson);
-        }
-      } catch (error) {
-        console.error("Failed to re-apply project layers after style switch:", error);
-        toastError(error instanceof Error ? error.message : undefined, t("errors.mapInitFailed"));
-      } finally {
-        // Unconditional: the phase fires even when re-applying the project layers threw.
-        emitStyleSwitch("after");
-        resolve();
-      }
-    });
-    emitStyleSwitch("before");
-    mlMap.setStyle(style);
-  });
-}
-
-/**
- * Resolve the best satellite layer for the current view: a country-specific layer when
- * zoomed in over a supported country, otherwise the generic Esri layer.
- */
-async function resolveSatelliteLayer(): Promise<SatelliteLayerType> {
-  const mlMap = getMap();
-  if (mlMap.getZoom() <= MAP_CONFIG.MIN_ZOOM_FOR_COUNTRY_LAYERS) {
-    return "esri";
-  }
-  const center = mlMap.getCenter();
-  const detectedCountry = await detectCountryFromCoordinates(center.lat, center.lng);
-  return detectedCountry ?? "esri";
-}
-
-let tileLayerSwitchGeneration = 0;
-
-/** Switch to a different tile layer. The most recent call wins. */
-export async function switchTileLayer(layerType: TileLayerType): Promise<void> {
-  tileLayerSwitchGeneration += 1;
-  const generation = tileLayerSwitchGeneration;
-
-  // When switching to satellite, jump directly to the country-specific layer to avoid a
-  // brief flash of the generic ESRI layer.
-  const resolvedLayerType = layerType === "esri" ? await resolveSatelliteLayer() : layerType;
-
-  if (generation !== tileLayerSwitchGeneration) {
-    return;
-  }
-
-  if (currentTileLayer.value === resolvedLayerType) {
-    return;
-  }
-
-  currentTileLayer.value = resolvedLayerType;
-
-  if (resolvedLayerType === "plan") {
-    await switchToStyle(OPENFREEMAP_STYLE_URL);
-  } else {
-    await switchToStyle(buildSatelliteStyle(resolvedLayerType));
-  }
-
-  if (resolvedLayerType === "esri") {
-    checkEsriMaxZoom();
-  }
-}
-
-let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-// Cache of max zoom by location (key: "lat,lng" rounded to ~100m).
+// Only this pointer is shared; requests, timers and style listeners belong to one map.
+let activeBasemap: {
+  switchLayer: (layer: TileLayerType) => Promise<void>;
+  stop: () => void;
+} | null = null;
+// Location metadata is reusable across mounts; the applied source resolution is not.
 const maxZoomCache = new Map<string, number>();
 
-/** Check and adjust the Esri max native zoom for the current location. */
-function checkEsriMaxZoom() {
-  if (currentTileLayer.value !== "esri") return;
+/** Own initial style setup, satellite switching and metadata requests until map teardown. */
+export function addTileLayer(): () => void {
+  activeBasemap?.stop();
+  const target = getMap();
+  let stopped = false;
+  let layerRequest = 0;
+  let esriMaxZoom = BASELINE_ESRI_MAX_ZOOM;
+  let stopInitialStyle: (() => void) | null = null;
+  let stopStyleSwitch: (() => void) | null = null;
+  let metadataTimer: ReturnType<typeof setTimeout> | null = null;
+  let metadataRequest: AbortController | null = null;
 
-  const mlMap = getMapOrNull();
-  if (!mlMap) return;
-  const center = mlMap.getCenter();
-  const zoom = mlMap.getZoom();
-
-  if (zoom < 15) return;
-
-  // Cancel any pending fetch from a previous location before either serving the cache or
-  // scheduling a new fetch, so a stale timer can't overwrite the value applied here.
-  if (debounceTimer) clearTimeout(debounceTimer);
-
-  const cacheKey = `${center.lat.toFixed(3)},${center.lng.toFixed(3)}`;
-  const cachedMaxZoom = maxZoomCache.get(cacheKey);
-  if (cachedMaxZoom !== undefined) {
-    applyEsriMaxZoom(cachedMaxZoom);
-    return;
+  function isCurrent(): boolean {
+    return !stopped && getMapOrNull() === target;
   }
 
-  debounceTimer = setTimeout(async () => {
-    if (!getMapOrNull()) return;
-    try {
-      const maxZoom = await fetchEsriMaxZoom(center.lat, center.lng);
-      maxZoomCache.set(cacheKey, maxZoom);
-      applyEsriMaxZoom(maxZoom);
-    } catch (error) {
-      console.warn("Failed to fetch Esri metadata", error);
+  function cancelMetadata(): void {
+    if (metadataTimer !== null) clearTimeout(metadataTimer);
+    metadataTimer = null;
+    metadataRequest?.abort();
+    metadataRequest = null;
+  }
+
+  function stop(): void {
+    if (stopped) return;
+    stopped = true;
+    cancelMetadata();
+    stopInitialStyle?.();
+    stopStyleSwitch?.();
+    target.off("moveend", onMoveEnd);
+    if (activeBasemap === owner) {
+      activeBasemap = null;
+      clearPendingProjectSourceCache();
+      originalExtrusionPaint.clear();
     }
-  }, 500);
+  }
+
+  // Cancelling a switch also settles its caller; removing the map must not leave
+  // a UI action awaiting a style.load event that can no longer arrive.
+  function switchToStyle(style: StyleSpecification | string): Promise<void> {
+    // A user can choose satellite before the initial plan style finishes loading.
+    // Only the incoming style may initialize the application layers in that case.
+    stopInitialStyle?.();
+    stopInitialStyle = null;
+    stopStyleSwitch?.();
+    return new Promise<void>((resolve, reject) => {
+      function cleanup(): void {
+        target.off("style.load", onLoad);
+        stopStyleSwitch = null;
+      }
+      function cancel(): void {
+        cleanup();
+        resolve();
+      }
+      function onLoad(): void {
+        if (stopStyleSwitch !== cancel) return;
+        cleanup();
+        if (!isCurrent()) {
+          resolve();
+          return;
+        }
+        try {
+          initializeStyle(target, style === OPENFREEMAP_STYLE_URL);
+          emitStyleSwitch("after");
+          checkEsriMaxZoom();
+        } finally {
+          resolve();
+        }
+      }
+      stopStyleSwitch = cancel;
+      target.on("style.load", onLoad);
+      try {
+        emitStyleSwitch("before");
+        target.setStyle(style);
+      } catch (error) {
+        cleanup();
+        reject(error instanceof Error ? error : new Error(String(error)));
+      }
+    });
+  }
+
+  async function resolveSatelliteLayer(): Promise<SatelliteLayerType> {
+    if (target.getZoom() <= MAP_CONFIG.MIN_ZOOM_FOR_COUNTRY_LAYERS) return "esri";
+    const center = target.getCenter();
+    return (await detectCountryFromCoordinates(center.lat, center.lng)) ?? "esri";
+  }
+
+  async function switchLayer(layerType: TileLayerType): Promise<void> {
+    if (!isCurrent()) return;
+    layerRequest += 1;
+    const request = layerRequest;
+    cancelMetadata();
+    // Resolve country imagery before changing styles so there is no intermediate Esri flash.
+    const resolved = layerType === "esri" ? await resolveSatelliteLayer() : layerType;
+    if (!isCurrent() || request !== layerRequest) return;
+    if (currentTileLayer.value !== resolved) {
+      currentTileLayer.value = resolved;
+      await switchToStyle(
+        resolved === "plan" ? OPENFREEMAP_STYLE_URL : buildSatelliteStyle(resolved, esriMaxZoom),
+      );
+    }
+    if (isCurrent() && request === layerRequest) checkEsriMaxZoom();
+  }
+
+  function applyEsriMaxZoom(zoom: number): void {
+    if (!isCurrent() || currentTileLayer.value !== "esri" || !target.getSource("satellite")) return;
+    if (esriMaxZoom === zoom) return;
+    esriMaxZoom = zoom;
+    const bottomLayerId = target.getStyle().layers.find((layer) => layer.id !== "satellite")?.id;
+    if (target.getLayer("satellite")) target.removeLayer("satellite");
+    target.removeSource("satellite");
+    target.addSource("satellite", buildSatelliteSourceSpec("esri", esriMaxZoom));
+    target.addLayer({ id: "satellite", type: "raster", source: "satellite" }, bottomLayerId);
+  }
+
+  function checkEsriMaxZoom(): void {
+    cancelMetadata();
+    if (
+      !isCurrent() ||
+      currentTileLayer.value !== "esri" ||
+      target.getZoom() < 15 ||
+      !target.getSource("project-sources")
+    )
+      return;
+    const center = target.getCenter();
+    const key = `${center.lat.toFixed(3)},${center.lng.toFixed(3)}`;
+    const cached = maxZoomCache.get(key);
+    if (cached !== undefined) {
+      applyEsriMaxZoom(cached);
+      return;
+    }
+    metadataTimer = setTimeout(() => void fetchMetadata(), 500);
+
+    async function fetchMetadata(): Promise<void> {
+      metadataTimer = null;
+      if (!isCurrent()) return;
+      const request = new AbortController();
+      metadataRequest = request;
+      try {
+        const maxZoom = await fetchEsriMaxZoom(target, center.lat, center.lng, request.signal);
+        if (request.signal.aborted || !isCurrent()) return;
+        maxZoomCache.set(key, maxZoom);
+        applyEsriMaxZoom(maxZoom);
+      } catch (error) {
+        if (!request.signal.aborted) console.warn("Failed to fetch Esri metadata", error);
+      } finally {
+        if (metadataRequest === request) metadataRequest = null;
+      }
+    }
+  }
+
+  function onMoveEnd(): void {
+    if (currentTileLayer.value === "plan") return;
+    void switchLayer("esri").catch((error: unknown) => {
+      if (isCurrent()) console.warn("Failed to switch satellite layer", error);
+    });
+  }
+
+  const owner = { switchLayer, stop };
+  activeBasemap = owner;
+  currentTileLayer.value = "plan";
+  originalExtrusionPaint.clear();
+  try {
+    target.setMissingStyleImageResolver((id) => {
+      target.addImage(id, { width: 1, height: 1, data: new Uint8ClampedArray(4) });
+    });
+    target.on("moveend", onMoveEnd);
+    stopInitialStyle = whenStyleLoaded(target, () => {
+      if (isCurrent()) initializeStyle(target, true);
+    });
+  } catch (error) {
+    stop();
+    throw error;
+  }
+  return stop;
 }
 
-function applyEsriMaxZoom(zoomLevel: number) {
-  if (currentTileLayer.value !== "esri") return;
-  if (currentEsriMaxZoom === zoomLevel) return;
-  currentEsriMaxZoom = zoomLevel;
-
-  const mlMap = getMapOrNull();
-  if (!mlMap?.getSource("satellite")) return;
-
-  // MapLibre has no public setter for a source's maxzoom, so rebuild the satellite
-  // source/layer with the refined value. Re-add the layer beneath the first project
-  // data layer so the basemap stays at the bottom of the stack.
-  const bottomLayerId = mlMap.getStyle().layers.find((layer) => layer.id !== "satellite")?.id;
-  if (mlMap.getLayer("satellite")) mlMap.removeLayer("satellite");
-  mlMap.removeSource("satellite");
-  mlMap.addSource("satellite", buildSatelliteSourceSpec("esri"));
-  mlMap.addLayer({ id: "satellite", type: "raster", source: "satellite" }, bottomLayerId);
+/** Switch only the mounted map; continuations from an older owner are inert. */
+export async function switchTileLayer(layer: TileLayerType): Promise<void> {
+  await activeBasemap?.switchLayer(layer);
 }
 
 // Interface for the Esri Identify API response
@@ -586,8 +611,13 @@ interface EsriIdentifyResponse {
 }
 
 /** Queries the ESRI Identify API to get the max native zoom level at the given location. */
-async function fetchEsriMaxZoom(lat: number, lng: number): Promise<number> {
-  const bounds = getMap().getBounds();
+async function fetchEsriMaxZoom(
+  target: MaplibreMap,
+  lat: number,
+  lng: number,
+  signal: AbortSignal,
+): Promise<number> {
+  const bounds = target.getBounds();
   const extent = {
     xmin: bounds.getWest(),
     ymin: bounds.getSouth(),
@@ -611,7 +641,7 @@ async function fetchEsriMaxZoom(lat: number, lng: number): Promise<number> {
   url.searchParams.append("imageDisplay", "600,400,96");
   url.searchParams.append("returnGeometry", "false");
 
-  const response = await fetch(url.toString());
+  const response = await fetch(url.toString(), { signal });
   if (!response.ok) return BASELINE_ESRI_MAX_ZOOM;
   // oxlint-disable-next-line no-unsafe-type-assertion
   const data = (await response.json()) as EsriIdentifyResponse | null;
@@ -627,30 +657,4 @@ async function fetchEsriMaxZoom(lat: number, lng: number): Promise<number> {
   // No usable metadata for this location: fall back to (and cache) the safe baseline so
   // moveend doesn't re-fetch forever here.
   return BASELINE_ESRI_MAX_ZOOM;
-}
-
-/** Switch the satellite layer based on the map view location and zoom. */
-async function checkAndAutoSwitchSatelliteLayer() {
-  const layerBeforeResolve: TileLayerType = currentTileLayer.value;
-  if (layerBeforeResolve === "plan") {
-    return;
-  }
-
-  const targetLayer = await resolveSatelliteLayer();
-
-  // The user may have switched to plan while the country was being resolved.
-  const layerAfterResolve: TileLayerType = currentTileLayer.value;
-  if (layerAfterResolve === "plan" || layerAfterResolve === targetLayer) {
-    return;
-  }
-
-  await switchTileLayer(targetLayer);
-}
-
-/** Listen for map movements to maintain the satellite basemap (country switch + Esri max zoom). */
-function initSatelliteMoveEndListener(mlMap: MaplibreMap) {
-  mlMap.on("moveend", () => {
-    void checkAndAutoSwitchSatelliteLayer();
-    checkEsriMaxZoom();
-  });
 }

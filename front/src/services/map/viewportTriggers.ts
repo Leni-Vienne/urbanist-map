@@ -9,7 +9,6 @@ import { useMapSessionStore } from "@/stores/mapSessionStore";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useAuthStore } from "@/stores/authStore";
-import { debounce } from "@/utils/debounce";
 import { isOverlayVisible } from "@/services/overlay/visibility";
 import * as registry from "@/services/overlay/mapLayers";
 import { renderMapSessionPendingSources } from "@/services/map/tiles/pendingSources";
@@ -20,11 +19,12 @@ import type { AppMode } from "@shared/types";
  * so moveend also fires after zooms. Returns the disposer.
  */
 export function setupEventListeners(target: MaplibreMap, renderOverlays: () => void): () => void {
-  const debouncedRefreshViewport = debounce(renderOverlays, 100);
-  target.on("moveend", debouncedRefreshViewport);
+  // The render loop already coalesces requests into one frame. A second timer here
+  // only delays the settled camera and can outlive this listener's teardown.
+  target.on("moveend", renderOverlays);
 
   return function stopViewportMoveListener(): void {
-    target.off("moveend", debouncedRefreshViewport);
+    target.off("moveend", renderOverlays);
   };
 }
 

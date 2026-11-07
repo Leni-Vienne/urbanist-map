@@ -64,14 +64,17 @@ export function createViewportRenderLoop(target: MaplibreMap, onDisplayChanged: 
   let renderLoopRafId: number | null = null;
   let stopped = false;
   // Drains in batches of 10 per frame to spread bulk teardown (e.g. Edit -> View) across frames.
-  const destructionQueue = createRafBatchQueue<null>((_, id) => registry.clearEntry(id), 10);
+  const destructionQueue = createRafBatchQueue<null>((_, id) => {
+    // A gesture can begin after this entry was queued for removal.
+    if (getMapOrNull() === target && !registry.isGestureOwned(id)) registry.clearEntry(id);
+  }, 10);
 
   // Coalesce camera, style and state changes into one pass over the latest state per frame.
   function run(): void {
     if (stopped || renderLoopRafId !== null) return;
     renderLoopRafId = requestAnimationFrame(() => {
       renderLoopRafId = null;
-      if (getMapOrNull() !== target) return;
+      if (getMapOrNull() !== target || !target.getSource("project-sources")) return;
       reconcileOverlayExistence(target.getBounds());
     });
   }

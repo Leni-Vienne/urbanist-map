@@ -1,7 +1,9 @@
+// These unit tests supply only the MapLibre methods each protocol uses; no GL map is constructed.
+// oxlint-disable anti-slop/no-chained-type-assertions, typescript/no-unsafe-type-assertion
 import { expect, mock, spyOn, test } from "bun:test";
 import { createPinia, setActivePinia } from "pinia";
 import { nextTick } from "vue";
-import { LngLatBounds, type Map as MaplibreMap } from "maplibre-gl";
+import { Evented, LngLatBounds, type Map as MaplibreMap } from "maplibre-gl";
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useOverlayStore } from "@/stores/overlayStore";
@@ -21,6 +23,8 @@ globalThis.matchMedia = (media) =>
 const { createViewportRenderLoop, watchOverlayReconciliation } =
   await import("./viewportRenderLoop");
 const map = await import("@/services/core/map");
+const registry = await import("@/services/overlay/mapLayers");
+const { initVectorTileSync } = await import("./tiles/sync");
 globalThis.matchMedia = originalMatchMedia;
 
 const tile: TileOverlayData = {
@@ -99,6 +103,26 @@ test("tile arrivals, selection and draft history request rendering without a mod
   }
 });
 
+test("stopping tile sync cancels its trailing update while the map is still alive", async () => {
+  setActivePinia(createPinia());
+  const querySourceFeatures = mock(() => []);
+  const target = Object.assign(new (class extends Evented {})(), {
+    getLayer: () => ({}),
+    querySourceFeatures,
+  }) as unknown as MaplibreMap;
+  const currentMap = spyOn(map, "getMapOrNull").mockReturnValue(target);
+  const stop = initVectorTileSync(target);
+  try {
+    target.fire("move");
+    stop();
+    await Bun.sleep(170);
+    expect(querySourceFeatures).toHaveBeenCalledTimes(1);
+  } finally {
+    stop();
+    currentMap.mockRestore();
+  }
+});
+
 test("map teardown cancels queued rendering and ignores late camera refreshes", () => {
   setActivePinia(createPinia());
   const frames = new Map<number, FrameRequestCallback>();
@@ -114,10 +138,15 @@ test("map teardown cancels queued rendering and ignores late camera refreshes", 
     frames.delete(id);
   };
   const getBounds = mock(() => new LngLatBounds([-1, -1], [1, 1]));
-  const camera: Pick<MaplibreMap, "getBounds" | "getZoom"> = { getBounds, getZoom: () => 0 };
+  let styleReady = true;
+  const camera = {
+    getBounds,
+    getZoom: () => 0,
+    getSource: (): object | undefined => (styleReady ? {} : undefined),
+  };
   // Only the camera reads used by the loop are exercised; no GL rendering is simulated.
   // eslint-disable-next-line typescript/no-unsafe-type-assertion
-  const target = camera as MaplibreMap;
+  const target = camera as unknown as MaplibreMap;
   const currentMap = spyOn(map, "getMapOrNull").mockReturnValue(target);
   const loop = createViewportRenderLoop(target, () => undefined);
 
@@ -131,6 +160,12 @@ test("map teardown cancels queued rendering and ignores late camera refreshes", 
 
     const nextLoop = createViewportRenderLoop(target, () => undefined);
     try {
+      styleReady = false;
+      nextLoop.run();
+      for (const callback of frames.values()) callback(0);
+      frames.clear();
+      expect(getBounds).not.toHaveBeenCalled();
+      styleReady = true;
       nextLoop.run();
       for (const callback of frames.values()) callback(0);
       frames.clear();
@@ -142,6 +177,46 @@ test("map teardown cancels queued rendering and ignores late camera refreshes", 
     }
   } finally {
     loop.stop();
+    currentMap.mockRestore();
+    globalThis.requestAnimationFrame = originalRequestFrame;
+    globalThis.cancelAnimationFrame = originalCancelFrame;
+  }
+});
+
+test("queued viewport removal preserves an overlay whose gesture started before the queue drained", () => {
+  setActivePinia(createPinia());
+  const frames: FrameRequestCallback[] = [];
+  const originalRequestFrame = globalThis.requestAnimationFrame;
+  const originalCancelFrame = globalThis.cancelAnimationFrame;
+  globalThis.requestAnimationFrame = (callback) => frames.push(callback);
+  globalThis.cancelAnimationFrame = () => undefined;
+  // Low zoom queues existing objects without creating any map sources or GL layers.
+  const target = {
+    getBounds: () => new LngLatBounds([-1, -1], [1, 1]),
+    getZoom: () => 0,
+    getSource: (): object | undefined => ({}),
+  } as unknown as MaplibreMap;
+  const currentMap = spyOn(map, "getMapOrNull").mockReturnValue(target);
+  const remove = mock(() => {});
+  registry.setMarker("dragged", { remove } as unknown as NonNullable<
+    ReturnType<typeof registry.getMarker>
+  >);
+  const loop = createViewportRenderLoop(target, () => undefined);
+  try {
+    loop.run();
+    frames.shift()?.(0);
+    registry.takeGestureOwnership("dragged", {
+      center: { lat: 0, lng: 0 },
+      width: 10,
+      height: 10,
+      bearing: 0,
+    });
+    frames.shift()?.(0);
+    expect(remove).not.toHaveBeenCalled();
+    expect(registry.isGestureOwned("dragged")).toBeTrue();
+  } finally {
+    loop.stop();
+    registry.clearEntry("dragged");
     currentMap.mockRestore();
     globalThis.requestAnimationFrame = originalRequestFrame;
     globalThis.cancelAnimationFrame = originalCancelFrame;

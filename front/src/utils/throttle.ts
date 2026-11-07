@@ -3,15 +3,12 @@
  * with a trailing invocation after the last call so the final state is never missed. Unlike
  * debounce, it runs periodically DURING a burst of calls rather than only after it ends.
  */
-export function throttle<T extends (...args: any[]) => any>(
-  func: T,
-  wait: number,
-): (...args: Parameters<T>) => void {
+export function throttle<T extends (...args: any[]) => any>(func: T, wait: number) {
   let lastRun = 0;
   let trailing: ReturnType<typeof setTimeout> | undefined = undefined;
   let lastArgs: Parameters<T> | undefined = undefined;
 
-  return (...args: Parameters<T>): void => {
+  function invoke(...args: Parameters<T>): void {
     lastArgs = args;
     const remaining = wait - (Date.now() - lastRun);
     if (remaining <= 0) {
@@ -26,5 +23,13 @@ export function throttle<T extends (...args: any[]) => any>(
         if (lastArgs) func(...lastArgs);
       }, remaining);
     }
-  };
+  }
+
+  function cancel(): void {
+    clearTimeout(trailing);
+    trailing = undefined;
+    lastArgs = undefined;
+  }
+
+  return Object.assign(invoke, { cancel });
 }
