@@ -71,12 +71,21 @@ function getBrowserLocale(): Locale {
 }
 
 export function saveLocale(locale: Locale): void {
-  localStorage.setItem("urbanist-map-locale", locale);
+  try {
+    localStorage.setItem("urbanist-map-locale", locale);
+  } catch (error) {
+    console.warn("Could not save language preference:", error);
+  }
 }
 
 export function getStoredLocale(): Locale {
-  const stored = localStorage.getItem("urbanist-map-locale");
-  return isLocale(stored) ? stored : getBrowserLocale();
+  try {
+    const stored = localStorage.getItem("urbanist-map-locale");
+    return isLocale(stored) ? stored : getBrowserLocale();
+  } catch (error) {
+    console.warn("Could not read language preference:", error);
+    return getBrowserLocale();
+  }
 }
 
 function isBrowserLanguageSupported(): boolean {

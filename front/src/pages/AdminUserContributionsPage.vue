@@ -13,11 +13,11 @@
       </h1>
     </div>
 
-    <div v-if="isLoading" class="flex justify-center items-center min-h-75">
+    <div v-if="loadState === 'loading'" class="flex justify-center items-center min-h-75">
       <ProgressSpinner />
     </div>
 
-    <div v-else-if="errorRef" class="flex justify-center items-center min-h-75">
+    <div v-else-if="loadState === 'error'" class="flex justify-center items-center min-h-75">
       <Message severity="error" :closable="false">
         {{ t("admin.userContributions.messages.loadError") }}
       </Message>
@@ -77,7 +77,10 @@
             </div>
           </AccordionHeader>
           <AccordionContent>
-            <div v-if="loadingCountry === country.countryCode" class="flex justify-center p-8">
+            <div
+              v-if="country.countryCode && loadingCountries.has(country.countryCode)"
+              class="flex justify-center p-8"
+            >
               <ProgressSpinner style="width: 30px; height: 30px" />
             </div>
             <div
@@ -101,7 +104,8 @@
                     size="small"
                     outlined
                     v-tooltip.top="t('admin.userContributions.deleteProjectDialog.title')"
-                    @click="confirmDeleteProject(project)"
+                    :disabled="isDeleting"
+                    @click="confirmDeleteProject(project, country.countryCode)"
                   />
                 </div>
 
@@ -135,7 +139,8 @@
                       severity="danger"
                       size="small"
                       class="absolute top-2 right-2"
-                      @click="confirmDeleteOverlay(overlay)"
+                      :disabled="isDeleting"
+                      @click="confirmDeleteOverlay(overlay, country.countryCode)"
                     />
                   </div>
                 </div>
@@ -157,8 +162,11 @@
     </template>
 
     <Dialog
-      :visible="deleteTarget !== null"
-      @update:visible="!$event && (deleteTarget = null)"
+      v-if="deleteDialog"
+      :visible="true"
+      @update:visible="!$event && closeDeleteDialog()"
+      :closable="!isDeleting"
+      :close-on-escape="!isDeleting"
       :header="deleteDialogHeader"
       :modal="true"
       :style="{ width: '450px' }"
@@ -170,7 +178,8 @@
         }}</label>
         <Textarea
           id="deleteReason"
-          v-model="deleteReason"
+          v-model="deleteDialog.reason"
+          :disabled="isDeleting"
           :placeholder="t('admin.userContributions.deleteDialog.reasonPlaceholder')"
           :autoResize="true"
           rows="2"
@@ -179,12 +188,18 @@
         />
       </div>
       <template #footer>
-        <Button :label="t('common.cancel')" severity="secondary" @click="deleteTarget = null" />
+        <Button
+          :label="t('common.cancel')"
+          severity="secondary"
+          :disabled="isDeleting"
+          @click="closeDeleteDialog"
+        />
         <Button
           :label="t('admin.userContributions.deleteDialog.confirm')"
           severity="danger"
           icon="pi pi-trash"
           :loading="isDeleting"
+          :disabled="isDeleting"
           @click="executeDelete"
         />
       </template>
@@ -195,7 +210,7 @@
 <script setup lang="ts">
 import { toastError, toastSuccess } from "@/services/core/toast";
 
-import { ref, onMounted, reactive, computed } from "vue";
+import { ref, reactive, computed, watch, onScopeDispose } from "vue";
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
 
@@ -211,81 +226,95 @@ type OverlayType = CountryDetails["overlays"][number];
 const route = useRoute();
 const { t } = useI18n();
 
-const userId = route.params.userId as string;
+const userId = computed(() => String(route.params.userId));
 
 const data = ref<UserContributions | null>(null);
-const isLoading = ref(true);
-const errorRef = ref(false);
-const loadingCountry = ref<string | null>(null);
-const countryDetails = reactive<
-  Record<string, { projects: ProjectType[]; overlays: OverlayType[] }>
->({});
+const loadState = ref<"loading" | "ready" | "error">("loading");
+const loadingCountries = reactive(new Set<string>());
+const countryDetails = ref<Record<string, CountryDetails>>({});
 
-const deleteTarget = ref<
-  { kind: "project"; project: ProjectType } | { kind: "overlay"; overlay: OverlayType } | null
->(null);
-const deleteReason = ref("");
-const isDeleting = ref(false);
+type DeleteTarget =
+  | { kind: "project"; project: ProjectType }
+  | { kind: "overlay"; overlay: OverlayType };
+const deleteDialog = ref<{
+  target: DeleteTarget;
+  countryCode: string;
+  reason: string;
+  phase: "confirming" | "submitting";
+} | null>(null);
+const isDeleting = computed(() => deleteDialog.value?.phase === "submitting");
+let pageRequests = new AbortController();
+onScopeDispose(() => pageRequests.abort());
 
 const deleteDialogHeader = computed(() => {
-  return deleteTarget.value?.kind === "project"
+  return deleteDialog.value?.target.kind === "project"
     ? t("admin.userContributions.deleteProjectDialog.title")
     : t("admin.userContributions.deleteOverlayDialog.title");
 });
 
 const deleteDialogMessage = computed(() => {
-  return deleteTarget.value?.kind === "project"
+  const target = deleteDialog.value?.target;
+  return target?.kind === "project"
     ? t("admin.userContributions.deleteProjectDialog.message", {
-        name: deleteTarget.value.project.name,
+        name: target.project.name,
       })
     : t("admin.userContributions.deleteOverlayDialog.message");
 });
 
 async function loadUserContributions() {
-  isLoading.value = true;
-  errorRef.value = false;
+  const page = pageRequests;
   try {
-    data.value = await trpc.admin.adminGetUserContributions.query({
-      userId,
-    });
+    const result = await trpc.admin.adminGetUserContributions.query(
+      { userId: userId.value },
+      { signal: page.signal },
+    );
+    if (page.signal.aborted) return;
+    data.value = result;
+    loadState.value = "ready";
   } catch (error) {
+    if (page.signal.aborted) return;
     console.error("Error loading user contributions:", error);
-    errorRef.value = true;
+    loadState.value = "error";
     toastError(
       error instanceof Error ? error.message : undefined,
       t("admin.userContributions.messages.loadError"),
     );
-  } finally {
-    isLoading.value = false;
   }
 }
 
 async function loadCountryDetails(countryCode: string | null) {
-  if (!countryCode || countryDetails[countryCode]) return;
+  if (!countryCode || countryDetails.value[countryCode] || loadingCountries.has(countryCode))
+    return;
 
-  loadingCountry.value = countryCode;
+  const page = pageRequests;
+  loadingCountries.add(countryCode);
   try {
-    const result = await trpc.admin.adminGetUserContributions.query({
-      userId,
-      countryCode,
-    });
+    const result = await trpc.admin.adminGetUserContributions.query(
+      {
+        userId: userId.value,
+        countryCode,
+      },
+      { signal: page.signal },
+    );
+    if (page.signal.aborted) return;
     if (result.countryDetails) {
-      countryDetails[countryCode] = result.countryDetails;
+      countryDetails.value[countryCode] = result.countryDetails;
     }
   } catch (error) {
+    if (page.signal.aborted) return;
     console.error("Error loading country details:", error);
     toastError(
       error instanceof Error ? error.message : undefined,
       t("admin.userContributions.messages.loadError"),
     );
   } finally {
-    loadingCountry.value = null;
+    if (!page.signal.aborted) loadingCountries.delete(countryCode);
   }
 }
 
 function getOverlaysForProject(countryCode: string | null, projectId: string): OverlayType[] {
   if (!countryCode) return [];
-  const details = countryDetails[countryCode];
+  const details = countryDetails.value[countryCode];
   if (!details) return [];
   return details.overlays.filter((o) => o.projectId === projectId);
 }
@@ -295,107 +324,94 @@ function getThumbnailUrl(filename: string): string {
   return buildThumbnailUrl(filename, true);
 }
 
-function confirmDeleteProject(project: ProjectType) {
-  deleteReason.value = "";
-  deleteTarget.value = { kind: "project", project };
+function confirmDeleteProject(project: ProjectType, countryCode: string) {
+  if (isDeleting.value) return;
+  deleteDialog.value = {
+    target: { kind: "project", project },
+    countryCode,
+    reason: "",
+    phase: "confirming",
+  };
 }
 
-function confirmDeleteOverlay(overlay: OverlayType) {
-  deleteReason.value = "";
-  deleteTarget.value = { kind: "overlay", overlay };
+function confirmDeleteOverlay(overlay: OverlayType, countryCode: string) {
+  if (isDeleting.value) return;
+  deleteDialog.value = {
+    target: { kind: "overlay", overlay },
+    countryCode,
+    reason: "",
+    phase: "confirming",
+  };
+}
+
+function closeDeleteDialog() {
+  if (!isDeleting.value) deleteDialog.value = null;
 }
 
 async function executeDelete() {
-  const target = deleteTarget.value;
-  if (!target) return;
-  if (target.kind === "project") {
-    await adminDeleteProject(target.project.id);
-  } else {
-    await adminDeleteOverlay(target.overlay.id);
-  }
-}
-
-async function adminDeleteProject(projectId: string) {
-  isDeleting.value = true;
+  const dialog = deleteDialog.value;
+  const page = pageRequests;
+  if (!dialog || dialog.phase !== "confirming" || page.signal.aborted) return;
+  dialog.phase = "submitting";
+  const { target, countryCode } = dialog;
   try {
-    await trpc.admin.deleteProject.mutate({
-      projectId,
-      reason: deleteReason.value || undefined,
-    });
+    const reason = dialog.reason || undefined;
+    if (target.kind === "project") {
+      await trpc.admin.deleteProject.mutate({ projectId: target.project.id, reason });
+    } else {
+      await trpc.moderation.adminDeleteOverlay.mutate({ id: target.overlay.id, reason });
+    }
+    if (page.signal.aborted || deleteDialog.value !== dialog) return;
 
-    // Remove project and its overlays from all country details and update counts
-    for (const countryCode of Object.keys(countryDetails)) {
-      const details = countryDetails[countryCode];
-      if (details) {
-        // Count overlays being deleted for this project
-        const overlaysDeleted = details.overlays.filter((o) => o.projectId === projectId).length;
-
-        details.projects = details.projects.filter((p) => p.id !== projectId);
-        details.overlays = details.overlays.filter((o) => o.projectId !== projectId);
-
-        // Update country summary counts in the accordion header
-        const country = data.value?.countries.find((c) => c.countryCode === countryCode);
-        if (country) {
-          country.projectCount -= 1;
-          country.overlayCount -= overlaysDeleted;
-        }
+    const details = countryDetails.value[countryCode];
+    const country = data.value?.countries.find((item) => item.countryCode === countryCode);
+    if (details && country) {
+      if (target.kind === "project") {
+        const projectId = target.project.id;
+        country.overlayCount -= details.overlays.filter(
+          (overlay) => overlay.projectId === projectId,
+        ).length;
+        country.projectCount -= 1;
+        details.projects = details.projects.filter((project) => project.id !== projectId);
+        details.overlays = details.overlays.filter((overlay) => overlay.projectId !== projectId);
+      } else {
+        country.overlayCount -= 1;
+        details.overlays = details.overlays.filter((overlay) => overlay.id !== target.overlay.id);
       }
     }
 
-    toastSuccess(t("admin.userContributions.messages.projectDeleted"));
-
-    deleteTarget.value = null;
+    toastSuccess(
+      t(
+        target.kind === "project"
+          ? "admin.userContributions.messages.projectDeleted"
+          : "admin.userContributions.messages.overlayDeleted",
+      ),
+    );
+    deleteDialog.value = null;
   } catch (error) {
-    console.error("Error deleting project:", error);
+    if (page.signal.aborted || deleteDialog.value !== dialog) return;
+    console.error("Error deleting contribution:", error);
     toastError(
       error instanceof Error ? error.message : undefined,
       t("admin.userContributions.messages.deleteError"),
     );
   } finally {
-    isDeleting.value = false;
+    if (deleteDialog.value === dialog) dialog.phase = "confirming";
   }
 }
 
-async function adminDeleteOverlay(overlayId: string) {
-  isDeleting.value = true;
-  try {
-    await trpc.moderation.adminDeleteOverlay.mutate({
-      id: overlayId,
-      reason: deleteReason.value || undefined,
-    });
-
-    // Remove overlay from all country details and update counts
-    for (const countryCode of Object.keys(countryDetails)) {
-      const details = countryDetails[countryCode];
-      if (details) {
-        const hadOverlay = details.overlays.some((o) => o.id === overlayId);
-        details.overlays = details.overlays.filter((o) => o.id !== overlayId);
-
-        // Update country summary count in the accordion header
-        if (hadOverlay) {
-          const country = data.value?.countries.find((c) => c.countryCode === countryCode);
-          if (country) {
-            country.overlayCount -= 1;
-          }
-        }
-      }
-    }
-
-    toastSuccess(t("admin.userContributions.messages.overlayDeleted"));
-
-    deleteTarget.value = null;
-  } catch (error) {
-    console.error("Error deleting overlay:", error);
-    toastError(
-      error instanceof Error ? error.message : undefined,
-      t("admin.userContributions.messages.deleteError"),
-    );
-  } finally {
-    isDeleting.value = false;
-  }
-}
-
-onMounted(() => {
-  loadUserContributions();
-});
+watch(
+  userId,
+  () => {
+    pageRequests.abort();
+    pageRequests = new AbortController();
+    data.value = null;
+    countryDetails.value = {};
+    loadingCountries.clear();
+    deleteDialog.value = null;
+    loadState.value = "loading";
+    void loadUserContributions();
+  },
+  { immediate: true, flush: "sync" },
+);
 </script>

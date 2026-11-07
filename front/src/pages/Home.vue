@@ -20,7 +20,7 @@
         v-if="maintenanceBannerText && !maintenanceBannerDismissed"
         severity="warn"
         :closable="true"
-        @close="maintenanceBannerDismissed = true"
+        @close="dismissedMaintenanceDay = now.toISOString().slice(0, 10)"
         class="shrink-0 m-0 rounded-none!"
         icon="pi pi-exclamation-triangle"
       >
@@ -111,8 +111,11 @@ const SubmissionDialogWrapper = defineAsyncComponent(
 const { showSubmissionDialog } = storeToRefs(useSubmissionStore());
 
 const infoBannerDismissed = ref(false);
-const maintenanceBannerDismissed = ref(false);
+const dismissedMaintenanceDay = ref<string | null>(null);
 const now = ref(new Date());
+const maintenanceBannerDismissed = computed(
+  () => dismissedMaintenanceDay.value === now.value.toISOString().slice(0, 10),
+);
 let maintenanceTickInterval: ReturnType<typeof globalThis.setInterval> | undefined = undefined;
 
 const authStore = useAuthStore();
@@ -147,11 +150,6 @@ const maintenanceBannerText = computed(() => {
     return t("pages.home.maintenance.upcoming", { minutes: minutesUntil });
   }
   return t("pages.home.maintenance.ongoing", { endTime: formatMaintenanceEndTime(n) });
-});
-
-// Reset dismissal once the window closes so the banner re-appears the next day
-watch(maintenanceBannerText, (value) => {
-  if (value === null) maintenanceBannerDismissed.value = false;
 });
 
 // The selected edit surface owns activation, including cancellation during lazy loading.

@@ -4,10 +4,11 @@
       <div
         class="draggable-drawer fixed bottom-0 left-0 right-0 bg-content-background rounded-t-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.15)] flex flex-col overflow-visible z-1101 touch-none pointer-events-auto"
         :style="drawerStyle"
-        @touchstart="handleTouchStart"
-        @touchmove="handleTouchMove"
-        @touchend="handleTouchEnd"
-        @mousedown="handleMouseDown"
+        @pointerdown="beginDrag"
+        @pointermove="moveDrag"
+        @pointerup="finishDrag"
+        @pointercancel="finishDrag"
+        @lostpointercapture="finishDrag"
       >
         <!-- Slot for content above drawer (e.g., mode controls) -->
         <div class="absolute left-0 right-0 bottom-full mb-2 pointer-events-none">
@@ -46,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { ref, shallowRef, computed, watch, onMounted, onBeforeUnmount } from "vue";
 
 interface Props {
   heightPercent?: number;
@@ -64,11 +65,16 @@ const emit = defineEmits<{
   "update:heightPercent": [value: number];
 }>();
 
-const isDragging = ref(false);
-let startY = 0;
-let startHeight = 0;
+const drag = shallowRef<{
+  pointerId: number;
+  element: HTMLElement;
+  startY: number;
+  startHeight: number;
+  viewportHeight: number;
+} | null>(null);
+const isDragging = computed(() => drag.value !== null);
 const currentHeight = ref(props.heightPercent);
-const viewportHeight = ref(0);
+const viewportHeight = ref(globalThis.innerHeight);
 
 // Convert minimum height from pixels to viewport percentage
 const minHeightPercent = computed(() => {
@@ -110,101 +116,56 @@ watch(
   },
 );
 
-// Drag starts from the grab pill, the header strip, or any opt-in handle (e.g. a detail panel's
-// title bar that takes over the drawer and replaces the header).
-function isDragTarget(target: HTMLElement): boolean {
-  return Boolean(
-    target.closest(".drawer-handle") ||
-    target.closest(".drawer-header") ||
-    target.closest(".drawer-drag-handle"),
-  );
+function beginDrag(event: PointerEvent) {
+  if (drag.value || !event.isPrimary || event.button !== 0) return;
+  const target = event.target;
+  const element = event.currentTarget;
+  if (!(target instanceof Element) || !(element instanceof HTMLElement)) return;
+  if (!target.closest(".drawer-handle, .drawer-header, .drawer-drag-handle")) return;
+  // Header controls keep their clicks and focus instead of starting a captured drag.
+  if (target.closest("button, a, input, select, textarea, [role=button]")) return;
+  event.preventDefault();
+  element.setPointerCapture(event.pointerId);
+  drag.value = {
+    pointerId: event.pointerId,
+    element,
+    startY: event.clientY,
+    startHeight: currentHeight.value,
+    viewportHeight: globalThis.innerHeight,
+  };
 }
 
-// Resize to match the pointer at `clientY`, emitting on every move for continuous reactivity.
-function applyDragHeight(clientY: number) {
-  const deltaPercent = ((startY - clientY) / viewportHeight.value) * 100;
-  const newHeight = Math.min(MAX_HEIGHT_PERCENT, startHeight + deltaPercent);
-
-  currentHeight.value = newHeight;
-  emit("update:heightPercent", newHeight);
+function moveDrag(event: PointerEvent) {
+  const active = drag.value;
+  if (!active || active.pointerId !== event.pointerId) return;
+  const delta = ((active.startY - event.clientY) / active.viewportHeight) * 100;
+  currentHeight.value = Math.min(MAX_HEIGHT_PERCENT, active.startHeight + delta);
+  emit("update:heightPercent", currentHeight.value);
 }
 
-function beginDrag(clientY: number) {
-  isDragging.value = true;
-  startY = clientY;
-  startHeight = currentHeight.value;
-  viewportHeight.value = globalThis.innerHeight;
-}
-
-function handleTouchStart(e: TouchEvent) {
-  const target = e.target as HTMLElement;
-  if (!isDragTarget(target)) {
-    return;
+function releaseDrag() {
+  const active = drag.value;
+  drag.value = null;
+  if (active?.element.hasPointerCapture(active.pointerId)) {
+    active.element.releasePointerCapture(active.pointerId);
   }
-  const touch = e.touches[0];
-  if (!touch) return;
-
-  beginDrag(touch.clientY);
 }
 
-function handleTouchMove(e: TouchEvent) {
-  if (!isDragging.value) return;
-  e.preventDefault();
-
-  const touch = e.touches[0];
-  if (!touch) return;
-
-  applyDragHeight(touch.clientY);
-}
-
-function handleTouchEnd() {
-  if (!isDragging.value) return;
-
-  isDragging.value = false;
-  finalizePosition();
-}
-
-function handleMouseMove(moveEvent: MouseEvent) {
-  if (!isDragging.value) return;
-
-  applyDragHeight(moveEvent.clientY);
-}
-
-function removeMouseDragListeners() {
-  document.removeEventListener("mousemove", handleMouseMove);
-  document.removeEventListener("mouseup", handleMouseUp);
-}
-
-function handleMouseUp() {
-  removeMouseDragListeners();
-  if (!isDragging.value) return;
-
-  isDragging.value = false;
-  finalizePosition();
-}
-
-function handleMouseDown(e: MouseEvent) {
-  const target = e.target as HTMLElement;
-  if (!isDragTarget(target)) {
-    return;
-  }
-
-  beginDrag(e.clientY);
-
-  document.addEventListener("mousemove", handleMouseMove);
-  document.addEventListener("mouseup", handleMouseUp);
-}
-
-function finalizePosition() {
-  if (currentHeight.value < minHeightPercent.value) {
-    currentHeight.value = minHeightPercent.value;
-  }
-
+function finishDrag(event: PointerEvent) {
+  if (drag.value?.pointerId !== event.pointerId) return;
+  releaseDrag();
+  currentHeight.value = Math.max(minHeightPercent.value, currentHeight.value);
   emit("update:heightPercent", currentHeight.value);
 }
 
 function handleResize() {
+  releaseDrag();
   viewportHeight.value = globalThis.innerHeight;
+  currentHeight.value = Math.min(
+    MAX_HEIGHT_PERCENT,
+    Math.max(minHeightPercent.value, currentHeight.value),
+  );
+  emit("update:heightPercent", currentHeight.value);
 }
 
 onMounted(() => {
@@ -214,9 +175,8 @@ onMounted(() => {
   globalThis.addEventListener("resize", handleResize);
 });
 
-onUnmounted(() => {
-  isDragging.value = false;
-  removeMouseDragListeners();
+onBeforeUnmount(() => {
+  releaseDrag();
   globalThis.removeEventListener("resize", handleResize);
 });
 </script>

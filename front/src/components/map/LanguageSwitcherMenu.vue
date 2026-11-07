@@ -37,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, onScopeDispose, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import SettingsMenuRow from "@/components/map/SettingsMenuRow.vue";
 import {
@@ -53,8 +53,12 @@ const languagePopover = ref<{
   toggle: (event: Event) => void;
   hide: () => void;
 } | null>(null);
-const isLoading = ref(false);
 const loadingLocale = ref<Locale | null>(null);
+const isLoading = computed(() => loadingLocale.value !== null);
+
+onScopeDispose(() => {
+  loadingLocale.value = null;
+});
 
 function toggleMenu(event: Event) {
   languagePopover.value?.toggle(event);
@@ -63,11 +67,11 @@ function toggleMenu(event: Event) {
 async function changeLocale(newLocale: Locale): Promise<void> {
   if (isLoading.value || newLocale === locale.value) return;
 
-  isLoading.value = true;
   loadingLocale.value = newLocale;
 
   try {
     const loaded = await loadAndSetLocale(newLocale);
+    if (loadingLocale.value !== newLocale) return;
     if (!loaded) {
       console.error(`Failed to load locale: ${newLocale}`);
       return;
@@ -79,8 +83,7 @@ async function changeLocale(newLocale: Locale): Promise<void> {
 
     updateTranslationSettings(newLocale);
   } finally {
-    isLoading.value = false;
-    loadingLocale.value = null;
+    if (loadingLocale.value === newLocale) loadingLocale.value = null;
   }
 }
 </script>

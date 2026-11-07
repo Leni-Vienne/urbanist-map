@@ -18,8 +18,16 @@
       {{ t("admin.detached.subtitle") }}
     </p>
 
-    <div v-if="isLoading" class="flex justify-center items-center min-h-100">
+    <div v-if="loadState === 'loading'" class="flex justify-center items-center min-h-100">
       <ProgressSpinner />
+    </div>
+
+    <div
+      v-else-if="loadState === 'error'"
+      class="flex flex-col items-center justify-center gap-4 min-h-100"
+    >
+      <Message severity="error" :closable="false">{{ t("admin.detached.loadError") }}</Message>
+      <Button :label="t('common.retry')" @click="loadDetachedProjects" />
     </div>
 
     <div
@@ -101,6 +109,7 @@
             severity="secondary"
             outlined
             :loading="busyProjectId === data.id"
+            :disabled="busyProjectId !== null"
             @click="handleKeepStandalone(data)"
           />
         </template>
@@ -192,6 +201,7 @@
                   size="small"
                   severity="success"
                   :loading="busyProjectId === data.id"
+                  :disabled="busyProjectId !== null"
                   @click="openRelinkDialog(data, cand)"
                 />
               </template>
@@ -205,6 +215,8 @@
       v-model:visible="showRelinkDialog"
       :header="t('admin.detached.relinkDialog.title')"
       :modal="true"
+      :closable="!isRelinking"
+      :close-on-escape="!isRelinking"
       :style="{ width: '480px' }"
     >
       <p class="m-0">
@@ -232,12 +244,18 @@
         }}
       </Message>
       <template #footer>
-        <Button :label="t('common.cancel')" text @click="showRelinkDialog = false" />
+        <Button
+          :label="t('common.cancel')"
+          text
+          :disabled="isRelinking"
+          @click="showRelinkDialog = false"
+        />
         <Button
           :label="t('admin.detached.candidate.relink')"
           icon="pi pi-link"
           severity="success"
           :loading="isRelinking"
+          :disabled="isRelinking"
           @click="confirmRelink"
         />
       </template>
@@ -246,7 +264,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { computed, ref, shallowRef, onMounted, onScopeDispose } from "vue";
 import { useI18n } from "vue-i18n";
 import { toastSuccess, toastError, toastInfo } from "@/services/core/toast";
 import { trpc, type RouterOutput } from "@/client";
@@ -260,23 +278,45 @@ type Candidate = DetachedProject["candidates"][number];
 const { t, te } = useI18n();
 
 const detachedProjects = ref<DetachedProject[]>([]);
-const isLoading = ref(true);
+const loadState = ref<"loading" | "ready" | "error">("loading");
 const expandedRows = ref<DataTableExpandedRows | DetachedProject[]>({});
-const busyProjectId = ref<string | null>(null);
-
-const showRelinkDialog = ref(false);
-const isRelinking = ref(false);
-const pendingRelink = ref<{ orphan: DetachedProject; candidate: Candidate } | null>(null);
+const action = shallowRef<
+  | { type: "confirming" | "relinking"; orphan: DetachedProject; candidate: Candidate }
+  | { type: "dismissing"; orphan: DetachedProject }
+  | null
+>(null);
+const pendingRelink = computed(() => (action.value?.type !== "dismissing" ? action.value : null));
+const isRelinking = computed(() => action.value?.type === "relinking");
+const busyProjectId = computed(() =>
+  action.value && action.value.type !== "confirming" ? action.value.orphan.id : null,
+);
+const showRelinkDialog = computed({
+  get: () => pendingRelink.value !== null,
+  set: (visible: boolean) => {
+    if (!visible && action.value?.type === "confirming") action.value = null;
+  },
+});
+const lifetime = new AbortController();
+let loadRequest = 0;
+onScopeDispose(() => lifetime.abort());
 
 async function loadDetachedProjects() {
-  isLoading.value = true;
+  if (lifetime.signal.aborted) return;
+  loadRequest += 1;
+  const request = loadRequest;
+  loadState.value = "loading";
   try {
-    detachedProjects.value = await trpc.moderation.getDetachedProjects.query();
+    const projects = await trpc.moderation.getDetachedProjects.query(undefined, {
+      signal: lifetime.signal,
+    });
+    if (lifetime.signal.aborted || request !== loadRequest) return;
+    detachedProjects.value = projects;
+    loadState.value = "ready";
   } catch (error) {
+    if (lifetime.signal.aborted || request !== loadRequest) return;
+    loadState.value = "error";
     console.error("Error loading detached projects:", error);
     toastError(error instanceof Error ? error.message : undefined, t("admin.detached.loadError"));
-  } finally {
-    isLoading.value = false;
   }
 }
 
@@ -300,53 +340,58 @@ function projectMapUrl(p: {
 }
 
 function openRelinkDialog(orphan: DetachedProject, candidate: Candidate) {
-  pendingRelink.value = { orphan, candidate };
-  showRelinkDialog.value = true;
+  if (busyProjectId.value !== null) return;
+  action.value = { type: "confirming", orphan, candidate };
 }
 
 async function confirmRelink() {
-  if (!pendingRelink.value) return;
-  const { orphan, candidate } = pendingRelink.value;
-  isRelinking.value = true;
-  busyProjectId.value = orphan.id;
+  const pending = action.value;
+  if (pending?.type !== "confirming" || lifetime.signal.aborted) return;
+  const { orphan, candidate } = pending;
+  const execution = { ...pending, type: "relinking" as const };
+  action.value = execution;
   try {
     const result = await trpc.moderation.relinkDetachedProject.mutate({
       orphanId: orphan.id,
       targetProjectId: candidate.id,
     });
+    if (lifetime.signal.aborted || action.value !== execution) return;
     toastSuccess(
       t("admin.detached.relinkSuccessDetail", { count: result.movedOverlays }),
       t("admin.detached.relinkSuccess"),
     );
-    showRelinkDialog.value = false;
-    pendingRelink.value = null;
+    action.value = null;
     await loadDetachedProjects();
   } catch (error) {
+    if (lifetime.signal.aborted || action.value !== execution) return;
     console.error("Error re-linking detached project:", error);
     toastError(
       error instanceof Error ? error.message : String(error),
       t("admin.detached.relinkError"),
     );
   } finally {
-    isRelinking.value = false;
-    busyProjectId.value = null;
+    if (action.value === execution) action.value = pending;
   }
 }
 
 async function handleKeepStandalone(orphan: DetachedProject) {
-  busyProjectId.value = orphan.id;
+  if (action.value || lifetime.signal.aborted) return;
+  const execution = { type: "dismissing" as const, orphan };
+  action.value = execution;
   try {
     await trpc.moderation.dismissDetachedProject.mutate({ projectId: orphan.id });
+    if (lifetime.signal.aborted || action.value !== execution) return;
     toastInfo(t("admin.detached.dismissSuccess"));
     await loadDetachedProjects();
   } catch (error) {
+    if (lifetime.signal.aborted || action.value !== execution) return;
     console.error("Error dismissing detached project:", error);
     toastError(
       error instanceof Error ? error.message : undefined,
       t("admin.detached.dismissError"),
     );
   } finally {
-    busyProjectId.value = null;
+    if (action.value === execution) action.value = null;
   }
 }
 

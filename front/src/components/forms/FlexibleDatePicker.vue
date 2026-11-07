@@ -28,6 +28,7 @@
         class="w-28"
         :class="{ 'p-invalid': isTouched && Boolean(error) }"
         @change="markTouched"
+        @blur="markTouched"
       />
 
       <!-- Month & Year Mode: month + year dropdowns -->
@@ -41,6 +42,7 @@
           class="min-w-0 flex-1"
           :class="{ 'p-invalid': isTouched && Boolean(error) }"
           @change="markTouched"
+          @blur="markTouched"
         />
         <Select
           v-model="selectedYear"
@@ -51,6 +53,7 @@
           class="min-w-0 flex-1"
           :class="{ 'p-invalid': isTouched && Boolean(error) }"
           @change="markTouched"
+          @blur="markTouched"
         />
       </template>
 
@@ -66,11 +69,12 @@
         showIcon
         showButtonBar
         @update:modelValue="handleFullDateChange"
+        @blur="markTouched"
       />
 
       <!-- Clear button: lets the user remove the date entirely (e.g. suggest deleting an approved date) -->
       <Button
-        v-if="modelValue"
+        v-if="parts.year !== null || parts.month !== null || parts.day !== null"
         type="button"
         icon="pi pi-times"
         severity="secondary"
@@ -105,7 +109,7 @@ const emit = defineEmits<{
   blur: [];
 }>();
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 
 // Track if user has interacted with the field
 const isTouched = ref(false);
@@ -113,25 +117,32 @@ const isTouched = ref(false);
 // The model carries a precision only when it holds a value, so the chosen precision is kept locally
 // and adopted from the model whenever the model supplies one.
 const precision = ref<DatePrecision>(props.modelValue?.precision ?? "day");
+const parts = ref<DateParts>({ year: null, month: null, day: null });
 
 watch(
-  () => props.modelValue?.precision,
-  (modelPrecision) => {
-    if (modelPrecision) precision.value = modelPrecision;
+  () => props.modelValue,
+  (value) => {
+    if (value) {
+      precision.value = value.precision;
+      parts.value = { year: value.year, month: value.month ?? null, day: value.day ?? null };
+    } else if (buildValue(parts.value, precision.value)) {
+      parts.value = { year: null, month: null, day: null };
+    }
   },
+  { immediate: true, deep: true },
 );
 
 const selectedYear = computed<number | null>({
-  get: () => props.modelValue?.year ?? null,
+  get: () => parts.value.year,
   set: (year) => emitParts({ year, month: selectedMonth.value, day: selectedDay.value }),
 });
 
 const selectedMonth = computed<number | null>({
-  get: () => props.modelValue?.month ?? null,
+  get: () => parts.value.month,
   set: (month) => emitParts({ year: selectedYear.value, month, day: selectedDay.value }),
 });
 
-const selectedDay = computed(() => props.modelValue?.day ?? null);
+const selectedDay = computed(() => parts.value.day);
 
 const fullDateValue = computed(() => {
   const value = props.modelValue;
@@ -160,7 +171,7 @@ const yearOptions = computed(() => {
 });
 
 const monthOptions = computed(() => {
-  const formatter = new Intl.DateTimeFormat(undefined, { month: "long" });
+  const formatter = new Intl.DateTimeFormat(locale.value, { month: "long" });
   return Array.from({ length: 12 }, (_, i) => ({
     label: formatter.format(new Date(2000, i, 1)),
     value: i + 1,
@@ -173,12 +184,14 @@ interface DateParts {
   day: number | null;
 }
 
-function emitParts(parts: DateParts, targetPrecision: DatePrecision = precision.value) {
-  emit("update:modelValue", buildValue(parts, targetPrecision));
+function emitParts(value: DateParts, targetPrecision: DatePrecision = precision.value) {
+  // Null in the parent cannot carry an incomplete month/year selection.
+  parts.value = value;
+  emit("update:modelValue", buildValue(value, targetPrecision));
 }
 
-function buildValue(parts: DateParts, targetPrecision: DatePrecision): FlexibleDateInput | null {
-  const { year, month, day } = parts;
+function buildValue(value: DateParts, targetPrecision: DatePrecision): FlexibleDateInput | null {
+  const { year, month, day } = value;
   if (!year) return null;
 
   if (targetPrecision === "year") {
@@ -210,6 +223,7 @@ function handlePrecisionChange() {
 
 function markTouched() {
   isTouched.value = true;
+  emit("blur");
 }
 
 function handleFullDateChange(date: Date | Date[] | (Date | null)[] | null | undefined) {
@@ -223,13 +237,13 @@ function handleFullDateChange(date: Date | Date[] | (Date | null)[] | null | und
       day: singleDate.getDate(),
     });
   } else {
-    emit("update:modelValue", null);
+    emitParts({ year: null, month: null, day: null });
   }
 }
 
 function handleClear() {
   isTouched.value = true;
-  emit("update:modelValue", null);
+  emitParts({ year: null, month: null, day: null });
   emit("blur");
 }
 </script>

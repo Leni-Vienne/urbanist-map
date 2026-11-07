@@ -371,8 +371,7 @@ const MIN_LIST_HEIGHT = 160;
 const explorePanel = useTemplateRef<HTMLElement>("explorePanel");
 const panelHeight = ref(0);
 const preferredDetailHeight = ref(loadDetailHeight());
-const fittedDetailHeight = ref<number | null>(null);
-let detailFit: { rowId: string; limit: number } | null = null;
+const detailFit = ref<{ rowId: string; limit: number; height: number } | null>(null);
 const availableHeight = computed(() => Math.max(0, panelHeight.value - DETAIL_DIVIDER_HEIGHT));
 // On very short windows, share the available space rather than overflowing the sidebar.
 const minDetailHeight = computed(() => Math.min(120, availableHeight.value / 2));
@@ -383,21 +382,20 @@ const maxDetailHeight = computed(() =>
 const detailHeight = computed(() =>
   Math.min(
     maxDetailHeight.value,
-    Math.max(minDetailHeight.value, fittedDetailHeight.value ?? preferredDetailHeight.value),
+    Math.max(minDetailHeight.value, detailFit.value?.height ?? preferredDetailHeight.value),
   ),
 );
 let detailResize: { pointerId: number; startY: number; startHeight: number } | null = null;
 let panelObserver: ResizeObserver | null = null;
 
 function clearDetailFit(): void {
-  detailFit = null;
-  fittedDetailHeight.value = null;
+  detailFit.value = null;
 }
 
 function fitDetailHeight(height: number): void {
   // Fitting and scroll anchoring both stop at the next user interaction.
-  if (!detailFit || !isAnchoring.value) return;
-  fittedDetailHeight.value = Math.min(height, detailFit.limit);
+  if (!detailFit.value || !isAnchoring.value) return;
+  detailFit.value.height = Math.min(height, detailFit.value.limit);
 }
 
 function startDetailFit(rowId: string, element: HTMLElement): void {
@@ -415,8 +413,7 @@ function startDetailFit(rowId: string, element: HTMLElement): void {
   clearDetailFit();
   if (limit < minDetailHeight.value) return;
 
-  detailFit = { rowId, limit };
-  fittedDetailHeight.value = Math.min(initialHeight, limit);
+  detailFit.value = { rowId, limit, height: Math.min(initialHeight, limit) };
 }
 
 function loadDetailHeight(): number {
@@ -744,7 +741,7 @@ function rememberSelectedRow(id: string | null): void {
 watch(selectedRowId, rememberSelectedRow, { immediate: true });
 
 function clearUnselectedDetailFit(): void {
-  const row = rows.value.find((item) => item.contribution.id === detailFit?.rowId);
+  const row = rows.value.find((item) => item.contribution.id === detailFit.value?.rowId);
   if (!row || !isSelectedRow(row.contribution)) clearDetailFit();
 }
 

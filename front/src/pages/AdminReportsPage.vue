@@ -19,8 +19,18 @@
       />
     </div>
 
-    <div v-if="isLoading" class="flex justify-center items-center min-h-100">
+    <div v-if="loadState === 'loading'" class="flex justify-center items-center min-h-100">
       <ProgressSpinner />
+    </div>
+
+    <div
+      v-else-if="loadState === 'error'"
+      class="flex flex-col items-center justify-center gap-4 min-h-100"
+    >
+      <Message severity="error" :closable="false">{{
+        t("admin.reports.messages.loadError")
+      }}</Message>
+      <Button :label="t('common.retry')" @click="loadReportedUsers" />
     </div>
 
     <div
@@ -90,7 +100,9 @@
               severity="success"
               outlined
               @click="clearReports(slotProps.data)"
-              :disabled="slotProps.data.banned"
+              :disabled="
+                slotProps.data.banned || isBanning || clearingUsers.has(slotProps.data.userId)
+              "
             />
             <Button
               :label="t('admin.reports.actions.banUser')"
@@ -99,7 +111,9 @@
               severity="danger"
               outlined
               @click="openBanDialog(slotProps.data)"
-              :disabled="slotProps.data.banned"
+              :disabled="
+                slotProps.data.banned || isBanning || clearingUsers.has(slotProps.data.userId)
+              "
             />
           </div>
         </template>
@@ -150,16 +164,19 @@
 
     <!-- Ban User Dialog -->
     <Dialog
-      v-model:visible="showBanDialog"
+      v-if="banDialog"
+      :visible="true"
+      @update:visible="!$event && closeBanDialog()"
       :header="t('admin.reports.actions.banUser')"
       :modal="true"
-      :closable="true"
+      :closable="!isBanning"
+      :close-on-escape="!isBanning"
       :style="{ width: '500px' }"
     >
       <p class="mb-4">
         {{
           t("admin.reports.banDialog.confirmMessage", {
-            username: selectedUser?.username,
+            username: banDialog.user.username,
           })
         }}
       </p>
@@ -170,7 +187,8 @@
         }}</label>
         <Textarea
           id="banReason"
-          v-model="banReason"
+          v-model="banDialog.reason"
+          :disabled="isBanning"
           :placeholder="t('admin.reports.banDialog.reasonPlaceholder')"
           :autoResize="true"
           rows="3"
@@ -178,22 +196,33 @@
           class="w-full"
           dir="auto"
         />
-        <small class="text-muted-color">{{ banReason.length }}/500</small>
+        <small class="text-muted-color">{{ banDialog.reason.length }}/500</small>
       </div>
 
       <div class="flex items-center gap-2 mt-4">
-        <Checkbox inputId="deleteContent" v-model="deleteContent" :binary="true" />
+        <Checkbox
+          inputId="deleteContent"
+          v-model="banDialog.deleteContent"
+          :binary="true"
+          :disabled="isBanning"
+        />
         <label for="deleteContent">{{ t("admin.reports.banDialog.deleteContent") }}</label>
       </div>
 
       <template #footer>
-        <Button :label="t('common.cancel')" icon="pi pi-times" text @click="closeBanDialog" />
+        <Button
+          :label="t('common.cancel')"
+          icon="pi pi-times"
+          text
+          :disabled="isBanning"
+          @click="closeBanDialog"
+        />
         <Button
           :label="t('admin.reports.actions.banUser')"
           icon="pi pi-ban"
           severity="danger"
           @click="confirmBan"
-          :disabled="!banReason.trim() || isBanning"
+          :disabled="!banDialog.reason.trim() || isBanning"
           :loading="isBanning"
         />
       </template>
@@ -202,7 +231,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { computed, reactive, ref, onMounted, onScopeDispose } from "vue";
 import { useI18n } from "vue-i18n";
 import { toastSuccess, toastError } from "@/services/core/toast";
 import { trpc, type RouterOutput } from "@/client";
@@ -212,31 +241,48 @@ type ReportedUser = RouterOutput["moderation"]["getReportedUsers"][number];
 const { t } = useI18n();
 
 const reportedUsers = ref<ReportedUser[]>([]);
-const isLoading = ref(true);
-const showBanDialog = ref(false);
-const selectedUser = ref<ReportedUser | null>(null);
-const banReason = ref("");
-const deleteContent = ref(false);
-const isBanning = ref(false);
+const loadState = ref<"loading" | "ready" | "error">("loading");
+const banDialog = ref<{
+  user: ReportedUser;
+  reason: string;
+  deleteContent: boolean;
+  phase: "confirming" | "submitting";
+} | null>(null);
+const isBanning = computed(() => banDialog.value?.phase === "submitting");
+const clearingUsers = reactive(new Set<string>());
+const lifetime = new AbortController();
+let loadRequest = 0;
+onScopeDispose(() => lifetime.abort());
 
 async function loadReportedUsers() {
-  isLoading.value = true;
+  if (lifetime.signal.aborted) return;
+  loadRequest += 1;
+  const request = loadRequest;
+  loadState.value = "loading";
   try {
-    reportedUsers.value = await trpc.moderation.getReportedUsers.query();
+    const users = await trpc.moderation.getReportedUsers.query(undefined, {
+      signal: lifetime.signal,
+    });
+    if (lifetime.signal.aborted || request !== loadRequest) return;
+    reportedUsers.value = users;
+    loadState.value = "ready";
   } catch (error) {
+    if (lifetime.signal.aborted || request !== loadRequest) return;
+    loadState.value = "error";
     console.error("Error loading reported users:", error);
     toastError(
       error instanceof Error ? error.message : String(error),
       t("admin.reports.messages.loadError"),
     );
-  } finally {
-    isLoading.value = false;
   }
 }
 
 async function clearReports(user: ReportedUser) {
+  if (lifetime.signal.aborted || isBanning.value || clearingUsers.has(user.userId)) return;
+  clearingUsers.add(user.userId);
   try {
     await trpc.moderation.clearUserReports.mutate({ userId: user.userId });
+    if (lifetime.signal.aborted) return;
     toastSuccess(
       t("admin.reports.messages.clearSuccessDetail", {
         username: user.username,
@@ -245,56 +291,58 @@ async function clearReports(user: ReportedUser) {
     );
     await loadReportedUsers();
   } catch (error) {
+    if (lifetime.signal.aborted) return;
     console.error("Error clearing reports:", error);
     toastError(
       error instanceof Error ? error.message : String(error),
       t("admin.reports.messages.clearError"),
     );
+  } finally {
+    clearingUsers.delete(user.userId);
   }
 }
 
 function openBanDialog(user: ReportedUser) {
-  selectedUser.value = user;
-  banReason.value = "";
-  deleteContent.value = false;
-  showBanDialog.value = true;
+  if (isBanning.value || clearingUsers.has(user.userId)) return;
+  banDialog.value = { user, reason: "", deleteContent: false, phase: "confirming" };
 }
 
 function closeBanDialog() {
-  showBanDialog.value = false;
-  selectedUser.value = null;
-  banReason.value = "";
-  deleteContent.value = false;
+  if (!isBanning.value) banDialog.value = null;
 }
 
 async function confirmBan() {
-  if (!selectedUser.value || !banReason.value.trim()) return;
+  const dialog = banDialog.value;
+  if (!dialog || dialog.phase !== "confirming" || !dialog.reason.trim() || lifetime.signal.aborted)
+    return;
 
-  isBanning.value = true;
+  dialog.phase = "submitting";
   try {
     await trpc.moderation.banUser.mutate({
-      userId: selectedUser.value.userId,
-      reason: banReason.value.trim(),
-      deleteContent: deleteContent.value,
+      userId: dialog.user.userId,
+      reason: dialog.reason.trim(),
+      deleteContent: dialog.deleteContent,
     });
+    if (lifetime.signal.aborted || banDialog.value !== dialog) return;
 
     toastSuccess(
       t("admin.reports.messages.banSuccessDetail", {
-        username: selectedUser.value.username,
+        username: dialog.user.username,
       }),
       t("admin.reports.messages.banSuccess"),
     );
 
-    closeBanDialog();
+    banDialog.value = null;
     await loadReportedUsers();
   } catch (error) {
+    if (lifetime.signal.aborted || banDialog.value !== dialog) return;
     console.error("Error banning user:", error);
     toastError(
       error instanceof Error ? error.message : String(error),
       t("admin.reports.messages.banError"),
     );
   } finally {
-    isBanning.value = false;
+    if (banDialog.value === dialog) dialog.phase = "confirming";
   }
 }
 

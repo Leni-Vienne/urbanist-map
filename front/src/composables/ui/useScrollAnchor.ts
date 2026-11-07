@@ -1,17 +1,15 @@
-import { onBeforeUnmount, ref, watch, type Ref } from "vue";
+import { computed, onBeforeUnmount, shallowRef, watch, type Ref } from "vue";
 
 /** Keep a row in place through layout changes until the next user interaction. */
 export function useScrollAnchor(scrollAreaRef: Readonly<Ref<HTMLElement | null>>) {
-  const isAnchoring = ref(false);
-  let observer: ResizeObserver | null = null;
-  let input: AbortController | null = null;
+  const anchor = shallowRef<{ observer: ResizeObserver; input: AbortController } | null>(null);
+  const isAnchoring = computed(() => anchor.value !== null);
 
   function clearAnchor(): void {
-    observer?.disconnect();
-    input?.abort();
-    observer = null;
-    input = null;
-    isAnchoring.value = false;
+    const previous = anchor.value;
+    anchor.value = null;
+    previous?.observer.disconnect();
+    previous?.input.abort();
   }
 
   function captureRow(element: HTMLElement): void {
@@ -22,7 +20,9 @@ export function useScrollAnchor(scrollAreaRef: Readonly<Ref<HTMLElement | null>>
     // Virtualization may remove the row from the DOM, so retain its content offset.
     const offset = area.scrollTop + row.top - area.getBoundingClientRect().top;
 
-    observer = new ResizeObserver(() => {
+    const input = new AbortController();
+    const observer = new ResizeObserver(() => {
+      if (anchor.value?.input !== input) return;
       if (area.clientHeight === 0) {
         clearAnchor();
         return;
@@ -35,9 +35,8 @@ export function useScrollAnchor(scrollAreaRef: Readonly<Ref<HTMLElement | null>>
       );
       area.scrollTo({ top: viewport.top + offset - top, behavior: "instant" });
     });
+    anchor.value = { observer, input };
     observer.observe(area);
-    input = new AbortController();
-    isAnchoring.value = true;
     for (const event of ["pointerdown", "wheel", "touchstart", "keydown"]) {
       area.ownerDocument.addEventListener(event, clearAnchor, {
         capture: true,
