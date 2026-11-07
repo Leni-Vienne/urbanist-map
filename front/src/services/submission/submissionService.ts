@@ -18,6 +18,7 @@ import {
 } from "@shared/validation/schemas";
 import { t } from "@/locales";
 import { getProjectValidationErrors } from "@/utils/validationHelpers";
+import { projectValuesEqual } from "@/utils/projectValues";
 import { resolveOverlaySubmissionCorners } from "@/services/overlay/data";
 import { acknowledgeSubmission } from "./submissionReceipt";
 import {
@@ -34,24 +35,6 @@ interface ProposedOverlayValues {
 interface OverlayUpdate {
   proposed: ProposedOverlayValues;
   changedFields: OverlayFieldName[];
-}
-
-function compareStrings(left: string, right: string): number {
-  return left.localeCompare(right);
-}
-
-function projectValuesEqual(
-  field: ProjectFieldChange["fieldName"],
-  oldValue: unknown,
-  newValue: unknown,
-): boolean {
-  if (field === "tags" && Array.isArray(oldValue) && Array.isArray(newValue)) {
-    return (
-      JSON.stringify(oldValue.toSorted(compareStrings)) ===
-      JSON.stringify(newValue.toSorted(compareStrings))
-    );
-  }
-  return JSON.stringify(oldValue) === JSON.stringify(newValue);
 }
 
 function zodErrorsToMessages(zodError: Parameters<typeof getValidationErrors>[0]): string[] {
@@ -106,6 +89,9 @@ function validateOverlay(overlay: OverlayObject, proposed: ProposedOverlayValues
 
 async function prepareImageForServer(overlay: OverlayObject): Promise<string> {
   if (overlay.imageUrl.startsWith("data:")) {
+    const auth = useAuthStore();
+    const epoch = auth.getSessionEpoch();
+    const userId = auth.user?.id;
     const store = useOverlayStore();
     const uploaded = store.overlayDrafts[overlay.id]?.uploadedImage;
     if (uploaded?.imageUrl === overlay.imageUrl) return uploaded.filename;
@@ -121,7 +107,14 @@ async function prepareImageForServer(overlay: OverlayObject): Promise<string> {
     else if (type === "image/jpeg") extension = "jpg";
     const file = new File([blob], `overlay-image.${extension}`, { type });
 
+    // Decoding local bytes must not turn an old submission into an upload for the next account.
+    if (epoch !== auth.getSessionEpoch() || userId !== auth.user?.id) {
+      throw new Error(t("errors.submissionFailed"));
+    }
     const filename = await uploadImageFile(file);
+    if (epoch !== auth.getSessionEpoch() || userId !== auth.user?.id) {
+      throw new Error(t("errors.submissionFailed"));
+    }
     store.rememberUploadedImage(overlay.id, overlay.imageUrl, filename);
     return filename;
   }
@@ -238,10 +231,19 @@ async function buildSubmissionBatch(
     return buildSubmittedOverlay(overlay, overlayFields.get(overlayId) ?? []);
   }
 
-  const [overlays, renderFilename] = await Promise.all([
-    Promise.all([...overlayFields.keys()].map(buildOverlayIntent)),
-    draft.pendingRender ? uploadImageFile(draft.pendingRender.file) : undefined,
+  // Keep the edit lock until every upload settles, including siblings of a failed upload.
+  // Otherwise a failed batch can keep uploading while the user edits or starts a retry.
+  const results = await Promise.allSettled([
+    ...[...overlayFields.keys()].map((id) => buildOverlayIntent(id)),
+    ...(draft.pendingRender ? [uploadImageFile(draft.pendingRender.file)] : []),
   ]);
+  const overlays: SubmissionBatchInput["overlays"] = [];
+  let renderFilename: string | undefined = undefined;
+  for (const result of results) {
+    if (result.status === "rejected") throw result.reason;
+    if (typeof result.value === "string") renderFilename = result.value;
+    else overlays.push(result.value);
+  }
   return {
     projectId: draft.projectId,
     project: submittedProject,
@@ -265,8 +267,8 @@ export async function submitDraft(
   reason: string,
 ): Promise<RouterOutput["submission"]["submit"]["outcome"]> {
   const submissionStore = useSubmissionStore();
-  if (submissionStore.isSubmitting) throw new Error(t("errors.submissionFailed"));
-  submissionStore.isSubmitting = true;
+  const execution = submissionStore.beginSubmission();
+  if (!execution) throw new Error(t("errors.submissionFailed"));
   try {
     const projectStore = useProjectStore();
     const authStore = useAuthStore();
@@ -284,6 +286,6 @@ export async function submitDraft(
     }
     return result.outcome;
   } finally {
-    submissionStore.isSubmitting = false;
+    execution.finish();
   }
 }

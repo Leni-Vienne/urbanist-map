@@ -5,7 +5,7 @@ import { createSvgCanvasLayer, createSvgPath } from "@/utils/svgCanvasLayer";
 import * as maplibregl from "maplibre-gl";
 import type { GeoJSONSource, MapMouseEvent } from "maplibre-gl";
 import type { Feature, Polygon } from "geojson";
-import { getMap, getMapOrNull, onStyleSwitch, type StyleSwitchPhase } from "@/services/core/map";
+import { getMap, getMapOrNull, onStyleSwitch } from "@/services/core/map";
 import {
   deriveOverlayFilename,
   getImageHandle,
@@ -29,13 +29,13 @@ import type { AppMode } from "@shared/types";
 
 import { t } from "@/locales";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
-import type { OverlayObject, LatLng } from "@/types/index";
+import type { OverlayObject, LatLng, Project } from "@/types/index";
 import { openOverlayDetail, whenImageReadyIfSelected } from "@/services/overlay/selection";
 import { makeHistoryState, commitOverlayEdit } from "@/services/overlay/history";
 import { watch } from "vue";
 import { toastWarn } from "@/services/core/toast";
 import { resolveOverlayCorners } from "@/services/overlay/data";
-import { isCroppingOverlay } from "@/services/overlay/cropHandles";
+import { isCroppingOverlay, hideCropHandles } from "@/services/overlay/cropHandles";
 
 // Overlay editing operations
 
@@ -84,26 +84,32 @@ function defaultCorners(center: LatLng, aspect: number): LatLng[] {
   });
 }
 
+function resolveNewOverlayPlacement(target: maplibregl.Map, project: Project | undefined) {
+  if (
+    target.getZoom() < getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS) &&
+    typeof project?.lat === "number" &&
+    typeof project.lng === "number"
+  ) {
+    return { center: { lat: project.lat, lng: project.lng }, zoomToProject: true };
+  }
+  const center = target.getCenter();
+  return { center: { lat: center.lat, lng: center.lng }, zoomToProject: false };
+}
+
 export async function createLocalOverlay(
   imageUrl: string,
   projectId: string,
   replacesOverlayId?: string,
 ): Promise<boolean> {
   if (useSubmissionStore().isSubmitting) return false;
+  const auth = useAuthStore();
+  const epoch = auth.getSessionEpoch();
+  const userId = auth.user?.id;
+  if (useUiStore().mode !== "edit") return false;
   const target = getMap();
   const overlayStore = useOverlayStore();
   const project = useProjectStore().projects[projectId];
-  const projectCenter: LatLng | null =
-    typeof project?.lat === "number" && typeof project.lng === "number"
-      ? { lat: project.lat, lng: project.lng }
-      : null;
-  const shouldZoom =
-    projectCenter !== null &&
-    target.getZoom() < getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
-  const currentCenter = target.getCenter();
-  const placementCenter: LatLng = shouldZoom
-    ? projectCenter
-    : { lat: currentCenter.lat, lng: currentCenter.lng };
+  const placement = resolveNewOverlayPlacement(target, project);
 
   const id = crypto.randomUUID();
   const overlay = buildLocalOverlay(id, imageUrl, projectId);
@@ -114,22 +120,45 @@ export async function createLocalOverlay(
     });
   }
 
-  if (shouldZoom) {
-    mobileAwareFlyTo(placementCenter, NEW_OVERLAY_ZOOM);
+  if (placement.zoomToProject) {
+    mobileAwareFlyTo(placement.center, NEW_OVERLAY_ZOOM);
   }
 
-  const aspect = await loadImageAspect(imageUrl);
+  const focus = useFocusStore();
+  const previousSelection = focus.selection;
+  let cancelled = false;
+  const stopWatchingMode = watch(
+    () => useUiStore().mode,
+    () => {
+      cancelled = true;
+    },
+    { flush: "sync" },
+  );
+  let aspect = 1;
+  try {
+    aspect = await loadImageAspect(imageUrl);
+  } finally {
+    stopWatchingMode();
+  }
   // Submission can start while the image is being decoded.
   // oxlint-disable-next-line typescript/no-unnecessary-condition
-  if (useSubmissionStore().isSubmitting) return false;
-  if (getMapOrNull() !== target) throw new Error("Map closed while creating an overlay");
+  if (cancelled || useSubmissionStore().isSubmitting) return false;
+  if (
+    getMapOrNull() !== target ||
+    useUiStore().mode !== "edit" ||
+    epoch !== auth.getSessionEpoch() ||
+    userId !== auth.user?.id ||
+    !useProjectStore().getProjectById(projectId)
+  )
+    return false;
 
-  const corners = defaultCorners(placementCenter, aspect);
+  const corners = defaultCorners(placement.center, aspect);
   overlay.baselineCorners = corners;
   overlay.history = [makeHistoryState(corners, overlay.imageUrl)];
 
   overlayStore.addLocalOverlay(id, overlay);
-  openOverlayDetail(id);
+  if (focus.selection === previousSelection && useUiStore().editingTarget.type === "none")
+    openOverlayDetail(id);
   return true;
 }
 
@@ -144,19 +173,25 @@ interface CornerDragState {
 
 interface EditSession {
   id: string;
+  map: maplibregl.Map;
   cornerMarkers: maplibregl.Marker[];
   fillSourceId: string;
   fillLayerId: string;
-  cornerDrag: CornerDragState | null;
+  gesture:
+    | { type: "idle" }
+    | ({ type: "corner" } & CornerDragState)
+    | {
+        type: "surface";
+        onMove: (e: MapMouseEvent) => void;
+        onUp: () => void;
+        panWasEnabled: boolean;
+      };
   onEnter?: () => void;
   onLeave?: () => void;
   onDown?: (e: MapMouseEvent) => void;
   svgContainer?: SVGSVGElement;
   svgPath?: SVGPathElement;
   onRender?: () => void;
-  // Set while a surface drag is mid-flight so teardown can detach its transient map listeners
-  // and re-enable dragPan immediately instead of waiting for the next mouseup.
-  activeSurfaceDrag?: { onMove: (e: MapMouseEvent) => void; onUp: () => void };
 }
 
 function getSessionOverlay(editSession: EditSession): OverlayObject | null {
@@ -276,16 +311,18 @@ function commitGesture(overlayId: string, transform: OverlayTransform): void {
 function wireCornerDrag(s: EditSession): void {
   s.cornerMarkers.forEach((marker, i) => {
     marker.on("dragstart", () => {
+      if (session !== s || s.gesture.type !== "idle" || useSubmissionStore().isSubmitting) return;
       const overlayObject = getSessionOverlay(s);
       if (!overlayObject) return;
       const transform = getEditingTransform(overlayObject);
       if (!transform) return;
-      registry.takeGestureOwnership(overlayObject.id, transform);
-      raiseOverlayImage(overlayObject.id);
       const opposite = transformToCorners(transform)[(i + 2) % 4];
       if (!opposite) return;
+      registry.takeGestureOwnership(overlayObject.id, transform);
+      raiseOverlayImage(overlayObject.id);
       const a = maplibregl.MercatorCoordinate.fromLngLat({ lng: opposite.lng, lat: opposite.lat });
-      s.cornerDrag = {
+      s.gesture = {
+        type: "corner",
         ax: a.x,
         ay: a.y,
         /* oxlint-disable no-non-null-assertion */
@@ -298,10 +335,10 @@ function wireCornerDrag(s: EditSession): void {
     });
 
     marker.on("drag", () => {
+      if (session !== s || s.gesture.type !== "corner") return;
       const overlayObject = getSessionOverlay(s);
       if (!overlayObject) return;
-      const drag = s.cornerDrag;
-      if (!drag) return;
+      const drag = s.gesture;
       const ll = marker.getLngLat();
       const c = maplibregl.MercatorCoordinate.fromLngLat({ lng: ll.lng, lat: ll.lat });
 
@@ -331,8 +368,9 @@ function wireCornerDrag(s: EditSession): void {
     });
 
     marker.on("dragend", () => {
-      const didMove = s.cornerDrag?.didMove === true;
-      s.cornerDrag = null;
+      if (session !== s || s.gesture.type !== "corner") return;
+      const didMove = s.gesture.didMove;
+      s.gesture = { type: "idle" };
       refreshEditHandlesGeometry();
       const transform = registry.getGestureTransform(s.id);
       if (!transform || !didMove) {
@@ -345,7 +383,7 @@ function wireCornerDrag(s: EditSession): void {
 }
 
 function wireSurfaceDrag(s: EditSession): void {
-  const mlMap = getMap();
+  const mlMap = s.map;
 
   s.onEnter = () => {
     mlMap.getCanvas().style.cursor = "move";
@@ -354,8 +392,14 @@ function wireSurfaceDrag(s: EditSession): void {
     mlMap.getCanvas().style.cursor = "";
   };
   s.onDown = (e: MapMouseEvent) => {
+    if (
+      session !== s ||
+      s.gesture.type !== "idle" ||
+      useSubmissionStore().isSubmitting ||
+      e.originalEvent.button !== 0
+    )
+      return;
     e.preventDefault();
-    if (s.cornerDrag) return; // Prevent surface drag if a corner is currently being dragged
 
     // Raise above any sibling images that streamed in since selection, so the image being moved
     // stays on top of others it slides over during the drag.
@@ -368,12 +412,13 @@ function wireSurfaceDrag(s: EditSession): void {
     raiseOverlayImage(overlayObject.id);
     const start = e.lngLat;
     const startCenter = { lat: transform.center.lat, lng: transform.center.lng };
+    const panWasEnabled = mlMap.dragPan.isEnabled();
     mlMap.dragPan.disable();
 
     let didMove = false;
 
     function onMove(ev: MapMouseEvent): void {
-      if (s.cornerDrag) return; // Prevent conflict
+      if (session !== s || s.gesture.type !== "surface") return;
 
       // Require actual physical movement (threshold) to count as a drag, ignoring subpixel jitter
       const dx = ev.point.x - e.point.x;
@@ -398,8 +443,10 @@ function wireSurfaceDrag(s: EditSession): void {
 
     function onUp(): void {
       mlMap.off("mousemove", onMove);
-      mlMap.dragPan.enable();
-      s.activeSurfaceDrag = undefined;
+      mlMap.off("mouseup", onUp);
+      if (panWasEnabled) mlMap.dragPan.enable();
+      if (session !== s || s.gesture.type !== "surface") return;
+      s.gesture = { type: "idle" };
       if (didMove) {
         const finalTransform = registry.getGestureTransform(overlayId);
         if (finalTransform) {
@@ -414,7 +461,7 @@ function wireSurfaceDrag(s: EditSession): void {
 
     mlMap.on("mousemove", onMove);
     void mlMap.once("mouseup", onUp);
-    s.activeSurfaceDrag = { onMove, onUp };
+    s.gesture = { type: "surface", onMove, onUp, panWasEnabled };
   };
 
   mlMap.on("mouseenter", s.fillLayerId, s.onEnter);
@@ -476,10 +523,11 @@ export function showEditHandles(overlayObject: OverlayObject): void {
 
   session = {
     id: overlayObject.id,
+    map: mlMap,
     cornerMarkers,
     fillSourceId,
     fillLayerId,
-    cornerDrag: null,
+    gesture: { type: "idle" },
     svgContainer,
     svgPath,
     onRender,
@@ -491,51 +539,20 @@ export function showEditHandles(overlayObject: OverlayObject): void {
   syncSvgOutline();
 }
 
-// Re-adds the edit-handle source/layer that setStyle() drops on a basemap switch. The DOM corner
-// markers, SVG outline, and layer-scoped drag handlers survive the switch, but those handlers only
-// fire while their fill layer exists, so the overlay stays draggable only once the layer is back.
-function reattachEditHandlesAfterStyleSwitch(phase: StyleSwitchPhase): void {
-  if (phase !== "after") return;
-  if (!session) return;
-  const mlMap = getMap();
-  const overlay = getSessionOverlay(session);
-  if (!overlay) return;
-  const transform = getEditingTransform(overlay);
-  // eslint-disable-next-line no-unnecessary-condition
-  if (!transform) return;
-
-  const corners = transformToCorners(transform);
-
-  if (!mlMap.getSource(session.fillSourceId)) {
-    mlMap.addSource(session.fillSourceId, { type: "geojson", data: polygonFeature(corners) });
-  }
-  if (!mlMap.getLayer(session.fillLayerId)) {
-    mlMap.addLayer({
-      id: session.fillLayerId,
-      type: "fill",
-      source: session.fillSourceId,
-      minzoom: getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS),
-      paint: { "fill-color": "#000000", "fill-opacity": 0 },
-    });
-  }
-
-  refreshEditHandlesGeometry();
-}
-
 export function hideEditHandles(): void {
   if (!session) return;
-  const mlMap = getMap();
   const s = session;
+  const mlMap = s.map;
   session = null;
 
   s.cornerMarkers.forEach((marker) => marker.remove());
 
   // Tear down an in-flight surface drag so its mousemove handler stops mutating a dead session
   // and dragPan is restored now rather than on a mouseup that may never reach this overlay.
-  if (s.activeSurfaceDrag) {
-    mlMap.off("mousemove", s.activeSurfaceDrag.onMove);
-    mlMap.off("mouseup", s.activeSurfaceDrag.onUp);
-    mlMap.dragPan.enable();
+  if (s.gesture.type === "surface") {
+    mlMap.off("mousemove", s.gesture.onMove);
+    mlMap.off("mouseup", s.gesture.onUp);
+    if (s.gesture.panWasEnabled) mlMap.dragPan.enable();
   }
 
   if (registry.isGestureOwned(s.id)) {
@@ -567,12 +584,17 @@ export function hideEditHandles(): void {
  * overlay in edit mode. hideEditHandles() no-ops when nothing is shown, and the image may not be
  * on the map yet, so the show is deferred until it is, using the current overlay and mode.
  */
+let cancelHandleWait: (() => void) | null = null;
+
 function syncEditHandles(selectedId: string | null, mode: AppMode): void {
+  cancelHandleWait?.();
+  cancelHandleWait = null;
   hideEditHandles();
 
-  if (!selectedId || mode !== "edit") return;
+  if (!selectedId || mode !== "edit" || useSubmissionStore().isSubmitting) return;
 
-  whenImageReadyIfSelected(selectedId, () => {
+  cancelHandleWait = whenImageReadyIfSelected(selectedId, () => {
+    cancelHandleWait = null;
     const overlay = useOverlayStore().liveOverlays[selectedId];
     if (overlay && useUiStore().mode === "edit") showEditHandles(overlay);
   });
@@ -595,9 +617,20 @@ export function watchEditHandles(): () => void {
     },
     { immediate: true, flush: "sync" },
   );
-  const stopStyleSwitchWatch = onStyleSwitch(reattachEditHandlesAfterStyleSwitch);
+  const stopStyleSwitchWatch = onStyleSwitch((phase) => {
+    if (phase === "before") {
+      cancelHandleWait?.();
+      cancelHandleWait = null;
+      hideCropHandles();
+      hideEditHandles();
+    } else {
+      syncEditHandlesForCurrentState();
+    }
+  });
 
   return function stopEditHandleWatchers(): void {
+    cancelHandleWait?.();
+    cancelHandleWait = null;
     stopStyleSwitchWatch();
     stopStateWatch();
   };

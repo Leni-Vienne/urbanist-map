@@ -1,6 +1,9 @@
 import { useSubmissionStore } from "@/stores/submissionStore";
 import * as maplibregl from "maplibre-gl";
-import { getMap } from "@/services/core/map";
+import { getMap, getMapOrNull } from "@/services/core/map";
+import { readonly, shallowRef } from "vue";
+import { useUiStore } from "@/stores/uiStore";
+import { useAuthStore } from "@/stores/authStore";
 import {
   getImageHandle,
   deriveOverlayFilename,
@@ -29,6 +32,9 @@ type Edge = "top" | "bottom" | "left" | "right";
 
 interface CropSession {
   id: string;
+  map: maplibregl.Map;
+  epoch: number;
+  userId: string | undefined;
   overlayObject: OverlayObject;
   // The full-image rigid rectangle captured when crop mode opened; the crop frame is expressed
   // relative to this, so the session is reversible until the user confirms.
@@ -46,9 +52,25 @@ const MIN_FRAC = 0.05;
 const EDGES: Edge[] = ["top", "bottom", "left", "right"];
 
 let session: CropSession | null = null;
+const state = shallowRef<{ type: "idle" } | { type: "cropping" | "applying"; overlayId: string }>({
+  type: "idle",
+});
+export const cropState = readonly(state);
 
 export function isCroppingOverlay(overlayId: string): boolean {
   return session?.id === overlayId;
+}
+
+function isCurrentCrop(candidate: CropSession): boolean {
+  const auth = useAuthStore();
+  return (
+    session === candidate &&
+    getMapOrNull() === candidate.map &&
+    candidate.epoch === auth.getSessionEpoch() &&
+    candidate.userId === auth.user?.id &&
+    useUiStore().mode === "edit" &&
+    !useSubmissionStore().isSubmitting
+  );
 }
 
 function clamp(value: number, lo: number, hi: number): number {
@@ -144,7 +166,7 @@ function wireHandle(edge: Edge): void {
   const marker = session?.handles[edge];
   if (!marker) return;
   marker.on("drag", () => {
-    if (!session) return;
+    if (!session || state.value.type !== "cropping") return;
     const { u, v } = lngLatToNorm(
       session.baseTransform,
       marker.getLngLat().lng,
@@ -167,7 +189,12 @@ function wireHandle(edge: Edge): void {
  * image, with one draggable handle per edge. Mutually exclusive with the edit (resize) handles.
  */
 export function showCropHandles(overlayObject: OverlayObject): void {
-  if (useSubmissionStore().isSubmitting) return;
+  if (
+    useSubmissionStore().isSubmitting ||
+    useUiStore().mode !== "edit" ||
+    overlayObject.status !== null
+  )
+    return;
   const mlMap = getMap();
   // eslint-disable-next-line no-unnecessary-condition
   if (!getImageHandle(overlayObject.id)) return;
@@ -218,6 +245,9 @@ export function showCropHandles(overlayObject: OverlayObject): void {
 
   session = {
     id: overlayObject.id,
+    map: mlMap,
+    epoch: useAuthStore().getSessionEpoch(),
+    userId: useAuthStore().user?.id,
     overlayObject,
     baseTransform,
     bounds,
@@ -233,19 +263,20 @@ export function showCropHandles(overlayObject: OverlayObject): void {
   // dragged, and applyCrop swaps it (via replaceOverlayImageSource) before hideCropHandles releases,
   // so the reconciler must not touch it in between.
   takeGestureOwnership(overlayObject.id, baseTransform);
+  state.value = { type: "cropping", overlayId: overlayObject.id };
   syncCrop();
 }
 
 export function hideCropHandles(): void {
   if (!session) return;
-  const mlMap = getMap();
   const s = session;
   session = null;
+  state.value = { type: "idle" };
 
   releaseGestureOwnership(s.id);
   for (const edge of EDGES) s.handles[edge].remove();
 
-  mlMap.off("render", s.onRender);
+  s.map.off("render", s.onRender);
   if (s.svgContainer.parentNode) s.svgContainer.parentNode.removeChild(s.svgContainer);
 }
 
@@ -292,13 +323,18 @@ async function cropImageToDataUrl(url: string, bounds: NormalizedRect): Promise<
  * window is still the full image or when the image can't be read.
  */
 export async function applyCrop(): Promise<boolean> {
-  if (!session || useSubmissionStore().isSubmitting) return false;
-  const { overlayObject: overlay, baseTransform: t, bounds } = session;
+  if (!session || state.value.type !== "cropping" || !isCurrentCrop(session)) return false;
+  const currentSession = session;
+  const { overlayObject: overlay, baseTransform: t } = currentSession;
+  const bounds = { ...currentSession.bounds };
   const { u0, u1, v0, v1 } = bounds;
 
   if (u0 <= 1e-4 && u1 >= 1 - 1e-4 && v0 <= 1e-4 && v1 >= 1 - 1e-4) {
+    hideCropHandles();
     return false;
   }
+  state.value = { type: "applying", overlayId: overlay.id };
+  for (const edge of EDGES) currentSession.handles[edge].setDraggable(false);
 
   // Always crop the pristine original (history[0].imageUrl) rather than the currently displayed
   // image, so repeated crops stay a single compression generation from the source instead of
@@ -312,9 +348,13 @@ export async function applyCrop(): Promise<boolean> {
     console.error("Failed to crop overlay image:", error);
     return null;
   });
-  // Submission can start while the image is being decoded.
-  // oxlint-disable-next-line typescript/no-unnecessary-condition
-  if (!dataUrl || useSubmissionStore().isSubmitting) return false;
+  // Cancellation retires this exact session, even if another crop opens for the same overlay.
+  if (!isCurrentCrop(currentSession)) return false;
+  if (!dataUrl) {
+    state.value = { type: "cropping", overlayId: overlay.id };
+    for (const edge of EDGES) currentSession.handles[edge].setDraggable(true);
+    return false;
+  }
 
   const centerLL = normToLngLat(t, (u0 + u1) / 2, (v0 + v1) / 2);
   const newTransform: OverlayTransform = {
@@ -326,7 +366,10 @@ export async function applyCrop(): Promise<boolean> {
   const newCorners = transformToCorners(newTransform);
   const overlayStore = useOverlayStore();
   const currentOverlay = overlayStore.liveOverlays[overlay.id];
-  if (!currentOverlay) return false;
+  if (!currentOverlay) {
+    hideCropHandles();
+    return false;
+  }
 
   // Store the cropped pixels, project them at the shrunk footprint, then record a history step.
   // The new imageUrl makes the step distinct from the pre-crop one, so undo restores both the
@@ -338,6 +381,7 @@ export async function applyCrop(): Promise<boolean> {
   replaceOverlayImageSource(overlay.id, dataUrl, newCorners);
   commitOverlayEdit(overlay.id, newCorners, originalRect);
   updateMarkerPosition(overlay, newCorners);
+  hideCropHandles();
 
   return true;
 }

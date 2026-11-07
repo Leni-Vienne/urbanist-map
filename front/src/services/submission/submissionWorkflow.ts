@@ -91,6 +91,9 @@ function getNewOverlaysForProject(projectId: string): OverlayObject[] {
 // a full entity: the submission then runs overlay-only, keyed by the overlay's projectId, with
 // `overlay` supplying the dialog's entity name.
 export function prepareSubmission(project: Project | null, overlay?: OverlayObject): void {
+  // An open editor owns uncommitted form/drawing state. Review starts once it is saved or cancelled.
+  if (useUiStore().editingTarget.type !== "none") return;
+  if (useSubmissionStore().isSubmitting && useSubmissionStore().pendingSubmission) return;
   const projectId = project?.id ?? overlay?.projectId;
   if (!projectId) return;
 
@@ -202,6 +205,7 @@ export async function handleRemoveChange(
     handleRemoveProjectChange(field);
   }
 
+  if (useSubmissionStore().pendingSubmission !== pending) return;
   const draft = buildSubmissionDraft();
   if (!draft || !hasSubmissionWork(draft)) {
     useSubmissionStore().clearPendingSubmission();

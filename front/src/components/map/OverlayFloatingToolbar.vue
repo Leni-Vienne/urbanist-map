@@ -20,7 +20,12 @@
       >
         <!-- Crop sub-mode: trim the image, then confirm or cancel -->
         <template v-if="isCropActive">
-          <button :title="t('toolbar.cropConfirm')" :class="btnCls()" @click="confirmCrop">
+          <button
+            :title="t('toolbar.cropConfirm')"
+            :disabled="cropState.type === 'applying'"
+            :class="btnCls()"
+            @click="confirmCrop"
+          >
             <i class="pi pi-check" />
           </button>
           <button :title="t('toolbar.cropCancel')" :class="btnCls()" @click="endCrop()">
@@ -53,7 +58,7 @@
           </template>
 
           <!-- Edit-only tools -->
-          <template v-if="isEditMode">
+          <fieldset v-if="isEditMode" :disabled="submissionStore.isSubmitting" class="contents">
             <span class="w-px h-4.5 bg-content-border-color mx-0.5 shrink-0" />
             <button
               :title="t('toolbar.undo')"
@@ -90,13 +95,13 @@
             </button>
             <button
               :title="t('toolbar.save')"
-              :disabled="!hasUnsavedModifications"
+              :disabled="!hasUnsavedModifications || uiStore.editingTarget.type !== 'none'"
               :class="btnCls()"
               @click="onSave"
             >
               <i class="pi pi-send" />
             </button>
-          </template>
+          </fieldset>
         </template>
       </div>
     </div>
@@ -114,6 +119,7 @@ import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useUiStore } from "@/stores/uiStore";
+import { useSubmissionStore } from "@/stores/submissionStore";
 import type { LatLng, OverlayObject } from "@/types";
 import { onMapReady } from "@/services/core/map";
 import {
@@ -131,7 +137,12 @@ import { transformToCorners } from "@/services/overlay/transform";
 
 import { showEditHandles, hideEditHandles } from "@/services/overlay/editing";
 import { undo, redo } from "@/services/overlay/history";
-import { showCropHandles, hideCropHandles, applyCrop } from "@/services/overlay/cropHandles";
+import {
+  showCropHandles,
+  hideCropHandles,
+  applyCrop,
+  cropState,
+} from "@/services/overlay/cropHandles";
 import { prepareOverlaySubmission } from "@/services/submission/submissionWorkflow";
 import { isOverlayUnsaved, isProjectUnsaved } from "@/services/overlay/unsavedState";
 import { confirmAndDeleteOverlay } from "@/services/entity/entityRemoval";
@@ -141,6 +152,7 @@ const overlayStore = useOverlayStore();
 const projectStore = useProjectStore();
 const focusStore = useFocusStore();
 const uiStore = useUiStore();
+const submissionStore = useSubmissionStore();
 const { selectedOverlayId } = storeToRefs(focusStore);
 const { mode } = storeToRefs(uiStore);
 const selectedId = selectedOverlayId;
@@ -152,7 +164,9 @@ const markerIconEl = ref<HTMLElement | null>(null);
 const opacity = ref(100);
 const isInFront = computed(() => (selectedId.value ? isOverlayInFront(selectedId.value) : false));
 const canStack = ref(false);
-const isCropActive = ref(false);
+const isCropActive = computed(
+  () => cropState.value.type !== "idle" && cropState.value.overlayId === selectedId.value,
+);
 
 let anchorMarker: maplibregl.Marker | null = null;
 let cancelImageWait: (() => void) | null = null;
@@ -218,10 +232,11 @@ function syncAnchor() {
   if (!anchorMarker || !selectedId.value) return;
   const lngLat = getAnchorLngLat();
   if (!lngLat) {
-    // The image left the registry (e.g. unloaded on zoom-out) while still selected.
-    useFocusStore().setSelectionTarget(null);
+    // Zoom gates and style replacement retire map objects, not the pinned selection.
+    anchorMarker.getElement().style.display = "none";
     return;
   }
+  anchorMarker.getElement().style.display = "";
   anchorMarker.setLngLat(lngLat);
   // Throttled so a drag onto/off a project shape updates the button without querying every frame.
   const now = performance.now();
@@ -244,6 +259,7 @@ function stopAnchorSync() {
 }
 
 function initForSelection() {
+  if (!toolbarMap || anchorMarker) return;
   const id = selectedId.value;
   if (!id) return;
   const lngLat = getAnchorLngLat();
@@ -269,7 +285,7 @@ watch(
     // nextTick: let Teleport unmount cleanly from the old marker before we create a new one
     if (id) void nextTick().then(initForSelection);
   },
-  { immediate: true },
+  { immediate: true, flush: "sync" },
 );
 
 // The toolbar can mount before MapView finishes wiring the map up, so it anchors on readiness
@@ -280,9 +296,13 @@ const stopWaitingForMap = onMapReady((mlMap) => {
   if (selectedId.value && !anchorMarker) initForSelection();
 });
 
-watch(isEditMode, (editing) => {
-  if (!editing) abandonCrop();
-});
+watch(
+  [isEditMode, () => submissionStore.isSubmitting],
+  ([editing, submitting]) => {
+    if (!editing || submitting) abandonCrop();
+  },
+  { flush: "sync" },
+);
 
 onUnmounted(() => {
   stopWaitingForMap();
@@ -352,16 +372,13 @@ function startCrop() {
   // Only local (status === null) overlays expose the crop button (see canCrop), so the image bytes
   // here are always the un-submitted source, safe to re-bake and re-upload via the publish path.
   const overlay = selectedOverlay.value;
-  if (!overlay) return;
+  if (!overlay || !canCrop.value || submissionStore.isSubmitting) return;
   hideEditHandles();
   showCropHandles(overlay);
-  isCropActive.value = true;
 }
 
 function abandonCrop() {
-  if (!isCropActive.value) return;
   hideCropHandles();
-  isCropActive.value = false;
 }
 
 function endCrop() {
@@ -371,8 +388,12 @@ function endCrop() {
 }
 
 async function confirmCrop() {
+  const id = selectedId.value;
   await applyCrop();
-  endCrop();
+  if (selectedId.value === id && !isCropActive.value) {
+    const overlay = selectedOverlay.value;
+    if (overlay && isEditMode.value) showEditHandles(overlay);
+  }
 }
 
 function onEditInfo() {
@@ -386,8 +407,7 @@ function onReplace() {
   if (!id) return;
   const overlay = overlayStore.liveOverlays[id];
   if (!overlay?.projectId) return;
-  overlayStore.requestOverlayReplacement(id);
-  uiStore.openImageUploadDialog(overlay.projectId);
+  uiStore.openImageUploadDialog(overlay.projectId, id);
 }
 
 async function onDelete() {

@@ -95,6 +95,7 @@
         <Textarea
           id="changeReason"
           v-model="changeReason"
+          :disabled="isSubmitting"
           rows="2"
           :placeholder="$t('common.explainChanges')"
           dir="auto"
@@ -162,6 +163,5 @@ function requestClose() {
 
 function handleConfirm() {
   emit("confirm", changeReason.value);
-  changeReason.value = "";
 }
 </script>

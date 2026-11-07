@@ -26,6 +26,7 @@
         option-label="label"
         option-value="value"
         :allow-empty="false"
+        :disabled="!canEdit"
         size="small"
         @update:model-value="handleModeChange"
       >
@@ -48,6 +49,7 @@
         rounded
         size="small"
         @click="triggerFileInput"
+        :disabled="!canEdit"
       />
       <input
         ref="fileInputRef"
@@ -63,7 +65,7 @@
         v-if="activeMode === 'select'"
         :title="$t('shapes.deleteShape')"
         :aria-label="$t('shapes.deleteShape')"
-        :disabled="selectedShapeId === null"
+        :disabled="!canEdit || selectedShapeId === null"
         icon="pi pi-trash"
         severity="danger"
         text
@@ -92,6 +94,7 @@
         size="small"
         class="whitespace-nowrap"
         @click="handleSave"
+        :disabled="!canEdit"
       />
     </div>
   </div>
@@ -99,7 +102,10 @@
 
 <script setup lang="ts">
 import { toastWarn, toastError } from "@/services/core/toast";
-import { ref } from "vue";
+import { computed, ref, onScopeDispose } from "vue";
+import { shapeEditorPhase } from "@/services/shape/shapeEditorLazy";
+import { useSubmissionStore } from "@/stores/submissionStore";
+import { useUiStore } from "@/stores/uiStore";
 import { useI18n } from "vue-i18n";
 
 import { mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
@@ -122,6 +128,15 @@ const emit = defineEmits<{
 }>();
 
 const fileInputRef = ref<HTMLInputElement | null>(null);
+const importing = ref(false);
+let disposed = false;
+onScopeDispose(() => {
+  disposed = true;
+});
+const canEdit = computed(
+  () =>
+    shapeEditorPhase.value === "ready" && !importing.value && !useSubmissionStore().isSubmitting,
+);
 
 // Terra Draw has no built-in toolbar, so the tool selection lives here.
 // Restore the last tool the user picked (null on first ever open: no tool selected).
@@ -134,6 +149,7 @@ const drawModeOptions = [
 ];
 
 function handleModeChange(mode: ShapeDrawMode) {
+  if (!canEdit.value) return;
   setDrawMode(mode);
 }
 
@@ -142,12 +158,19 @@ function triggerFileInput() {
 }
 
 async function handleFileImport(event: Event) {
+  if (!canEdit.value) return;
   const file = (event.target as HTMLInputElement).files?.[0];
   if (!file) return;
   // Reset input so the same file can be re-imported regardless of outcome
   if (fileInputRef.value) fileInputRef.value.value = "";
+  importing.value = true;
+  const target = useUiStore().editingTarget;
+  function isCurrent(): boolean {
+    return !disposed && useUiStore().editingTarget === target;
+  }
   try {
     const { geometry, skippedGeometryTypes } = await loadGeoJSONFile(file);
+    if (!isCurrent()) return;
 
     if (skippedGeometryTypes.length > 0) {
       toastWarn(
@@ -161,15 +184,19 @@ async function handleFileImport(event: Event) {
     if (geometry.geometries.length === 0) return;
 
     const bounds = await addLayersFromGeometry(geometry);
-    if (bounds) {
+    if (bounds && isCurrent()) {
       mobileAwareFlyToBounds(bounds, { maxZoom: 17 });
     }
   } catch (error) {
-    toastError(error instanceof Error ? error.message : String(error), t("shapes.importError"));
+    if (isCurrent())
+      toastError(error instanceof Error ? error.message : String(error), t("shapes.importError"));
+  } finally {
+    importing.value = false;
   }
 }
 
 function handleSave() {
+  if (!canEdit.value) return;
   const geometry = getDrawnGeometry();
   emit("done", geometry);
 }

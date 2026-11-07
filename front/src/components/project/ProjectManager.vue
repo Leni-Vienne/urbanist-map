@@ -1,6 +1,7 @@
 <template>
   <CreateProjectDialog
     v-if="uiStore.projectCreationSeed"
+    :key="uiStore.projectCreationSeed.lat + ',' + uiStore.projectCreationSeed.lng"
     :project="uiStore.projectCreationSeed"
     @submit="handleProjectSubmitted"
     @close="uiStore.closeProjectDialog"
@@ -19,29 +20,27 @@
       content: { class: '!p-0 sm:overflow-y-auto sm:max-h-[70vh]' },
     }"
   >
-    <EditProjectForm :project="projectEditTarget" @close="uiStore.closeProjectEditForm" />
+    <EditProjectForm
+      :key="projectEditTarget.id"
+      :project="projectEditTarget"
+      @close="uiStore.closeProjectEditForm"
+    />
   </Dialog>
 
-  <MarkerPlacementBar
-    ref="markerPlacementBar"
-    v-model:visible="uiStore.markerPlacementBarVisible"
-    @marker-coordinates="onMarkerCoordinatesSelected"
-    @marker-mode-enabled="onMarkerModeEnabled"
-    @update:visible="onDialogVisibilityChange"
-  />
+  <MarkerPlacementBar />
 </template>
 
 <script setup lang="ts">
 import { toastError } from "@/services/core/toast";
 
-import { computed, ref, defineAsyncComponent, onUnmounted } from "vue";
+import { computed, watch, defineAsyncComponent, onUnmounted } from "vue";
 import { useI18n } from "vue-i18n";
 import * as maplibregl from "maplibre-gl";
-import type { MapMouseEvent } from "maplibre-gl";
+import type { MapMouseEvent, Map as MaplibreMap } from "maplibre-gl";
 import { useProjectStore } from "@/stores/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 
-import { getMap, getMapOrNull } from "@/services/core/map";
+import { onMapReady } from "@/services/core/map";
 import { createProjectPinElement } from "@/services/core/markersSvg";
 import { createProject } from "@/services/project/projectMutations";
 import { openProjectDetail } from "@/services/core/projectSelection";
@@ -63,53 +62,51 @@ const projectEditTarget = computed(() => {
 });
 
 const { t: $t } = useI18n();
-const markerPlacementBar = ref<InstanceType<typeof MarkerPlacementBar> | null>(null);
 let tempMarker: maplibregl.Marker | null = null;
-
-function onMarkerCoordinatesSelected(coordinates: { lat: number; lng: number }) {
-  if (tempMarker) {
-    tempMarker.remove();
-    tempMarker = null;
-  }
-
-  uiStore.openProjectDialog({
-    lat: coordinates.lat,
-    lng: coordinates.lng,
-  });
-}
+let placementMap: MaplibreMap | null = null;
+let cancelPlacementWait: (() => void) | null = null;
 
 function handleMapClick(e: MapMouseEvent) {
-  const coordinates = { lat: e.lngLat.lat, lng: e.lngLat.lng };
+  uiStore.setMarkerCoordinates({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+}
 
-  if (tempMarker) {
-    tempMarker.remove();
-    tempMarker = null;
-  }
+function syncPlacementMarker(): void {
+  tempMarker?.remove();
+  tempMarker = null;
+  const coordinates = uiStore.markerCoordinates;
+  if (!placementMap || !coordinates) return;
 
   const element = createProjectPinElement("orange");
   tempMarker = new maplibregl.Marker({ element, anchor: "bottom" })
     .setLngLat([coordinates.lng, coordinates.lat])
-    .addTo(getMap());
-
-  if (markerPlacementBar.value) {
-    markerPlacementBar.value.setMarkerCoordinates(coordinates);
-  }
+    .addTo(placementMap);
 }
 
-function onMarkerModeEnabled() {
-  getMap().on("click", handleMapClick);
-}
+watch(() => uiStore.markerCoordinates, syncPlacementMarker, { flush: "sync" });
 
-function onDialogVisibilityChange(visible: boolean) {
-  if (!visible) clearMarkerPlacement();
-}
+watch(
+  () => uiStore.markerPlacementBarVisible,
+  (active) => {
+    clearMarkerPlacement();
+    if (!active) return;
+    cancelPlacementWait = onMapReady((target) => {
+      placementMap = target;
+      placementMap.on("click", handleMapClick);
+      syncPlacementMarker();
+    });
+  },
+  { immediate: true, flush: "sync" },
+);
 
 function clearMarkerPlacement() {
+  cancelPlacementWait?.();
+  cancelPlacementWait = null;
   if (tempMarker) {
     tempMarker.remove();
     tempMarker = null;
   }
-  getMapOrNull()?.off("click", handleMapClick);
+  placementMap?.off("click", handleMapClick);
+  placementMap = null;
 }
 
 onUnmounted(clearMarkerPlacement);

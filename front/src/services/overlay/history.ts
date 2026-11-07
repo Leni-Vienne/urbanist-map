@@ -43,13 +43,26 @@ export function commitOverlayEdit(
   if (baseHistory.length === 0) {
     const restingCorners = getEditModeRestingCorners(overlay);
     if (isValidQuad(restingCorners)) {
-      baseHistory = [makeHistoryState(restingCorners, overlay.imageUrl)];
+      baseHistory = [
+        {
+          ...makeHistoryState(restingCorners, overlay.imageUrl),
+          positionState: overlay.positionState === "staged" ? "baseline" : overlay.positionState,
+        },
+      ];
     }
   }
 
   if (baseHistory.length > 0) {
     const lastState = baseHistory.at(-1);
-    if (JSON.stringify(currentState) === JSON.stringify(lastState)) {
+    if (
+      lastState &&
+      JSON.stringify(currentState) ===
+        JSON.stringify({
+          corners: lastState.corners,
+          imageUrl: lastState.imageUrl,
+          cropRect: lastState.cropRect,
+        })
+    ) {
       return;
     }
   }

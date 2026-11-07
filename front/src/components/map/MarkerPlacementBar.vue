@@ -40,19 +40,13 @@
 
 <script setup lang="ts">
 import { ref, watch, onUnmounted } from "vue";
+import { storeToRefs } from "pinia";
 import { useUiStore } from "@/stores/uiStore";
 import { getMap } from "@/services/core/map";
 import { getMarkerSvg } from "@/services/core/markersSvg";
 
-type Emits = {
-  (e: "marker-coordinates", coordinates: { lat: number; lng: number }): void;
-  (e: "marker-mode-enabled"): void;
-};
-
-const visible = defineModel<boolean>("visible", { default: false });
-const emit = defineEmits<Emits>();
-
-const markerCoordinates = ref<{ lat: number; lng: number } | null>(null);
+const uiStore = useUiStore();
+const { markerPlacementBarVisible: visible, markerCoordinates } = storeToRefs(uiStore);
 const cursorPosition = ref({ x: 0, y: 0 });
 const cursorMarkerSvg = getMarkerSvg("orange");
 
@@ -71,10 +65,8 @@ watch(
   (newVisible) => {
     if (newVisible) {
       document.addEventListener("mousemove", onMouseMove);
-      emit("marker-mode-enabled");
     } else {
       document.removeEventListener("mousemove", onMouseMove);
-      resetState();
     }
   },
   { immediate: true },
@@ -84,37 +76,13 @@ onUnmounted(() => {
   document.removeEventListener("mousemove", onMouseMove);
 });
 
-function setMarkerCoordinates(coordinates: { lat: number; lng: number }) {
-  markerCoordinates.value = coordinates;
-}
-
 function onCancel() {
-  visible.value = false;
+  uiStore.cancelProjectPlacement();
 }
 
 function onContinue() {
   if (markerCoordinates.value) {
-    emit("marker-coordinates", markerCoordinates.value);
+    uiStore.openProjectDialog(markerCoordinates.value);
   }
-  resetState();
-  visible.value = false;
 }
-
-function resetState() {
-  markerCoordinates.value = null;
-}
-
-const uiStore = useUiStore();
-watch(
-  () => uiStore.mode,
-  () => {
-    if (visible.value) {
-      onCancel();
-    }
-  },
-);
-
-defineExpose({
-  setMarkerCoordinates,
-});
 </script>

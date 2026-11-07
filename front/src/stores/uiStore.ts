@@ -1,8 +1,19 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
-import { computed, ref } from "vue";
-import type { Project, PanelTab } from "@/types/index";
+import { computed, ref, shallowRef, watch } from "vue";
+import type { PanelTab } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import { useAuthStore } from "@/stores/authStore";
+import { useSubmissionStore } from "@/stores/submissionStore";
+
+type ProjectCoordinates = { lat: number; lng: number };
+type EditingTarget =
+  | { type: "none" }
+  | { type: "place-project"; coordinates: ProjectCoordinates | null }
+  | { type: "create-project"; coordinates: ProjectCoordinates }
+  | { type: "project-info"; projectId: string }
+  | { type: "overlay-info"; overlayId: string }
+  | { type: "image"; projectId: string; replacesOverlayId: string | null }
+  | { type: "shape"; projectId: string };
 
 const PANEL_MODES = {
   explore: "view",
@@ -21,11 +32,21 @@ export const useUiStore = defineStore("ui", () => {
   const authStore = useAuthStore();
   const authModalVisible = ref(false);
   const authModalInitialMode = ref<"login" | "signup">("login");
-  const markerPlacementBarVisible = ref(false);
-
-  const projectCreationSeed = ref<Pick<Project, "lat" | "lng"> | null>(null);
-  const projectEditTargetId = ref<string | null>(null);
-  const overlayEditTargetId = ref<string | null>(null);
+  // One edit surface owns its target. Opening another surface retires the previous one.
+  const editingTarget = shallowRef<EditingTarget>({ type: "none" });
+  const markerPlacementBarVisible = computed(() => editingTarget.value.type === "place-project");
+  const markerCoordinates = computed(() =>
+    editingTarget.value.type === "place-project" ? editingTarget.value.coordinates : null,
+  );
+  const projectCreationSeed = computed(() =>
+    editingTarget.value.type === "create-project" ? editingTarget.value.coordinates : null,
+  );
+  const projectEditTargetId = computed(() =>
+    editingTarget.value.type === "project-info" ? editingTarget.value.projectId : null,
+  );
+  const overlayEditTargetId = computed(() =>
+    editingTarget.value.type === "overlay-info" ? editingTarget.value.overlayId : null,
+  );
 
   // Shared tab state between desktop SideMenu and mobile MobileDrawer
   const activeTab = ref<PanelTab>("explore");
@@ -37,55 +58,96 @@ export const useUiStore = defineStore("ui", () => {
   });
   const mobileDrawerHeightPercent = ref(40);
 
-  const imageUploadProjectId = ref<string | null>(null);
-  const shapeEditorProjectId = ref<string | null>(null);
+  const imageUploadProjectId = computed(() =>
+    editingTarget.value.type === "image" ? editingTarget.value.projectId : null,
+  );
+  const replacementOverlayId = computed(() =>
+    editingTarget.value.type === "image" ? editingTarget.value.replacesOverlayId : null,
+  );
+  const shapeEditorProjectId = computed(() =>
+    editingTarget.value.type === "shape" ? editingTarget.value.projectId : null,
+  );
 
   // Shared accordion state that persists across panels
   const activeAccordionPanels = ref<string[]>([]);
+
+  function openEditor(target: EditingTarget): boolean {
+    const submission = useSubmissionStore();
+    if (mode.value !== "edit" || submission.isSubmitting || submission.showSubmissionDialog)
+      return false;
+    editingTarget.value = target;
+    return true;
+  }
+
+  function closeEditor(type: EditingTarget["type"]): void {
+    if (editingTarget.value.type === type) editingTarget.value = { type: "none" };
+  }
+
+  watch(
+    [mode, () => authStore.user?.id],
+    ([nextMode, userId], [_previousMode, previousUserId]) => {
+      if (nextMode !== "edit" || userId !== previousUserId) editingTarget.value = { type: "none" };
+    },
+    { flush: "sync" },
+  );
+
+  function startProjectPlacement(): boolean {
+    return openEditor({ type: "place-project", coordinates: null });
+  }
+
+  function setMarkerCoordinates(coordinates: ProjectCoordinates): void {
+    if (editingTarget.value.type === "place-project") {
+      openEditor({ type: "place-project", coordinates });
+    }
+  }
+
+  function cancelProjectPlacement(): void {
+    closeEditor("place-project");
+  }
 
   function openAuthModal(initialMode: "login" | "signup" = "login") {
     authModalInitialMode.value = initialMode;
     authModalVisible.value = true;
   }
 
-  function openProjectDialog(project: Pick<Project, "lat" | "lng">) {
-    projectCreationSeed.value = project;
+  function openProjectDialog(project: ProjectCoordinates) {
+    openEditor({ type: "create-project", coordinates: project });
   }
 
   function closeProjectDialog() {
-    projectCreationSeed.value = null;
+    closeEditor("create-project");
   }
 
   function openProjectEditForm(projectId: string) {
-    projectEditTargetId.value = projectId;
+    openEditor({ type: "project-info", projectId });
   }
 
   function closeProjectEditForm() {
-    projectEditTargetId.value = null;
+    closeEditor("project-info");
   }
 
   function openOverlayEditDialog(overlayId: string) {
-    overlayEditTargetId.value = overlayId;
+    openEditor({ type: "overlay-info", overlayId });
   }
 
   function closeOverlayEditDialog() {
-    overlayEditTargetId.value = null;
+    closeEditor("overlay-info");
   }
 
-  function openImageUploadDialog(projectId: string) {
-    imageUploadProjectId.value = projectId;
+  function openImageUploadDialog(projectId: string, replacesOverlayId: string | null = null) {
+    openEditor({ type: "image", projectId, replacesOverlayId });
   }
 
   function closeImageUploadDialog() {
-    imageUploadProjectId.value = null;
+    closeEditor("image");
   }
 
   function openShapeEditor(projectId: string) {
-    shapeEditorProjectId.value = projectId;
+    return openEditor({ type: "shape", projectId });
   }
 
   function closeShapeEditor() {
-    shapeEditorProjectId.value = null;
+    closeEditor("shape");
   }
 
   // Modes are panel identities. Explore is the default destination for view mode; switching
@@ -98,19 +160,17 @@ export const useUiStore = defineStore("ui", () => {
   // every panel and dialog, and their targets. Viewport preferences are left alone.
   function clearAllState() {
     activeTab.value = "explore";
-    markerPlacementBarVisible.value = false;
+    editingTarget.value = { type: "none" };
     activeAccordionPanels.value = [];
-    closeProjectDialog();
-    closeProjectEditForm();
-    closeOverlayEditDialog();
-    closeImageUploadDialog();
-    closeShapeEditor();
   }
 
   return {
     authModalVisible,
     authModalInitialMode,
     markerPlacementBarVisible,
+    markerCoordinates,
+    editingTarget,
+    replacementOverlayId,
     projectCreationSeed,
     projectEditTargetId,
     overlayEditTargetId,
@@ -122,6 +182,9 @@ export const useUiStore = defineStore("ui", () => {
     activeAccordionPanels,
 
     openAuthModal,
+    startProjectPlacement,
+    setMarkerCoordinates,
+    cancelProjectPlacement,
     openProjectDialog,
     closeProjectDialog,
     openProjectEditForm,

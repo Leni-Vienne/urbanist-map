@@ -472,7 +472,7 @@ test("a fresh application does not inherit submission drafts, locks, or map memb
     file: new File(["image"], "render.png", { type: "image/png" }),
     previewUrl: "data:image/png;base64,aW1hZ2U=",
   });
-  submission.isSubmitting = true;
+  submission.beginSubmission();
   session.mergeEditSession("project-1", ["overlay-1"]);
 
   const fresh = createPinia();

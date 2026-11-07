@@ -23,7 +23,9 @@ type OverlayDraft = Partial<
   uploadedImage?: { imageUrl: string; filename: string };
 };
 
-function restingPositionState(overlay: OverlayObject): OverlayPositionState {
+function restingPositionState(overlay: OverlayObject): Exclude<OverlayPositionState, "staged"> {
+  const seedState = overlay.history[0]?.positionState;
+  if (overlay.ownProposal !== undefined && seedState) return seedState;
   return overlay.ownProposal !== undefined ? "suggested" : "baseline";
 }
 
@@ -63,7 +65,6 @@ export const useOverlayStore = defineStore("overlay", () => {
   const tileOverlays = ref<Record<string, TileOverlayData>>({});
   const selectedTileOverlay = ref<TileOverlayData | null>(null);
   const overlayDrafts = ref<Record<string, OverlayDraft>>({});
-  const replacementOverlayId = ref<string | null>(null);
   // Persist through map remounts and source rebuilds; reset with the user's overlay state.
   const frontOverlayIds = reactive(new Set<string>());
   const overlayOpacities = reactive(new Map<string, number>());
@@ -203,20 +204,22 @@ export const useOverlayStore = defineStore("overlay", () => {
   function resetHistoryBaseline(overlayId: string, corners: LatLng[]) {
     const overlay = getOverlayById(overlayId);
     if (!overlay) return;
+    const positionState =
+      overlay.positionState === "staged" ? restingPositionState(overlay) : overlay.positionState;
     const history =
       corners.length === 4
         ? [
             {
               corners: corners.map(copyCorner),
               imageUrl: overlay.imageUrl,
+              positionState,
             },
           ]
         : [];
     updateOverlayDraft(overlayId, {
       history,
       redoStack: [],
-      positionState:
-        overlay.positionState === "staged" ? restingPositionState(overlay) : overlay.positionState,
+      positionState,
     });
   }
 
@@ -261,14 +264,6 @@ export const useOverlayStore = defineStore("overlay", () => {
     overlayOpacities.delete(overlayId);
   }
 
-  function requestOverlayReplacement(overlayId: string) {
-    replacementOverlayId.value = overlayId;
-  }
-
-  function resetReplacement() {
-    replacementOverlayId.value = null;
-  }
-
   function clearLiveOverlays() {
     persistedOverlays.value = {};
     tileOverlays.value = {};
@@ -278,7 +273,6 @@ export const useOverlayStore = defineStore("overlay", () => {
 
   function clearAllState() {
     clearLiveOverlays();
-    resetReplacement();
     frontOverlayIds.clear();
     overlayOpacities.clear();
   }
@@ -288,7 +282,6 @@ export const useOverlayStore = defineStore("overlay", () => {
     tileOverlays,
     overlayDrafts,
     liveOverlays,
-    replacementOverlayId,
     frontOverlayIds,
     overlayOpacities,
     getOverlayById,
@@ -307,8 +300,6 @@ export const useOverlayStore = defineStore("overlay", () => {
     undoHistory,
     redoHistory,
     removeOverlay,
-    requestOverlayReplacement,
-    resetReplacement,
     clearAllState,
   };
 });

@@ -52,7 +52,10 @@ export const useFocusStore = defineStore("focus", () => {
   }
 
   function setSelectionTarget(target: FocusTarget | null): void {
-    if (target?.kind !== "overlay") useOverlayStore().clearSelectedTileOverlay();
+    const overlays = useOverlayStore();
+    if (target?.kind !== "overlay") overlays.clearSelectedTileOverlay();
+    else if (overlayIdOf(selection.value) !== target.overlayId)
+      overlays.retainSelectedTileOverlay(target.overlayId);
     selection.value = target;
   }
 

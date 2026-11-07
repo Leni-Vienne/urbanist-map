@@ -11,8 +11,22 @@ export const useSubmissionStore = defineStore("submission", () => {
 
   const pendingSubmission = ref<PendingSubmission | null>(null);
   const showSubmissionDialog = computed(() => pendingSubmission.value !== null);
-  // submitDraft owns the edit lock through uploads, the write, and acknowledgement.
-  const isSubmitting = ref(false);
+  // Execution and the review target are independent: sign-out can close review while a request
+  // still owns the lock. Only the execution that acquired it may release it.
+  const activeExecution = ref<symbol | null>(null);
+  const isSubmitting = computed(() => activeExecution.value !== null);
+
+  function beginSubmission() {
+    if (isSubmitting.value) return null;
+    const execution = Symbol("submission");
+    activeExecution.value = execution;
+    return {
+      finish(): void {
+        if (activeExecution.value !== execution) return;
+        activeExecution.value = null;
+      },
+    };
+  }
 
   function clearPendingSubmission(): void {
     pendingSubmission.value = null;
@@ -66,6 +80,7 @@ export const useSubmissionStore = defineStore("submission", () => {
     pendingSubmission,
     showSubmissionDialog,
     isSubmitting,
+    beginSubmission,
     clearPendingSubmission,
     setStagedRender,
     getStagedRender,

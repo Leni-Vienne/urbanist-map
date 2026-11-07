@@ -32,7 +32,10 @@
       </div>
 
       <!-- Overlay caption editor, opened from the docked project detail (store-driven). -->
-      <OverlayEditor v-if="uiStore.mode === 'edit' && uiStore.overlayEditTargetId" />
+      <OverlayEditor
+        v-if="uiStore.mode === 'edit' && uiStore.overlayEditTargetId"
+        :key="uiStore.overlayEditTargetId"
+      />
 
       <!-- Hover preview card, always mounted so it can show before any detail panel is opened -->
       <HoverPreviewCard />
@@ -40,6 +43,7 @@
       <!-- Shape Editor Panel - lives in the map column so it stays centered on the map. -->
       <ShapeEditorPanel
         v-if="uiStore.shapeEditorProjectId"
+        :key="uiStore.shapeEditorProjectId"
         @done="handleShapesDone"
         @cancel="stopShapeEditing"
       />
@@ -53,7 +57,10 @@
       "
     />
 
-    <ImageUploadDialog v-if="uiStore.imageUploadProjectId" />
+    <ImageUploadDialog
+      v-if="uiStore.imageUploadProjectId"
+      :key="uiStore.imageUploadProjectId + ':' + uiStore.replacementOverlayId"
+    />
 
     <SubmissionDialogWrapper v-if="showSubmissionDialog" />
   </div>
@@ -72,7 +79,11 @@ import { useProjectStore } from "@/stores/projectStore";
 
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
-import { stopShapeEditing } from "@/services/shape/shapeEditorLazy";
+import {
+  stopShapeEditing,
+  startShapeEditing,
+  disposeShapeEditing,
+} from "@/services/shape/shapeEditorLazy";
 
 import { handleProjectDeepLink } from "@/services/project/projectDeepLink";
 import { isMobile } from "@/services/core/viewport";
@@ -143,13 +154,19 @@ watch(maintenanceBannerText, (value) => {
   if (value === null) maintenanceBannerDismissed.value = false;
 });
 
-// Discard in-progress shape edits when leaving edit mode.
+// The selected edit surface owns activation, including cancellation during lazy loading.
 watch(
-  () => uiStore.mode,
-  (newMode, oldMode) => {
-    if (oldMode === "edit" && newMode !== "edit") stopShapeEditing();
+  () => uiStore.editingTarget,
+  (target, _previous, onCleanup) => {
+    if (target.type !== "shape") return;
+    onCleanup(disposeShapeEditing);
+    void startShapeEditing(target.projectId).catch((error: unknown) => {
+      if (uiStore.editingTarget !== target) return;
+      uiStore.closeShapeEditor();
+      toastError(error instanceof Error ? error.message : t("shapes.importError"));
+    });
   },
-  { flush: "sync" },
+  { immediate: true, flush: "sync" },
 );
 
 function handleShapesDone(geometry: GeoJSON.GeometryCollection) {

@@ -10,7 +10,6 @@ import { useUiStore } from "@/stores/uiStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useAuthStore } from "@/stores/authStore";
 import { isProjectUnsaved } from "@/services/overlay/unsavedState";
-import { startShapeEditing } from "@/services/shape/shapeEditorLazy";
 import { openProjectDetail } from "@/services/core/projectSelection";
 
 import { ensureOverlayLoaded } from "@/services/overlay/navigation";
@@ -28,12 +27,9 @@ function handleNewProjectClick(): void {
     return;
   }
 
-  // Close any open detail and clear selection for a clean slate
-  useFocusStore().setSelectionTarget(null);
-
   // Always switch to edit mode when contributing (no-op if already in edit mode)
   uiStore.setMode("edit");
-  uiStore.markerPlacementBarVisible = true;
+  if (uiStore.startProjectPlacement()) useFocusStore().setSelectionTarget(null);
 }
 
 async function handleDeleteOverlayClick(overlay: ProjectPanelOverlay): Promise<void> {
@@ -72,10 +68,14 @@ export function useContributeActions(projectOverlayIds: ComputedRef<Record<strin
   }
 
   async function handleEditOverlayClick(overlay: ProjectPanelOverlay): Promise<void> {
+    const editTarget = uiStore.editingTarget;
+    const selection = focusStore.selection;
     try {
       const loadedOverlay = await ensureOverlayLoaded(overlay.id);
+      if (uiStore.editingTarget !== editTarget || focusStore.selection !== selection) return;
       uiStore.openOverlayEditDialog(loadedOverlay.id);
     } catch (error) {
+      if (uiStore.editingTarget !== editTarget || focusStore.selection !== selection) return;
       console.error("Failed to load overlay for editing:", error);
       toastError(error instanceof Error ? error.message : t("submission.overlayUnavailable"));
     }
@@ -85,16 +85,13 @@ export function useContributeActions(projectOverlayIds: ComputedRef<Record<strin
     uiStore.openImageUploadDialog(project.id);
   }
 
-  async function handleDrawShapesClick(project: Project): Promise<void> {
+  function handleDrawShapesClick(project: Project): void {
     if (isMobile.value) {
       toastWarn(t("shapes.desktopOnly"));
       return;
     }
 
-    useFocusStore().setSelectionTarget(null);
-
-    uiStore.openShapeEditor(project.id);
-    await startShapeEditing(project.id);
+    if (uiStore.openShapeEditor(project.id)) useFocusStore().setSelectionTarget(null);
   }
 
   function handleExternalProjectClick(): void {

@@ -3,6 +3,7 @@ import { useMapSessionStore } from "@/stores/mapSessionStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useFocusStore } from "@/stores/focusStore";
+import { useSubmissionStore } from "@/stores/submissionStore";
 
 import { trpc } from "@/client";
 
@@ -31,6 +32,10 @@ function removeProject(projectId: string) {
   }
 
   projectStore.removeProject(projectId);
+  const submissionStore = useSubmissionStore();
+  submissionStore.clearStagedRender(projectId);
+  if (submissionStore.pendingSubmission?.projectId === projectId)
+    submissionStore.clearPendingSubmission();
 }
 
 /**
@@ -41,6 +46,7 @@ export async function deleteOverlayDirect(
   overlayId: string,
   options: { showToast?: boolean } = {},
 ): Promise<boolean> {
+  if (useSubmissionStore().isSubmitting) return false;
   const { showToast = false } = options;
 
   const overlayStore = useOverlayStore();
@@ -80,6 +86,7 @@ async function deleteProjectDirect(
   projectId: string,
   options: { showToast?: boolean } = {},
 ): Promise<boolean> {
+  if (useSubmissionStore().isSubmitting) return false;
   const { showToast = false } = options;
 
   const projectStore = useProjectStore();

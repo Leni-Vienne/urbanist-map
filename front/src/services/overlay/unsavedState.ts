@@ -6,19 +6,19 @@ import type { LatLng, OverlayObject, PendingOverlayModification, Project } from 
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { getEditModeDefaultCaption } from "@/services/overlay/defaultState";
+import { sameCorners } from "@/services/overlay/transform";
 
 type OverlayLike = Pick<OverlayObject, "id" | "status">;
 type ProjectLike = Pick<Project, "id" | "status">;
 
-// Staged (unsubmitted) corners delta, derived from edit history: history beyond the seed step
-// means the user moved/resized the overlay since its last-submitted position.
+// History can retain useful undo steps even after moving back to the starting position.
 function getStagedCornersDelta(
   overlay: Pick<OverlayObject, "status" | "history" | "baselineCorners" | "positionState">,
 ): { current: LatLng[]; original: LatLng[] } | null {
   if (overlay.status === null) return null; // new overlays: position lives only in history
   if (overlay.positionState !== "staged") return null;
   const current = overlay.history.at(-1)?.corners;
-  if (!current) return null;
+  if (!current || sameCorners(current, overlay.history[0]?.corners ?? null)) return null;
   return { current, original: overlay.baselineCorners ?? [] };
 }
 

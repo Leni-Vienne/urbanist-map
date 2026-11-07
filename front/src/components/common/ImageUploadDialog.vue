@@ -179,6 +179,7 @@
         :label="$t('common.confirm')"
         icon="pi pi-check"
         @click="handleConfirm"
+        :disabled="selection.type !== 'ready' || submissionStore.isSubmitting"
         severity="primary"
       />
       <Button
@@ -197,36 +198,48 @@
 import { useSubmissionStore } from "@/stores/submissionStore";
 import { toastError, toastSuccess } from "@/services/core/toast";
 
-import { ref, computed } from "vue";
+import { ref, shallowRef, computed, onScopeDispose } from "vue";
 import { useI18n } from "vue-i18n";
 import { useUiStore } from "@/stores/uiStore";
-import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";
 
 import { createLocalOverlay } from "@/services/overlay/editing";
 import { MAX_UPLOAD_FILE_SIZE_BYTES, MAX_UPLOAD_FILE_SIZE_MB } from "@shared/uploadLimits";
 
 type UploadMode = "choose" | "overlay" | "render";
+type ImageSelection =
+  | { type: "empty" }
+  | { type: "reading"; file: File }
+  | { type: "ready"; file: File; previewUrl: string }
+  | { type: "error"; message: string };
 
 const { t } = useI18n();
 const uiStore = useUiStore();
-const overlayStore = useOverlayStore();
+const submissionStore = useSubmissionStore();
 const projectStore = useProjectStore();
 const projectId = uiStore.imageUploadProjectId;
+const dialogTarget = uiStore.editingTarget;
+const replacementId = uiStore.replacementOverlayId;
 
 const fileInputRef = ref<HTMLInputElement>();
-const selectedFile = ref<File | null>(null);
-const selectedFileName = ref("");
-const imagePreviewUrl = ref("");
-const fileSizeError = ref("");
+const selection = shallowRef<ImageSelection>({ type: "empty" });
+const selectedFile = computed(() => ("file" in selection.value ? selection.value.file : null));
+const selectedFileName = computed(() => selectedFile.value?.name ?? "");
+const imagePreviewUrl = computed(() =>
+  selection.value.type === "ready" ? selection.value.previewUrl : "",
+);
+const fileSizeError = computed(() =>
+  selection.value.type === "error" ? selection.value.message : "",
+);
+let reader: FileReader | null = null;
 
 // Replacement is overlay-specific, so it skips the chooser.
-const step = ref<UploadMode>(overlayStore.replacementOverlayId ? "overlay" : "choose");
+const step = ref<UploadMode>(replacementId ? "overlay" : "choose");
 
-const isReplacementMode = computed(() => Boolean(overlayStore.replacementOverlayId));
+const isReplacementMode = Boolean(replacementId);
 
 const dialogHeader = computed(() => {
-  if (isReplacementMode.value) return t("imageUpload.replacementDialogTitle");
+  if (isReplacementMode) return t("imageUpload.replacementDialogTitle");
   if (step.value === "render") return t("imageUpload.renderDialogTitle");
   return t("imageUpload.dialogTitle");
 });
@@ -236,14 +249,16 @@ const hasExistingRender = computed(() => {
 });
 
 function clearSelection() {
-  selectedFile.value = null;
-  selectedFileName.value = "";
-  imagePreviewUrl.value = "";
-  fileSizeError.value = "";
+  const previous = reader;
+  reader = null;
+  previous?.abort();
+  selection.value = { type: "empty" };
   if (fileInputRef.value) {
     fileInputRef.value.value = "";
   }
 }
+
+onScopeDispose(clearSelection);
 
 function selectMode(mode: Exclude<UploadMode, "choose">) {
   step.value = mode;
@@ -286,14 +301,16 @@ function handleDrop(event: DragEvent) {
 }
 
 function processFile(file: File) {
+  clearSelection();
   try {
-    fileSizeError.value = "";
-
     // Validate file size (shared cap, matches the backend Zod guard)
     if (file.size > MAX_UPLOAD_FILE_SIZE_BYTES) {
-      fileSizeError.value = t("upload.fileTooLarge", {
-        maxSize: MAX_UPLOAD_FILE_SIZE_MB,
-      });
+      selection.value = {
+        type: "error",
+        message: t("upload.fileTooLarge", {
+          maxSize: MAX_UPLOAD_FILE_SIZE_MB,
+        }),
+      };
       // Reset file input to allow re-selecting a different file
       if (fileInputRef.value) {
         fileInputRef.value.value = "";
@@ -301,22 +318,34 @@ function processFile(file: File) {
       return;
     }
 
-    selectedFile.value = file;
-    selectedFileName.value = file.name;
-
-    const reader = new FileReader();
-    reader.addEventListener("load", () => {
-      imagePreviewUrl.value = reader.result as string;
+    selection.value = { type: "reading", file };
+    const currentReader = new FileReader();
+    reader = currentReader;
+    currentReader.addEventListener("load", () => {
+      if (reader !== currentReader || typeof currentReader.result !== "string") return;
+      reader = null;
+      selection.value = { type: "ready", file, previewUrl: currentReader.result };
     });
-    reader.readAsDataURL(file);
+    currentReader.addEventListener("error", () => {
+      if (reader !== currentReader) return;
+      reader = null;
+      selection.value = { type: "error", message: t("overlay.uploadFailedDetail") };
+    });
+    currentReader.readAsDataURL(file);
   } catch (error) {
+    clearSelection();
     console.error("Error handling file selection:", error);
     toastError(t("overlay.uploadFailedDetail"));
   }
 }
 
 function handleConfirm() {
-  if (!selectedFile.value || !imagePreviewUrl.value) return;
+  if (
+    selection.value.type !== "ready" ||
+    submissionStore.isSubmitting ||
+    uiStore.editingTarget !== dialogTarget
+  )
+    return;
 
   if (!projectId) {
     toastError(t("errors.projectRequired"));
@@ -324,14 +353,13 @@ function handleConfirm() {
   }
 
   if (step.value === "render") {
-    confirmRender(projectId, selectedFile.value);
+    confirmRender(projectId, selection.value.file);
   } else {
     void confirmOverlay(projectId);
   }
 }
 
 async function confirmOverlay(targetProjectId: string) {
-  const replacementId = overlayStore.replacementOverlayId;
   const creation = createLocalOverlay(
     imagePreviewUrl.value,
     targetProjectId,
@@ -371,8 +399,8 @@ function confirmRender(targetProjectId: string, file: File) {
 }
 
 function handleClose() {
-  overlayStore.resetReplacement();
-  uiStore.closeImageUploadDialog();
+  clearSelection();
+  if (uiStore.editingTarget === dialogTarget) uiStore.closeImageUploadDialog();
 }
 
 function handleVisibilityChange(visible: boolean) {

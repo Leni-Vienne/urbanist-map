@@ -31,11 +31,11 @@
     <button
       class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center transition-all duration-150 text-sm text-green-500"
       :class="
-        isModified
+        isModified && canSubmit
           ? 'cursor-pointer hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-400/12 hover:border-green-200 dark:hover:border-green-400/40'
           : 'opacity-40 cursor-not-allowed pointer-events-none'
       "
-      :disabled="!isModified"
+      :disabled="!isModified || !canSubmit"
       @click.stop="$emit('save', project)"
       v-tooltip.top="saveTooltip"
     >
@@ -61,6 +61,8 @@ import { useI18n } from "vue-i18n";
 import { storeToRefs } from "pinia";
 
 import { useAuthStore } from "@/stores/authStore";
+import { useUiStore } from "@/stores/uiStore";
+import { useSubmissionStore } from "@/stores/submissionStore";
 import type { Project } from "@/types/index";
 
 interface Props {
@@ -76,6 +78,11 @@ const props = withDefaults(defineProps<Props>(), {
 
 const { t } = useI18n();
 const { user } = storeToRefs(useAuthStore());
+const uiStore = useUiStore();
+const submissionStore = useSubmissionStore();
+const canSubmit = computed(
+  () => uiStore.editingTarget.type === "none" && !submissionStore.isSubmitting,
+);
 
 const saveTooltip = computed(() =>
   props.isModified ? t("project.submitChangeRequest") : t("overlay.noChangesToSave"),

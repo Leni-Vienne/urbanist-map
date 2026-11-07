@@ -5,6 +5,7 @@ import type { Project, HydratedProject, LocalProject } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import { trpc } from "@/client";
 import { hasProjectDetailFields, projectFromWire } from "@/utils/typeFactories";
+import { projectValuesEqual } from "@/utils/projectValues";
 
 type ProjectDraft = Partial<Project> & Pick<Project, "id">;
 type ProjectIndex = Record<string, Project>;
@@ -88,7 +89,14 @@ export const useProjectStore = defineStore("project", () => {
   }
 
   function hasProjectDraft(projectId: string): boolean {
-    return projectDrafts.value[projectId] !== undefined;
+    const draft = projectDrafts.value[projectId];
+    if (!draft) return false;
+    const persisted = persistedProjects.value[projectId];
+    if (!persisted) return isLocalProjectDraft(draft);
+    return Object.entries(draft).some(
+      ([field, value]) =>
+        field !== "id" && !projectValuesEqual(field, persisted[field as keyof Project], value),
+    );
   }
 
   function getMapProjectById(projectId: string, mode: AppMode): Project | null {
@@ -131,11 +139,22 @@ export const useProjectStore = defineStore("project", () => {
     if (submissionStore.isSubmitting) return;
     const current = getProjectById(projectId);
     if (!current) return;
-    projectDrafts.value[projectId] = {
+    const draft: ProjectDraft = {
       ...(projectDrafts.value[projectId] ?? { id: projectId }),
       ...updates,
       id: projectId,
     };
+    const persisted = persistedProjects.value[projectId];
+    if (persisted) {
+      for (const field of Object.keys(draft) as (keyof Project)[]) {
+        if (field !== "id" && projectValuesEqual(field, persisted[field], draft[field])) {
+          // oxlint-disable-next-line no-dynamic-delete
+          delete draft[field];
+        }
+      }
+    }
+    if (hasDraftFields(draft)) projectDrafts.value[projectId] = draft;
+    else discardProjectDraft(projectId);
   }
 
   function updatePersistedProject(projectId: string, updates: Partial<Project>) {

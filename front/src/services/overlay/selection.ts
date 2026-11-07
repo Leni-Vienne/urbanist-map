@@ -28,7 +28,6 @@ export function openOverlayDetail(overlayId: string): void {
 
   const newlySelected = overlayStore.liveOverlays[overlayId];
   if (!newlySelected) return;
-  overlayStore.retainSelectedTileOverlay(overlayId);
 
   // Pin the overlay; this replaces any open project detail (mutual exclusivity is free).
   focus.setSelectionTarget({
@@ -55,8 +54,8 @@ const OVERLAY_READY_TIMEOUT_MS = 5000;
  * Run `run` once the overlay's image layer is ready, but only if it is still the selected overlay
  * by then. Bounded to OVERLAY_READY_TIMEOUT_MS so a layer that never renders doesn't leak a timer.
  */
-export function whenImageReadyIfSelected(overlayId: string, run: () => void): void {
-  whenImageReady(
+export function whenImageReadyIfSelected(overlayId: string, run: () => void): () => void {
+  return whenImageReady(
     overlayId,
     () => {
       if (useFocusStore().selectedOverlayId === overlayId) run();

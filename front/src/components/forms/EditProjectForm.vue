@@ -12,7 +12,7 @@
         class="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-6 pt-4 border-t border-surface"
       >
         <Button
-          v-if="hasChanges"
+          v-if="differsFromOriginal"
           type="button"
           @click="Object.assign(formData, originalData)"
           :label="$t('common.reset')"
@@ -64,6 +64,7 @@ const storeProject = projectStore.projects[props.project.id];
 
 const originalData = reactive(projectToFormData(originalProject));
 const formData = reactive(projectToFormData(storeProject ?? originalProject));
+const initialData = projectToFormData(storeProject ?? originalProject);
 // oxlint-disable-next-line no-unsafe-type-assertion
 const fields = Object.keys(formData) as (keyof ProjectFormData)[];
 
@@ -71,13 +72,17 @@ function fieldDiffersFromOriginal(field: keyof ProjectFormData): boolean {
   return projectFormFieldsDiffer(originalData[field], formData[field]);
 }
 
-const hasChanges = computed(() => fields.some(fieldDiffersFromOriginal));
+const differsFromOriginal = computed(() => fields.some(fieldDiffersFromOriginal));
+const hasChanges = computed(() =>
+  fields.some((field) => projectFormFieldsDiffer(initialData[field], formData[field])),
+);
 
 function submitChanges() {
   if (!hasChanges.value) return;
 
   const projectId = props.project.id;
   const currentProject = projectStore.getProjectById(projectId);
+  if (!currentProject) return;
   const patch: Partial<ProjectFormData> = {};
   for (const field of fields) {
     if (fieldDiffersFromOriginal(field)) Object.assign(patch, { [field]: formData[field] });
@@ -91,12 +96,6 @@ function submitChanges() {
     if (firstError)
       toastError(t(firstError.key, firstError.params ?? {}), t("toast.validationError"));
     return;
-  }
-
-  // The store may have been cleared while the form was open; seed it from the source project.
-  if (!currentProject) {
-    if (props.project.status === null) projectStore.addLocalProject(props.project);
-    else projectStore.upsertProjectSummary(props.project);
   }
 
   for (const field of fields) {

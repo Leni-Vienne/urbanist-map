@@ -10,6 +10,7 @@ import { getOverlayBounds } from "@/services/overlay/markers";
 import { overlayWireToData } from "@/utils/typeFactories";
 import { toastError } from "@/services/core/toast";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
+import { useAuthStore } from "@/stores/authStore";
 
 // Helper to zoom to overlay bounds
 function zoomToOverlayBounds(overlay: OverlayObject): void {
@@ -31,11 +32,21 @@ function zoomToOverlayBounds(overlay: OverlayObject): void {
   }
 }
 
-const overlayLoadRequests = new Map<string, Promise<OverlayObject>>();
+const overlayLoadRequests = new WeakMap<
+  ReturnType<typeof useOverlayStore>,
+  Map<string, Promise<OverlayObject>>
+>();
 
 async function fetchOverlay(overlayId: string): Promise<OverlayObject> {
+  const store = useOverlayStore();
+  const auth = useAuthStore();
+  const epoch = auth.getSessionEpoch();
+  const userId = auth.user?.id;
   const result = await trpc.overlay.getOverlay.query({ id: overlayId });
-  return useOverlayStore().ingestBackendOverlay(overlayWireToData(result));
+  if (epoch !== auth.getSessionEpoch() || userId !== auth.user?.id) {
+    throw new Error(t("submission.overlayUnavailable"));
+  }
+  return store.ingestBackendOverlay(overlayWireToData(result));
 }
 
 export async function ensureOverlayLoaded(overlayId: string): Promise<OverlayObject> {
@@ -44,16 +55,23 @@ export async function ensureOverlayLoaded(overlayId: string): Promise<OverlayObj
 
   if (existing && overlayStore.hasFullOverlayData(overlayId)) return existing;
 
-  const pendingRequest = overlayLoadRequests.get(overlayId);
+  let requests = overlayLoadRequests.get(overlayStore);
+  if (!requests) {
+    requests = new Map();
+    overlayLoadRequests.set(overlayStore, requests);
+  }
+  const auth = useAuthStore();
+  const requestKey = `${auth.getSessionEpoch()}/${auth.user?.id ?? ""}/${overlayId}`;
+  const pendingRequest = requests.get(requestKey);
   if (pendingRequest) return pendingRequest;
 
   const request = fetchOverlay(overlayId);
-  overlayLoadRequests.set(overlayId, request);
+  requests.set(requestKey, request);
   try {
     return await request;
   } finally {
-    if (overlayLoadRequests.get(overlayId) === request) {
-      overlayLoadRequests.delete(overlayId);
+    if (requests.get(requestKey) === request) {
+      requests.delete(requestKey);
     }
   }
 }

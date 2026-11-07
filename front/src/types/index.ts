@@ -179,6 +179,8 @@ export interface OverlayHistoryState {
   corners: LatLng[];
   imageUrl: string;
   cropRect?: NormalizedRect;
+  // Only the history seed carries the position to restore when the last edit is undone.
+  positionState?: Exclude<OverlayPositionState, "staged">;
 }
 
 export type OverlayObject = RuntimeOverlayData & {

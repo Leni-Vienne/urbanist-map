@@ -4,11 +4,14 @@ import { useProjectStore } from "@/stores/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 import { getMapOrNull } from "@/services/core/map";
 import type * as ShapeEditor from "./shapeEditing";
+import { readonly, ref } from "vue";
 
 // Single boundary for the heavy shape-editing chunk (Terra Draw). The dynamic
 // imports live here so every caller shares one split.
 let shapeEditor: typeof ShapeEditor | null = null;
 let editorRequest = 0;
+const phase = ref<"closed" | "loading" | "ready">("closed");
+export const shapeEditorPhase = readonly(phase);
 
 /**
  * Resolve the best available geometry to pre-load into the editor.
@@ -50,25 +53,47 @@ export async function startShapeEditing(projectId: string): Promise<void> {
   const request = editorRequest;
   const target = getMapOrNull();
   if (!target) return;
-
-  const loaded = await import("@/services/shape/shapeEditing");
   const uiStore = useUiStore();
-  if (
-    request !== editorRequest ||
-    getMapOrNull() !== target ||
-    uiStore.mode !== "edit" ||
-    uiStore.shapeEditorProjectId !== projectId
-  )
-    return;
+  const editTarget = uiStore.editingTarget;
+  const auth = useAuthStore();
+  const epoch = auth.getSessionEpoch();
+  const userId = auth.user?.id;
+  function isCurrent(): boolean {
+    return (
+      request === editorRequest &&
+      getMapOrNull() === target &&
+      uiStore.mode === "edit" &&
+      uiStore.shapeEditorProjectId === projectId &&
+      uiStore.editingTarget === editTarget &&
+      epoch === auth.getSessionEpoch() &&
+      userId === auth.user?.id
+    );
+  }
+  if (!isCurrent()) return;
+  phase.value = "loading";
+  try {
+    const loaded = await import("@/services/shape/shapeEditing");
+    if (!isCurrent()) return;
+    shapeEditor = loaded;
+    shapeEditor.destroyShapeEditor();
+    await shapeEditor.initShapeEditor(resolveShapeEditorGeometry(projectId) ?? undefined);
+    if (isCurrent()) phase.value = "ready";
+  } catch (error) {
+    if (!isCurrent()) return;
+    disposeShapeEditing();
+    throw error;
+  }
+}
 
-  shapeEditor = loaded;
-  shapeEditor.destroyShapeEditor();
-  await shapeEditor.initShapeEditor(resolveShapeEditorGeometry(projectId) ?? undefined);
+/** Release resources without closing a different editor that replaced this one. */
+export function disposeShapeEditing(): void {
+  editorRequest += 1;
+  phase.value = "closed";
+  shapeEditor?.destroyShapeEditor();
 }
 
 /** Stop synchronously before map removal, without loading an unused editor chunk. */
 export function stopShapeEditing(): void {
-  editorRequest += 1;
-  shapeEditor?.destroyShapeEditor();
+  disposeShapeEditing();
   useUiStore().closeShapeEditor();
 }
