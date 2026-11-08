@@ -188,6 +188,10 @@ elif name == 'osmium':
         Path(args[args.index('-o') + 1]).write_text('pbf')
     elif '--output' in args:
         Path(args[args.index('--output') + 1]).write_text('output')
+        if args[0] == 'export' and os.environ.get('FAIL_EXPORT'):
+            sys.exit(7)
+        if args[0] == 'tags-filter' and os.environ.get('FAIL_FILTER'):
+            sys.exit(7)
 elif name == 'bun':
     Path(os.environ['IMPORT_ARGS_FILE']).write_text(json.dumps(args))
     print('native importer output')
@@ -310,6 +314,28 @@ class PipelineLoggingTest(unittest.TestCase):
         self.assertEqual(0, second.returncode, second.stderr)
         self.assertFalse(any(call[0] == 'fstrim' for call in self.command_calls()))
 
+    def test_failed_boundary_export_leaves_no_final_file(self):
+        first, _ = self.run_script('extract_boundaries.sh')
+        self.assertEqual(0, first.returncode, first.stderr)
+        output = self.work / 'test_proposed_boundaries.geojsonl'
+        self.assertTrue(output.exists())
+        self.env['FAIL_EXPORT'] = '1'
+        result, _ = self.run_script('extract_boundaries.sh')
+        self.assertNotEqual(0, result.returncode)
+        self.assertFalse(output.exists())
+        self.assertFalse(list(self.work.glob('.test_proposed_boundaries.*')))
+
+    def test_failed_boundary_filter_is_not_cached(self):
+        self.env['FAIL_FILTER'] = '1'
+        result, _ = self.run_script('extract_boundaries.sh')
+        self.assertNotEqual(0, result.returncode)
+        self.assertFalse((self.work / 'test_proposed_boundaries.osm.pbf').exists())
+        self.assertFalse((self.work / 'test_proposed_boundaries.geojsonl').exists())
+        self.env.pop('FAIL_FILTER')
+        retry, _ = self.run_script('extract_boundaries.sh')
+        self.assertEqual(0, retry.returncode, retry.stderr)
+        self.assertTrue((self.work / 'test_proposed_boundaries.geojsonl').exists())
+
     def test_pipeline_reports_execution_order_and_shared_run_id(self):
         result, records = self.run_script('update_daily.sh', '--import')
         self.assertEqual(0, result.returncode, result.stderr)
@@ -357,6 +383,15 @@ class PipelineLoggingTest(unittest.TestCase):
         self.assertEqual(['--input-prefix', str(self.work / 'test_proposed')],
                          json.loads(self.import_args.read_text())[-2:])
 
+    def test_unverified_cached_artifacts_are_rebuilt(self):
+        first, _ = self.run_script('update_daily.sh')
+        self.assertEqual(0, first.returncode, first.stderr)
+        (self.work / 'test_proposed.extraction-state').unlink()
+        result, records = self.run_script('update_daily.sh', '--import')
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertTrue(any(r.get('step') == 'backfill' and r.get('event') == 'step_completed'
+                            for r in records))
+
     def test_failed_extractor_prevents_import_and_reports_active_step(self):
         self.env['FAIL_LINEAR'] = '1'
         result, records = self.run_script('update_daily.sh', '--import')
@@ -393,6 +428,24 @@ class PipelineLoggingTest(unittest.TestCase):
                      and r.get('step') == 'backfill' and r.get('event') == 'step_completed')
         self.assertEqual('partial', phase['status'])
         self.assertIn('native importer output', result.stdout)
+        self.assertIn('--no-prune', json.loads(self.import_args.read_text()))
+        self.assertEqual('incomplete', (self.work / 'test_proposed.extraction-state').read_text().strip())
+
+        # A retry at the same replication sequence must repair geometry rather than reuse
+        # the partial artifacts, and pruning can resume only after the repair succeeds.
+        self.env['CHECK_REFS_RC'] = '0'
+        retry, retry_records = self.run_script('update_daily.sh', '--import')
+        self.assertEqual(0, retry.returncode, retry.stderr)
+        self.assertTrue(any(r.get('step') == 'backfill' and r.get('event') == 'step_completed'
+                            for r in retry_records))
+        self.assertNotIn('--no-prune', json.loads(self.import_args.read_text()))
+        self.assertEqual('complete', (self.work / 'test_proposed.extraction-state').read_text().strip())
+
+    def test_skipped_backfill_disables_import_pruning(self):
+        result, _ = self.run_script('update_daily.sh', '--no-backfill', '--import')
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn('--no-prune', json.loads(self.import_args.read_text()))
+        self.assertEqual('incomplete', (self.work / 'test_proposed.extraction-state').read_text().strip())
 
     def test_backfill_check_failure_marks_daily_run_partial_and_still_imports(self):
         self.env['CHECK_REFS_RC'] = '2'
@@ -401,6 +454,7 @@ class PipelineLoggingTest(unittest.TestCase):
         self.assertEqual('partial', records[-1]['status'])
         self.assertEqual('failed', records[-1]['backfill_status'])
         self.assertIn('native importer output', result.stdout)
+        self.assertIn('--no-prune', json.loads(self.import_args.read_text()))
 
     def test_fatal_import_failure_overrides_earlier_partial_outcome(self):
         self.env.update(CHECK_REFS_RC='1', FAIL_IMPORT='1')

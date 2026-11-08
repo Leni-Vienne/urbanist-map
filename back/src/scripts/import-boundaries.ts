@@ -237,11 +237,9 @@ function parseFeature(line: string): BoundaryRow | null {
   if (trimmed.charCodeAt(0) === 0x1e) trimmed = trimmed.slice(1);
   if (!trimmed) return null;
 
-  let feature: GeoJSON.Feature;
-  try {
-    feature = JSON.parse(trimmed) as GeoJSON.Feature;
-  } catch {
-    return null;
+  const feature = JSON.parse(trimmed) as GeoJSON.Feature;
+  if (!feature || feature.type !== "Feature") {
+    throw new Error("Expected one GeoJSON Feature per boundary input line");
   }
 
   const props = (feature.properties ?? {}) as Record<string, unknown>;
@@ -296,8 +294,8 @@ function parseFeature(line: string): BoundaryRow | null {
   };
 }
 
-async function flushBatch(batch: BoundaryRow[], now: Date): Promise<void> {
-  if (batch.length === 0) return;
+async function flushBatch(batch: BoundaryRow[], now: Date): Promise<number> {
+  if (batch.length === 0) return 0;
 
   const values = batch.map((row) => ({
     osmId: row.osmId,
@@ -333,9 +331,11 @@ async function flushBatch(batch: BoundaryRow[], now: Date): Promise<void> {
           updatedAt: now,
         },
       });
+    return 0;
   } catch (error) {
     // Fall back to per-row inserts so one bad geometry doesn't discard the whole batch.
     console.error("Batch insert failed, retrying rows individually:", error);
+    let failed = 0;
     for (const value of values) {
       try {
         await db
@@ -357,8 +357,10 @@ async function flushBatch(batch: BoundaryRow[], now: Date): Promise<void> {
           });
       } catch (rowError) {
         console.error(`Failed to insert boundary ${value.osmId}:`, rowError);
+        failed++;
       }
     }
+    return failed;
   }
 }
 
@@ -567,14 +569,19 @@ async function loadBoundaries(inputPath: string): Promise<void> {
   let batch: BoundaryRow[] = [];
   let imported = 0;
   let skipped = 0;
+  let failed = 0;
 
   // Keep up to IMPORT_CONCURRENCY batch upserts in flight at once. flushBatch handles its own
   // errors, so these promises never reject; we only await to bound how many run concurrently.
   const inFlight = new Set<Promise<void>>();
   async function dispatch(rows: BoundaryRow[]): Promise<void> {
-    const promise = flushBatch(rows, syncStartTime).finally(() => {
-      inFlight.delete(promise);
-    });
+    const promise = flushBatch(rows, syncStartTime)
+      .then((failures) => {
+        failed += failures;
+      })
+      .finally(() => {
+        inFlight.delete(promise);
+      });
     inFlight.add(promise);
     if (inFlight.size >= IMPORT_CONCURRENCY) await Promise.race(inFlight);
   }
@@ -608,6 +615,14 @@ async function loadBoundaries(inputPath: string): Promise<void> {
   imported += batch.length;
   await Promise.all(inFlight);
   log(`Loaded ${imported} boundaries total (skipped ${skipped})`);
+
+  // Timestamp pruning is safe only when every eligible input row was imported. Keep all old
+  // boundaries on failure; otherwise failed upserts look exactly like source removals.
+  if (imported === 0 || failed > 0) {
+    throw new Error(
+      `Boundary load incomplete (${imported} parsed, ${failed} failed); pruning disabled`,
+    );
+  }
 
   // Prune boundaries that vanished from the source since they would otherwise keep stale
   // geometry. Projects referencing a pruned boundary fall back to NULL (FK on delete set null).

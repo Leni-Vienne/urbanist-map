@@ -31,7 +31,7 @@
 #
 # Options:
 #   --import       Run import-osm.ts after extraction (requires bun + backend)
-#   --no-backfill  Skip the geometry backfill step (re-tagged elements may be dropped)
+#   --no-backfill  Skip geometry backfill and disable import pruning
 #   --dry-run      Print what would be done without executing
 #   --trim         Trim the destination filesystem before large PBF writes
 
@@ -114,6 +114,9 @@ if [[ "$FILTERED_PBF" != *_proposed.osm.pbf ]]; then
     exit 1
 fi
 BASE_PREFIX="${FILTERED_PBF%_proposed.osm.pbf}"
+# Persist uncertainty across reruns and standalone imports. A failed/interrupted repair must
+# not become a prunable import through the already-current shortcut on the next invocation.
+EXTRACTION_STATE_FILE="${BASE_PREFIX}_proposed.extraction-state"
 
 # ---------------------------------------------------------------------------
 # Dependency checks
@@ -186,11 +189,21 @@ function run() {
     fi
 }
 
+function extraction_complete() {
+    [[ -f "$EXTRACTION_STATE_FILE" && "$(<"$EXTRACTION_STATE_FILE")" == complete ]]
+}
+
 function import_features() {
     if [[ "$DO_IMPORT" -eq 1 ]]; then
         osm_step_start import
+        local prune_args=()
+        if [[ "$DO_BACKFILL" -eq 0 ]] || ! extraction_complete; then
+            prune_args=(--no-prune)
+            log_warn "Import pruning disabled: geometry completeness has not been established" \
+                "event=prune_disabled"
+        fi
         run bun run "$REPO_ROOT/back/src/scripts/import-osm.ts" \
-            --input-prefix "${BASE_PREFIX}_proposed"
+            --input-prefix "${BASE_PREFIX}_proposed" "${prune_args[@]}"
         osm_step_end
     else
         osm_step_skip import disabled
@@ -368,7 +381,7 @@ if [[ "$START_SEQ" -gt "$CURRENT_SEQNUM" ]]; then
             break
         fi
     done
-    if [[ "$_ARTIFACTS_OK" -eq 1 ]]; then
+    if [[ "$_ARTIFACTS_OK" -eq 1 && "$DO_BACKFILL" -eq 1 ]] && extraction_complete; then
         for _step in download apply refilter derive backfill extraction; do
             osm_step_skip "$_step" already_current
         done
@@ -378,6 +391,12 @@ if [[ "$START_SEQ" -gt "$CURRENT_SEQNUM" ]]; then
         fi
         exit 0
     fi
+fi
+
+# Mark inputs uncertain before changing the PBF or any extraction artifact. Only a successful
+# backfill followed by both extractors marks them complete, even when no new diffs arrive.
+if [[ "$DRY_RUN" -eq 0 ]]; then
+    printf 'incomplete\n' > "$EXTRACTION_STATE_FILE"
 fi
 
 # ---------------------------------------------------------------------------
@@ -526,7 +545,8 @@ osm_step_end
 # keeps objects referenced by matching ways, so the baked-in nodes flow back into
 # the freshly rebuilt sub-PBFs and detection only finds the new delta. Merging
 # into the main PBF is what makes the fetched geometry survive future runs.
-# Best-effort: a failure here never aborts the run.
+# Best-effort: a failure permits updates but leaves pruning disabled until repair succeeds.
+BACKFILL_STATUS=skipped
 if [[ "$DO_BACKFILL" -eq 1 ]]; then
     osm_step_start backfill
     BACKFILL_RC=0
@@ -575,6 +595,10 @@ wait $PID_AREAL  || RC_AREAL=$?
 [[ "$RC_LINEAR" -eq 0 ]] || { log_error "Extractor failed" "worker=linear" "exit_code=$RC_LINEAR"; exit 1; }
 [[ "$RC_AREAL"  -eq 0 ]] || { log_error "Extractor failed" "worker=areal" "exit_code=$RC_AREAL"; exit 1; }
 osm_step_end
+
+if [[ "$BACKFILL_STATUS" == success && "$DRY_RUN" -eq 0 ]]; then
+    printf 'complete\n' > "$EXTRACTION_STATE_FILE"
+fi
 
 # ---------------------------------------------------------------------------
 # Step 5: DB import (optional)

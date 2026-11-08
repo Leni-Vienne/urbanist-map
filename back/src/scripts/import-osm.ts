@@ -2,7 +2,8 @@
  * Import worldwide proposed/construction features GeoJSON into the projects table.
  * Projects are auto-approved and linked to the "osm_world" import source.
  * Existing projects are updated via upsert on (importSourceId, externalId).
- * Projects not seen in the current sync are automatically pruned.
+ * Projects absent from the current sync are pruned unless inputs are empty, known incomplete,
+ * or --no-prune is set. This is a worldwide sync, not a regional/partial import.
  *
  * Covers railways, roads, aerialways, waterways, cycling and pedestrian paths,
  * buildings under construction, and parks/green spaces.
@@ -58,6 +59,7 @@ const { values: options } = parseArgs({
       default: path.resolve(import.meta.dir, "../../../scripts/osm-extract/planet-latest_proposed"),
     },
     full: { type: "boolean", default: false },
+    "no-prune": { type: "boolean", default: false },
   },
 });
 const GEOJSON_PATHS = [
@@ -113,14 +115,14 @@ async function resolveCountryCodes(
     const chunkLngs = lngs.slice(offset, offset + KNN_CHUNK_SIZE);
 
     const pointsSql = sql.join(
-      chunkLats.map((lat, i) => sql`(${lat}, ${chunkLngs[i]})`),
+      chunkLats.map((lat, i) => sql`(${validIndices[offset + i]}::int, ${lat}, ${chunkLngs[i]})`),
       sql`, `,
     );
     const rows = (await db.execute(
       sql`
-      SELECT c.country_code
-      FROM (VALUES ${pointsSql}) AS input(lat, lng)
-      JOIN LATERAL (
+      SELECT input.input_index, c.country_code
+      FROM (VALUES ${pointsSql}) AS input(input_index, lat, lng)
+      LEFT JOIN LATERAL (
         SELECT country_code
         FROM admin_boundaries
         WHERE country_code IS NOT NULL
@@ -128,13 +130,10 @@ async function resolveCountryCodes(
         LIMIT 1
       ) c ON true
     `,
-    )) as Array<{ country_code: string | null }>;
+    )) as Array<{ input_index: number; country_code: string | null }>;
 
-    for (let i = 0; i < rows.length; i++) {
-      const originalIndex = validIndices[offset + i];
-      if (originalIndex !== undefined) {
-        results[originalIndex] = rows[i]?.country_code ?? null;
-      }
+    for (const row of rows) {
+      results[row.input_index] = row.country_code;
     }
   }
 
@@ -143,14 +142,22 @@ async function resolveCountryCodes(
 
 const TRANSIENT_PG_CODES = new Set(["57P03", "08006", "08001", "08004"]);
 
+function postgresError(err: unknown): SQL.PostgresError | undefined {
+  if (err instanceof SQL.PostgresError) return err;
+  if (err instanceof Error && err.cause instanceof SQL.PostgresError) return err.cause;
+  return undefined;
+}
+
 function isTransient(err: unknown): boolean {
-  const candidates = [err, (err as Record<string, unknown> | null)?.cause];
-  return candidates.some(
-    (e) =>
-      typeof e === "object" &&
-      e !== null &&
-      "code" in e &&
-      TRANSIENT_PG_CODES.has((e as Record<string, string | undefined>).code ?? ""),
+  return TRANSIENT_PG_CODES.has(postgresError(err)?.errno ?? "");
+}
+
+function isSlugCollision(err: unknown): boolean {
+  const error = postgresError(err);
+  return (
+    error?.errno === "23505" &&
+    error.table === "projects" &&
+    error.constraint === "projects_slug_unique"
   );
 }
 
@@ -176,8 +183,8 @@ async function waitForDb(): Promise<void> {
 // Falls back to individual inserts if the batch fails (e.g. bad geometry on one row).
 // Retries the whole batch if a transient connection error is detected.
 // eslint-disable-next-line no-explicit-any
-async function flushBatch(batch: any[]): Promise<{ ok: number; fail: number }> {
-  if (batch.length === 0) return { ok: 0, fail: 0 };
+async function flushBatch(batch: any[]): Promise<{ ok: number; skipped: number }> {
+  if (batch.length === 0) return { ok: 0, skipped: 0 };
   // Rows with import_locked_at set carry a moderator-approved user edit; the upsert skips them
   // (setWhere below) so OSM can't overwrite that edit. The prune likewise leaves them alone.
   const conflictSet = {
@@ -225,7 +232,35 @@ async function flushBatch(batch: any[]): Promise<{ ok: number; fail: number }> {
       EXCLUDED.geometry
     ) THEN NOW() ELSE projects.updated_at END`,
   };
+  let skipped = 0;
   try {
+    // Detached projects keep their URLs. Skip new rows claiming an occupied slug, but allow
+    // existing OSM projects to update: their stored slug is frozen and may differ from this one.
+    const candidates = sql.join(
+      batch.map(
+        (row, index) =>
+          sql`(${index}::int, ${row.importSourceId}::uuid, ${row.externalId}::text, ${row.slug}::text)`,
+      ),
+      sql`, `,
+    );
+    const collisions = await db.execute<{ row_index: number }>(sql`
+      SELECT input.row_index
+      FROM (VALUES ${candidates}) AS input(row_index, source_id, external_id, slug)
+      JOIN projects occupied ON occupied.slug = input.slug
+      WHERE NOT EXISTS (
+        SELECT 1 FROM projects existing
+        WHERE existing.import_source_id = input.source_id AND existing.external_id = input.external_id
+      )
+    `);
+    const blocked = new Set(collisions.map((row) => row.row_index));
+    batch = batch.filter((row, index) => {
+      if (!blocked.has(index)) return true;
+      log("slug_collision_skipped", { external_id: row.externalId, slug: row.slug });
+      return false;
+    });
+    skipped = blocked.size;
+    if (batch.length === 0) return { ok: 0, skipped };
+
     await db
       .insert(projects)
       .values(batch)
@@ -234,16 +269,16 @@ async function flushBatch(batch: any[]): Promise<{ ok: number; fail: number }> {
         set: conflictSet,
         setWhere: isNull(projects.importLockedAt),
       });
-    return { ok: batch.length, fail: 0 };
+    return { ok: batch.length, skipped };
   } catch (batchErr) {
     if (isTransient(batchErr)) {
       log("batch_retry", { rows: batch.length, error: batchErr }, "warning");
       await waitForDb();
-      return flushBatch(batch);
+      const retried = await flushBatch(batch);
+      return { ok: retried.ok, skipped: skipped + retried.skipped };
     }
     // Batch failed, fall back to individual inserts so one bad row doesn't discard the rest
     let ok = 0;
-    let fail = 0;
     for (const row of batch) {
       try {
         await db
@@ -270,20 +305,31 @@ async function flushBatch(batch: any[]): Promise<{ ok: number; fail: number }> {
               });
             ok++;
           } catch (retryErr) {
+            const collision = isSlugCollision(retryErr);
             log(
-              "row_failed",
-              { external_id: row.externalId, error: retryErr, retried: true },
-              "error",
+              collision ? "slug_collision_skipped" : "row_failed",
+              {
+                external_id: row.externalId,
+                slug: row.slug,
+                error: collision ? undefined : retryErr,
+                retried: true,
+              },
+              collision ? "info" : "error",
             );
-            fail++;
+            skipped++;
           }
         } else {
-          log("row_failed", { external_id: row.externalId, error: rowErr }, "error");
-          fail++;
+          const collision = isSlugCollision(rowErr);
+          log(
+            collision ? "slug_collision_skipped" : "row_failed",
+            { external_id: row.externalId, slug: row.slug, error: collision ? undefined : rowErr },
+            collision ? "info" : "error",
+          );
+          skipped++;
         }
       }
     }
-    return { ok, fail };
+    return { ok, skipped };
   }
 }
 
@@ -381,17 +427,31 @@ async function main() {
   let globalInserted = 0;
   let globalSkipped = 0;
   let globalUnchanged = 0;
-  // Every external_id present and valid in this sync (new, edited, or unchanged-and-skipped). The prune
-  // deletes/detaches OSM rows absent from this set, replacing the old last_imported_at timestamp check,
-  // so unchanged rows can be skipped in the build loop without being mistaken for stale.
-  const seenExternalIds: string[] = [];
+  // Presence is independent of successful derivation/upsert: a failed row must retain its old data.
   const encounteredExternalIds = new Set<string>();
   const duplicateExternalIds = new Set<string>();
+  const extractionStatePath = `${options["input-prefix"]}.extraction-state`;
+  // Standalone/manual extracts may have no updater sidecar. If one exists, only the updater's
+  // explicit completion permits pruning; an empty or unknown status keeps pruning disabled.
+  let pruneAllowed =
+    !options["no-prune"] &&
+    (!fs.existsSync(extractionStatePath) ||
+      fs.readFileSync(extractionStatePath, "utf8").trim() === "complete");
+  if (!pruneAllowed) {
+    log("prune_disabled", { reason: "incomplete_extraction_or_no_prune" }, "warning");
+  }
 
   for (const geojsonPath of GEOJSON_PATHS) {
     const fileStarted = performance.now();
     const file = path.basename(geojsonPath);
     const geojson = JSON.parse(fs.readFileSync(geojsonPath, "utf8")) as GeoJSON.FeatureCollection;
+    if (geojson.type !== "FeatureCollection" || !Array.isArray(geojson.features)) {
+      throw new Error(`Expected a GeoJSON FeatureCollection: ${geojsonPath}`);
+    }
+    if (geojson.features.length === 0) {
+      pruneAllowed = false;
+      log("prune_disabled", { reason: "empty_input", file }, "warning");
+    }
     log("file_started", { file, features: geojson.features.length });
 
     const allStatuses = new Map<string, number>();
@@ -470,6 +530,8 @@ async function main() {
       if (externalId !== null) {
         if (encounteredInRun) duplicateExternalIds.add(externalId);
         encounteredExternalIds.add(externalId);
+      } else {
+        pruneAllowed = false;
       }
 
       // Count every input feature, including revision matches. Reuse these
@@ -488,7 +550,6 @@ async function main() {
       if (tags.length === 0) noTags++;
 
       if (unchangedFeatures[i]) {
-        if (externalId) seenExternalIds.push(externalId);
         unchanged++;
         continue;
       }
@@ -507,7 +568,6 @@ async function main() {
           // Counted as seen so the prune leaves any existing row alone: the feature is present in
           // this extract, only its country is underivable, and dropping the row would lose data the
           // previous run resolved.
-          if (externalId) seenExternalIds.push(externalId);
           skippedUnresolvedCountry++;
           if (skippedCountrySamples.length < 10 && externalId) {
             skippedCountrySamples.push(externalId);
@@ -573,9 +633,6 @@ async function main() {
             ? sql`ST_SetSRID(ST_MakePoint(${center.lng}, ${center.lat}), 4326)`
             : null,
         });
-        // Record a present, valid feature as seen so the prune keeps it. id-less rows can't be tracked
-        // by external_id, so they are left out (the prune excludes external_id IS NULL rows anyway).
-        if (externalId) seenExternalIds.push(externalId);
       } catch (rowErr) {
         log(
           "row_build_failed",
@@ -586,18 +643,18 @@ async function main() {
       }
 
       if (pendingRows.length >= UPSERT_BATCH_SIZE) {
-        const { ok, fail } = await flushBatch(pendingRows);
+        const { ok, skipped: batchSkipped } = await flushBatch(pendingRows);
         inserted += ok;
-        skipped += fail;
+        skipped += batchSkipped;
         pendingRows.length = 0;
       }
     }
 
     // Flush remaining rows
     if (pendingRows.length > 0) {
-      const { ok, fail } = await flushBatch(pendingRows);
+      const { ok, skipped: batchSkipped } = await flushBatch(pendingRows);
       inserted += ok;
-      skipped += fail;
+      skipped += batchSkipped;
       pendingRows.length = 0;
     }
 
@@ -757,26 +814,31 @@ async function main() {
   // Presence is tracked by a temp table of this run's seen external_ids rather than a per-row
   // last_imported_at bump, so unchanged rows are never rewritten. Built on the single pinned connection
   // (sqlClient max: 1) so the prune statements below can read it. If it can't be built in full, or it
-  // came back empty, the prune is skipped entirely: deleting against a partial set would remove rows
+  // came back empty, or either input is incomplete, pruning is skipped: a partial set would remove rows
   // that are actually present.
   let pruneSafe = false;
-  try {
-    await db.execute(sql`CREATE TEMP TABLE seen_external_ids (external_id text PRIMARY KEY)`);
-    const SEEN_INSERT_CHUNK = 5000;
-    for (let off = 0; off < seenExternalIds.length; off += SEEN_INSERT_CHUNK) {
-      const chunk = seenExternalIds.slice(off, off + SEEN_INSERT_CHUNK);
-      const values = sql.join(
-        chunk.map((id) => sql`(${id})`),
-        sql`, `,
-      );
-      await db.execute(
-        sql`INSERT INTO seen_external_ids (external_id) VALUES ${values} ON CONFLICT DO NOTHING`,
-      );
+  if (pruneAllowed && encounteredExternalIds.size > 0) {
+    try {
+      const seenExternalIds = [...encounteredExternalIds];
+      await db.execute(sql`CREATE TEMP TABLE seen_external_ids (external_id text PRIMARY KEY)`);
+      const SEEN_INSERT_CHUNK = 5000;
+      for (let off = 0; off < seenExternalIds.length; off += SEEN_INSERT_CHUNK) {
+        const chunk = seenExternalIds.slice(off, off + SEEN_INSERT_CHUNK);
+        const values = sql.join(
+          chunk.map((id) => sql`(${id})`),
+          sql`, `,
+        );
+        await db.execute(
+          sql`INSERT INTO seen_external_ids (external_id) VALUES ${values} ON CONFLICT DO NOTHING`,
+        );
+      }
+      pruneSafe = true;
+      log("seen_ids_loaded", { features: seenExternalIds.length, prune_enabled: pruneSafe });
+    } catch (err) {
+      log("prune_skipped", { reason: "seen_ids_failed", error: err }, "warning");
     }
-    pruneSafe = seenExternalIds.length > 0;
-    log("seen_ids_loaded", { features: seenExternalIds.length, prune_enabled: pruneSafe });
-  } catch (err) {
-    log("prune_skipped", { reason: "seen_ids_failed", error: err }, "warning");
+  } else {
+    log("prune_skipped", { reason: "incomplete_inputs_or_no_prune" }, "warning");
   }
 
   const staleCondition = sql`import_source_id = ${importSource.id} AND import_locked_at IS NULL AND external_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM seen_external_ids s WHERE s.external_id = projects.external_id)`;

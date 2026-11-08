@@ -59,6 +59,12 @@ BOUNDARIES_GEOJSON="${OUTPUT_DIR}/${BASE}_boundaries.geojsonl"
 
 log_debug "Boundary extraction inputs" "input=$SOURCE" "output=$BOUNDARIES_GEOJSON"
 
+# A failed run must leave no final export that could be mistaken for current input.
+rm -f "$BOUNDARIES_GEOJSON"
+EXPORT_DIR="$(mktemp -d "${OUTPUT_DIR}/.${BASE}_boundaries.XXXXXX")"
+FILTERED_PBF_TMP="${BOUNDARIES_PBF%.osm.pbf}.tmp.osm.pbf"
+trap 'rc=$?; rm -f "$FILTERED_PBF_TMP"; rm -rf "$EXPORT_DIR"; osm_log_exit "$rc"' EXIT
+
 # Phase 1: keep only administrative boundary relations (and the ways/nodes they need).
 # Relations are kept with their members so osmium can assemble the area geometry.
 # Skipped when an up-to-date filtered file already exists (the filter over a planet is the slow
@@ -70,8 +76,9 @@ else
     osm_trim_before_write "$BOUNDARIES_PBF"
     osm_run osmium tags-filter "$SOURCE" \
         r/boundary=administrative \
-        --output "$BOUNDARIES_PBF" \
+        --output "$FILTERED_PBF_TMP" \
         --overwrite
+    mv -f "$FILTERED_PBF_TMP" "$BOUNDARIES_PBF"
     osm_step_end
 fi
 
@@ -79,8 +86,8 @@ fi
 # relation's last-edit time) so the importer can fill external_last_modified. Only "attributes"
 # is set, so all tags are still exported (no include/exclude filter). Empty if the source PBF
 # carries no metadata.
-EXPORT_CONFIG="$(mktemp)"
-trap 'rc=$?; rm -f "$EXPORT_CONFIG"; osm_log_exit "$rc"' EXIT
+EXPORT_CONFIG="${EXPORT_DIR}/export.json"
+EXPORT_GEOJSON="${EXPORT_DIR}/boundaries.geojsonl"
 cat > "$EXPORT_CONFIG" <<'EOF'
 { "attributes": { "timestamp": "@timestamp" } }
 EOF
@@ -97,8 +104,10 @@ osm_run osmium export "$BOUNDARIES_PBF" \
     --add-unique-id=type_id \
     --config "$EXPORT_CONFIG" \
     -f geojsonseq \
-    --output "$BOUNDARIES_GEOJSON" \
+    --output "$EXPORT_GEOJSON" \
     --overwrite
+# Stage on the destination filesystem so only a successful export becomes importable.
+mv -f "$EXPORT_GEOJSON" "$BOUNDARIES_GEOJSON"
 osm_step_end
 log_info "Wrote boundary GeoJSON sequence" "event=artifact_written" "output=$BOUNDARIES_GEOJSON" \
     "size_bytes=$(wc -c < "$BOUNDARIES_GEOJSON" | tr -d '[:space:]')"
