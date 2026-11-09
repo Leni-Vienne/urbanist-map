@@ -93,9 +93,12 @@ function composeRect(base: NormalizedRect, sub: NormalizedRect): NormalizedRect 
 function handleElement(edge: Edge): HTMLElement {
   const el = document.createElement("div");
   const cursor = edge === "top" || edge === "bottom" ? "ns-resize" : "ew-resize";
-  el.style.cssText =
+  el.style.cssText = `width:44px;height:44px;display:grid;place-items:center;z-index:2;cursor:${cursor};`;
+  const square = document.createElement("div");
+  square.style.cssText =
     "width:14px;height:14px;background:#fff;border:2px solid #3b82f6;border-radius:2px;" +
-    `box-shadow:0 1px 3px rgba(0,0,0,.4);cursor:${cursor};`;
+    "box-shadow:0 1px 3px rgba(0,0,0,.4);pointer-events:none;";
+  el.append(square);
   return el;
 }
 
@@ -137,7 +140,7 @@ function syncCrop(): void {
   session.svgContainer.style.display = visible ? "block" : "none";
   for (const edge of EDGES) {
     const el = session.handles[edge].getElement();
-    el.style.display = visible ? "block" : "none";
+    el.style.display = visible ? "grid" : "none";
   }
   if (!visible) return;
 

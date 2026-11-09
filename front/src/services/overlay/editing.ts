@@ -221,14 +221,14 @@ function polygonFeature(corners: LatLng[]): Feature<Polygon> {
 
 function cornerHandleElement(): HTMLElement {
   const el = document.createElement("div");
+  // Center the visible square in a full-size target so grabs inside the image reach the handle.
   el.style.cssText =
+    "width:44px;height:44px;display:grid;place-items:center;z-index:2;cursor:crosshair;";
+  const square = document.createElement("div");
+  square.style.cssText =
     "width:16px;height:16px;background:#ff8800;border:2px solid #fff;border-radius:2px;" +
-    "box-shadow:0 1px 3px rgba(0,0,0,.4);cursor:grab;";
-  // Transparent hit area that overflows the visible to grab it easier. Absolutely positioned so it does not
-  // grow the element's box, keeping MapLibre's centering on the corner identical to the visible dot.
-  const hitArea = document.createElement("div");
-  hitArea.style.cssText = "position:absolute;inset:-9px;";
-  el.appendChild(hitArea);
+    "box-shadow:0 1px 3px rgba(0,0,0,.4);pointer-events:none;";
+  el.append(square);
   return el;
 }
 
@@ -250,7 +250,7 @@ function syncSvgOutline(): void {
 
   session.cornerMarkers.forEach((marker) => {
     const el = marker.getElement();
-    el.style.display = isVisible ? "block" : "none";
+    el.style.display = isVisible ? "grid" : "none";
   });
 
   if (!isVisible) return;
@@ -396,6 +396,8 @@ function wireSurfaceDrag(s: EditSession): void {
       session !== s ||
       s.gesture.type !== "idle" ||
       useSubmissionStore().isSubmitting ||
+      // Marker presses also reach MapLibre's layer listeners; leave them to the marker drag.
+      e.originalEvent.target !== mlMap.getCanvas() ||
       e.originalEvent.button !== 0
     )
       return;
