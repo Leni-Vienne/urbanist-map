@@ -168,15 +168,6 @@ export const registerSchema = z.object({
   captchaToken: z.string().optional(),
 });
 
-export const resetPasswordRequestSchema = z.object({
-  email: z.email("validation.invalidEmail"),
-});
-
-export const resetPasswordSchema = z.object({
-  token: z.string().min(1, "validation.tokenRequired"),
-  password: z.string().min(8, "validation.passwordTooShort"),
-});
-
 export const PROJECT_CHANGE_FIELDS = [
   "name",
   "description",

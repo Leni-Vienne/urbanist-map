@@ -1,19 +1,27 @@
-﻿<template>
+<template>
   <Dialog
     v-model:visible="visible"
     modal
     :header="
-      isForgotPasswordMode
-        ? $t('auth.forgotPasswordTitle')
-        : isLoginMode
-          ? $t('auth.signIn')
-          : $t('auth.signUp')
+      screen === 'registered'
+        ? $t('auth.verifyEmailTitle')
+        : isForgotPasswordMode
+          ? $t('auth.forgotPasswordTitle')
+          : isLoginMode
+            ? $t('auth.signIn')
+            : $t('auth.signUp')
     "
     :style="{ width: '450px' }"
     class="auth-modal-overflow"
   >
-    <!-- Forgot Password Mode -->
-    <div v-if="isForgotPasswordMode">
+    <div v-if="screen === 'registered' || screen === 'reset-sent'" class="flex flex-col gap-4">
+      <InlineBanner severity="info">
+        {{ $t(screen === "registered" ? "auth.verifyEmailMessage" : "auth.resetLinkSent") }}
+      </InlineBanner>
+      <Button :label="$t('auth.backToSignIn')" link @click="showScreen('login')" />
+    </div>
+
+    <div v-else-if="isForgotPasswordMode">
       <p class="text-muted-color mb-4">
         {{ $t("auth.forgotPasswordMessage") }}
       </p>
@@ -36,10 +44,6 @@
 
         <InlineBanner v-if="errorMessage" severity="error">{{ errorMessage }}</InlineBanner>
 
-        <InlineBanner v-if="resetLinkSent" severity="info">
-          {{ $t("auth.resetLinkSent") }}
-        </InlineBanner>
-
         <div class="flex flex-col gap-3 mt-2">
           <Button
             type="submit"
@@ -53,7 +57,7 @@
             type="button"
             :label="$t('auth.backToSignIn')"
             link
-            @click="isForgotPasswordMode = false"
+            @click="showScreen('login')"
             :disabled="loading"
             class="p-0"
           />
@@ -70,10 +74,10 @@
             <Button
               icon="pi pi-map"
               :label="$t('auth.continueWithOpenStreetMap')"
-              @click="handleOsmSignIn"
+              @click="handleOAuthSignIn('osm')"
               outlined
               :loading="oauthLoading"
-              :disabled="oauthLoading"
+              :disabled="busy"
               class="w-full"
               :class="{ 'last-used-method': lastOsmUsed && isLoginMode }"
             />
@@ -91,7 +95,7 @@
             @click="handleOAuthSignIn('google')"
             outlined
             :loading="oauthLoading"
-            :disabled="oauthLoading"
+            :disabled="busy"
             class="w-full"
             :class="{
               'last-used-method': lastGoogleUsed && isLoginMode,
@@ -167,7 +171,7 @@
               link
               size="small"
               @click="showForgotPassword"
-              :disabled="loading || oauthLoading"
+              :disabled="busy"
               class="p-0"
             />
           </div>
@@ -201,31 +205,17 @@
 
         <!-- CAPTCHA Widget (only for registration) -->
         <div v-if="!isLoginMode" class="flex justify-center py-2">
-          <div id="turnstile-widget"></div>
+          <div ref="captchaContainer"></div>
         </div>
 
         <InlineBanner v-if="errorMessage" severity="error">{{ errorMessage }}</InlineBanner>
-
-        <!-- Registration success message -->
-        <div
-          v-if="registrationSuccess && !isLoginMode"
-          class="flex flex-col gap-2 p-3 bg-blue-50 border border-blue-200 rounded dark:bg-blue-900/30 dark:border-blue-700 dark:text-blue-200"
-        >
-          <div class="flex items-center gap-2 font-semibold text-blue-700 dark:text-blue-200">
-            <i class="pi pi-info-circle"></i>
-            {{ $t("auth.verifyEmailTitle") }}
-          </div>
-          <p class="text-sm text-blue-600 dark:text-blue-200 m-0">
-            {{ $t("auth.verifyEmailMessage") }}
-          </p>
-        </div>
 
         <div class="flex flex-col gap-3 mt-2">
           <Button
             type="submit"
             :label="isLoginMode ? $t('auth.signIn') : $t('auth.createAccount')"
             :loading="loading"
-            :disabled="loading || oauthLoading"
+            :disabled="busy"
             class="w-full"
           />
 
@@ -238,7 +228,7 @@
               :label="isLoginMode ? $t('auth.signUp') : $t('auth.signIn')"
               link
               @click="toggleMode"
-              :disabled="loading || oauthLoading"
+              :disabled="busy"
               class="ml-1 p-0"
             />
           </div>
@@ -249,9 +239,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, nextTick } from "vue";
+import { ref, shallowRef, reactive, computed, watch, nextTick, onBeforeUnmount } from "vue";
 import { useI18n } from "vue-i18n";
 import { useAuthStore } from "@/stores/authStore";
+import { loadProviderScript } from "@/services/auth/providerScript";
 import LastUsedBadge from "@/components/auth/LastUsedBadge.vue";
 import InlineBanner from "@/components/common/InlineBanner.vue";
 
@@ -267,19 +258,50 @@ const emit = defineEmits<{
 const { t: $t } = useI18n();
 const authStore = useAuthStore();
 
-const isLoginMode = ref(props.initialMode !== "signup");
-const isForgotPasswordMode = ref(false);
-const loading = ref(false);
-const oauthLoading = ref(false);
+type Screen = "login" | "signup" | "forgot" | "registered" | "reset-sent";
+const screen = ref<Screen>(props.initialMode ?? "login");
+const isLoginMode = computed(() => screen.value === "login");
+const isForgotPasswordMode = computed(
+  () => screen.value === "forgot" || screen.value === "reset-sent",
+);
+type RequestKind = "password" | "google" | "osm";
+const request = shallowRef<{ kind: RequestKind; owner: AbortController } | null>(null);
+const busy = computed(() => request.value !== null);
+const loading = computed(() => request.value?.kind === "password");
+const oauthLoading = computed(
+  () => request.value?.kind === "google" || request.value?.kind === "osm",
+);
 const errorMessage = ref("");
 const emailError = ref("");
 const passwordError = ref("");
 const usernameError = ref("");
 const forgotPasswordEmail = ref("");
-const resetLinkSent = ref(false);
-const registrationSuccess = ref(false);
+const captchaContainer = ref<HTMLElement | null>(null);
 let captchaToken = "";
 let turnstileWidgetId: string | null = null;
+let captchaGeneration = 0;
+
+function beginRequest(kind: RequestKind) {
+  if (busy.value || !props.visible) return null;
+  const owner = new AbortController();
+  request.value = { kind, owner };
+  errorMessage.value = "";
+  return owner;
+}
+
+function ownsRequest(owner: AbortController) {
+  return request.value?.owner === owner && !owner.signal.aborted;
+}
+
+function finishRequest(owner: AbortController) {
+  if (!ownsRequest(owner)) return;
+  request.value = null;
+}
+
+function retireRequest() {
+  request.value?.owner.abort();
+  request.value = null;
+}
 
 // Single "last used" sign-in hint, read when the modal opens.
 const lastUsed = ref<{ method: "email" | "google" | "osm"; email: string | null } | null>(null);
@@ -306,100 +328,67 @@ const lastEmailUsed = computed(
 const lastGoogleUsed = computed(() => lastUsed.value?.method === "google");
 const lastOsmUsed = computed(() => lastUsed.value?.method === "osm");
 
-// Reset loading states and errors when modal opens/closes
 watch(
   () => props.visible,
   (isVisible) => {
     if (isVisible) {
-      oauthLoading.value = false;
-      loading.value = false;
-      errorMessage.value = "";
+      resetForm();
+      screen.value = props.initialMode ?? "login";
       lastUsed.value = authStore.getLastUsedMethod();
     } else {
-      oauthLoading.value = false;
-      loading.value = false;
-    }
-
-    // Handle Turnstile rendering when modal opens or mode changes
-    if (isVisible && !isLoginMode.value) {
-      nextTick().then(() => renderTurnstile());
+      retireRequest();
     }
   },
-  // The modal is v-if-mounted only once already visible, so the initial true value
-  // must be handled here or the "last used" hint is never read.
   { immediate: true },
 );
 
-// Watch mode switch to render/reset Turnstile
-watch(isLoginMode, (isLogin) => {
-  if (!isLogin && props.visible) {
-    nextTick().then(() => renderTurnstile());
-  } else {
+watch(
+  [() => props.visible, screen],
+  async ([isVisible, currentScreen]) => {
     resetTurnstile();
-  }
+    if (!isVisible || currentScreen !== "signup") return;
+    const generation = captchaGeneration;
+    const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+    if (!siteKey) return;
+    try {
+      await nextTick();
+      await loadProviderScript(
+        "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit",
+        () => Boolean(globalThis.turnstile),
+      );
+      if (generation !== captchaGeneration || !captchaContainer.value) return;
+      turnstileWidgetId =
+        globalThis.turnstile?.render(captchaContainer.value, {
+          sitekey: siteKey,
+          callback: (token: string) => {
+            if (generation === captchaGeneration) captchaToken = token;
+          },
+          "expired-callback": () => {
+            if (generation === captchaGeneration) captchaToken = "";
+          },
+          "error-callback": () => {
+            if (generation === captchaGeneration) captchaToken = "";
+          },
+          theme: "auto",
+        }) ?? null;
+    } catch (error) {
+      if (generation === captchaGeneration) {
+        errorMessage.value = error instanceof Error ? error.message : $t("common.error");
+      }
+    }
+  },
+  { immediate: true },
+);
+
+onBeforeUnmount(() => {
+  retireRequest();
+  resetTurnstile();
 });
 
-// Lazily inject the Turnstile script the first time signup mode is shown
-function loadTurnstileScript(): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    if (globalThis.turnstile) {
-      resolve();
-      return;
-    }
-
-    const existing = document.querySelector(
-      'script[src^="https://challenges.cloudflare.com/turnstile"]',
-    );
-    if (existing) {
-      existing.addEventListener("load", () => resolve());
-      existing.addEventListener("error", () => reject(new Error("Failed to load Turnstile")));
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
-    script.async = true;
-    script.defer = true;
-    script.addEventListener("load", () => resolve());
-    script.addEventListener("error", () => reject(new Error("Failed to load Turnstile")));
-    document.head.appendChild(script);
-  });
-}
-
-// Cloudflare Turnstile Integration
-async function renderTurnstile() {
-  await loadTurnstileScript();
-
-  if (globalThis.turnstile && document.querySelector("#turnstile-widget")) {
-    // Reset if already rendered to avoid duplicates
-    if (turnstileWidgetId) {
-      globalThis.turnstile.remove(turnstileWidgetId);
-    }
-
-    const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
-    if (!siteKey) {
-      console.warn("Missing VITE_TURNSTILE_SITE_KEY, CAPTCHA will be skipped in dev");
-      return; // Skip rendering if no key (dev mode)
-    }
-
-    turnstileWidgetId = globalThis.turnstile.render("#turnstile-widget", {
-      sitekey: siteKey,
-      callback: (token: string) => {
-        captchaToken = token;
-      },
-      "expired-callback": () => {
-        captchaToken = "";
-      },
-      theme: "auto",
-    });
-  }
-}
-
 function resetTurnstile() {
-  if (globalThis.turnstile && turnstileWidgetId) {
-    globalThis.turnstile.remove(turnstileWidgetId);
-    turnstileWidgetId = null;
-  }
+  captchaGeneration += 1;
+  if (turnstileWidgetId !== null) globalThis.turnstile?.remove(turnstileWidgetId);
+  turnstileWidgetId = null;
   captchaToken = "";
 }
 
@@ -428,30 +417,30 @@ function resetForm() {
   passwordError.value = "";
   usernameError.value = "";
   forgotPasswordEmail.value = "";
-  resetLinkSent.value = false;
-  registrationSuccess.value = false;
   resetTurnstile();
 }
 
-function toggleMode() {
-  isLoginMode.value = !isLoginMode.value;
+function showScreen(next: Screen) {
+  if (busy.value) return;
+  screen.value = next;
   errorMessage.value = "";
   emailError.value = "";
   passwordError.value = "";
   usernameError.value = "";
-  registrationSuccess.value = false;
+}
+
+function toggleMode() {
+  showScreen(isLoginMode.value ? "signup" : "login");
 }
 
 function showForgotPassword() {
-  isForgotPasswordMode.value = true;
-  errorMessage.value = "";
-  resetLinkSent.value = false;
+  showScreen("forgot");
   forgotPasswordEmail.value = form.email;
 }
 
 async function handleSubmit() {
-  loading.value = true;
-  errorMessage.value = "";
+  const owner = beginRequest("password");
+  if (!owner) return;
   emailError.value = "";
   passwordError.value = "";
   usernameError.value = "";
@@ -459,6 +448,7 @@ async function handleSubmit() {
   try {
     if (isLoginMode.value) {
       const result = await authStore.signIn(form.email, form.password, form.rememberMe);
+      if (!ownsRequest(owner)) return;
       if (result.success) {
         visible.value = false;
         resetForm();
@@ -467,8 +457,10 @@ async function handleSubmit() {
       }
     } else {
       const result = await authStore.signUp(form.email, form.password, form.username, captchaToken);
+      if (!ownsRequest(owner)) return;
       if (result.success) {
-        registrationSuccess.value = true;
+        screen.value = "registered";
+        form.password = "";
         errorMessage.value = "";
       } else {
         if (result.error === "auth.error.usernameTaken") {
@@ -476,54 +468,45 @@ async function handleSubmit() {
         } else {
           errorMessage.value = translateError(result.error) || $t("auth.error.registrationFailed");
         }
-        if (globalThis.turnstile && turnstileWidgetId) {
+        if (globalThis.turnstile && turnstileWidgetId !== null) {
           globalThis.turnstile.reset(turnstileWidgetId);
           captchaToken = "";
         }
       }
     }
   } finally {
-    loading.value = false;
+    finishRequest(owner);
   }
 }
 
-function handleOsmSignIn() {
-  oauthLoading.value = true;
-  errorMessage.value = "";
-  authStore.startOsmLogin(form.rememberMe);
-}
-
-async function handleOAuthSignIn(provider: "google") {
-  oauthLoading.value = true;
-  errorMessage.value = "";
-
+async function handleOAuthSignIn(provider: "google" | "osm") {
+  const owner = beginRequest(provider);
+  if (!owner) return;
   try {
-    const result = await authStore.signInWithOAuth(provider, form.rememberMe);
-    if (result.success) {
-      visible.value = false;
-      resetForm();
-    } else {
+    const result = await authStore.signInWithOAuth(provider);
+    if (!ownsRequest(owner)) return;
+    if (!result.success) {
       errorMessage.value = translateError(result.error) || $t("auth.error.googleAuthFailed");
     }
   } finally {
-    oauthLoading.value = false;
+    finishRequest(owner);
   }
 }
 
 async function handleForgotPassword() {
-  loading.value = true;
-  errorMessage.value = "";
-  resetLinkSent.value = false;
+  const owner = beginRequest("password");
+  if (!owner) return;
 
   try {
     const result = await authStore.requestPasswordReset(forgotPasswordEmail.value);
+    if (!ownsRequest(owner)) return;
     if (result.success) {
-      resetLinkSent.value = true;
+      screen.value = "reset-sent";
     } else {
       errorMessage.value = translateError(result.error) || $t("common.error");
     }
   } finally {
-    loading.value = false;
+    finishRequest(owner);
   }
 }
 </script>

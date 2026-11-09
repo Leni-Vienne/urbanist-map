@@ -419,7 +419,7 @@
         "username": "Username (public display name)",
         "email": "Email address (for account recovery and notifications)",
         "password": "Password (stored encrypted)",
-        "ipAddresses": "IP addresses (in server logs for security and spam prevention, retained for 90 days)",
+        "ipAddresses": "IP addresses and browser information (user-agent), recorded in server logs and login sessions for security and spam prevention",
         "oauthData": "OAuth provider IDs (if you use Google Sign-In)",
         "analytics": "Anonymous audience statistics (page views, referrers, browser, operating system, device type, and country)",
         "legalBasis": "Legal bases: Contract performance (providing the service), Legitimate interest (security, fraud prevention, and anonymous audience measurement)."
@@ -451,7 +451,7 @@
         "content": "I retain your data as follows:",
         "account": "Account data (email, username, password): Until you delete your account",
         "logs": "Server logs (IP addresses): Automatically deleted after 90 days",
-        "sessions": "Session cookies: Expire after 30 days of inactivity",
+        "sessions": "Login sessions expire after 24 hours for email sign-in without “Remember me”, or after 30 days otherwise. Session records, including IP addresses and browser information, are deleted on sign-out or revocation, or during daily cleanup after expiry.",
         "contributions": "Contributions (projects, images): Anonymized when you delete your account, but may remain publicly visible",
         "analytics": "Anonymous audience statistics: Automatically removed according to the Umami Cloud plan's retention period",
         "deletion": "When you delete your account, all personal data is permanently removed within 30 days."
@@ -459,7 +459,7 @@
       "cookies": {
         "title": "Cookies",
         "content": "I only use essential cookies:",
-        "sessionCookie": "Session cookie: Keeps you logged in (expires after 30 days of inactivity)",
+        "sessionCookie": "Sign-in cookies keep you logged in. Email sign-in without “Remember me” uses a browser-session cookie; other sign-ins use cookies lasting up to 30 days. Activity does not extend the expiry.",
         "purpose": "This cookie is strictly necessary for authentication and does not require consent.",
         "noTracking": "I do not use any tracking, analytics, or advertising cookies."
       },

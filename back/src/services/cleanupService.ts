@@ -1,5 +1,12 @@
 import { db } from "../database";
-import { sessions, users, projects, overlays, uploadedFiles } from "../db/schema";
+import {
+  sessions,
+  authVerifications,
+  users,
+  projects,
+  overlays,
+  uploadedFiles,
+} from "../db/schema";
 import { lt, and, eq, isNull, inArray, or } from "drizzle-orm";
 import { deleteImagesEverywhere } from "../lib/imageCleanup";
 import { logger } from "./logger";
@@ -91,6 +98,8 @@ async function runCleanup() {
   try {
     // 1. Clean up expired sessions
     const deletedSessions = await db.delete(sessions).where(lt(sessions.expiresAt, new Date()));
+
+    await db.delete(authVerifications).where(lt(authVerifications.expiresAt, new Date()));
 
     // 2. Clean up unverified users older than 24 hours
     // Short window to prevent email squatting - users can re-register if they miss it

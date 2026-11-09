@@ -119,8 +119,7 @@ uploadsApp.post(
 
       // Require authentication
       // Uploads are only allowed for logged-in users to prevent anonymous spam
-      const session = c.get("session");
-      const user = await resolveSessionUser(session);
+      const user = await resolveSessionUser(c);
       if (!user) {
         return c.json({ error: "Authentication required" }, 401);
       }
@@ -314,7 +313,7 @@ uploadsApp.get("/uploads/*", async (c) => {
 
     // Approved images are public (legacy support); everything else is access-controlled.
     if (overlay.status !== "approved") {
-      const user = await resolveSessionUser(c.get("session"));
+      const user = await resolveSessionUser(c);
       if (!user) {
         return c.json({ error: "Authentication required" }, 401);
       }

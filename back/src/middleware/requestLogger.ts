@@ -1,5 +1,6 @@
 import { createHmac } from "node:crypto";
 import type { Context, Next } from "hono";
+import type { AppEnv } from "../lib/types";
 import { config as appConfig } from "../config";
 import { logger } from "../services/logger";
 import { classifyRequest } from "../services/botClassifier";
@@ -12,14 +13,8 @@ function getCloudflareHeaders(c: Context) {
   };
 }
 
-function getUserId(c: Context): number | undefined {
-  try {
-    // Session is stored in c.get('session') by Hono session middleware
-    const session = c.get("session");
-    return session?.get("user")?.id;
-  } catch {
-    return undefined;
-  }
+function getUserId(c: Context<AppEnv>): string | undefined {
+  return c.get("user")?.id;
 }
 
 const TILE_LOG_WINDOW_MS = 30 * 60 * 1000;
@@ -45,7 +40,7 @@ function visitorIdFor(ip: string): string {
   return createHmac("sha256", appConfig.COOKIE_SECRET).update(ip).digest("base64url").slice(0, 22);
 }
 
-export async function requestLogger(c: Context, next: Next) {
+export async function requestLogger(c: Context<AppEnv>, next: Next) {
   const startTime = Date.now();
   const method = c.req.method;
   const path = c.req.path;

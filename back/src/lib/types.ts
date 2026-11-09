@@ -1,23 +1,14 @@
 // Backend-specific types (storage, file upload)
 // For shared types (ApprovalStatus, AppMode), see @shared/types
 
-import type { Session } from "hono-sessions";
 import type { AuthUser } from "@shared/types/auth";
 
 export type SessionUser = AuthUser;
 
-type SessionData = {
-  user?: SessionUser;
-  expiresAt?: string;
-  // Transient CSRF state for the OSM OAuth redirect, set on /api/osm-login and
-  // consumed (single-use) on /api/osm-callback.
-  osmOauth?: { state: string; rememberMe: boolean };
-};
-
 // Hono environment shared by the main app and its mounted sub-apps.
 export type AppEnv = {
   Variables: {
-    session: Session<SessionData>;
+    user?: SessionUser;
   };
 };
 

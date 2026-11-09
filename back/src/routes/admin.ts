@@ -51,7 +51,7 @@ export const adminRouter = router({
   adminGetUserContributions: adminProcedure
     .input(
       z.object({
-        userId: z.string().uuid(),
+        userId: z.uuid(),
         countryCode: z.string().length(3).optional(), // If provided, load projects/overlays for this country
       }),
     )
@@ -115,7 +115,7 @@ export const adminRouter = router({
   deleteProject: adminProcedure
     .input(
       z.object({
-        projectId: z.string().uuid(),
+        projectId: z.uuid(),
         reason: z.string().max(500).optional(), // Optional reason for audit
       }),
     )

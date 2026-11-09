@@ -13,8 +13,6 @@ import { isAllowedCorsOrigin } from "./lib/corsConfig";
 import type { AppEnv } from "./lib/types";
 import { config as appConfig } from "./config";
 import { generateMissingThumbnails } from "./lib/startup";
-import { sessionStore } from "./lib/drizzleSessionStore";
-import { createSessionMiddleware } from "./lib/sessionPolicy";
 import { resolveSessionUser } from "./lib/currentUser";
 import { requestLogger } from "./middleware/requestLogger";
 import { logger } from "./services/logger";
@@ -49,8 +47,7 @@ app.use("*", (c, next) => {
   return secureHeaders()(c, next);
 });
 
-// CRITICAL: Health check endpoint MUST be before session middleware
-// Caddy polls this every 30 seconds - we don't want to create sessions for health checks!
+// Keep health checks outside request logging; they have their own heartbeat log.
 app.get("/api/health", (c) => {
   const timestamp = new Date().toISOString();
 
@@ -70,33 +67,32 @@ app.get("/api/health", (c) => {
 });
 
 // Request logging for everything past the health check, including the cookie-free tile and SEO
-// routes below. Session state is read only after next(), so downstream session writes are visible.
+// routes below. Authenticated routes attach the current user for logging.
 app.use("*", requestLogger);
 
-// Public tile endpoints - mounted before session middleware (no auth needed)
+// Public tile endpoints do not resolve authentication.
 app.route("/api/tiles", tilesApp);
 
-// Public SEO endpoints (project metadata + sitemap) - cookie-free, mounted before session middleware
+// Public SEO endpoints (project metadata + sitemap) do not resolve authentication.
 app.route("/", seoApp);
 
-app.use("*", createSessionMiddleware(sessionStore, appConfig.COOKIE_SECRET));
+app.route("/", authApp);
 
 // tRPC routes
 app.use(
   "/trpc/*",
   trpcServer({
     router: appRouter,
-    async createContext(_opts: FetchCreateContextFnOptions, c: Context) {
+    async createContext(_opts: FetchCreateContextFnOptions, c: Context<AppEnv>) {
       return {
-        user: await resolveSessionUser(c.get("session")),
+        user: await resolveSessionUser(c),
         hono: c,
       };
     },
   }),
 );
 
-// Cookie-session auth endpoints and image upload/serving (need the session middleware above)
-app.route("/", authApp);
+// Image routes resolve authentication only when an operation needs it.
 app.route("/", uploadsApp);
 
 // Only serve frontend files in development mode

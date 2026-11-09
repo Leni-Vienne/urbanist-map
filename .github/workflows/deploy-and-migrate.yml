@@ -55,6 +55,20 @@ jobs:
             echo "DB_NAME=construction_map_preview" >> $GITHUB_ENV
           fi
 
+      - name: Build frontend
+        run: bun run build-front-workflow
+        env:
+          VITE_R2_PUBLIC_URL: ${{ vars.VITE_R2_PUBLIC_URL }}
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
+          VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
+          NODE_ENV: production
+
+      - name: Build backend bundle
+        run: bun run build-back
+        env:
+          NODE_ENV: production
+
       - name: Run database migrations
         run: |
           # Only the genuine "database not up yet" case (fresh host, Postgres container not
@@ -70,26 +84,21 @@ jobs:
 
           if [ "$DB_UP" = "1" ]; then
             echo "Database reachable on localhost:$DB_PORT — running migrations"
+            # Auth schema cutovers cannot run while the previous backend serves requests.
+            if [ "$DEPLOY_TARGET" = "production" ]; then
+              DEPLOY_DIR=/opt/construction-map-prod
+            else
+              DEPLOY_DIR=/opt/construction-map-preview
+            fi
+            if [ -f "$DEPLOY_DIR/docker-compose.yml" ]; then
+              sudo docker compose -f "$DEPLOY_DIR/docker-compose.yml" stop backend
+            fi
             bun run db:migrate
           else
             echo "⚠️ Database not reachable on localhost:$DB_PORT — skipping migration (fresh deployment)"
           fi
         env:
           DATABASE_URL: postgres://postgres:${{ secrets.POSTGRES_PASSWORD }}@localhost:${{ env.DB_PORT }}/${{ env.DB_NAME }}
-
-      - name: Build frontend
-        run: bun run build-front-workflow
-        env:
-          VITE_R2_PUBLIC_URL: ${{ vars.VITE_R2_PUBLIC_URL }}
-          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
-          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
-          VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
-          NODE_ENV: production
-
-      - name: Build backend bundle
-        run: bun run build-back
-        env:
-          NODE_ENV: production
 
       - name: Deploy frontend to Cloudflare Pages
         id: deploy-frontend
@@ -144,6 +153,7 @@ jobs:
           R2_BUCKET_NAME: ${{ vars.R2_BUCKET_NAME }}
           R2_PUBLIC_URL: ${{ vars.VITE_R2_PUBLIC_URL }}
           VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
           OSM_CLIENT_ID: ${{ secrets.OSM_CLIENT_ID }}
           OSM_CLIENT_SECRET: ${{ secrets.OSM_CLIENT_SECRET }}
@@ -235,6 +245,7 @@ jobs:
           COOKIE_SECRET=${COOKIE_SECRET}
           CORS_ORIGIN=${CORS_ORIGIN}
           VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
+          GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
           VITE_API_BASE_URL=${VITE_API_BASE_URL}
           OSM_CLIENT_ID=${OSM_CLIENT_ID}
           OSM_CLIENT_SECRET=${OSM_CLIENT_SECRET}

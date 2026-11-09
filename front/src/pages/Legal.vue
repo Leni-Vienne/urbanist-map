@@ -220,7 +220,7 @@
       </section>
 
       <p class="mt-8 text-[0.9rem] text-center text-muted-color m-0 leading-relaxed">
-        {{ t("pages.legal.lastUpdated") }}: 26/08/2026
+        {{ t("pages.legal.lastUpdated") }}: 09/11/2026
       </p>
     </div>
   </div>

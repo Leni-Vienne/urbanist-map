@@ -1,29 +1,23 @@
-﻿<template>
+<template>
   <div
     class="flex justify-center items-center min-h-screen bg-linear-to-br from-primary-color/5 to-primary-color/10 p-5"
   >
     <div
       class="bg-content-background p-12 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.1)] text-center max-w-100 w-full"
     >
-      <div v-if="loading" class="flex flex-col items-center gap-6">
+      <div v-if="phase === 'verifying'" class="flex flex-col items-center gap-6">
         <i class="pi pi-spin pi-spinner text-[2rem] text-primary-color"></i>
         <p class="m-0 text-muted-color leading-relaxed">
           {{ t("pages.emailVerification.verifying") }}
         </p>
       </div>
 
-      <div v-else-if="success" class="flex flex-col items-center gap-6">
+      <div v-else-if="phase === 'redirecting'" class="flex flex-col items-center gap-6">
         <i class="pi pi-check-circle text-[3rem] text-green-500"></i>
         <h2 class="m-0 text-2xl text-color">
           {{ t("pages.emailVerification.verified") }}
         </h2>
-        <p v-if="!signingIn" class="m-0 text-muted-color leading-relaxed">
-          {{ t("pages.emailVerification.verifiedMessage") }}
-        </p>
-        <p
-          v-else
-          class="m-0 text-muted-color leading-relaxed flex items-center gap-2 justify-center"
-        >
+        <p class="m-0 text-muted-color leading-relaxed flex items-center gap-2 justify-center">
           <i class="pi pi-spin pi-spinner"></i>
           {{ t("pages.emailVerification.signingIn") }}
         </p>
@@ -48,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -60,54 +54,44 @@ const authStore = useAuthStore();
 
 const { t } = useI18n();
 
-const loading = ref(true);
-const success = ref(false);
-const signingIn = ref(false);
+const phase = ref<"verifying" | "redirecting" | "error">("verifying");
 const errorMessage = ref("");
 
-async function verifyEmail() {
-  try {
-    const token = route.query.token as string;
-
-    if (!token) {
-      throw new Error(t("pages.emailVerification.errors.noToken"));
+watch(
+  () => route.query.token,
+  async (token, _previous, onCleanup) => {
+    let active = true;
+    let redirect: ReturnType<typeof setTimeout> | undefined = undefined;
+    onCleanup(() => {
+      active = false;
+      clearTimeout(redirect);
+    });
+    phase.value = "verifying";
+    errorMessage.value = "";
+    if (typeof token !== "string" || !token) {
+      phase.value = "error";
+      errorMessage.value = t("pages.emailVerification.errors.noToken");
+      return;
     }
 
-    const result = await authStore.verifyEmail(token);
-
+    const verification = authStore.verifyEmail(token);
+    const epoch = authStore.getSessionEpoch();
+    const result = await verification;
+    if (!active || epoch !== authStore.getSessionEpoch()) return;
     if (!result.success) {
-      throw new Error(result.error || t("pages.emailVerification.errors.verificationFailed"));
+      phase.value = "error";
+      errorMessage.value = result.error || t("pages.emailVerification.errors.verificationFailed");
+      return;
     }
-
-    success.value = true;
-    loading.value = false;
-
-    if (result.user) {
-      signingIn.value = true;
-
-      await new Promise<void>((resolve) => void setTimeout(() => resolve(), 1500));
-
-      // Set user directly on auth store (session is already created by backend via cookies)
-      authStore.user = result.user;
-
-      // Redirect to home page
-      router.push("/");
-    }
-  } catch (error) {
-    console.error("Email verification failed:", error);
-    errorMessage.value =
-      error instanceof Error
-        ? error.message
-        : t("pages.emailVerification.errors.verificationFailed");
-    loading.value = false;
-  }
-}
+    phase.value = "redirecting";
+    redirect = setTimeout(() => {
+      if (active && epoch === authStore.getSessionEpoch()) void router.replace("/");
+    }, 1500);
+  },
+  { immediate: true },
+);
 
 function goToApp() {
   router.push("/");
 }
-
-onMounted(() => {
-  verifyEmail();
-});
 </script>

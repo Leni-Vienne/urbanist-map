@@ -489,7 +489,9 @@ describe("submission acknowledgement", () => {
     spyOn(globalThis, "fetch").mockImplementation(
       Object.assign(
         async (url: URL | RequestInfo) => {
-          if (String(url).includes("/api/logout")) return delayedLogout.promise;
+          if (String(url).includes("/api/auth/sign-out")) return delayedLogout.promise;
+          if (String(url).includes("/api/check-session"))
+            return Response.json({ user: null, infoMessage: null });
           started.resolve(undefined);
           return delayed.promise;
         },

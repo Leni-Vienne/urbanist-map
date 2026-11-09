@@ -5,14 +5,7 @@
     <div
       class="bg-content-background p-12 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.1)] text-center max-w-100 w-full"
     >
-      <div v-if="loading" class="flex flex-col items-center gap-6">
-        <i class="pi pi-spin pi-spinner text-[2rem] text-primary-color"></i>
-        <p class="m-0 text-muted-color leading-relaxed">
-          {{ $t("common.loading") }}
-        </p>
-      </div>
-
-      <div v-else-if="tokenValid" class="flex flex-col items-center gap-6">
+      <div v-if="hasToken" class="flex flex-col items-center gap-6">
         <i class="pi pi-key text-[3rem] text-primary-color"></i>
         <h2 class="m-0 text-2xl text-color">
           {{ $t("auth.resetPasswordTitle") }}
@@ -64,7 +57,7 @@
             type="submit"
             :label="$t('auth.resetPassword')"
             :loading="submitting"
-            :disabled="!isFormValid"
+            :disabled="submitting || !isFormValid"
             class="w-full"
           />
         </form>
@@ -87,7 +80,7 @@
 <script setup lang="ts">
 import { toastSuccess, toastError } from "@/services/core/toast";
 
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, watch, onBeforeUnmount } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { useAuthStore } from "@/stores/authStore";
@@ -98,13 +91,17 @@ const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 
-const loading = ref(true);
-const tokenValid = ref(false);
+const token = computed(() => (typeof route.query.token === "string" ? route.query.token : null));
+const hasToken = computed(() => Boolean(token.value));
+let active = true;
+onBeforeUnmount(() => {
+  active = false;
+});
 const submitting = ref(false);
 const newPassword = ref("");
 const confirmPassword = ref("");
 const validationAttempted = ref(false);
-const errorMessage = ref("");
+const errorMessage = computed(() => t("auth.invalidResetToken"));
 
 const passwordError = computed(() =>
   newPassword.value.length < 8 ? t("auth.chooseStrongPassword") : "",
@@ -114,39 +111,26 @@ const confirmError = computed(() =>
 );
 const isFormValid = computed(() => !passwordError.value && !confirmError.value);
 
-function checkTokenPresent() {
-  try {
-    const token = route.query.token as string;
-
-    if (!token) {
-      throw new Error(t("auth.invalidResetToken"));
-    }
-
-    tokenValid.value = true;
-  } catch (error) {
-    console.error("Token validation failed:", error);
-    errorMessage.value = error instanceof Error ? error.message : t("auth.invalidResetToken");
-  } finally {
-    loading.value = false;
-  }
-}
+watch(token, () => {
+  newPassword.value = "";
+  confirmPassword.value = "";
+  validationAttempted.value = false;
+});
 
 async function handleResetPassword() {
+  if (submitting.value || !token.value) return;
+  const submittedToken = token.value;
   try {
     validationAttempted.value = true;
     if (!isFormValid.value) return;
 
     submitting.value = true;
-    const token = route.query.token as string;
-
-    const result = await authStore.resetPassword(token, newPassword.value);
+    const reset = authStore.resetPassword(submittedToken, newPassword.value);
+    const epoch = authStore.getSessionEpoch();
+    const result = await reset;
+    if (!active || token.value !== submittedToken || epoch !== authStore.getSessionEpoch()) return;
 
     if (result.success) {
-      // Auto-login after successful password reset, failure is non-fatal
-      if (result.email) {
-        await authStore.signIn(result.email, newPassword.value);
-      }
-
       toastSuccess(t("auth.passwordResetSuccess"));
 
       router.push("/");
@@ -164,8 +148,4 @@ async function handleResetPassword() {
 function goToApp() {
   router.push("/");
 }
-
-onMounted(() => {
-  checkTokenPresent();
-});
 </script>

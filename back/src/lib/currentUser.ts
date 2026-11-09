@@ -1,19 +1,19 @@
+import type { Context } from "hono";
 import { eq } from "drizzle-orm";
+import { auth, deleteUserSessions } from "./auth";
 import { db } from "../database";
 import { users } from "../db/schema";
-import type { Session } from "hono-sessions";
-import type { SessionUser } from "./types";
+import type { AppEnv, SessionUser } from "./types";
 
-// Reloads the authenticated user from the database on every request. The session cookie only
-// carries an id; role, moderatedCountries and ban state are always read fresh so a demotion or
-// ban takes effect immediately instead of on session expiry.
-export async function resolveSessionUser(
-  session: Session<{ user?: SessionUser }>,
+// Better Auth validates the session; application capabilities always come from
+// the current user row so bans and moderation changes take effect immediately.
+export async function resolveSessionUser<E extends AppEnv>(
+  c: Context<E>,
 ): Promise<SessionUser | null> {
-  const sessionUser = session.get("user");
-  if (!sessionUser) return null;
+  const session = await auth.api.getSession({ headers: c.req.raw.headers });
+  if (!session) return null;
 
-  const [fresh] = await db
+  const [user] = await db
     .select({
       id: users.id,
       email: users.email,
@@ -24,20 +24,12 @@ export async function resolveSessionUser(
       banned: users.banned,
     })
     .from(users)
-    .where(eq(users.id, sessionUser.id))
-    .limit(1);
-
-  if (!fresh || fresh.banned) {
-    session.deleteSession();
+    .where(eq(users.id, session.user.id));
+  if (!user || user.banned) {
+    await deleteUserSessions(session.user.id);
     return null;
   }
-
-  return {
-    id: fresh.id,
-    email: fresh.email,
-    username: fresh.username,
-    role: fresh.role,
-    moderatedCountries: fresh.moderatedCountries,
-    emailVerified: fresh.emailVerified,
-  };
+  const { banned: _banned, ...currentUser } = user;
+  c.set("user", currentUser);
+  return currentUser;
 }

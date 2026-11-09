@@ -1,33 +1,8 @@
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { ref, computed } from "vue";
-import { trpc } from "@/client";
+import { authClient, throwAuthError } from "@/services/auth/client";
 import { getApiUrl } from "@/utils/apiUrl";
 import type { AuthUser } from "@shared/types/auth";
-
-type AuthResult = { success: boolean; user: AuthUser | null; error: string | null };
-
-function loadGoogleIdentityScript(): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    if (globalThis.google) {
-      resolve();
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = "https://accounts.google.com/gsi/client";
-    script.async = true;
-    script.defer = true;
-
-    script.addEventListener("load", () => {
-      resolve();
-    });
-    script.addEventListener("error", () => {
-      reject(new Error("Failed to load Google Identity Services"));
-    });
-
-    document.head.appendChild(script);
-  });
-}
 
 type LastUsedMethod = "email" | "google" | "osm";
 type LastUsed = { method: LastUsedMethod; email: string | null };
@@ -53,322 +28,166 @@ function setLastUsedMethod(method: LastUsedMethod, email: string | null = null) 
   }
 }
 
-// OSM uses a full-page authorization-code redirect, so this navigates away and
-// never returns; the backend handles the callback and redirects back to the SPA.
-function startOsmLogin(rememberMe: boolean): void {
-  const rememberParam = rememberMe ? "true" : "false";
-  globalThis.location.href = `${getApiUrl()}/api/osm-login?rememberMe=${rememberParam}`;
-}
+type AuthResult = { success: boolean; error: string | null };
 
-async function sendGoogleTokenToBackend(credential: string, rememberMe: boolean) {
-  const response = await fetch(`${getApiUrl()}/api/google-login`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ token: credential, rememberMe }),
-    credentials: "include",
-  });
-
-  const data: { success: boolean; user?: AuthUser; error?: string } = await response.json();
-
-  if (!response.ok || !data.success) {
-    throw new Error(data.error ?? "Google authentication failed");
-  }
-
-  return data.user ?? null;
-}
-
-// Wraps a provider-specific token-exchange call into an OAuth SDK callback.
-// The returned handler clears the pending timeout, awaits the exchange, and resolves
-// the outer promise with a uniform AuthResult shape regardless of provider.
-function createOAuthCallbackHandler<TResponse>(options: {
-  provider: "google";
-  exchangeToken: (response: TResponse) => Promise<AuthUser | null>;
-  timeoutId: ReturnType<typeof setTimeout>;
-  resolve: (value: AuthResult) => void;
-}) {
-  return (response: TResponse) => {
-    clearTimeout(options.timeoutId);
-    void (async () => {
-      try {
-        const newUser = await options.exchangeToken(response);
-        options.resolve({ success: true, user: newUser, error: null });
-      } catch (error: unknown) {
-        console.error(`${options.provider} OAuth error:`, error);
-        options.resolve({
-          success: false,
-          user: null,
-          error:
-            error instanceof Error ? error.message : `${options.provider} authentication failed`,
-        });
-      }
-    })();
+function failed(error: unknown): AuthResult {
+  return {
+    success: false,
+    error: error instanceof Error ? error.message : "Authentication failed",
   };
 }
 
-// Sign up with email and password
-async function signUp(email: string, password: string, username: string, captchaToken?: string) {
+async function signUp(
+  email: string,
+  password: string,
+  username: string,
+  captchaToken?: string,
+): Promise<AuthResult> {
   try {
-    await trpc.account.register.mutate({
+    const result = await authClient.signUp.email({
       email,
       password,
-      username,
-      captchaToken,
+      name: username,
+      fetchOptions: { headers: { "x-captcha-response": captchaToken ?? "" } },
     });
-
+    throwAuthError(result.error);
     return { success: true, error: null };
-  } catch (error: unknown) {
-    console.error("Sign up error:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Registration failed",
-    };
+  } catch (error) {
+    return failed(error);
   }
 }
 
-async function verifyEmail(token: string) {
+async function requestPasswordReset(email: string): Promise<AuthResult> {
   try {
-    const result = await trpc.account.verifyEmail.mutate({ token });
-    return { success: true, user: result.user, error: null };
-  } catch (error: unknown) {
-    console.error("Email verification error:", error);
-    return {
-      success: false,
-      user: null,
-      error: error instanceof Error ? error.message : "Email verification failed",
-    };
-  }
-}
-
-async function requestPasswordReset(email: string) {
-  try {
-    await trpc.account.requestPasswordReset.mutate({ email });
+    const result = await authClient.requestPasswordReset({
+      email,
+      redirectTo: `${globalThis.location.origin}/reset-password`,
+    });
+    throwAuthError(result.error);
     return { success: true, error: null };
-  } catch (error: unknown) {
-    console.error("Password reset request error:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Password reset request failed",
-    };
+  } catch (error) {
+    return failed(error);
   }
 }
 
-async function resetPassword(token: string, password: string) {
+async function signInWithOAuth(provider: "google" | "osm"): Promise<AuthResult> {
   try {
-    const result = await trpc.account.resetPassword.mutate({ token, password });
-    return { success: true, email: result.email, error: null };
-  } catch (error: unknown) {
-    console.error("Password reset error:", error);
-    return {
-      success: false,
-      email: null,
-      error: error instanceof Error ? error.message : "Password reset failed",
-    };
+    const result = await authClient.signIn.social({
+      provider,
+      callbackURL: `${globalThis.location.origin}/?auth=success&provider=${provider}`,
+      errorCallbackURL: `${globalThis.location.origin}/`,
+    });
+    throwAuthError(result.error);
+    return { success: true, error: null };
+  } catch (error) {
+    return failed(error);
   }
 }
 
 export const useAuthStore = defineStore("auth", () => {
   const user = ref<AuthUser | null>(null);
   const infoMessage = ref<string | null>(null);
-
-  // Set when infoMessage is a bare semver (e.g. "v1.2.5"), shown as the footer version instead of a banner.
   const version = computed(() =>
     infoMessage.value && /^v\d+\.\d+\.\d+$/.test(infoMessage.value.trim())
       ? infoMessage.value.trim()
       : null,
   );
-
   const isAuthenticated = computed(() => Boolean(user.value));
-  const isModerator = computed(() => {
-    if (!user.value) return false;
-    if (user.value.role === "admin") return true;
-    return (user.value.moderatedCountries?.length ?? 0) > 0;
-  });
+  const isModerator = computed(
+    () => user.value?.role === "admin" || (user.value?.moderatedCountries?.length ?? 0) > 0,
+  );
 
-  // Cached promise so concurrent callers share the same in-flight request
-  let initPromise: Promise<void> | null = null;
   let sessionEpoch = 0;
-  let authMutationPending = false;
+  let initPromise: Promise<void> | null = null;
+  let mutation: Promise<AuthResult> | null = null;
 
-  function beginAuthMutation(): number {
-    sessionEpoch += 1;
-    initPromise = null;
-    authMutationPending = true;
+  function getSessionEpoch() {
     return sessionEpoch;
   }
 
-  function finishAuthMutation(epoch: number): void {
-    if (epoch === sessionEpoch) authMutationPending = false;
-  }
-
-  function getSessionEpoch(): number {
-    return sessionEpoch;
-  }
-
-  async function loadSession(epoch: number): Promise<void> {
+  async function loadSession(epoch: number) {
     try {
-      const response = await fetch(`${getApiUrl()}/api/check-session`, {
-        credentials: "include",
-      });
-
+      const response = await fetch(`${getApiUrl()}/api/check-session`, { credentials: "include" });
+      if (!response.ok) throw new Error("Session check failed");
+      const result: { user: AuthUser | null; infoMessage: string | null } = await response.json();
       if (epoch !== sessionEpoch) return;
-
-      if (response.ok) {
-        const result: { user: AuthUser | null; infoMessage: string | null } = await response.json();
-        if (epoch !== sessionEpoch) return;
-        user.value = result.user;
-        infoMessage.value = result.infoMessage;
-      } else {
-        user.value = null;
-        infoMessage.value = null;
-      }
+      user.value = result.user;
+      infoMessage.value = result.infoMessage;
     } catch (error) {
-      console.error("Error initializing auth:", error);
       if (epoch !== sessionEpoch) return;
+      console.error("Error initializing auth:", error);
       user.value = null;
       infoMessage.value = null;
+      initPromise = null;
     }
   }
 
-  // Idempotent: subsequent calls share the same in-flight session check
   async function initialize(): Promise<void> {
-    if (authMutationPending) return;
-
-    initPromise ??= loadSession(sessionEpoch);
+    if (mutation) {
+      await mutation;
+      return initialize();
+    }
+    const epoch = sessionEpoch;
+    initPromise ??= loadSession(epoch);
     await initPromise;
+    if (epoch !== sessionEpoch) await initialize();
   }
 
-  async function signIn(email: string, password: string, rememberMe = false) {
-    const epoch = beginAuthMutation();
-    try {
-      const response = await fetch(`${getApiUrl()}/api/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password, rememberMe }),
-        credentials: "include",
-      });
-
-      const result: { success: boolean; user?: AuthUser; error?: string; message?: string } =
-        await response.json();
-
-      if (response.ok && result.success) {
-        if (epoch !== sessionEpoch) {
-          return { success: false, error: "auth.error.loginFailed" };
-        }
-        user.value = result.user ?? null;
-        setLastUsedMethod("email", result.user?.email ?? null);
-        return {
-          success: true,
-          error: null,
-        };
-      } else {
-        return {
-          success: false,
-          error: result.error ?? result.message ?? "Login failed",
-        };
-      }
-    } catch (error: unknown) {
-      console.error("Sign in error:", error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Login failed",
-      };
-    } finally {
-      finishAuthMutation(epoch);
-    }
-  }
-
-  async function signInWithOAuth(
-    provider: "google",
-    rememberMe = false,
-  ): Promise<{ success: boolean; error: string | null }> {
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    if (!clientId) {
-      return { success: false, error: "Google Client ID not configured" };
-    }
-
-    const epoch = beginAuthMutation();
-    try {
-      if (!globalThis.google) {
-        await loadGoogleIdentityScript();
-      }
-      if (!globalThis.google) {
-        return { success: false, error: "Google Identity Services not loaded" };
-      }
-
-      const result = await new Promise<AuthResult>((resolve) => {
-        const timeout = setTimeout(() => {
-          resolve({ success: false, user: null, error: "Google authentication timed out" });
-        }, 60_000);
-
-        globalThis.google?.accounts.id.initialize({
-          client_id: clientId,
-          callback: createOAuthCallbackHandler<{ credential: string }>({
-            provider,
-            exchangeToken: (response) => sendGoogleTokenToBackend(response.credential, rememberMe),
-            timeoutId: timeout,
-            resolve,
-          }),
-          auto_select: false,
-          cancel_on_tap_outside: true,
-        });
-
-        // @ts-ignore -- Google Identity Services prompt() types are incomplete
-        globalThis.google?.accounts.id.prompt((notification: any) => {
-          if (notification.isNotDisplayed?.() || notification.isSkippedMoment?.()) {
-            clearTimeout(timeout);
-            resolve({
-              success: false,
-              user: null,
-              error: "Google sign-in was cancelled or not displayed",
-            });
-          }
-        });
-      });
-
-      if (result.success && epoch !== sessionEpoch) {
-        return { success: false, error: "auth.error.googleAuthFailed" };
-      }
-      if (result.success) {
-        user.value = result.user;
-        setLastUsedMethod(provider, result.user?.email ?? null);
-      }
-      return { success: result.success, error: result.error };
-    } catch (error: unknown) {
-      console.error(`${provider} OAuth error:`, error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : `${provider} authentication failed`,
-      };
-    } finally {
-      finishAuthMutation(epoch);
-    }
-  }
-
-  async function signOut() {
-    const epoch = beginAuthMutation();
-    user.value = null;
-    try {
-      const response = await fetch(`${getApiUrl()}/api/logout`, {
-        method: "POST",
-        credentials: "include",
-      });
-
-      if (response.ok) {
+  // Keep auth changes ordered and invalidate user-scoped async work immediately.
+  // Provider protocol, token verification, and cookies belong to Better Auth.
+  async function changeSession(operation: () => Promise<void>): Promise<AuthResult> {
+    const epoch = ++sessionEpoch;
+    initPromise = null;
+    const previous = mutation;
+    const request = (async () => {
+      if (previous) await previous;
+      try {
+        await operation();
+        if (epoch !== sessionEpoch) return { success: false, error: "Authentication superseded" };
+        initPromise = loadSession(epoch);
+        await initPromise;
         return { success: true, error: null };
-      } else {
-        const result: { error?: string } = await response.json();
-        return { success: false, error: result.error ?? "Logout failed" };
+      } catch (error) {
+        return failed(error);
       }
-    } catch (error: unknown) {
-      console.error("Sign out error:", error);
-      return { success: false, error: error instanceof Error ? error.message : "Logout failed" };
+    })();
+    mutation = request;
+    try {
+      return await request;
     } finally {
-      finishAuthMutation(epoch);
+      if (mutation === request) mutation = null;
     }
+  }
+
+  function signIn(email: string, password: string, rememberMe = false) {
+    return changeSession(async () => {
+      const result = await authClient.signIn.email({ email, password, rememberMe });
+      throwAuthError(result.error);
+      setLastUsedMethod("email", email);
+    });
+  }
+
+  function verifyEmail(token: string) {
+    return changeSession(async () => {
+      const result = await authClient.verifyEmail({ query: { token } });
+      throwAuthError(result.error);
+    });
+  }
+
+  function resetPassword(token: string, password: string) {
+    return changeSession(async () => {
+      const result = await authClient.resetPassword({ token, newPassword: password });
+      throwAuthError(result.error);
+      user.value = null;
+    });
+  }
+
+  function signOut() {
+    user.value = null;
+    return changeSession(async () => {
+      const result = await authClient.signOut();
+      throwAuthError(result.error);
+    });
   }
 
   return {
@@ -388,11 +207,9 @@ export const useAuthStore = defineStore("auth", () => {
     resetPassword,
     getLastUsedMethod,
     setLastUsedMethod,
-    startOsmLogin,
   };
 });
 
-// Enable HMR for this store
 // oxlint-disable no-unnecessary-condition strict-void-return strict-boolean-expressions
 if (import.meta.hot) {
   import.meta.hot.accept(acceptHMRUpdate(useAuthStore, import.meta.hot));

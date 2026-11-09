@@ -1,391 +1,13 @@
-import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
+import * as z from "zod";
+import { and, eq, ne } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import * as rateLimit from "../lib/rateLimit";
-import { deleteUserSessions } from "../lib/drizzleSessionStore";
-import { SESSION_DURATION_LONG } from "../lib/sessionPolicy";
 import { getClientIp } from "../utils/ip";
-import crypto from "node:crypto";
-import { eq, gt } from "drizzle-orm";
-import { publicProcedure, loggedInProcedure, router } from "../trpc";
+import { loggedInProcedure, router } from "../trpc";
 import { db } from "../database";
 import { users, projects, overlays, changeRequests, oauthAccounts } from "../db/schema";
-import { getUserOAuthProviders } from "../utils/oauthAccounts";
-import {
-  registerSchema,
-  resetPasswordRequestSchema,
-  resetPasswordSchema,
-} from "../../../shared/validation/schemas";
-import { sendEmail } from "../services/emailService";
-import { verifyTurnstileToken } from "../utils/captcha";
-import { renderEmailTemplate } from "../email/templateRenderer";
-import type { AuthUser } from "@shared/types/auth";
-
-// Use shared validation schemas
-
-// Utility functions
-function generateToken(): string {
-  return crypto.randomBytes(32).toString("hex");
-}
-
-async function sendVerificationEmail(email: string, token: string): Promise<void> {
-  try {
-    const verificationUrl = `${process.env.FRONTEND_URL}/verify?token=${token}`;
-    const { subject, html } = await renderEmailTemplate("verification", { verificationUrl });
-
-    await sendEmail(email, subject, html);
-    console.log(`Verification email sent successfully to ${email}`);
-  } catch (error) {
-    console.error("Failed to send verification email:", error);
-    // In development, fallback to console logging
-    if (process.env.NODE_ENV === "development") {
-      console.log(`[DEV FALLBACK] Verification email to ${email} with token: ${token}`);
-      console.log(`Verification link: ${process.env.FRONTEND_URL}/verify?token=${token}`);
-    } else {
-      throw error;
-    }
-  }
-}
-
-async function sendPasswordResetEmail(email: string, token: string): Promise<void> {
-  try {
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
-    const { subject, html } = await renderEmailTemplate("passwordReset", { resetUrl });
-
-    await sendEmail(email, subject, html);
-    console.log(`Password reset email sent successfully to ${email}`);
-  } catch (error) {
-    console.error("Failed to send password reset email:", error);
-    // In development, fallback to console logging
-    if (process.env.NODE_ENV === "development") {
-      console.log(`[DEV FALLBACK] Password reset email to ${email} with token: ${token}`);
-      console.log(`Reset link: ${process.env.FRONTEND_URL}/reset-password?token=${token}`);
-    } else {
-      throw error;
-    }
-  }
-}
 
 export const accountRouter = router({
-  // User registration
-  register: publicProcedure.input(registerSchema).mutation(async ({ input, ctx }) => {
-    try {
-      const { email, password, username, captchaToken } = input;
-
-      // Rate limit: 5 registrations per IP per hour
-      const ip = getClientIp(ctx.hono);
-      if (!rateLimit.check(ip, 5, 60 * 60 * 1000)) {
-        throw new TRPCError({
-          code: "TOO_MANY_REQUESTS",
-          message: "auth.error.tooManyRequests",
-        });
-      }
-
-      // Validate CAPTCHA. Skipped only when no secret is configured (verifyTurnstileToken returns true).
-      if (process.env.TURNSTILE_SECRET_KEY) {
-        const isValidCaptcha = await verifyTurnstileToken(captchaToken ?? "", ip);
-        if (!isValidCaptcha) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "auth.error.invalidCaptcha",
-          });
-        }
-      }
-
-      // Check username uniqueness first so it always surfaces before email obscuring
-      if (username) {
-        const existingUsername = await db
-          .select()
-          .from(users)
-          .where(eq(users.username, username))
-          .limit(1);
-        if (existingUsername.length > 0) {
-          throw new TRPCError({
-            code: "CONFLICT",
-            message: "auth.error.usernameTaken",
-          });
-        }
-      }
-
-      // Check if user already exists
-      const existingUserResult = await db
-        .select()
-        .from(users)
-        .where(eq(users.email, email))
-        .limit(1);
-      const existingUser = existingUserResult[0];
-      if (existingUser) {
-        // If user exists but email is not verified, allow re-registration (overwrite)
-        if (!existingUser.emailVerified) {
-          // Delete the unverified user
-          await db.delete(users).where(eq(users.id, existingUser.id));
-        } else {
-          // OAuth-only account (a linked provider, no password): point them to it
-          if (!existingUser.passwordHash) {
-            const providers = await getUserOAuthProviders(existingUser.id);
-            if (providers.length > 0) {
-              throw new TRPCError({
-                code: "CONFLICT",
-                message: "auth.error.emailUsesGoogleSignIn",
-              });
-            }
-          }
-
-          throw new TRPCError({
-            code: "CONFLICT",
-            message: "auth.error.registrationFailed",
-          });
-        }
-      }
-
-      // Hash password with Bun
-      const passwordHash = await Bun.password.hash(password);
-
-      // Generate verification token
-      const plainVerificationToken = generateToken();
-      const emailVerificationToken = await Bun.password.hash(plainVerificationToken);
-
-      // Create user
-      const [newUser] = await db
-        .insert(users)
-        .values({
-          email,
-          passwordHash,
-          username,
-          emailVerificationToken,
-          emailVerified: false,
-          moderatedCountries: [],
-        })
-        .returning();
-
-      if (!newUser) {
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "auth.error.registrationFailed",
-        });
-      }
-
-      // Send verification email
-      await sendVerificationEmail(email, plainVerificationToken);
-    } catch (error) {
-      // If the code threw a TRPCError (intentional client/server error), rethrow it
-      // So that the specific message (i18n key) is preserved and can be translated on the client.
-      if (error instanceof TRPCError) {
-        throw error;
-      }
-
-      console.error("Registration error:", error);
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "auth.error.registrationFailed",
-      });
-    }
-  }),
-
-  // Verify email
-  verifyEmail: publicProcedure
-    .input(z.object({ token: z.string() }))
-    .mutation(async ({ input, ctx }) => {
-      try {
-        // Rate limit: 5 verify attempts per IP per hour (brute force protection)
-        const ip = getClientIp(ctx.hono);
-        if (!rateLimit.check(ip, 5, 60 * 60 * 1000)) {
-          throw new TRPCError({
-            code: "TOO_MANY_REQUESTS",
-            message: "auth.error.tooManyRequests",
-          });
-        }
-
-        const { token } = input;
-
-        // Find all users with verification tokens and check each one
-        const usersWithTokens = await db.select().from(users).where(eq(users.emailVerified, false));
-
-        let matchedUser = null;
-        for (const user of usersWithTokens) {
-          if (
-            user.emailVerificationToken &&
-            (await Bun.password.verify(token, user.emailVerificationToken))
-          ) {
-            matchedUser = user;
-            break;
-          }
-        }
-
-        if (!matchedUser) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Invalid verification token",
-          });
-        }
-
-        // Update user as verified
-        await db
-          .update(users)
-          .set({
-            emailVerified: true,
-            emailVerificationToken: null,
-          })
-          .where(eq(users.id, matchedUser.id));
-
-        // Create session for auto-login (30-day duration)
-        const session = ctx.hono.get("session");
-        const expiresAt = new Date(Date.now() + SESSION_DURATION_LONG * 1000);
-
-        session.set("user", {
-          id: matchedUser.id,
-          email: matchedUser.email,
-          username: matchedUser.username,
-          role: matchedUser.role,
-          moderatedCountries: matchedUser.moderatedCountries,
-          emailVerified: true,
-        });
-
-        session.set("expiresAt", expiresAt.toISOString());
-
-        // Return user data for frontend to update state
-        return {
-          user: {
-            id: matchedUser.id,
-            email: matchedUser.email,
-            username: matchedUser.username,
-            role: matchedUser.role,
-            moderatedCountries: matchedUser.moderatedCountries,
-            emailVerified: true,
-          } satisfies AuthUser,
-        };
-      } catch (error) {
-        if (error instanceof TRPCError) throw error;
-        console.error("Email verification error:", error);
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Email verification failed",
-        });
-      }
-    }),
-
-  // Request password reset
-  requestPasswordReset: publicProcedure
-    .input(resetPasswordRequestSchema)
-    .mutation(({ input, ctx }) => {
-      const { email } = input;
-
-      // Rate limit: 5 password reset requests per IP per hour
-      const ip = getClientIp(ctx.hono);
-      if (!rateLimit.check(ip, 5, 60 * 60 * 1000)) {
-        throw new TRPCError({
-          code: "TOO_MANY_REQUESTS",
-          message: "auth.error.tooManyRequests",
-        });
-      }
-
-      // SECURITY: Fire and forget - respond immediately to prevent ALL timing attacks
-      // Void the promise to indicate intentional fire-and-forget behavior
-      // eslint-disable-next-line @eslint/no-void
-      void (async () => {
-        try {
-          // Find user
-          const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-
-          if (!user) {
-            // User doesn't exist - silently fail for security
-            return;
-          }
-
-          // SECURITY: Check if email is verified
-          // Prevent password reset bypass for unverified emails
-          if (!user.emailVerified) {
-            return;
-          }
-
-          // SECURITY: OAuth-only users can't reset password - silently fail to prevent enumeration
-          if (!user.passwordHash) {
-            const providers = await getUserOAuthProviders(user.id);
-            if (providers.length > 0) {
-              return;
-            }
-          }
-
-          // Generate reset token and expiry (1 hour)
-          const plainResetToken = generateToken();
-          const resetToken = await Bun.password.hash(plainResetToken);
-          const resetExpiry = new Date();
-          resetExpiry.setHours(resetExpiry.getHours() + 1);
-
-          // Update user with reset token
-          await db
-            .update(users)
-            .set({
-              passwordResetToken: resetToken,
-              passwordResetExpiresAt: resetExpiry,
-            })
-            .where(eq(users.id, user.id));
-
-          // Send password reset email
-          await sendPasswordResetEmail(email, plainResetToken);
-        } catch (error) {
-          // Log error but don't expose it to client
-          console.error("Password reset background processing error:", error);
-        }
-      })();
-      // SECURITY: Return immediately and identically for every email (no timing leak, no info leak)
-    }),
-
-  // Reset password
-  resetPassword: publicProcedure.input(resetPasswordSchema).mutation(async ({ input }) => {
-    try {
-      const { token, password } = input;
-
-      // Find users with valid reset tokens and check each one
-      const usersWithResetTokens = await db
-        .select()
-        .from(users)
-        .where(gt(users.passwordResetExpiresAt, new Date()));
-
-      let matchedUser = null;
-      for (const user of usersWithResetTokens) {
-        if (
-          user.passwordResetToken &&
-          (await Bun.password.verify(token, user.passwordResetToken))
-        ) {
-          matchedUser = user;
-          break;
-        }
-      }
-
-      if (!matchedUser) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Invalid or expired reset token",
-        });
-      }
-
-      // Hash new password with Bun
-      const passwordHash = await Bun.password.hash(password);
-
-      // Update user password and clear reset token
-      await db
-        .update(users)
-        .set({
-          passwordHash,
-          passwordResetToken: null,
-          passwordResetExpiresAt: null,
-        })
-        .where(eq(users.id, matchedUser.id));
-
-      // A reset must revoke credentials already issued, including any stolen session.
-      await deleteUserSessions(matchedUser.id);
-
-      return { email: matchedUser.email };
-    } catch (error) {
-      if (error instanceof TRPCError) throw error;
-      console.error("Password reset error:", error);
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Password reset failed",
-      });
-    }
-  }),
-
   // GDPR Right of Access - Export all user data
   exportMyData: loggedInProcedure.query(async ({ ctx }) => {
     try {
@@ -440,7 +62,7 @@ export const accountRouter = router({
               createdAt: oauthAccounts.createdAt,
             })
             .from(oauthAccounts)
-            .where(eq(oauthAccounts.userId, userId)),
+            .where(and(eq(oauthAccounts.userId, userId), ne(oauthAccounts.provider, "credential"))),
         ],
       );
 
@@ -506,9 +128,11 @@ export const accountRouter = router({
           });
         }
 
-        // SECURITY: Verify password before allowing deletion (critical safeguard)
-        // Prevents session hijacking from deleting accounts
-        if (!user.passwordHash) {
+        const [credential] = await db
+          .select({ password: oauthAccounts.password })
+          .from(oauthAccounts)
+          .where(and(eq(oauthAccounts.userId, userId), eq(oauthAccounts.provider, "credential")));
+        if (!credential?.password) {
           // OAuth-only users (no password) cannot self-delete via API
           throw new TRPCError({
             code: "BAD_REQUEST",
@@ -516,7 +140,7 @@ export const accountRouter = router({
           });
         }
 
-        const validPassword = await Bun.password.verify(currentPassword, user.passwordHash);
+        const validPassword = await Bun.password.verify(currentPassword, credential.password);
         if (!validPassword) {
           throw new TRPCError({
             code: "UNAUTHORIZED",
@@ -546,9 +170,7 @@ export const accountRouter = router({
           await tx.delete(users).where(eq(users.id, userId));
         });
 
-        // Invalidate the active session so the deleted user is immediately logged out
-        const session = ctx.hono.get("session");
-        session.deleteSession();
+        // Account and session foreign keys cascade with the deleted user.
 
         // Audit log: Confirm successful deletion
         console.log(`[GDPR] Account ${userId} (${user.email}) successfully deleted`);

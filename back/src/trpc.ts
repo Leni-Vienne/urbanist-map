@@ -1,6 +1,6 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
-import type { SessionUser } from "./lib/types";
+import type { SessionUser, AppEnv } from "./lib/types";
 import type { Context as HonoContext } from "hono";
 import { isModeratorOrAdmin } from "./db/helpers";
 
@@ -8,7 +8,7 @@ export { TRPCError } from "@trpc/server";
 
 type Context = {
   user?: SessionUser | null;
-  hono: HonoContext;
+  hono: HonoContext<AppEnv>;
 };
 
 /**

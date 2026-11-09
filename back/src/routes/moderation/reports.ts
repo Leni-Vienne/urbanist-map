@@ -3,7 +3,7 @@ import { db } from "../../database";
 import { projects, overlays, users, userReports } from "../../db/schema";
 import { and, eq, or, sql, inArray } from "drizzle-orm";
 import { deleteImagesEverywhere, deleteLocalImages } from "../../lib/imageCleanup";
-import { deleteUserSessions } from "../../lib/drizzleSessionStore";
+import { deleteUserSessions } from "../../lib/auth";
 import { captureProjectMapState } from "../../db/projectMapState";
 import { reconcileProjectChanges } from "../../services/projectEffects";
 import { TRPCError } from "@trpc/server";

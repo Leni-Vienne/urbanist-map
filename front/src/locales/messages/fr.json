@@ -419,7 +419,7 @@
         "username": "Nom d'utilisateur (nom public affiché)",
         "email": "Adresse email (pour la récupération du compte et les notifications)",
         "password": "Mot de passe (stocké chiffré)",
-        "ipAddresses": "Adresses IP (dans les journaux serveur pour la sécurité et la prévention du spam, conservées 90 jours)",
+        "ipAddresses": "Adresses IP et informations sur le navigateur (user-agent), enregistrées dans les journaux serveur et les sessions de connexion pour la sécurité et la prévention du spam",
         "oauthData": "Identifiants de fournisseur OAuth (si vous utilisez Google Sign-In)",
         "analytics": "Statistiques d'audience anonymes (pages consultées, référents, navigateur, système d'exploitation, type d'appareil et pays)",
         "legalBasis": "Bases légales : Exécution du contrat (fourniture du service), Intérêt légitime (sécurité, prévention de la fraude et mesure d'audience anonyme)."
@@ -451,7 +451,7 @@
         "content": "J'entrepose vos données comme suit :",
         "account": "Données de compte (email, nom d'utilisateur, mot de passe) : Jusqu'à la suppression de votre compte",
         "logs": "Journaux serveur (adresses IP) : Supprimés automatiquement après 90 jours",
-        "sessions": "Cookies de session : Expirent après 30 jours d'inactivité",
+        "sessions": "Les sessions de connexion expirent après 24 heures pour une connexion par email sans « Se souvenir de moi », ou après 30 jours dans les autres cas. Les données de session, dont l’adresse IP et les informations sur le navigateur, sont supprimées à la déconnexion, à la révocation de la session ou lors du nettoyage quotidien après expiration.",
         "contributions": "Contributions (projets, images) : Anonymisées lorsque vous supprimez votre compte, mais peuvent rester publiquement visibles",
         "analytics": "Statistiques d'audience anonymes : Supprimées automatiquement selon la durée de conservation de l'offre Umami Cloud",
         "deletion": "Lorsque vous supprimez votre compte, toutes vos données personnelles sont définitivement supprimées sous 30 jours."
@@ -459,7 +459,7 @@
       "cookies": {
         "title": "Cookies",
         "content": "J'utilise uniquement des cookies essentiels :",
-        "sessionCookie": "Cookie de session : Maintient votre connexion (expire après 30 jours d'inactivité)",
+        "sessionCookie": "Les cookies de connexion maintiennent votre connexion. Une connexion par email sans « Se souvenir de moi » utilise un cookie de session du navigateur ; les autres connexions utilisent des cookies valables jusqu’à 30 jours. L’activité ne prolonge pas leur validité.",
         "purpose": "Ce cookie est strictement nécessaire pour l'authentification et ne requiert pas de consentement.",
         "noTracking": "J'utilise aucun cookie de suivi, d'analyse ou publicitaire."
       },

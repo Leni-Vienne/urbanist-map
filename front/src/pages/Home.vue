@@ -189,11 +189,11 @@ async function restoreSessionAndConsumeAuthParams() {
   await authStore.initialize();
 
   if (route.query.auth === "success") {
-    if (route.query.provider === "osm") {
-      authStore.setLastUsedMethod("osm");
+    if (route.query.provider === "osm" || route.query.provider === "google") {
+      authStore.setLastUsedMethod(route.query.provider);
     }
-  } else if (route.query.error) {
-    const errorMessage = getErrorMessage(route.query.error as string);
+  } else if (typeof route.query.error === "string") {
+    const errorMessage = getErrorMessage(route.query.error);
     toastError(errorMessage, t("pages.home.authenticationError"));
   }
 
@@ -217,6 +217,7 @@ function getErrorMessage(error: string): string {
     case "auth_failed":
       return t("pages.home.errors.authenticationFailed");
     case "no_session":
+    case "access_denied":
       return t("pages.home.errors.signInCancelled");
     case "unexpected":
       return t("pages.home.errors.unexpectedError");

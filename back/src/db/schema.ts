@@ -16,7 +16,6 @@ import {
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
-import type { SessionData } from "hono-sessions";
 import type { DatePrecision } from "@shared/types/flexibleDate";
 import { APPROVAL_STATUS_VALUES, type TimelineStatus } from "@shared/types/project";
 import { jsonObject } from "./jsonObject";
@@ -99,43 +98,31 @@ export const importSources = pgTable(
   (table) => [index("idx_import_sources_type").on(table.type)],
 );
 
-// Users table for custom authentication
-export const users = pgTable(
-  "users",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    email: text("email").unique().notNull(),
-    username: text("username").unique(),
-    passwordHash: text("password_hash"), // nullable because OAuth users don't have one
-    role: text("role").default("user"), // Role can be 'user', 'admin', etc.
-    moderatedCountries: text("moderated_countries").array(), // Array of ISO 3-letter country codes this moderator can moderate.
-    emailVerified: boolean("email_verified").default(false).notNull(),
-    emailVerificationToken: text("email_verification_token"),
-    passwordResetToken: text("password_reset_token"),
-    passwordResetExpiresAt: timestamp("password_reset_expires_at", { withTimezone: true }),
-    // Moderation stats for spam prevention - tracks approval/rejection counts across all entity types
-    approvedCount: integer("approved_count").default(0).notNull(),
-    rejectedCount: integer("rejected_count").default(0).notNull(),
-    // Soft ban fields for spam/abuse prevention
-    banned: boolean("banned").default(false).notNull(),
-    bannedAt: timestamp("banned_at", { withTimezone: true }),
-    bannedBy: uuid("banned_by").references((): AnyPgColumn => users.id, { onDelete: "set null" }),
-    banReason: text("ban_reason"),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .defaultNow()
-      .notNull()
-      .$onUpdate(() => new Date()),
-  },
-  // eslint-disable-next-line eslint/no-shadow
-  (users) => [
-    index("idx_users_email_verification").on(users.emailVerificationToken),
-    index("idx_users_password_reset").on(users.passwordResetToken),
-  ],
-);
+// Application users, shared with Better Auth.
+export const users = pgTable("users", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  email: text("email").unique().notNull(),
+  username: text("username").unique(),
+  image: text("image"),
+  role: text("role").default("user"), // Role can be 'user', 'admin', etc.
+  moderatedCountries: text("moderated_countries").array(), // Array of ISO 3-letter country codes this moderator can moderate.
+  emailVerified: boolean("email_verified").default(false).notNull(),
+  // Moderation stats for spam prevention - tracks approval/rejection counts across all entity types
+  approvedCount: integer("approved_count").default(0).notNull(),
+  rejectedCount: integer("rejected_count").default(0).notNull(),
+  // Soft ban fields for spam/abuse prevention
+  banned: boolean("banned").default(false).notNull(),
+  bannedAt: timestamp("banned_at", { withTimezone: true }),
+  bannedBy: uuid("banned_by").references((): AnyPgColumn => users.id, { onDelete: "set null" }),
+  banReason: text("ban_reason"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull()
+    .$onUpdate(() => new Date()),
+});
 
-// One row per linked external identity (Google, OSM, GitHub, ...). Provider-agnostic
-// so new providers need no schema change: just a new `provider` value.
+// Better Auth accounts: linked provider identities and email/password credentials.
 export const oauthAccounts = pgTable(
   "oauth_accounts",
   {
@@ -143,9 +130,17 @@ export const oauthAccounts = pgTable(
     userId: uuid("user_id")
       .references(() => users.id, { onDelete: "cascade", onUpdate: "cascade" })
       .notNull(),
-    provider: text("provider").notNull(), // "google", "osm", ...
+    provider: text("provider").notNull(), // "credential", "google", "osm", ...
     providerAccountId: text("provider_account_id").notNull(), // the provider's unique user id
+    password: text("password"),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true }),
+    scope: text("scope"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     uniqueIndex("idx_oauth_accounts_provider_account").on(table.provider, table.providerAccountId),
@@ -157,8 +152,13 @@ export const oauthAccounts = pgTable(
 export const sessions = pgTable(
   "sessions",
   {
-    id: text("id").primaryKey(), // Session ID from hono-sessions
-    data: jsonb("data").$type<SessionData>().notNull(), // hono-sessions cache with wrapped values
+    id: text("id").primaryKey(),
+    token: text("token").unique().notNull(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
@@ -168,8 +168,23 @@ export const sessions = pgTable(
   },
   // eslint-disable-next-line eslint/no-shadow
   (sessions) => [
-    index("idx_sessions_expires_at").on(sessions.expiresAt), // Index for cleanup queries
+    index("idx_sessions_expires_at").on(sessions.expiresAt),
+    index("idx_sessions_user_id").on(sessions.userId), // Index for cleanup queries
   ],
+);
+
+// Better Auth owns email/reset tokens and transient OAuth authorization state.
+export const authVerifications = pgTable(
+  "auth_verifications",
+  {
+    id: text("id").primaryKey(),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("idx_auth_verifications_identifier").on(table.identifier)],
 );
 
 export const projects = pgTable(
