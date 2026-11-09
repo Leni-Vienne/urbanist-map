@@ -365,24 +365,28 @@ const { detailVisible } = useDetailPanel();
 const showDesktopDetail = computed(() => detailVisible.value && !isMobile.value);
 
 const DEFAULT_DETAIL_HEIGHT = 240;
-const DETAIL_HEIGHT_STORAGE_KEY = "explore-detail-height";
 const DETAIL_DIVIDER_HEIGHT = 8;
 const MIN_LIST_HEIGHT = 160;
 const explorePanel = useTemplateRef<HTMLElement>("explorePanel");
 const panelHeight = ref(0);
-const preferredDetailHeight = ref(loadDetailHeight());
-const detailFit = ref<{ rowId: string; limit: number; height: number } | null>(null);
+const manualDetailHeight = ref(DEFAULT_DETAIL_HEIGHT);
+const detailFit = ref<{
+  rowId: string | null;
+  limit: number;
+  height: number;
+  fitting: boolean;
+} | null>(null);
 const availableHeight = computed(() => Math.max(0, panelHeight.value - DETAIL_DIVIDER_HEIGHT));
 // On very short windows, share the available space rather than overflowing the sidebar.
 const minDetailHeight = computed(() => Math.min(120, availableHeight.value / 2));
 const maxDetailHeight = computed(() =>
   Math.max(minDetailHeight.value, availableHeight.value - MIN_LIST_HEIGHT),
 );
-// Clamp only the rendered height; a shorter window must not overwrite the user's preference.
+// Clamp only the rendered height; a shorter window must not overwrite the manually set height.
 const detailHeight = computed(() =>
   Math.min(
     maxDetailHeight.value,
-    Math.max(minDetailHeight.value, detailFit.value?.height ?? preferredDetailHeight.value),
+    Math.max(minDetailHeight.value, detailFit.value?.height ?? manualDetailHeight.value),
   ),
 );
 let detailResize: { pointerId: number; startY: number; startHeight: number } | null = null;
@@ -393,16 +397,28 @@ function clearDetailFit(): void {
 }
 
 function fitDetailHeight(height: number): void {
-  // Fitting and scroll anchoring both stop at the next user interaction.
-  if (!detailFit.value || !isAnchoring.value) return;
+  if (!detailFit.value?.fitting || detailFit.value.limit < minDetailHeight.value) return;
   detailFit.value.height = Math.min(height, detailFit.value.limit);
 }
 
-function startDetailFit(rowId: string, element: HTMLElement): void {
+function stopDetailFit(): void {
+  if (detailFit.value) detailFit.value.fitting = false;
+}
+
+function startDetailFit(rowId: string | null, limit: number): void {
+  // Keep the open panel steady until the next project's content can be measured.
+  const initialHeight = showDesktopDetail.value ? detailHeight.value : manualDetailHeight.value;
+  detailFit.value = {
+    rowId,
+    limit,
+    height: limit < minDetailHeight.value ? initialHeight : Math.min(initialHeight, limit),
+    fitting: true,
+  };
+}
+
+function startRowDetailFit(rowId: string, element: HTMLElement): void {
   const area = scrollAreaRef.value;
   if (!area) return;
-  // Keep the open panel steady until the next project's content can be measured.
-  const initialHeight = showDesktopDetail.value ? detailHeight.value : preferredDetailHeight.value;
   // Controls and feed notices already sit above the scroll area. Leave 8px between its
   // new top and the clicked row, accounting for an existing detail or a new divider.
   const limit =
@@ -410,34 +426,12 @@ function startDetailFit(rowId: string, element: HTMLElement): void {
     area.getBoundingClientRect().top +
     (showDesktopDetail.value ? detailHeight.value : -DETAIL_DIVIDER_HEIGHT) -
     8;
-  clearDetailFit();
-  if (limit < minDetailHeight.value) return;
-
-  detailFit.value = { rowId, limit, height: Math.min(initialHeight, limit) };
-}
-
-function loadDetailHeight(): number {
-  try {
-    const stored = Number(localStorage.getItem(DETAIL_HEIGHT_STORAGE_KEY));
-    return Number.isFinite(stored) && stored > 0 ? stored : DEFAULT_DETAIL_HEIGHT;
-  } catch {
-    // Storage may be unavailable; resizing still works in memory.
-    return DEFAULT_DETAIL_HEIGHT;
-  }
-}
-
-function saveDetailHeight(): void {
-  try {
-    localStorage.setItem(DETAIL_HEIGHT_STORAGE_KEY, String(preferredDetailHeight.value));
-  } catch {
-    // Keep the in-memory preference when storage is unavailable.
-  }
+  startDetailFit(rowId, limit);
 }
 
 function resetDetailHeight(): void {
   clearDetailFit();
-  preferredDetailHeight.value = DEFAULT_DETAIL_HEIGHT;
-  saveDetailHeight();
+  manualDetailHeight.value = DEFAULT_DETAIL_HEIGHT;
 }
 
 function observePanelHeight(): void {
@@ -452,7 +446,7 @@ function observePanelHeight(): void {
 
 function setDetailHeight(height: number): void {
   clearDetailFit();
-  preferredDetailHeight.value = Math.min(
+  manualDetailHeight.value = Math.min(
     maxDetailHeight.value,
     Math.max(minDetailHeight.value, height),
   );
@@ -480,7 +474,6 @@ function resizeDetail(event: PointerEvent): void {
 function finishDetailResize(event: PointerEvent): void {
   if (!detailResize || detailResize.pointerId !== event.pointerId) return;
   detailResize = null;
-  saveDetailHeight();
 }
 
 function handleDetailResizeKey(event: KeyboardEvent): void {
@@ -501,10 +494,22 @@ function handleDetailResizeKey(event: KeyboardEvent): void {
       return;
   }
   event.preventDefault();
-  saveDetailHeight();
 }
 
 onMounted(observePanelHeight);
+
+// Content fitting also applies to map selections, which have no row to anchor.
+// Freeze the measured height at the next interaction, just as scroll anchoring does.
+const detailFitInput = new AbortController();
+onMounted(() => {
+  for (const event of ["pointerdown", "wheel", "touchstart", "keydown"]) {
+    document.addEventListener(event, stopDetailFit, {
+      capture: true,
+      passive: true,
+      signal: detailFitInput.signal,
+    });
+  }
+});
 
 const { imageErrors, handleImageError } = useImageErrors();
 
@@ -728,7 +733,7 @@ const listElement = computed(() => {
 const scrollAreaRef = computed(
   () => listElement.value?.querySelector<HTMLElement>(".contribution-scroll-area") ?? null,
 );
-const { captureRow, clearAnchor, isAnchoring } = useScrollAnchor(scrollAreaRef);
+const { captureRow, clearAnchor } = useScrollAnchor(scrollAreaRef);
 const selectedRowId = computed(
   () => rows.value.find((row) => isSelectedRow(row.contribution))?.contribution.id ?? null,
 );
@@ -740,12 +745,19 @@ function rememberSelectedRow(id: string | null): void {
 
 watch(selectedRowId, rememberSelectedRow, { immediate: true });
 
-function clearUnselectedDetailFit(): void {
+function fitSelectedDetail(): void {
+  if (!showDesktopDetail.value) {
+    clearDetailFit();
+    return;
+  }
   const row = rows.value.find((item) => item.contribution.id === detailFit.value?.rowId);
-  if (!row || !isSelectedRow(row.contribution)) clearDetailFit();
+  if (detailFit.value?.fitting && row && isSelectedRow(row.contribution)) return;
+  clearAnchor();
+  // Map and direct-link selections can use all the space allowed by maxDetailHeight.
+  startDetailFit(null, Infinity);
 }
 
-watch(() => focusStore.selection, clearUnselectedDetailFit);
+watch([() => focusStore.selection, showDesktopDetail], fitSelectedDetail, { immediate: true });
 
 const virtualScrollerOptions = computed(() => ({
   itemSize: isMobile.value ? 68 : 76,
@@ -764,7 +776,7 @@ function handleRowChange(event: ListboxChangeEvent): void {
   if (!isMobile.value) {
     const option = rowElements.get(row.contribution.id);
     if (option) {
-      startDetailFit(row.contribution.id, option);
+      startRowDetailFit(row.contribution.id, option);
       captureRow(option);
     }
   }
@@ -854,6 +866,7 @@ function handleActiveTabChange(activeTab: typeof uiStore.activeTab): void {
 }
 
 function teardownExplorePanel(): void {
+  detailFitInput.abort();
   panelObserver?.disconnect();
   clearContributionHover();
 }
