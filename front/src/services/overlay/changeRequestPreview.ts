@@ -1,173 +1,95 @@
-import { LngLat, LngLatBounds } from "maplibre-gl";
+import { LngLatBounds } from "maplibre-gl";
 import { t } from "@/locales";
-
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useFocusStore } from "@/stores/focusStore";
+import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { getMapOrNull } from "@/services/core/map";
 import { loadOrNull } from "@/services/core/errorHandling";
 import { getOverlayBounds } from "@/services/overlay/markers";
-import * as registry from "@/services/overlay/mapLayers";
+import { getImageHandle } from "@/services/overlay/mapLayers";
 import { isValidQuad, parsePointValue, parseQuadValue } from "@/services/overlay/transform";
 import { getEditModeRestingCorners } from "@/services/overlay/positionState";
 import { openOverlayDetail } from "@/services/overlay/selection";
 import { ensureOverlayLoaded } from "@/services/overlay/navigation";
 import { mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
 import { buildShapeBounds } from "@/utils/cornersBounds";
-import { openProjectDetail } from "@/services/core/projectSelection";
-import type { LatLng, Overlay, PendingChangeRequest, Project } from "@/types/index";
-import { useChangeRequestStore } from "@/stores/changeRequestStore";
+import { openProjectDetailById } from "@/services/core/projectSelection";
+import type { PendingChangeRequest } from "@/types/index";
 import { toastError, toastWarn } from "@/services/core/toast";
 
-interface PreviewGeometryOptions {
-  change: PendingChangeRequest;
-  overlayForModeration: Overlay;
-  geometryValue: unknown;
-  type: "old" | "new";
-}
-
-interface PreviewShapesOptions {
-  change: PendingChangeRequest;
-  project: Project;
-  geometryValue: GeoJSON.GeometryCollection | null | undefined;
-  type: "old" | "new";
-}
-
-// Parse a change-request geometry value: a single coordinate (centroid) or a 4-corner quad.
-function parseGeometry(geometryValue: unknown): LatLng[] {
-  const point = parsePointValue(geometryValue);
-  if (point) return [point];
-  return parseQuadValue(geometryValue) ?? [];
-}
-
-// Navigate to position, combining new and previous bounds for a smooth unzoom effect
-function navigateToPosition(targetLatLngs: LngLat[], previousBounds: LngLatBounds | null): void {
-  const targetBounds = new LngLatBounds();
-  for (const pt of targetLatLngs) {
-    targetBounds.extend(pt);
-  }
-
-  // Extend with previous bounds so both positions stay visible during transition
-  if (previousBounds) {
-    targetBounds.extend(previousBounds.getSouthWest());
-    targetBounds.extend(previousBounds.getNorthEast());
-  }
-
-  mobileAwareFlyToBounds(targetBounds);
-}
-
-export function getPreviewType(changeId: string): "current" | "suggested" | null {
-  const state = useChangeRequestStore().previewState;
-  if (state.type === "none" || state.changeId !== changeId) return null;
-  return state.type === "current" || state.type === "project-current" ? "current" : "suggested";
-}
-
-function applyPositionPreview(
-  overlayId: string,
+export async function previewGeometry(
+  change: PendingChangeRequest,
   type: "old" | "new",
-  targetCorners: LatLng[],
-  wasAlreadyLoaded: boolean,
-): void {
-  const overlayStore = useOverlayStore();
-  const overlayObject = overlayStore.liveOverlays[overlayId];
-  if (!overlayObject) return;
+): Promise<void> {
+  const side = type === "old" ? "current" : "suggested";
+  const changes = useChangeRequestStore();
 
-  // Capture current bounds before navigating, so the flyTo can show both positions.
-  let previousBounds: LngLatBounds | null = null;
-  if (wasAlreadyLoaded) {
-    previousBounds = getOverlayBounds(overlayObject);
-  }
-
-  // In edit mode the toggle moves an unedited overlay's resting position, so its history seed
-  // follows it (the first undo returns to the shown position). A staged overlay keeps its edits and
-  // undo target. Moderation resolves the preview entirely from changeRequestStore.previewState (the
-  // previewed request's own corners), so it never mutates the overlay object. Either way the
-  // reconciler converges the image, marker and (in edit mode) the edit handles to the resolved
-  // position.
-  if (useUiStore().mode === "edit") {
-    const isUnedited =
-      overlayObject.positionState !== "staged" && overlayObject.redoStack.length === 0;
-    if (isUnedited) {
-      overlayStore.updateOverlayDraft(overlayId, {
-        positionState: type === "new" ? "suggested" : "approved-toggled",
-      });
-      const restingCorners = getEditModeRestingCorners(
-        overlayStore.getOverlayById(overlayId) ?? overlayObject,
-      );
-      if (isValidQuad(restingCorners)) {
-        overlayStore.resetHistoryBaseline(overlayId, restingCorners);
-      }
+  if (change.entityType === "project" && change.fieldName === "geometry") {
+    const geometry = type === "old" ? change.oldValue : change.newValue;
+    if (!geometry || geometry.geometries.length === 0) {
+      toastWarn(t("shapes.noShapesToPreview"));
+      return;
     }
+    const bounds = buildShapeBounds(geometry);
+    if (!bounds) return;
+    changes.previewIntent = { changeId: change.id, side };
+    openProjectDetailById(change.entityId);
+    mobileAwareFlyToBounds(bounds);
+    return;
   }
+  if (
+    change.entityType !== "overlay" ||
+    (change.fieldName !== "corners" && change.fieldName !== "centroid")
+  )
+    return;
 
-  const targetLatLngs = targetCorners.map((c) => new LngLat(c.lng, c.lat));
-  navigateToPosition(targetLatLngs, previousBounds);
-}
-
-export async function previewOverlayGeometry(options: PreviewGeometryOptions): Promise<void> {
-  const { change, overlayForModeration, geometryValue, type } = options;
-  const focus = useFocusStore();
-  const isCurrent = focus.beginNavigation();
-  const mode = useUiStore().mode;
-  const target = getMapOrNull();
-  const corners = parseGeometry(geometryValue);
-
-  if (corners.length === 0) {
+  const value = type === "old" ? change.oldValue : change.newValue;
+  const point = parsePointValue(value);
+  const corners = point ? [point] : parseQuadValue(value);
+  if (!corners) {
     toastWarn(t("overlay.couldNotParseCoordinates"), t("overlay.invalidCoordinates"));
     return;
   }
 
-  const changeRequestStore = useChangeRequestStore();
-  const overlayId = overlayForModeration.id;
-  const wasAlreadyLoaded = registry.getImageHandle(overlayId) !== null;
-  const isTogglingActivePreview =
-    changeRequestStore.previewState.type !== "none" &&
-    changeRequestStore.previewState.changeId === change.id;
-  const overlayStore = useOverlayStore();
-  const overlay =
+  const isCurrent = useFocusStore().beginNavigation();
+  const mode = useUiStore().mode;
+  const target = getMapOrNull();
+  const overlays = useOverlayStore();
+  const overlayId = change.entityId;
+  const wasRendered = getImageHandle(overlayId) !== null;
+  const isToggling = changes.previewState?.change.id === change.id;
+  const loaded =
     mode === "edit"
       ? await loadOrNull(() => ensureOverlayLoaded(overlayId))
-      : overlayStore.liveOverlays[overlayId];
-  if (!isCurrent() || useUiStore().mode !== mode || getMapOrNull() !== target) return;
-  if (!overlay || !overlayStore.liveOverlays[overlayId]) {
+      : overlays.liveOverlays[overlayId];
+  if (!isCurrent() || !target || useUiStore().mode !== mode || getMapOrNull() !== target) return;
+  const overlay = loaded && overlays.liveOverlays[overlayId];
+  if (!overlay) {
     toastError(t("overlay.couldNotLoadOverlay"), t("overlay.loadFailed"));
     return;
   }
 
   try {
-    // The effective preview derives from intent × selection, so record the intent and select the
-    // overlay before converging: the reconciler resolves the moderation preview position from it.
-    changeRequestStore.previewIntent = {
-      changeId: change.id,
-      side: type === "new" ? "suggested" : "current",
-    };
-    openOverlayDetail(overlayId);
+    // Capture the displayed bounds before changing intent or the edit position.
+    const bounds = wasRendered && !isToggling ? getOverlayBounds(overlay) : null;
+    const targetBounds = bounds ?? new LngLatBounds();
+    for (const corner of corners) targetBounds.extend(corner);
 
-    // Don't pass previousBounds when toggling, both positions are already visible
-    applyPositionPreview(overlayId, type, corners, wasAlreadyLoaded && !isTogglingActivePreview);
+    // Toggling an untouched edit position also changes where the first undo returns.
+    // Staged edits and their redo history keep their own position.
+    if (mode === "edit" && overlay.positionState !== "staged" && overlay.redoStack.length === 0) {
+      overlays.updateOverlayDraft(overlayId, {
+        positionState: side === "suggested" ? "suggested" : "approved-toggled",
+      });
+      const restingCorners = getEditModeRestingCorners(overlays.liveOverlays[overlayId] ?? overlay);
+      if (isValidQuad(restingCorners)) overlays.resetHistoryBaseline(overlayId, restingCorners);
+    }
+    changes.previewIntent = { changeId: change.id, side };
+    openOverlayDetail(overlayId);
+    mobileAwareFlyToBounds(targetBounds);
   } catch (error) {
     console.error("[changeRequestPreview] Failed to preview geometry:", error);
     toastError(t("overlay.couldNotPreviewCoordinates"), t("overlay.previewFailed"));
   }
-}
-
-export function previewShapes(options: PreviewShapesOptions): void {
-  const { change, project, geometryValue, type } = options;
-
-  const geometry = geometryValue;
-  if (!geometry || geometry.geometries.length === 0) {
-    toastWarn(t("shapes.noShapesToPreview"));
-    return;
-  }
-
-  const bounds = buildShapeBounds(geometry);
-  if (!bounds) return;
-
-  const changeRequestStore = useChangeRequestStore();
-  changeRequestStore.previewIntent = {
-    changeId: change.id,
-    side: type === "new" ? "suggested" : "current",
-  };
-  openProjectDetail(project);
-  mobileAwareFlyToBounds(bounds);
 }

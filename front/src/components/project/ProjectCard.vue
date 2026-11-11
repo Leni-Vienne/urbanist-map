@@ -106,7 +106,6 @@
         <ChangeRequestSection
           v-if="projectChanges.length > 0"
           :changes="projectChanges"
-          :project="project"
           :is-my-contributions="isContributePanel"
           :show-user-stats-link="showUserStatsLink"
           @show-user-stats="(data) => $emit('show-user-stats', data)"
@@ -240,7 +239,6 @@
           <ChangeRequestSection
             v-if="getOverlayChangeRequests(overlay.id).length > 0"
             :changes="getOverlayChangeRequests(overlay.id)"
-            :overlay="getChangeRequestOverlay(overlay)"
             :is-my-contributions="isContributePanel"
             :is-overlay-changes="true"
             :entity-name="overlay.caption || $t('overlay.untitled')"
@@ -288,7 +286,6 @@ import { buildImageUrl, buildThumbnailUrl, imageRequiresCredentials } from "@/ut
 import { useImageErrors } from "@/composables/ui/useImageErrors";
 import type {
   Project,
-  Overlay,
   ProjectPanelOverlay,
   PendingChangeRequest,
   UserStatsPayload,
@@ -421,10 +418,6 @@ function handleOverlayContributorClick(
   data: { userId: string; username: string | null; reportCount: number },
 ) {
   handleContributorClick(data, overlay.authorApprovedCount, overlay.authorRejectedCount);
-}
-
-function getChangeRequestOverlay(overlay: ProjectPanelOverlay): Overlay | null {
-  return overlay.kind ? (overlay as Overlay) : null;
 }
 
 async function handleOverlayCardClick(overlay: ProjectPanelOverlay) {

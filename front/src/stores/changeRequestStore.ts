@@ -6,108 +6,45 @@ import { useModerationStore } from "@/stores/moderationStore";
 import { useOverlayStore } from "@/stores/overlayStore";
 import type { PendingChangeRequest } from "@/types/index";
 
-// Which change request's position the map is previewing, and how (approved vs suggested, overlay vs
-// project shape). Drives the map preview render and the moderation panel's "viewed" tracking.
-type PreviewState =
-  | { type: "none" }
-  | { type: "current"; changeId: string; overlayId: string }
-  | { type: "suggested"; changeId: string; overlayId: string }
-  | { type: "project-current"; changeId: string; projectId: string }
-  | { type: "project-suggested"; changeId: string; projectId: string };
-
-// The side of a change request the user explicitly asked to preview. Stale intent (its change
-// request resolved, or its entity no longer selected) is inert rather than cleared: previewState
-// falls back to the selection's default derivation.
+// An explicit choice stays inert while its request is resolved or another entity is selected.
 type PreviewIntent = { changeId: string; side: "current" | "suggested" } | null;
-
-function isOverlayGeometryChange(cr: PendingChangeRequest, overlayId: string): boolean {
-  return (
-    cr.entityType === "overlay" &&
-    cr.entityId === overlayId &&
-    (cr.fieldName === "corners" || cr.fieldName === "centroid")
-  );
-}
-
-function isProjectShapesChange(cr: PendingChangeRequest, projectId: string): boolean {
-  return cr.entityType === "project" && cr.entityId === projectId && cr.fieldName === "geometry";
-}
-
-function findProjectShapesChange(
-  requests: PendingChangeRequest[],
-  projectId: string,
-): PendingChangeRequest | undefined {
-  for (const request of requests) {
-    if (isProjectShapesChange(request, projectId)) return request;
-  }
-  return undefined;
-}
+type PreviewState = { change: PendingChangeRequest; side: "current" | "suggested" } | null;
 
 export const useChangeRequestStore = defineStore("changeRequest", () => {
   const pendingChangeRequests = ref<PendingChangeRequest[]>([]);
 
   const previewIntent = ref<PreviewIntent>(null);
 
-  // The change requests previews can target in the current mode: the country's pending
-  // submissions in moderation mode, the user's own change requests otherwise.
-  function relevantChangeRequests(): PendingChangeRequest[] {
-    if (useUiStore().mode === "moderation") {
-      return useModerationStore().changeRequests;
-    }
-    return pendingChangeRequests.value;
-  }
-
-  // Effective preview: intent × selection × change requests. The intent applies while its change
-  // request still targets the selected entity; otherwise the selection's default applies. Edit
-  // mode reads the shown side off the overlay's positionState (the side the reconciler renders,
-  // so button state and image stay consistent); other modes default to the approved side.
+  // Resolve the selected request once; renderers and buttons consume the same request and side.
   const previewState = computed<PreviewState>(() => {
-    const requests = relevantChangeRequests();
+    const selection = useFocusStore().selection;
+    if (!selection) return null;
+    const entityId = selection.kind === "overlay" ? selection.overlayId : selection.projectId;
+    const matchesSelection = (change: PendingChangeRequest) =>
+      change.entityType === selection.kind &&
+      change.entityId === entityId &&
+      (selection.kind === "overlay"
+        ? change.fieldName === "corners" || change.fieldName === "centroid"
+        : change.fieldName === "geometry");
+
     const intent = previewIntent.value;
-    const intentChange = intent ? requests.find((cr) => cr.id === intent.changeId) : undefined;
+    const requests =
+      useUiStore().mode === "moderation"
+        ? useModerationStore().changeRequests
+        : pendingChangeRequests.value;
+    const intended = requests.find((change) => change.id === intent?.changeId);
+    const change =
+      intended && matchesSelection(intended) ? intended : requests.find(matchesSelection);
+    if (!change) return null;
 
-    const overlayId = useFocusStore().selectedOverlayId;
-    if (overlayId) {
-      const geometryChange =
-        intentChange && isOverlayGeometryChange(intentChange, overlayId)
-          ? intentChange
-          : requests.find((cr) => isOverlayGeometryChange(cr, overlayId));
-      if (!geometryChange) return { type: "none" };
-
-      if (useUiStore().mode === "edit") {
-        const positionState = useOverlayStore().liveOverlays[overlayId]?.positionState;
-        const side = positionState === "approved-toggled" ? "current" : "suggested";
-        // The suggested position can't be shown without corners, so no preview is active.
-        if (side === "suggested" && !Array.isArray(geometryChange.newValue)) {
-          return { type: "none" };
-        }
-        return { type: side, changeId: geometryChange.id, overlayId };
-      }
-      const side = intent && geometryChange === intentChange ? intent.side : "current";
-      return { type: side, changeId: geometryChange.id, overlayId };
+    if (selection.kind === "overlay" && useUiStore().mode === "edit") {
+      const overlay = useOverlayStore().liveOverlays[entityId];
+      const side = overlay?.positionState === "approved-toggled" ? "current" : "suggested";
+      if (side === "suggested" && !Array.isArray(change.newValue)) return null;
+      return { change, side };
     }
-
-    const projectId = useFocusStore().selectedProjectId;
-    if (!projectId) return { type: "none" };
-
-    const shapesChange =
-      intentChange && isProjectShapesChange(intentChange, projectId)
-        ? intentChange
-        : findProjectShapesChange(requests, projectId);
-    if (!shapesChange) return { type: "none" };
-    const side = intent && shapesChange === intentChange ? intent.side : "current";
-    return {
-      type: side === "suggested" ? "project-suggested" : "project-current",
-      changeId: shapesChange.id,
-      projectId,
-    };
+    return { change, side: intent && change === intended ? intent.side : "current" };
   });
-
-  function getRelevantChangeRequest(changeId: string): PendingChangeRequest | undefined {
-    for (const change of relevantChangeRequests()) {
-      if (change.id === changeId) return change;
-    }
-    return undefined;
-  }
 
   function setPendingChangeRequests(items: PendingChangeRequest[]) {
     pendingChangeRequests.value = items;
@@ -132,7 +69,6 @@ export const useChangeRequestStore = defineStore("changeRequest", () => {
     pendingChangeRequests,
     previewIntent,
     previewState,
-    getRelevantChangeRequest,
     setPendingChangeRequests,
     removeChangeRequest,
     removeChangeRequests,

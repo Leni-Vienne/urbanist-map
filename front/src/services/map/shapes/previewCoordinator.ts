@@ -1,40 +1,26 @@
 import { watch } from "vue";
-import type { Project } from "@/types/index";
 import { getMapOrNull, onStyleSwitch, type StyleSwitchPhase } from "@/services/core/map";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 import { clearPreviewShapes, renderPreviewShapes } from "@/services/map/shapes/rendering";
 
-type ProjectShapePreview =
-  | { type: "none" }
-  | {
-      type: "render";
-      project: Project;
-      geometry: GeoJSON.GeometryCollection | null;
-      baselineGeometry: GeoJSON.GeometryCollection | null;
-    };
+function resolveProjectShapePreview() {
+  const preview = useChangeRequestStore().previewState;
+  if (preview?.change.entityType !== "project" || preview.change.fieldName !== "geometry")
+    return null;
 
-function resolveProjectShapePreview(): ProjectShapePreview {
-  const changeRequestStore = useChangeRequestStore();
-  const preview = changeRequestStore.previewState;
-  if (preview.type !== "project-current" && preview.type !== "project-suggested") {
-    return { type: "none" };
-  }
-
-  const project = useProjectStore().getMapProjectById(preview.projectId, useUiStore().mode);
-  const change = changeRequestStore.getRelevantChangeRequest(preview.changeId);
-  if (!project || change?.fieldName !== "geometry" || change.entityId !== preview.projectId)
-    return { type: "none" };
+  const project = useProjectStore().getMapProjectById(preview.change.entityId, useUiStore().mode);
+  if (!project) return null;
 
   const baselineGeometry = project.geometry ?? null;
-  if (preview.type === "project-current") {
-    return { type: "render", project, geometry: baselineGeometry, baselineGeometry: null };
+  if (preview.side === "current") {
+    return { project, geometry: baselineGeometry, baselineGeometry: null };
   }
 
-  const geometry = change.newValue;
-  if (!geometry || geometry.geometries.length === 0) return { type: "none" };
-  return { type: "render", project, geometry, baselineGeometry };
+  const geometry = preview.change.newValue;
+  if (!geometry || geometry.geometries.length === 0) return null;
+  return { project, geometry, baselineGeometry };
 }
 
 export function syncProjectShapePreview(): void {
@@ -42,7 +28,7 @@ export function syncProjectShapePreview(): void {
   if (!mlMap?.getSource("project-sources")) return;
 
   const preview = resolveProjectShapePreview();
-  if (preview.type === "none") {
+  if (!preview) {
     clearPreviewShapes();
     return;
   }

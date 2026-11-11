@@ -312,8 +312,12 @@ function hasViewedSuggestedPosition(changeId: string): boolean {
 watch(
   () => changeRequestStore.previewState,
   (state) => {
-    if (state.type === "suggested" && !viewedChangeRequestIds.value.includes(state.changeId)) {
-      viewedChangeRequestIds.value.push(state.changeId);
+    if (
+      state?.side === "suggested" &&
+      state.change.entityType === "overlay" &&
+      !viewedChangeRequestIds.value.includes(state.change.id)
+    ) {
+      viewedChangeRequestIds.value.push(state.change.id);
     }
   },
 );

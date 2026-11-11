@@ -38,9 +38,8 @@ function projectPreviewFollowsSelection(): void {
 
   focusStore.setSelectionTarget({ kind: "project", projectId: "project-2" });
   expect(changeRequestStore.previewState).toEqual({
-    type: "project-current",
-    changeId: "change-project-2",
-    projectId: "project-2",
+    side: "current",
+    change: makeProjectGeometryChange("project-2"),
   });
 
   changeRequestStore.previewIntent = {
@@ -48,9 +47,8 @@ function projectPreviewFollowsSelection(): void {
     side: "suggested",
   };
   expect(changeRequestStore.previewState).toEqual({
-    type: "project-current",
-    changeId: "change-project-2",
-    projectId: "project-2",
+    side: "current",
+    change: makeProjectGeometryChange("project-2"),
   });
 
   changeRequestStore.previewIntent = {
@@ -58,21 +56,41 @@ function projectPreviewFollowsSelection(): void {
     side: "suggested",
   };
   expect(changeRequestStore.previewState).toEqual({
-    type: "project-suggested",
-    changeId: "change-project-2",
-    projectId: "project-2",
+    side: "suggested",
+    change: makeProjectGeometryChange("project-2"),
   });
 
   focusStore.setSelectionTarget(null);
-  expect(changeRequestStore.previewState).toEqual({ type: "none" });
+  expect(changeRequestStore.previewState).toBeNull();
 
   focusStore.setSelectionTarget({ kind: "project", projectId: "project-without-change" });
-  expect(changeRequestStore.previewState).toEqual({ type: "none" });
+  expect(changeRequestStore.previewState).toBeNull();
 }
 
 beforeEach(activateFreshPinia);
 function changeRequestPreviewOwnership(): void {
   test("scopes project geometry previews to the selected project", projectPreviewFollowsSelection);
+  test("follows a competing request through refresh and falls back when it resolves", () => {
+    const store = useChangeRequestStore();
+    const first = makeProjectGeometryChange("project-1");
+    const competing = { ...first, id: "competing" };
+    store.setPendingChangeRequests([first, competing]);
+    useFocusStore().setSelectionTarget({ kind: "project", projectId: "project-1" });
+    store.previewIntent = { changeId: competing.id, side: "suggested" };
+    expect(store.previewState).toEqual({ change: competing, side: "suggested" });
+
+    const refreshed = {
+      ...competing,
+      newValue: { type: "GeometryCollection" as const, geometries: [] },
+    };
+    store.setPendingChangeRequests([first, refreshed]);
+    expect(store.previewState?.change.newValue).toEqual(refreshed.newValue);
+
+    store.removeChangeRequest(competing.id);
+    expect(store.previewState).toEqual({ change: first, side: "current" });
+    store.removeChangeRequest(first.id);
+    expect(store.previewState).toBeNull();
+  });
   test("stores decoded moderation geometry while preserving intentional removals", () => {
     const valid = makeProjectGeometryChange("project-1");
     const invalid = {

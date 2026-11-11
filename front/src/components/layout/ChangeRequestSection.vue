@@ -102,18 +102,13 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 
-import {
-  getPreviewType,
-  previewOverlayGeometry,
-  previewShapes,
-} from "@/services/overlay/changeRequestPreview";
-import type { Project, Overlay, PendingChangeRequest, UserStatsPayload } from "@/types/index";
+import { previewGeometry } from "@/services/overlay/changeRequestPreview";
+import { useChangeRequestStore } from "@/stores/changeRequestStore";
+import type { PendingChangeRequest, UserStatsPayload } from "@/types/index";
 import ChangeValueDisplay from "@/components/layout/ChangeValueDisplay.vue";
 
 interface Props {
   changes: PendingChangeRequest[];
-  overlay?: Overlay | null;
-  project?: Project | null;
   isMyContributions?: boolean;
   isOverlayChanges?: boolean;
   entityName?: string;
@@ -122,8 +117,6 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  overlay: null,
-  project: null,
   isMyContributions: false,
   isOverlayChanges: false,
   entityName: "",
@@ -136,11 +129,12 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+const changeRequests = useChangeRequestStore();
 
 function isPreviewActive(changeId: string, type: "old" | "new"): boolean {
-  const previewType = getPreviewType(changeId);
+  const preview = changeRequests.previewState;
   return (
-    (type === "old" && previewType === "current") || (type === "new" && previewType === "suggested")
+    preview?.change.id === changeId && preview.side === (type === "old" ? "current" : "suggested")
   );
 }
 
@@ -219,25 +213,5 @@ function formatFieldName(fieldName: string): string {
   const translated = t(translationKey);
   // If translation exists, use it; otherwise fall back to field name
   return translated !== translationKey ? translated : fieldName;
-}
-
-async function previewGeometry(change: PendingChangeRequest, type: "old" | "new") {
-  const geometryValue = type === "old" ? change.oldValue : change.newValue;
-
-  if (change.entityType === "overlay" && props.overlay) {
-    await previewOverlayGeometry({
-      change,
-      overlayForModeration: props.overlay,
-      geometryValue,
-      type,
-    });
-  } else if (change.entityType === "project" && change.fieldName === "geometry" && props.project) {
-    previewShapes({
-      change,
-      project: props.project,
-      geometryValue: type === "old" ? change.oldValue : change.newValue,
-      type,
-    });
-  }
 }
 </script>

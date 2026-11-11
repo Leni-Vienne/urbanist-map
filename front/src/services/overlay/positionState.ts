@@ -48,5 +48,9 @@ export function showsSuggestedState(
     return overlay.positionState !== "approved-toggled";
   }
   const preview = useChangeRequestStore().previewState;
-  return preview.type === "suggested" && preview.overlayId === overlay.id;
+  return (
+    preview?.side === "suggested" &&
+    preview.change.entityType === "overlay" &&
+    preview.change.entityId === overlay.id
+  );
 }
