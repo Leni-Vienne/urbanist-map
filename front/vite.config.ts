@@ -130,7 +130,6 @@ export default defineConfig(({ mode }) => {
     // To prevent annoying automatic reloads in devmode
     optimizeDeps: {
       include: [
-        "@lucide/vue",
         "primevue/accordion",
         "primevue/accordioncontent",
         "primevue/accordionheader",

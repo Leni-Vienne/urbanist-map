@@ -1,22 +1,20 @@
 import type { Component } from "vue";
-import {
-  Bike,
-  Briefcase,
-  Building,
-  Bus,
-  CableCar,
-  Factory,
-  Footprints,
-  HardHat,
-  House,
-  Plane,
-  ShoppingBag,
-  Store,
-  TrainTrack,
-  Trees,
-  WavesHorizontal,
-  SquareM,
-} from "@lucide/vue";
+import Bike from "@lucide/vue/dist/esm/icons/bike.mjs";
+import Briefcase from "@lucide/vue/dist/esm/icons/briefcase.mjs";
+import Building from "@lucide/vue/dist/esm/icons/building.mjs";
+import Bus from "@lucide/vue/dist/esm/icons/bus.mjs";
+import CableCar from "@lucide/vue/dist/esm/icons/cable-car.mjs";
+import Factory from "@lucide/vue/dist/esm/icons/factory.mjs";
+import Footprints from "@lucide/vue/dist/esm/icons/footprints.mjs";
+import HardHat from "@lucide/vue/dist/esm/icons/hard-hat.mjs";
+import House from "@lucide/vue/dist/esm/icons/house.mjs";
+import Plane from "@lucide/vue/dist/esm/icons/plane.mjs";
+import ShoppingBag from "@lucide/vue/dist/esm/icons/shopping-bag.mjs";
+import Store from "@lucide/vue/dist/esm/icons/store.mjs";
+import TrainTrack from "@lucide/vue/dist/esm/icons/train-track.mjs";
+import Trees from "@lucide/vue/dist/esm/icons/trees.mjs";
+import WavesHorizontal from "@lucide/vue/dist/esm/icons/waves-horizontal.mjs";
+import SquareM from "@lucide/vue/dist/esm/icons/square-letter-m.mjs";
 import RoadIcon from "@/components/icons/RoadIcon.vue";
 import TramIcon from "@/components/icons/TramIcon.vue";
 

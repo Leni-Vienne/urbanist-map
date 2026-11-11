@@ -113,7 +113,7 @@ import { ref, computed, watch, onUnmounted, nextTick } from "vue";
 import * as maplibregl from "maplibre-gl";
 import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
-import { Crop } from "@lucide/vue";
+import Crop from "@lucide/vue/dist/esm/icons/crop.mjs";
 
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useProjectStore } from "@/stores/projectStore";

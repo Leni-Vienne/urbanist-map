@@ -56,7 +56,8 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { ImagePlus, Waypoints } from "@lucide/vue";
+import ImagePlus from "@lucide/vue/dist/esm/icons/image-plus.mjs";
+import Waypoints from "@lucide/vue/dist/esm/icons/waypoints.mjs";
 import { useI18n } from "vue-i18n";
 import { storeToRefs } from "pinia";
 

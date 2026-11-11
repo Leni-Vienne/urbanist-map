@@ -36,7 +36,8 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
-import { Navigation, NavigationOff } from "@lucide/vue";
+import Navigation from "@lucide/vue/dist/esm/icons/navigation.mjs";
+import NavigationOff from "@lucide/vue/dist/esm/icons/navigation-off.mjs";
 import { Marker, type Map as MaplibreMap } from "maplibre-gl";
 import { useI18n } from "vue-i18n";
 import { getMapOrNull, onMapReady } from "@/services/core/map";
