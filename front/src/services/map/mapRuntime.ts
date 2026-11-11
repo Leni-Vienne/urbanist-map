@@ -3,6 +3,7 @@
 import { watch } from "vue";
 import { useAuthStore } from "@/stores/authStore";
 import { useOverlayStore } from "@/stores/overlayStore";
+import { useUiStore } from "@/stores/uiStore";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { mapRotationEnabled } from "@/services/core/settings";
 import { setupEventListeners } from "@/services/map/viewportTriggers";
@@ -19,7 +20,6 @@ import {
   clearMapObjectRegistry,
   installOverlayStyleSwitchHandling,
 } from "@/services/overlay/mapLayers";
-import { stopShapeEditing } from "@/services/shape/shapeEditorLazy";
 import { getMapOrNull, onMapReady, onStyleSwitch } from "@/services/core/map";
 import { createViewportRenderLoop } from "@/services/map/viewportRenderLoop";
 
@@ -43,7 +43,7 @@ function watchRotationSetting(target: MaplibreMap): () => void {
 }
 
 function clearMapObjects(): void {
-  stopShapeEditing();
+  useUiStore().closeEditor("shape");
   hideCropHandles();
   hideEditHandles();
   clearMapObjectRegistry();

@@ -19,7 +19,7 @@
       <button
         type="button"
         class="flex items-start gap-3 text-left p-3 rounded-lg border border-surface bg-content-background cursor-pointer transition-all duration-150 hover:border-primary-color hover:bg-(--p-content-hover-background)"
-        @click="selectMode('overlay')"
+        @click="step = 'overlay'"
       >
         <i class="pi pi-map text-xl text-primary-color mt-0.5 shrink-0"></i>
         <span class="flex flex-col gap-0.5">
@@ -35,7 +35,7 @@
       <button
         type="button"
         class="flex items-start gap-3 text-left p-3 rounded-lg border border-surface bg-content-background cursor-pointer transition-all duration-150 hover:border-primary-color hover:bg-(--p-content-hover-background)"
-        @click="selectMode('render')"
+        @click="step = 'render'"
       >
         <i class="pi pi-image text-xl text-primary-color mt-0.5 shrink-0"></i>
         <span class="flex flex-col gap-0.5">
@@ -114,7 +114,7 @@
             <p
               class="text-sm font-medium text-green-900 dark:text-green-300 font-mono break-all m-0"
             >
-              {{ selectedFileName }}
+              {{ selectedFile.name }}
             </p>
             <Button
               :label="$t('imageUpload.changeImage')"
@@ -167,7 +167,7 @@
 
     <template #footer>
       <Button
-        v-if="step !== 'choose' && !isReplacementMode"
+        v-if="step !== 'choose' && !replacementId"
         :label="$t('common.back')"
         icon="pi pi-arrow-left"
         @click="goBack"
@@ -200,7 +200,7 @@ import { toastError, toastSuccess } from "@/services/core/toast";
 
 import { ref, shallowRef, computed, onScopeDispose } from "vue";
 import { useI18n } from "vue-i18n";
-import { useUiStore } from "@/stores/uiStore";
+import { useUiStore, type EditingTarget } from "@/stores/uiStore";
 import { useProjectStore } from "@/stores/projectStore";
 
 import { createLocalOverlay } from "@/services/overlay/editing";
@@ -217,14 +217,14 @@ const { t } = useI18n();
 const uiStore = useUiStore();
 const submissionStore = useSubmissionStore();
 const projectStore = useProjectStore();
-const projectId = uiStore.imageUploadProjectId;
-const dialogTarget = uiStore.editingTarget;
-const replacementId = uiStore.replacementOverlayId;
+const { target: dialogTarget } = defineProps<{
+  target: Extract<EditingTarget, { type: "image" }>;
+}>();
+const { projectId, replacesOverlayId: replacementId } = dialogTarget;
 
 const fileInputRef = ref<HTMLInputElement>();
 const selection = shallowRef<ImageSelection>({ type: "empty" });
 const selectedFile = computed(() => ("file" in selection.value ? selection.value.file : null));
-const selectedFileName = computed(() => selectedFile.value?.name ?? "");
 const imagePreviewUrl = computed(() =>
   selection.value.type === "ready" ? selection.value.previewUrl : "",
 );
@@ -236,10 +236,8 @@ let reader: FileReader | null = null;
 // Replacement is overlay-specific, so it skips the chooser.
 const step = ref<UploadMode>(replacementId ? "overlay" : "choose");
 
-const isReplacementMode = Boolean(replacementId);
-
 const dialogHeader = computed(() => {
-  if (isReplacementMode) return t("imageUpload.replacementDialogTitle");
+  if (replacementId) return t("imageUpload.replacementDialogTitle");
   if (step.value === "render") return t("imageUpload.renderDialogTitle");
   return t("imageUpload.dialogTitle");
 });
@@ -259,10 +257,6 @@ function clearSelection() {
 }
 
 onScopeDispose(clearSelection);
-
-function selectMode(mode: Exclude<UploadMode, "choose">) {
-  step.value = mode;
-}
 
 function goBack() {
   clearSelection();
@@ -292,11 +286,6 @@ function handleDrop(event: DragEvent) {
   const file = event.dataTransfer?.files?.[0];
   if (!file) return;
 
-  // Reset file input to allow re-selecting same file
-  if (fileInputRef.value) {
-    fileInputRef.value.value = "";
-  }
-
   processFile(file);
 }
 
@@ -311,10 +300,6 @@ function processFile(file: File) {
           maxSize: MAX_UPLOAD_FILE_SIZE_MB,
         }),
       };
-      // Reset file input to allow re-selecting a different file
-      if (fileInputRef.value) {
-        fileInputRef.value.value = "";
-      }
       return;
     }
 
@@ -347,13 +332,13 @@ function handleConfirm() {
   )
     return;
 
-  if (!projectId) {
-    toastError(t("errors.projectRequired"));
-    return;
-  }
-
   if (step.value === "render") {
-    confirmRender(projectId, selection.value.file);
+    submissionStore.setStagedRender(projectId, {
+      file: selection.value.file,
+      previewUrl: selection.value.previewUrl,
+    });
+    toastSuccess(t("imageUpload.renderStagedDetail"), t("imageUpload.renderStaged"));
+    handleClose();
   } else {
     void confirmOverlay(projectId);
   }
@@ -381,26 +366,9 @@ async function confirmOverlay(targetProjectId: string) {
   }
 }
 
-function confirmRender(targetProjectId: string, file: File) {
-  try {
-    useSubmissionStore().setStagedRender(targetProjectId, {
-      file,
-      previewUrl: imagePreviewUrl.value,
-    });
-    toastSuccess(t("imageUpload.renderStagedDetail"), t("imageUpload.renderStaged"));
-    handleClose();
-  } catch (error) {
-    console.error("Error staging render:", error);
-    toastError(
-      error instanceof Error ? error.message : t("overlay.uploadFailedDetail"),
-      t("overlay.uploadFailed"),
-    );
-  }
-}
-
 function handleClose() {
   clearSelection();
-  if (uiStore.editingTarget === dialogTarget) uiStore.closeImageUploadDialog();
+  if (uiStore.editingTarget === dialogTarget) uiStore.closeEditor("image");
 }
 
 function handleVisibilityChange(visible: boolean) {

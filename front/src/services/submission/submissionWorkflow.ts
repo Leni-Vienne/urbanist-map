@@ -24,7 +24,6 @@ import { buildSubmissionSummary } from "./submissionSummary";
 import { deleteOverlayDirect } from "@/services/entity/entityRemoval";
 
 import type { OverlayObject, Project } from "@/types/index";
-import type { ProjectFieldName } from "@shared/validation/schemas";
 
 function getSuccessMessage(outcome: { createdEntities: number; changeRequests: number }): string {
   if (outcome.createdEntities > 0) return t("submission.submissionSuccessful");
@@ -170,16 +169,6 @@ async function handleRemoveOverlayChange(
   }
 }
 
-function handleRemoveProjectChange(field: ProjectFieldName): void {
-  const pending = useSubmissionStore().pendingSubmission;
-  if (!pending) return;
-
-  useProjectStore().resetProjectField(pending.projectId, field);
-
-  // Close project edit form to force fresh data on reopen
-  useUiStore().closeProjectEditForm();
-}
-
 function hasSubmissionWork(draft: SubmissionDraft): boolean {
   return Boolean(
     draft.projectChanges ||
@@ -202,7 +191,7 @@ export async function handleRemoveChange(
   } else if (overlayId && isOverlayChangeField(field)) {
     await handleRemoveOverlayChange(overlayId, field);
   } else if (isProjectChangeField(field)) {
-    handleRemoveProjectChange(field);
+    useProjectStore().resetProjectField(pending.projectId, field);
   }
 
   if (useSubmissionStore().pendingSubmission !== pending) return;

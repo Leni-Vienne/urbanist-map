@@ -102,18 +102,21 @@
 
 <script setup lang="ts">
 import { toastWarn, toastError } from "@/services/core/toast";
-import { computed, ref, onScopeDispose } from "vue";
-import { shapeEditorPhase } from "@/services/shape/shapeEditorLazy";
+import { computed, ref, watch } from "vue";
+import { resolveShapeEditorGeometry } from "@/services/shape/shapeEditorGeometry";
 import { useSubmissionStore } from "@/stores/submissionStore";
-import { useUiStore } from "@/stores/uiStore";
+import { useUiStore, type EditingTarget } from "@/stores/uiStore";
+import { useAuthStore } from "@/stores/authStore";
 import { useI18n } from "vue-i18n";
 
 import { mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
 import {
   addLayersFromGeometry,
   deleteSelectedShape,
+  destroyShapeEditor,
   getDrawnGeometry,
   getLastDrawMode,
+  initShapeEditor,
   loadGeoJSONFile,
   selectedShapeId,
   setDrawMode,
@@ -121,6 +124,10 @@ import {
 } from "@/services/shape/shapeEditing";
 
 const { t } = useI18n();
+const props = defineProps<{ projectId: string }>();
+const uiStore = useUiStore();
+const auth = useAuthStore();
+const epoch = auth.getSessionEpoch();
 
 const emit = defineEmits<{
   done: [geometry: GeoJSON.GeometryCollection];
@@ -129,13 +136,37 @@ const emit = defineEmits<{
 
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const importing = ref(false);
-let disposed = false;
-onScopeDispose(() => {
-  disposed = true;
-});
+const ready = ref(false);
+let active = false;
 const canEdit = computed(
-  () =>
-    shapeEditorPhase.value === "ready" && !importing.value && !useSubmissionStore().isSubmitting,
+  () => ready.value && !importing.value && !useSubmissionStore().isSubmitting,
+);
+
+function isCurrent(target: EditingTarget): boolean {
+  return active && uiStore.editingTarget === target && epoch === auth.getSessionEpoch();
+}
+
+// Retire drawing resources synchronously, before another editor starts or the map is removed.
+watch(
+  () => uiStore.editingTarget,
+  async (current, _previous, onCleanup) => {
+    if (current.type !== "shape" || current.projectId !== props.projectId) return;
+    active = true;
+    onCleanup(() => {
+      active = false;
+      ready.value = false;
+      destroyShapeEditor();
+    });
+    try {
+      await initShapeEditor(resolveShapeEditorGeometry(current.projectId) ?? undefined);
+      if (isCurrent(current)) ready.value = true;
+    } catch (error) {
+      if (!isCurrent(current)) return;
+      uiStore.closeEditor("shape");
+      toastError(error instanceof Error ? error.message : t("shapes.importError"));
+    }
+  },
+  { immediate: true, flush: "sync" },
 );
 
 // Terra Draw has no built-in toolbar, so the tool selection lives here.
@@ -164,13 +195,10 @@ async function handleFileImport(event: Event) {
   // Reset input so the same file can be re-imported regardless of outcome
   if (fileInputRef.value) fileInputRef.value.value = "";
   importing.value = true;
-  const target = useUiStore().editingTarget;
-  function isCurrent(): boolean {
-    return !disposed && useUiStore().editingTarget === target;
-  }
+  const target = uiStore.editingTarget;
   try {
     const { geometry, skippedGeometryTypes } = await loadGeoJSONFile(file);
-    if (!isCurrent()) return;
+    if (!isCurrent(target)) return;
 
     if (skippedGeometryTypes.length > 0) {
       toastWarn(
@@ -184,11 +212,11 @@ async function handleFileImport(event: Event) {
     if (geometry.geometries.length === 0) return;
 
     const bounds = await addLayersFromGeometry(geometry);
-    if (bounds && isCurrent()) {
+    if (bounds && isCurrent(target)) {
       mobileAwareFlyToBounds(bounds, { maxZoom: 17 });
     }
   } catch (error) {
-    if (isCurrent())
+    if (isCurrent(target))
       toastError(error instanceof Error ? error.message : String(error), t("shapes.importError"));
   } finally {
     importing.value = false;

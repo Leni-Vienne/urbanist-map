@@ -399,7 +399,7 @@ async function confirmCrop() {
 function onEditInfo() {
   const overlay = selectedOverlay.value;
   if (!overlay) return;
-  uiStore.openOverlayEditDialog(overlay.id);
+  uiStore.openEditor({ type: "overlay-info", overlayId: overlay.id });
 }
 
 function onReplace() {
@@ -407,7 +407,7 @@ function onReplace() {
   if (!id) return;
   const overlay = overlayStore.liveOverlays[id];
   if (!overlay?.projectId) return;
-  uiStore.openImageUploadDialog(overlay.projectId, id);
+  uiStore.openEditor({ type: "image", projectId: overlay.projectId, replacesOverlayId: id });
 }
 
 async function onDelete() {

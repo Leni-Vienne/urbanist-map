@@ -59,15 +59,15 @@ const bodyElement = document.body;
 const { t } = useI18n();
 const uiStore = useUiStore();
 const overlayStore = useOverlayStore();
-const overlayId = uiStore.overlayEditTargetId;
-const initialCaption = overlayId ? overlayStore.liveOverlays[overlayId]?.caption : undefined;
+const { overlayId } = defineProps<{ overlayId: string }>();
+const initialCaption = overlayStore.liveOverlays[overlayId]?.caption;
 
 const editingInfo = ref({
   caption: initialCaption ?? "",
 });
 
 function closeDialog() {
-  uiStore.closeOverlayEditDialog();
+  uiStore.closeEditor("overlay-info");
 }
 
 function handleVisibilityChange(visible: boolean) {

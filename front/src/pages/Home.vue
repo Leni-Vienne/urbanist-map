@@ -33,8 +33,9 @@
 
       <!-- Overlay caption editor, opened from the docked project detail (store-driven). -->
       <OverlayEditor
-        v-if="uiStore.mode === 'edit' && uiStore.overlayEditTargetId"
-        :key="uiStore.overlayEditTargetId"
+        v-if="editingTarget.type === 'overlay-info'"
+        :key="editingTarget.overlayId"
+        :overlay-id="editingTarget.overlayId"
       />
 
       <!-- Hover preview card, always mounted so it can show before any detail panel is opened -->
@@ -42,24 +43,26 @@
 
       <!-- Shape Editor Panel - lives in the map column so it stays centered on the map. -->
       <ShapeEditorPanel
-        v-if="uiStore.shapeEditorProjectId"
-        :key="uiStore.shapeEditorProjectId"
+        v-if="editingTarget.type === 'shape'"
+        :key="editingTarget.projectId"
+        :project-id="editingTarget.projectId"
         @done="handleShapesDone"
-        @cancel="stopShapeEditing"
+        @cancel="uiStore.closeEditor('shape')"
       />
     </div>
 
     <ProjectManager
       v-if="
-        uiStore.projectCreationSeed ||
-        uiStore.markerPlacementBarVisible ||
-        uiStore.projectEditTargetId
+        editingTarget.type === 'create-project' ||
+        editingTarget.type === 'place-project' ||
+        editingTarget.type === 'project-info'
       "
     />
 
     <ImageUploadDialog
-      v-if="uiStore.imageUploadProjectId"
-      :key="uiStore.imageUploadProjectId + ':' + uiStore.replacementOverlayId"
+      v-if="editingTarget.type === 'image'"
+      :key="editingTarget.projectId + ':' + editingTarget.replacesOverlayId"
+      :target="editingTarget"
     />
 
     <SubmissionDialogWrapper v-if="showSubmissionDialog" />
@@ -71,7 +74,7 @@ import { storeToRefs } from "pinia";
 import { useSubmissionStore } from "@/stores/submissionStore";
 import { toastSuccess, toastError } from "@/services/core/toast";
 
-import { onMounted, ref, onUnmounted, computed, defineAsyncComponent, watch } from "vue";
+import { onMounted, ref, onUnmounted, computed, defineAsyncComponent } from "vue";
 
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -79,12 +82,6 @@ import { useProjectStore } from "@/stores/projectStore";
 
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
-import {
-  stopShapeEditing,
-  startShapeEditing,
-  disposeShapeEditing,
-} from "@/services/shape/shapeEditorLazy";
-
 import { handleProjectDeepLink } from "@/services/project/projectDeepLink";
 import { isMobile } from "@/services/core/viewport";
 
@@ -120,6 +117,7 @@ let maintenanceTickInterval: ReturnType<typeof globalThis.setInterval> | undefin
 
 const authStore = useAuthStore();
 const uiStore = useUiStore();
+const { editingTarget } = storeToRefs(uiStore);
 const projectStore = useProjectStore();
 
 const route = useRoute();
@@ -152,28 +150,13 @@ const maintenanceBannerText = computed(() => {
   return t("pages.home.maintenance.ongoing", { endTime: formatMaintenanceEndTime(n) });
 });
 
-// The selected edit surface owns activation, including cancellation during lazy loading.
-watch(
-  () => uiStore.editingTarget,
-  (target, _previous, onCleanup) => {
-    if (target.type !== "shape") return;
-    onCleanup(disposeShapeEditing);
-    void startShapeEditing(target.projectId).catch((error: unknown) => {
-      if (uiStore.editingTarget !== target) return;
-      uiStore.closeShapeEditor();
-      toastError(error instanceof Error ? error.message : t("shapes.importError"));
-    });
-  },
-  { immediate: true, flush: "sync" },
-);
-
 function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
-  const projectId = uiStore.shapeEditorProjectId;
-  if (!projectId) return;
+  if (editingTarget.value.type !== "shape") return;
+  const projectId = editingTarget.value.projectId;
   const project = projectStore.projects[projectId];
   if (!project) return;
   projectStore.updateProjectDraft(projectId, { geometry });
-  stopShapeEditing();
+  uiStore.closeEditor("shape");
   toastSuccess(t("shapes.savedLocally"));
 }
 

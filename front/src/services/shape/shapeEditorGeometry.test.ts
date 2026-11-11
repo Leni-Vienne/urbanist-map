@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { createPinia, setActivePinia } from "pinia";
-import { resolveShapeEditorGeometry } from "./shapeEditorLazy";
+import { resolveShapeEditorGeometry } from "./shapeEditorGeometry";
 import { useAuthStore } from "@/stores/authStore";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useProjectStore } from "@/stores/projectStore";

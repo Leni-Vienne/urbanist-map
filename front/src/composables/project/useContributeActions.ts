@@ -29,7 +29,8 @@ function handleNewProjectClick(): void {
 
   // Always switch to edit mode when contributing (no-op if already in edit mode)
   uiStore.setMode("edit");
-  if (uiStore.startProjectPlacement()) useFocusStore().setSelectionTarget(null);
+  if (uiStore.openEditor({ type: "place-project", coordinates: null }))
+    useFocusStore().setSelectionTarget(null);
 }
 
 async function handleDeleteOverlayClick(overlay: ProjectPanelOverlay): Promise<void> {
@@ -73,7 +74,7 @@ export function useContributeActions(projectOverlayIds: ComputedRef<Record<strin
     try {
       const loadedOverlay = await ensureOverlayLoaded(overlay.id);
       if (uiStore.editingTarget !== editTarget || focusStore.selection !== selection) return;
-      uiStore.openOverlayEditDialog(loadedOverlay.id);
+      uiStore.openEditor({ type: "overlay-info", overlayId: loadedOverlay.id });
     } catch (error) {
       if (uiStore.editingTarget !== editTarget || focusStore.selection !== selection) return;
       console.error("Failed to load overlay for editing:", error);
@@ -82,7 +83,7 @@ export function useContributeActions(projectOverlayIds: ComputedRef<Record<strin
   }
 
   function handleAddImageToProject(project: Project): void {
-    uiStore.openImageUploadDialog(project.id);
+    uiStore.openEditor({ type: "image", projectId: project.id, replacesOverlayId: null });
   }
 
   function handleDrawShapesClick(project: Project): void {
@@ -91,7 +92,8 @@ export function useContributeActions(projectOverlayIds: ComputedRef<Record<strin
       return;
     }
 
-    if (uiStore.openShapeEditor(project.id)) useFocusStore().setSelectionTarget(null);
+    if (uiStore.openEditor({ type: "shape", projectId: project.id }))
+      useFocusStore().setSelectionTarget(null);
   }
 
   function handleExternalProjectClick(): void {
@@ -104,7 +106,7 @@ export function useContributeActions(projectOverlayIds: ComputedRef<Record<strin
   }
 
   function handleEditProjectClick(project: Project): void {
-    uiStore.openProjectEditForm(project.id);
+    uiStore.openEditor({ type: "project-info", projectId: project.id });
   }
 
   return {

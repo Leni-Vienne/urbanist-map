@@ -1,0 +1,35 @@
+import { useChangeRequestStore } from "@/stores/changeRequestStore";
+import { useAuthStore } from "@/stores/authStore";
+import { useProjectStore } from "@/stores/projectStore";
+
+/**
+ * Resolve the best available geometry to pre-load into the editor.
+ *
+ * Priority:
+ * 1. An explicit geometry field in the local project draft.
+ * 2. Pending change request geometry, the user's last submitted value (post page reload).
+ * 3. Persisted project geometry.
+ */
+export function resolveShapeEditorGeometry(projectId: string): GeoJSON.GeometryCollection | null {
+  const projectStore = useProjectStore();
+  const authStore = useAuthStore();
+
+  const draft = projectStore.projectDrafts[projectId];
+  if (draft && "geometry" in draft) return draft.geometry ?? null;
+
+  const changeRequestStore = useChangeRequestStore();
+  const pendingGeometryChange = changeRequestStore.pendingChangeRequests.find(
+    (cr) =>
+      cr.requestedBy === authStore.user?.id &&
+      cr.entityType === "project" &&
+      cr.entityId === projectId &&
+      cr.fieldName === "geometry" &&
+      cr.status === "pending",
+  );
+  if (
+    pendingGeometryChange?.fieldName === "geometry" &&
+    pendingGeometryChange.newValue !== undefined
+  )
+    return pendingGeometryChange.newValue;
+  return projectStore.getPersistedProject(projectId)?.geometry ?? null;
+}

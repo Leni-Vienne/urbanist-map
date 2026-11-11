@@ -574,7 +574,7 @@ export function applyTagFiltersToVectorLayers(mlMap: MaplibreMap): void {
 
   const shapeSpecs = getProjectShapeLayerSpecs();
   const sizeFilter = getSizeFilterExpressionForShapes();
-  const editorProjectId = useUiStore().shapeEditorProjectId;
+  const editorProjectId = readShapeEditorProjectId();
   const pendingHiddenFilter = editorProjectId
     ? buildHiddenIdExclusionFilter([editorProjectId])
     : null;
@@ -630,8 +630,8 @@ function computeHiddenProjectIds(): string[] {
   const store = useProjectStore();
   const uiStore = useUiStore();
   const hidden = new Set<string>();
-  if (uiStore.shapeEditorProjectId && uiStore.mode === "edit") {
-    hidden.add(uiStore.shapeEditorProjectId);
+  if (uiStore.editingTarget.type === "shape") {
+    hidden.add(uiStore.editingTarget.projectId);
   }
   if (uiStore.mode === "edit") {
     for (const project of Object.values(store.projects)) {
@@ -650,7 +650,8 @@ function hiddenProjectIdsKey(): string {
 }
 
 function readShapeEditorProjectId(): string | null {
-  return useUiStore().shapeEditorProjectId;
+  const target = useUiStore().editingTarget;
+  return target.type === "shape" ? target.projectId : null;
 }
 
 function syncHiddenProjectFilters([key]: [string, string | null]): void {

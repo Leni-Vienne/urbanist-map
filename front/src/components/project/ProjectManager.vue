@@ -1,10 +1,10 @@
 <template>
   <CreateProjectDialog
-    v-if="uiStore.projectCreationSeed"
-    :key="uiStore.projectCreationSeed.lat + ',' + uiStore.projectCreationSeed.lng"
-    :project="uiStore.projectCreationSeed"
+    v-if="editingTarget.type === 'create-project'"
+    :key="editingTarget.coordinates.lat + ',' + editingTarget.coordinates.lng"
+    :project="editingTarget.coordinates"
     @submit="handleProjectSubmitted"
-    @close="uiStore.closeProjectDialog"
+    @close="uiStore.closeEditor('create-project')"
   />
 
   <Dialog
@@ -14,7 +14,7 @@
     :closable="true"
     :draggable="false"
     :header="$t('projectSelector.suggestChanges')"
-    @update:visible="uiStore.closeProjectEditForm"
+    @update:visible="uiStore.closeEditor('project-info')"
     :pt="{
       root: { class: 'w-[40rem] max-w-[92vw]' },
       content: { class: '!p-0 sm:overflow-y-auto sm:max-h-[70vh]' },
@@ -23,17 +23,21 @@
     <EditProjectForm
       :key="projectEditTarget.id"
       :project="projectEditTarget"
-      @close="uiStore.closeProjectEditForm"
+      @close="uiStore.closeEditor('project-info')"
     />
   </Dialog>
 
-  <MarkerPlacementBar />
+  <MarkerPlacementBar
+    v-if="editingTarget.type === 'place-project'"
+    :coordinates="editingTarget.coordinates"
+  />
 </template>
 
 <script setup lang="ts">
 import { toastError } from "@/services/core/toast";
 
-import { computed, watch, defineAsyncComponent, onUnmounted } from "vue";
+import { computed, watch, defineAsyncComponent } from "vue";
+import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 import * as maplibregl from "maplibre-gl";
 import type { MapMouseEvent, Map as MaplibreMap } from "maplibre-gl";
@@ -56,64 +60,50 @@ const EditProjectForm = defineAsyncComponent(
 
 const projectStore = useProjectStore();
 const uiStore = useUiStore();
+const { editingTarget } = storeToRefs(uiStore);
 const projectEditTarget = computed(() => {
-  const projectId = uiStore.projectEditTargetId;
-  return projectId ? (projectStore.projects[projectId] ?? null) : null;
+  const target = editingTarget.value;
+  return target.type === "project-info" ? (projectStore.projects[target.projectId] ?? null) : null;
 });
 
 const { t: $t } = useI18n();
-let tempMarker: maplibregl.Marker | null = null;
-let placementMap: MaplibreMap | null = null;
-let cancelPlacementWait: (() => void) | null = null;
-
 function handleMapClick(e: MapMouseEvent) {
-  uiStore.setMarkerCoordinates({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+  if (editingTarget.value.type !== "place-project") return;
+  uiStore.openEditor({
+    type: "place-project",
+    coordinates: { lat: e.lngLat.lat, lng: e.lngLat.lng },
+  });
 }
-
-function syncPlacementMarker(): void {
-  tempMarker?.remove();
-  tempMarker = null;
-  const coordinates = uiStore.markerCoordinates;
-  if (!placementMap || !coordinates) return;
-
-  const element = createProjectPinElement("orange");
-  tempMarker = new maplibregl.Marker({ element, anchor: "bottom" })
-    .setLngLat([coordinates.lng, coordinates.lat])
-    .addTo(placementMap);
-}
-
-watch(() => uiStore.markerCoordinates, syncPlacementMarker, { flush: "sync" });
 
 watch(
-  () => uiStore.markerPlacementBarVisible,
-  (active) => {
-    clearMarkerPlacement();
-    if (!active) return;
-    cancelPlacementWait = onMapReady((target) => {
-      placementMap = target;
-      placementMap.on("click", handleMapClick);
-      syncPlacementMarker();
+  editingTarget,
+  (target, _previous, onCleanup) => {
+    if (target.type !== "place-project") return;
+    let placementMap: MaplibreMap | null = null;
+    let marker: maplibregl.Marker | null = null;
+    const cancel = onMapReady((map) => {
+      placementMap = map;
+      map.on("click", handleMapClick);
+      if (target.coordinates) {
+        const { lat, lng } = target.coordinates;
+        const element = createProjectPinElement("orange");
+        marker = new maplibregl.Marker({ element, anchor: "bottom" })
+          .setLngLat([lng, lat])
+          .addTo(map);
+      }
+    });
+    onCleanup(() => {
+      cancel();
+      placementMap?.off("click", handleMapClick);
+      marker?.remove();
     });
   },
   { immediate: true, flush: "sync" },
 );
 
-function clearMarkerPlacement() {
-  cancelPlacementWait?.();
-  cancelPlacementWait = null;
-  if (tempMarker) {
-    tempMarker.remove();
-    tempMarker = null;
-  }
-  placementMap?.off("click", handleMapClick);
-  placementMap = null;
-}
-
-onUnmounted(clearMarkerPlacement);
-
 function handleProjectSubmitted(project: Partial<Project>) {
   try {
-    uiStore.closeProjectDialog();
+    uiStore.closeEditor("create-project");
 
     const projectId = createProject({
       ...project,
