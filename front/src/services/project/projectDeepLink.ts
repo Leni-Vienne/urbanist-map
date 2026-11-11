@@ -1,6 +1,8 @@
 import { trpc } from "@/client";
 
 import { useProjectStore } from "@/stores/projectStore";
+import { useAuthStore } from "@/stores/authStore";
+import { useFocusStore } from "@/stores/focusStore";
 import { projectFromWire } from "@/utils/typeFactories";
 import { openProjectDetail } from "@/services/core/projectSelection";
 import { nextTick } from "vue";
@@ -10,7 +12,12 @@ import {
   MOBILE_CONTENT_TOP_INSET,
 } from "@/services/core/mapNavigation";
 import { buildShapeBounds } from "@/utils/cornersBounds";
-import { onMapReady, bootedFromDeeplinkView, DEEPLINK_FIT_MAX_ZOOM } from "@/services/core/map";
+import {
+  onMapReady,
+  getMapOrNull,
+  bootedFromDeeplinkView,
+  DEEPLINK_FIT_MAX_ZOOM,
+} from "@/services/core/map";
 
 import { loadOrNull } from "@/services/core/errorHandling";
 import { toastInfo } from "@/services/core/toast";
@@ -24,15 +31,26 @@ import { toastInfo } from "@/services/core/toast";
 export async function handleProjectDeepLink(
   slug: string | string[] | undefined,
   t: (key: string) => string,
+  signal: AbortSignal,
 ): Promise<void> {
   const resolvedSlug = Array.isArray(slug) ? slug[0] : slug;
-  if (typeof resolvedSlug !== "string" || resolvedSlug.length === 0) return;
+  if (signal.aborted || typeof resolvedSlug !== "string" || resolvedSlug.length === 0) return;
 
   const projectStore = useProjectStore();
+  const authStore = useAuthStore();
+  const epoch = authStore.getSessionEpoch();
+  const focus = useFocusStore();
+  const ownsNavigation = focus.beginNavigation();
+  function isCurrent(): boolean {
+    return !signal.aborted && ownsNavigation() && epoch === authStore.getSessionEpoch();
+  }
 
-  const result = await loadOrNull(() => trpc.project.getBySlug.query({ slug: resolvedSlug }));
+  const result = await loadOrNull(
+    () => trpc.project.getBySlug.query({ slug: resolvedSlug }, { signal }),
+    { signal },
+  );
 
-  if (!result) return;
+  if (!result || !isCurrent()) return;
 
   if (result.found) {
     const project = projectFromWire(result.project);
@@ -44,8 +62,10 @@ export async function handleProjectDeepLink(
     const instant = bootedFromDeeplinkView.value;
     const camera = { mobileTopInset: MOBILE_CONTENT_TOP_INSET, instant };
     const shapeBounds = buildShapeBounds(project.geometry);
-    onMapReady(() => {
+    onMapReady((target) => {
+      if (!isCurrent()) return;
       function frameProject(): void {
+        if (signal.aborted || getMapOrNull() !== target || focus.selection !== selection) return;
         if (shapeBounds) {
           mobileAwareFlyToBounds(shapeBounds, { maxZoom: DEEPLINK_FIT_MAX_ZOOM, ...camera });
         } else if (typeof lat === "number" && typeof lng === "number") {
@@ -54,6 +74,7 @@ export async function handleProjectDeepLink(
       }
 
       openProjectDetail(project);
+      const selection = focus.selection;
       // Frame only once the detail is rendered: on mobile the bottom inset is measured off the
       // drawer, and estimating it while the drawer is absent leaves the project under it.
       void nextTick(frameProject);
@@ -68,6 +89,7 @@ export async function handleProjectDeepLink(
       const lat = result.lat;
       const lng = result.lng;
       onMapReady(() => {
+        if (!isCurrent()) return;
         flyToGeometry([lat, lng], 0);
       });
     }

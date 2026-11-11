@@ -2,6 +2,7 @@ import { useMapSessionStore } from "@/stores/mapSessionStore";
 import { trpc } from "@/client";
 import { t } from "@/locales";
 import { loadOrNull } from "@/services/core/errorHandling";
+import { toastError } from "@/services/core/toast";
 import { useAuthStore } from "@/stores/authStore";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useProjectStore } from "@/stores/projectStore";
@@ -9,25 +10,24 @@ import { useUiStore } from "@/stores/uiStore";
 import { overlayWireToData, projectFromWire } from "@/utils/typeFactories";
 
 import { defineStore, acceptHMRUpdate } from "pinia";
-import { ref } from "vue";
+import { computed, onScopeDispose, ref, shallowRef } from "vue";
 import type { Overlay } from "@/types/index";
 
 export const useContributionStore = defineStore("contribution", () => {
+  const authStore = useAuthStore();
   const projectIds = ref<string[]>([]);
   const overlaysById = ref<Record<string, Overlay>>({});
-  const loading = ref(false);
+  const activeRequest = shallowRef<AbortController | null>(null);
+  const loading = computed(() => activeRequest.value !== null);
   const loaded = ref(false);
-
-  let loadToken = 0;
 
   // A submission receipt is newer than any contributions request already in flight.
   function invalidateRequests(): void {
-    loadToken += 1;
-    loading.value = false;
+    activeRequest.value?.abort();
+    activeRequest.value = null;
   }
 
   async function refresh(): Promise<void> {
-    const authStore = useAuthStore();
     const changeRequestStore = useChangeRequestStore();
     const projectStore = useProjectStore();
     const uiStore = useUiStore();
@@ -35,51 +35,48 @@ export const useContributionStore = defineStore("contribution", () => {
     const userId = authStore.user?.id;
     if (!userId) return;
 
-    loadToken += 1;
-    const token = loadToken;
+    invalidateRequests();
+    const request = new AbortController();
+    activeRequest.value = request;
     const epoch = authStore.getSessionEpoch();
-    loading.value = true;
     try {
       const result = await loadOrNull(
         async () => {
           const [data, { changeRequestFromWire }] = await Promise.all([
-            trpc.project.getUsersContributions.query(),
+            trpc.project.getUsersContributions.query(undefined, { signal: request.signal }),
             import("@/services/changes/changeRequestData"),
           ]);
           return { ...data, changeRequests: data.changeRequests.map(changeRequestFromWire) };
         },
-        { errorMessage: t("contribute.loadContributionsError") },
+        { signal: request.signal },
       );
       if (
-        result &&
-        token === loadToken &&
-        epoch === authStore.getSessionEpoch() &&
-        authStore.user?.id === userId
-      ) {
-        if (uiStore.mode === "edit") {
-          mapSessionStore.applyMapSessionRows(
-            "edit",
-            result.editSession.projects,
-            result.editSession.overlays.map(overlayWireToData),
-          );
-        }
-        for (const project of Object.values(result.projectsById)) {
-          projectStore.upsertProjectSummary(projectFromWire(project));
-        }
-        setData({
-          projectIds: Object.keys(result.projectsById),
-          overlaysById: result.overlaysById,
-        });
-        changeRequestStore.setPendingChangeRequests(result.changeRequests);
+        activeRequest.value !== request ||
+        epoch !== authStore.getSessionEpoch() ||
+        authStore.user?.id !== userId
+      )
+        return;
+      if (!result) {
+        toastError(t("contribute.loadContributionsError"));
+        return;
       }
+      if (uiStore.mode === "edit") {
+        mapSessionStore.applyMapSessionRows(
+          "edit",
+          result.editSession.projects,
+          result.editSession.overlays.map(overlayWireToData),
+        );
+      }
+      for (const project of Object.values(result.projectsById)) {
+        projectStore.upsertProjectSummary(projectFromWire(project));
+      }
+      setData({
+        projectIds: Object.keys(result.projectsById),
+        overlaysById: result.overlaysById,
+      });
+      changeRequestStore.setPendingChangeRequests(result.changeRequests);
     } finally {
-      if (
-        token === loadToken &&
-        epoch === authStore.getSessionEpoch() &&
-        authStore.user?.id === userId
-      ) {
-        loading.value = false;
-      }
+      if (activeRequest.value === request) activeRequest.value = null;
     }
   }
 
@@ -104,6 +101,8 @@ export const useContributionStore = defineStore("contribution", () => {
     overlaysById.value = {};
     loaded.value = false;
   }
+
+  onScopeDispose(clearAllState);
 
   return {
     projectIds,

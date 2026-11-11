@@ -22,6 +22,7 @@ import { isOverlayUnsaved } from "@/services/overlay/unsavedState";
 export function openOverlayDetail(overlayId: string): void {
   const overlayStore = useOverlayStore();
   const focus = useFocusStore();
+  focus.beginNavigation();
 
   // Already selected: the detail is the selection, so it is already shown.
   if (overlayId === focus.selectedOverlayId) return;

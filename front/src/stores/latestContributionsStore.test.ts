@@ -188,6 +188,8 @@ describe("latest contribution loading", () => {
     await started.promise;
     selectedProjectTags.value = [];
     await feed.activateLatestContributions();
+    // Returning to retained data must settle immediately, even if the retired fetch hangs.
+    expect(feed.isLoading).toBeFalse();
     pending.resolve(pageResponse([project("filtered")]));
     await request;
 

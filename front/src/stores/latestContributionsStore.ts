@@ -19,9 +19,7 @@ export const useLatestContributionsStore = defineStore("latestContributions", ()
   // Public feed state is shared within this application and survives panel remounts.
   const contributions = shallowRef<LatestContribution[]>([]);
   const cursor = ref<FeedCursor>(null);
-  const isLoading = ref(false);
-  const isLoadingMore = ref(false);
-  const failedKey = ref<string | null>(null);
+  const hasLoadError = ref(false);
   const hasLoadMoreError = ref(false);
   const projectCount = ref<number | null>(null);
 
@@ -35,16 +33,13 @@ export const useLatestContributionsStore = defineStore("latestContributions", ()
   const queryKey = computed(() => JSON.stringify(buildFilterQueryInput()));
   const loadedKey = ref<string | null>(null);
   const loadedCountKey = ref<string | null>(null);
-  let requestedKey: string | null = null;
-  let requestedCountKey: string | null = null;
-
   const isFeedStale = computed(() => loadedKey.value !== queryKey.value);
 
-  // Only the newest request may write to the list; earlier ones are abandoned on arrival.
-  let requestToken = 0;
-  let countRequestToken = 0;
+  const pageRequest = shallowRef<{ controller: AbortController; more: boolean } | null>(null);
+  let countRequest: AbortController | null = null;
+  const isLoading = computed(() => pageRequest.value?.more === false);
+  const isLoadingMore = computed(() => pageRequest.value?.more === true);
 
-  const hasLoadError = computed(() => failedKey.value === queryKey.value);
   // The count survives a query change and is only replaced once the new one arrives, so narrowing the
   // feed never collapses the row it sits on. True while the shown count does not describe the live
   // query.
@@ -72,42 +67,26 @@ export const useLatestContributionsStore = defineStore("latestContributions", ()
     };
   }
 
-  function fetchPage(pageCursor: FeedCursor) {
-    // Errors are shown beside the results with a retry action.
-    return loadOrNull(() => trpc.feed.getLatestContributions.query(buildQueryInput(pageCursor)));
-  }
-
-  function ensureContributionCount(key: string): void {
-    if (loadedCountKey.value === key || requestedCountKey === key) return;
-    void refreshContributionCount(key);
-  }
-
-  function invalidateContributionCount(): void {
-    countRequestToken += 1;
-    loadedCountKey.value = null;
-    requestedCountKey = null;
-  }
-
   async function refreshContributionCount(key: string): Promise<void> {
-    countRequestToken += 1;
-    const token = countRequestToken;
-    requestedCountKey = key;
-    loadedCountKey.value = null;
+    if (loadedCountKey.value === key || countRequest) return;
+    const request = new AbortController();
+    countRequest = request;
     try {
-      const result = await loadOrNull(() =>
-        // Out of the batch: counting is far slower than fetching a page, and the list must not wait
-        // on it.
-        trpc.feed.getContributionCount.query(buildFilterQueryInput(), {
-          context: { skipBatch: true },
-        }),
+      const result = await loadOrNull(
+        () =>
+          // Out of the batch: counting is far slower than fetching a page, and the list must not wait
+          // on it.
+          trpc.feed.getContributionCount.query(buildFilterQueryInput(), {
+            context: { skipBatch: true },
+            signal: request.signal,
+          }),
+        { signal: request.signal },
       );
-      if (token !== countRequestToken || key !== queryKey.value || !result) return;
+      if (countRequest !== request || !result) return;
       projectCount.value = result.count;
       loadedCountKey.value = key;
     } finally {
-      if (token === countRequestToken) {
-        requestedCountKey = null;
-      }
+      if (countRequest === request) countRequest = null;
     }
   }
 
@@ -116,71 +95,55 @@ export const useLatestContributionsStore = defineStore("latestContributions", ()
   async function activateLatestContributions(): Promise<void> {
     const key = queryKey.value;
     // The count is independent: retry it even if this query's rows are already loaded.
-    ensureContributionCount(key);
-    if (loadedKey.value === key || requestedKey === key) return;
-
-    // Keep the previous results until page one for the live query succeeds.
-    requestToken += 1;
-    const token = requestToken;
-    isLoadingMore.value = false;
-    hasLoadMoreError.value = false;
-    requestedKey = key;
-    isLoading.value = true;
-    try {
-      const result = await fetchPage(null);
-      if (token !== requestToken || key !== queryKey.value) return;
-      if (!result) {
-        failedKey.value = key;
-        return;
-      }
-      failedKey.value = null;
-      contributions.value = result.items;
-      cursor.value = result.nextCursor;
-      loadedKey.value = key;
-    } finally {
-      if (token === requestToken) {
-        isLoading.value = false;
-        requestedKey = null;
-      }
-    }
+    void refreshContributionCount(key);
+    if (loadedKey.value === key || pageRequest.value) return;
+    await loadPage(null);
   }
 
   async function loadMoreLatestContributions(): Promise<void> {
     const pageCursor = cursor.value;
-    const key = queryKey.value;
-    if (!pageCursor || isLoading.value || isLoadingMore.value || loadedKey.value !== key) return;
+    if (!pageCursor || pageRequest.value || isFeedStale.value) return;
+    await loadPage(pageCursor);
+  }
 
-    requestToken += 1;
-    const token = requestToken;
-    isLoadingMore.value = true;
+  async function loadPage(pageCursor: FeedCursor): Promise<void> {
+    const key = queryKey.value;
+    const request = { controller: new AbortController(), more: pageCursor !== null };
+    const { signal } = request.controller;
+    pageRequest.value = request;
     try {
-      const result = await fetchPage(pageCursor);
-      if (token !== requestToken || key !== queryKey.value) return;
-      if (!result) {
-        hasLoadMoreError.value = true;
-        return;
-      }
-      hasLoadMoreError.value = false;
-      contributions.value = [...contributions.value, ...result.items];
+      const result = await loadOrNull(
+        () => trpc.feed.getLatestContributions.query(buildQueryInput(pageCursor), { signal }),
+        { signal },
+      );
+      if (pageRequest.value !== request) return;
+      if (request.more) hasLoadMoreError.value = !result;
+      else hasLoadError.value = !result;
+      if (!result) return;
+      // Keep the previous results until their replacement succeeds.
+      contributions.value = request.more ? [...contributions.value, ...result.items] : result.items;
       cursor.value = result.nextCursor;
+      loadedKey.value = key;
     } finally {
-      if (token === requestToken) {
-        isLoadingMore.value = false;
-      }
+      if (pageRequest.value === request) pageRequest.value = null;
     }
   }
 
   function invalidateLatestContributions(): void {
-    requestToken += 1;
+    cancelPendingRequests();
     contributions.value = [];
     cursor.value = null;
     loadedKey.value = null;
-    requestedKey = null;
-    isLoading.value = false;
-    isLoadingMore.value = false;
-    failedKey.value = null;
+    loadedCountKey.value = null;
+  }
+
+  function cancelPendingRequests(): void {
+    pageRequest.value?.controller.abort();
+    countRequest?.abort();
+    pageRequest.value = null;
+    countRequest = null;
+    hasLoadError.value = false;
     hasLoadMoreError.value = false;
-    invalidateContributionCount();
   }
 
   // Bounding the feed to a viewport asks what is in that place, so include OSM projects too.
@@ -217,12 +180,17 @@ export const useLatestContributionsStore = defineStore("latestContributions", ()
   // arrival. Waiting for the query to settle sends one pair.
   const FILTER_SETTLE_MS = 300;
 
+  // Cancel synchronously so active requests always belong to the live query, even after away/back.
+  watch(queryKey, cancelPendingRequests, { flush: "sync" });
+
   // Pinia owns this watcher. Changing the query or disposing the store cancels its timer.
   watch(queryKey, (_key, _previous, onCleanup) => {
     const timer = setTimeout(() => {
       if (isFeedActive.value) void activateLatestContributions();
     }, FILTER_SETTLE_MS);
-    onCleanup(() => clearTimeout(timer));
+    onCleanup(() => {
+      clearTimeout(timer);
+    });
   });
 
   // Responses arriving after disposal must not repopulate the retired store.

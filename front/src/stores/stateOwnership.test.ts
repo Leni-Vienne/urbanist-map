@@ -1,4 +1,7 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, spyOn, test } from "bun:test";
+import superjson from "superjson";
+import type { Map as MaplibreMap } from "maplibre-gl";
+import * as map from "@/services/core/map";
 import { createPinia, setActivePinia } from "pinia";
 import { useSubmissionStore } from "./submissionStore";
 import { useMapSessionStore } from "./mapSessionStore";
@@ -77,6 +80,110 @@ function makeTileOverlay(id: string, projectId = "project-1"): TileOverlayData {
     baselineCaption: id,
   };
 }
+
+function overlayResponse(caption: string): Response {
+  const {
+    baselineCorners,
+    baselineCaption: _baselineCaption,
+    ...data
+  } = makeBackendOverlay(caption);
+  return Response.json([
+    { result: { data: superjson.serialize({ ...data, corners: baselineCorners }) } },
+  ]);
+}
+
+test("overlay hydration shares a request and preserves a newer backend snapshot", async () => {
+  const pending = Promise.withResolvers<Response>();
+  const started = Promise.withResolvers<void>();
+  const originalFetch = globalThis.fetch;
+  const fetchSpy = spyOn(globalThis, "fetch").mockImplementationOnce(
+    Object.assign(
+      () => {
+        started.resolve();
+        return pending.promise;
+      },
+      { preconnect: originalFetch.preconnect },
+    ),
+  );
+  try {
+    const store = useOverlayStore();
+    const first = store.loadOverlay("overlay-1");
+    const second = store.loadOverlay("overlay-1");
+    await started.promise;
+    store.ingestBackendOverlay(makeBackendOverlay("New receipt"));
+    pending.resolve(overlayResponse("Old response"));
+    expect((await first)?.caption).toBe("New receipt");
+    expect((await second)?.caption).toBe("New receipt");
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  } finally {
+    fetchSpy.mockRestore();
+  }
+});
+
+test("an overlay request cannot resurrect an overlay removed while it was loading", async () => {
+  const pending = Promise.withResolvers<Response>();
+  const started = Promise.withResolvers<void>();
+  const originalFetch = globalThis.fetch;
+  const fetchSpy = spyOn(globalThis, "fetch").mockImplementationOnce(
+    Object.assign(
+      () => {
+        started.resolve();
+        return pending.promise;
+      },
+      { preconnect: originalFetch.preconnect },
+    ),
+  );
+  try {
+    const store = useOverlayStore();
+    const request = store.loadOverlay("overlay-1");
+    await started.promise;
+    store.removeOverlay("overlay-1");
+    pending.resolve(overlayResponse("Old response"));
+    expect(await request).toBeNull();
+    expect(store.getOverlayById("overlay-1")).toBeNull();
+  } finally {
+    fetchSpy.mockRestore();
+  }
+});
+
+test("a late overlay navigation cannot replace a later project selection", async () => {
+  const originalMatchMedia = globalThis.matchMedia;
+  globalThis.matchMedia = (media) =>
+    Object.assign(new EventTarget(), {
+      media,
+      matches: false,
+      onchange: null,
+      addListener() {},
+      removeListener() {},
+    });
+  const pending = Promise.withResolvers<Response>();
+  const started = Promise.withResolvers<void>();
+  const originalFetch = globalThis.fetch;
+  const fetchSpy = spyOn(globalThis, "fetch").mockImplementationOnce(
+    Object.assign(
+      () => {
+        started.resolve();
+        return pending.promise;
+      },
+      { preconnect: originalFetch.preconnect },
+    ),
+  );
+  // Only map identity is needed: retired navigation must never reach camera or layer methods.
+  const currentMap = spyOn(map, "getMapOrNull").mockReturnValue({} as MaplibreMap);
+  try {
+    const { navigateToOverlay } = await import("@/services/overlay/navigation");
+    const request = navigateToOverlay("overlay-1");
+    await started.promise;
+    openProjectDetailById("project-2");
+    pending.resolve(overlayResponse("Old response"));
+    expect(await request).toBeFalse();
+    expect(useFocusStore().selectedProjectId).toBe("project-2");
+  } finally {
+    fetchSpy.mockRestore();
+    currentMap.mockRestore();
+    globalThis.matchMedia = originalMatchMedia;
+  }
+});
 
 function makePanelOverlay(id: string, projectId: string): Overlay {
   return {

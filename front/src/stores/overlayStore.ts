@@ -1,6 +1,9 @@
 import { useSubmissionStore } from "@/stores/submissionStore";
 import { defineStore, acceptHMRUpdate } from "pinia";
-import { computed, reactive, ref } from "vue";
+import { computed, onScopeDispose, reactive, ref } from "vue";
+import { trpc } from "@/client";
+import { useAuthStore } from "@/stores/authStore";
+import { overlayWireToData } from "@/utils/typeFactories";
 import { buildImageUrl } from "@/utils/imageUrl";
 import { getEditModeDefaultCaption } from "@/services/overlay/defaultState";
 import type {
@@ -61,6 +64,11 @@ function copyCorner(corner: LatLng): LatLng {
 
 export const useOverlayStore = defineStore("overlay", () => {
   const submissionStore = useSubmissionStore();
+  const authStore = useAuthStore();
+  const pendingDetails = new Map<
+    string,
+    { controller: AbortController; promise: Promise<OverlayObject | null> }
+  >();
   const persistedOverlays = ref<Record<string, BackendOverlayData>>({});
   const tileOverlays = ref<Record<string, TileOverlayData>>({});
   const selectedTileOverlay = ref<TileOverlayData | null>(null);
@@ -139,6 +147,40 @@ export const useOverlayStore = defineStore("overlay", () => {
     return Boolean(
       persistedOverlays.value[overlayId] || overlayDrafts.value[overlayId]?.base?.status === null,
     );
+  }
+
+  async function fetchOverlay(
+    overlayId: string,
+    signal: AbortSignal,
+  ): Promise<OverlayObject | null> {
+    const epoch = authStore.getSessionEpoch();
+    const userId = authStore.user?.id;
+    const original = persistedOverlays.value[overlayId];
+    const result = await trpc.overlay.getOverlay.query({ id: overlayId }, { signal });
+    if (signal.aborted || epoch !== authStore.getSessionEpoch() || userId !== authStore.user?.id)
+      return null;
+    // Keep a receipt or moderation update that arrived after this request started.
+    const current = persistedOverlays.value[overlayId];
+    if (current && current !== original) return getOverlayById(overlayId);
+    return ingestBackendOverlay(overlayWireToData(result));
+  }
+
+  async function loadOverlay(overlayId: string): Promise<OverlayObject | null> {
+    if (hasFullOverlayData(overlayId)) return getOverlayById(overlayId);
+    let request = pendingDetails.get(overlayId);
+    if (!request) {
+      const controller = new AbortController();
+      request = { controller, promise: fetchOverlay(overlayId, controller.signal) };
+      pendingDetails.set(overlayId, request);
+    }
+    try {
+      return await request.promise;
+    } catch (error) {
+      if (request.controller.signal.aborted) return null;
+      throw error;
+    } finally {
+      if (pendingDetails.get(overlayId) === request) pendingDetails.delete(overlayId);
+    }
   }
 
   function updatePersistedOverlay(overlayId: string, updates: Partial<BackendOverlayData>) {
@@ -253,6 +295,8 @@ export const useOverlayStore = defineStore("overlay", () => {
   }
 
   function removeOverlay(overlayId: string): void {
+    pendingDetails.get(overlayId)?.controller.abort();
+    pendingDetails.delete(overlayId);
     // oxlint-disable-next-line no-dynamic-delete
     delete persistedOverlays.value[overlayId];
     // oxlint-disable-next-line no-dynamic-delete
@@ -272,10 +316,14 @@ export const useOverlayStore = defineStore("overlay", () => {
   }
 
   function clearAllState() {
+    for (const request of pendingDetails.values()) request.controller.abort();
+    pendingDetails.clear();
     clearLiveOverlays();
     frontOverlayIds.clear();
     overlayOpacities.clear();
   }
+
+  onScopeDispose(clearAllState);
 
   return {
     persistedOverlays,
@@ -286,6 +334,7 @@ export const useOverlayStore = defineStore("overlay", () => {
     overlayOpacities,
     getOverlayById,
     hasFullOverlayData,
+    loadOverlay,
     addLocalOverlay,
     updateOverlayDraft,
     rememberUploadedImage,

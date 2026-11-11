@@ -34,10 +34,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onUnmounted, ref, shallowRef } from "vue";
+import { computed, onUnmounted, ref, shallowRef, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { trpc, type RouterOutput } from "@/client";
-import { getMap } from "@/services/core/map";
+import { getMapOrNull } from "@/services/core/map";
 import { mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
 import { useModerationStore } from "@/stores/moderationStore";
 import { LngLatBounds } from "maplibre-gl";
@@ -56,11 +56,13 @@ const { locale } = useI18n();
 const selectedCity = ref<BoundarySuggestion | null>(null);
 const results = shallowRef<BoundarySearchResult[]>([]);
 const suggestions = computed(() => results.value.map(buildDisplay));
-const isLoading = ref(false);
+const searchController = shallowRef<AbortController | null>(null);
+const isLoading = computed(() => searchController.value !== null);
 let searchTimeout: ReturnType<typeof setTimeout> | null = null;
-let latestSearchId = 0;
 
 onUnmounted(cancelSearch);
+// AutoComplete debounces its complete event; retire results as soon as its input changes.
+watch(selectedCity, cancelSearch, { flush: "sync" });
 
 // Prefer the name in the current UI locale, falling back to English, then the boundary's local name.
 function localizedName(level: LocalizedBoundaryName | null): string | null {
@@ -91,36 +93,44 @@ function buildDisplay(boundary: BoundarySearchResult): BoundarySuggestion {
 function onSearch(event: { query: string }): void {
   const query = event.query?.trim();
   cancelSearch();
-  const searchId = latestSearchId;
   if (!query || countAlphanumeric(query) < MIN_LOCATION_SEARCH_ALNUM) {
-    results.value = [];
     return;
   }
 
-  searchTimeout = setTimeout(() => void search(query, searchId), 300);
+  searchTimeout = setTimeout(() => void search(query), 300);
 }
 
-async function search(query: string, searchId: number): Promise<void> {
-  isLoading.value = true;
-  const center = getMap().getCenter();
-  const matches = await loadOrNull(() =>
-    trpc.boundaries.searchBoundariesNearLocation.query({
-      lat: center.lat,
-      lng: center.lng,
-      search: query,
-      limit: 25,
-    }),
+async function search(query: string): Promise<void> {
+  searchTimeout = null;
+  const map = getMapOrNull();
+  if (!map) return;
+  const controller = new AbortController();
+  searchController.value = controller;
+  const center = map.getCenter();
+  const matches = await loadOrNull(
+    () =>
+      trpc.boundaries.searchBoundariesNearLocation.query(
+        {
+          lat: center.lat,
+          lng: center.lng,
+          search: query,
+          limit: 25,
+        },
+        { signal: controller.signal },
+      ),
+    { signal: controller.signal },
   );
-  if (searchId !== latestSearchId) return;
-  results.value = matches ?? [];
-  isLoading.value = false;
+  if (searchController.value !== controller) return;
+  results.value = getMapOrNull() === map ? (matches ?? []) : [];
+  searchController.value = null;
 }
 
 function cancelSearch(): void {
-  latestSearchId += 1;
+  searchController.value?.abort();
+  searchController.value = null;
   if (searchTimeout) clearTimeout(searchTimeout);
   searchTimeout = null;
-  isLoading.value = false;
+  results.value = [];
 }
 
 function onSelect(event: { value: BoundarySuggestion }): void {
@@ -132,7 +142,6 @@ function onSelect(event: { value: BoundarySuggestion }): void {
     { maxZoom: MAX_BOUNDARY_ZOOM },
   );
   selectedCity.value = null;
-  results.value = [];
 }
 
 // Cap how far fitting a boundary's bounds can zoom in, so a tiny neighborhood doesn't slam the

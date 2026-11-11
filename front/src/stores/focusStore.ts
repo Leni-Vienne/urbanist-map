@@ -23,6 +23,14 @@ function overlayIdOf(target: FocusTarget | null): string | null {
 export const useFocusStore = defineStore("focus", () => {
   const hover = ref<FocusTarget | null>(null);
   const selection = ref<FocusTarget | null>(null);
+  let navigationToken = 0;
+
+  // Any later navigation or selection retires an asynchronous navigation's effects.
+  function beginNavigation(): () => boolean {
+    navigationToken += 1;
+    const token = navigationToken;
+    return () => token === navigationToken;
+  }
 
   // Emphasized project: the pinned selection first, then the transient hover. Drives the vector
   // tile "selected" feature-state and the GeoJSON shape outline.
@@ -52,6 +60,7 @@ export const useFocusStore = defineStore("focus", () => {
   }
 
   function setSelectionTarget(target: FocusTarget | null): void {
+    navigationToken += 1;
     const overlays = useOverlayStore();
     if (target?.kind !== "overlay") overlays.clearSelectedTileOverlay();
     else if (overlayIdOf(selection.value) !== target.overlayId)
@@ -74,6 +83,7 @@ export const useFocusStore = defineStore("focus", () => {
     detailVisible,
     setHoverTarget,
     setSelectionTarget,
+    beginNavigation,
     clearAllState,
   };
 });

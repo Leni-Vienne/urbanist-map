@@ -3,6 +3,9 @@ import { t } from "@/locales";
 
 import { useOverlayStore } from "@/stores/overlayStore";
 import { useUiStore } from "@/stores/uiStore";
+import { useFocusStore } from "@/stores/focusStore";
+import { getMapOrNull } from "@/services/core/map";
+import { loadOrNull } from "@/services/core/errorHandling";
 import { getOverlayBounds } from "@/services/overlay/markers";
 import * as registry from "@/services/overlay/mapLayers";
 import { isValidQuad, parsePointValue, parseQuadValue } from "@/services/overlay/transform";
@@ -103,31 +106,35 @@ function applyPositionPreview(
 
 export async function previewOverlayGeometry(options: PreviewGeometryOptions): Promise<void> {
   const { change, overlayForModeration, geometryValue, type } = options;
+  const focus = useFocusStore();
+  const isCurrent = focus.beginNavigation();
+  const mode = useUiStore().mode;
+  const target = getMapOrNull();
+  const corners = parseGeometry(geometryValue);
+
+  if (corners.length === 0) {
+    toastWarn(t("overlay.couldNotParseCoordinates"), t("overlay.invalidCoordinates"));
+    return;
+  }
+
+  const changeRequestStore = useChangeRequestStore();
+  const overlayId = overlayForModeration.id;
+  const wasAlreadyLoaded = registry.getImageHandle(overlayId) !== null;
+  const isTogglingActivePreview =
+    changeRequestStore.previewState.type !== "none" &&
+    changeRequestStore.previewState.changeId === change.id;
+  const overlayStore = useOverlayStore();
+  const overlay =
+    mode === "edit"
+      ? await loadOrNull(() => ensureOverlayLoaded(overlayId))
+      : overlayStore.liveOverlays[overlayId];
+  if (!isCurrent() || useUiStore().mode !== mode || getMapOrNull() !== target) return;
+  if (!overlay || !overlayStore.liveOverlays[overlayId]) {
+    toastError(t("overlay.couldNotLoadOverlay"), t("overlay.loadFailed"));
+    return;
+  }
 
   try {
-    const corners = parseGeometry(geometryValue);
-
-    if (corners.length === 0) {
-      toastWarn(t("overlay.couldNotParseCoordinates"), t("overlay.invalidCoordinates"));
-      return;
-    }
-
-    const changeRequestStore = useChangeRequestStore();
-    const overlayId = overlayForModeration.id;
-    const wasAlreadyLoaded = registry.getImageHandle(overlayId) !== null;
-    const isTogglingActivePreview =
-      changeRequestStore.previewState.type !== "none" &&
-      changeRequestStore.previewState.changeId === change.id;
-
-    const overlayStore = useOverlayStore();
-    if (useUiStore().mode === "edit" && !overlayStore.hasFullOverlayData(overlayId)) {
-      await ensureOverlayLoaded(overlayId);
-    }
-    if (!overlayStore.liveOverlays[overlayId]) {
-      toastError(t("overlay.couldNotLoadOverlay"), t("overlay.loadFailed"));
-      return;
-    }
-
     // The effective preview derives from intent × selection, so record the intent and select the
     // overlay before converging: the reconciler resolves the moderation preview position from it.
     changeRequestStore.previewIntent = {

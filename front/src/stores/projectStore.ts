@@ -1,6 +1,7 @@
 import { useSubmissionStore } from "@/stores/submissionStore";
 import { defineStore, acceptHMRUpdate } from "pinia";
-import { computed, ref } from "vue";
+import { computed, onScopeDispose, ref } from "vue";
+import { useAuthStore } from "@/stores/authStore";
 import type { Project, HydratedProject, LocalProject } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import { trpc } from "@/client";
@@ -25,23 +26,51 @@ function isLocalProjectDraft(draft: ProjectDraft): draft is LocalProject {
 
 export const useProjectStore = defineStore("project", () => {
   const submissionStore = useSubmissionStore();
+  const authStore = useAuthStore();
   const persistedProjects = ref<ProjectIndex>({});
   const projectDrafts = ref<Record<string, ProjectDraft>>({});
   const detailStatusById = ref<Record<string, DetailStatus>>({});
-  const pendingDetails = new Map<string, Promise<HydratedProject | null>>();
-  let detailGeneration = 0;
+  const pendingDetails = new Map<
+    string,
+    { controller: AbortController; promise: Promise<HydratedProject | null> }
+  >();
 
-  async function fetchProjectDetail(projectId: string): Promise<HydratedProject | null> {
-    const generation = detailGeneration;
+  async function fetchProjectDetail(
+    projectId: string,
+    signal: AbortSignal,
+  ): Promise<HydratedProject | null> {
+    const epoch = authStore.getSessionEpoch();
+    const userId = authStore.user?.id;
+    const original = persistedProjects.value[projectId];
+    function isCurrentRequest(): boolean {
+      return (
+        !signal.aborted && epoch === authStore.getSessionEpoch() && userId === authStore.user?.id
+      );
+    }
     detailStatusById.value[projectId] = "loading";
     try {
-      const fresh = await trpc.project.getById.query({ id: projectId });
-      // A reset ends this cache's session, including requests still in flight.
-      if (generation !== detailGeneration) return null;
+      const fresh = await trpc.project.getById.query({ id: projectId }, { signal });
+      if (!isCurrentRequest()) return null;
+      // A contribution receipt or summary refresh may have arrived while detail was loading.
+      const current = persistedProjects.value[projectId];
+      if (current !== original && current && hasProjectDetailFields(current)) {
+        detailStatusById.value[projectId] = "ready";
+        return getHydratedProject(projectId);
+      }
+      if (fresh && current && current !== original) {
+        if (current.status === null) return null;
+        const project = projectFromWire(fresh);
+        const fields: [string, unknown][] = Object.entries(current);
+        for (const [field, value] of fields) {
+          if (value !== undefined) Object.assign(project, { [field]: value });
+        }
+        detailStatusById.value[projectId] = "ready";
+        return upsertHydratedProject(project);
+      }
       detailStatusById.value[projectId] = fresh ? "ready" : "unavailable";
       return fresh ? upsertHydratedProject(projectFromWire(fresh)) : null;
     } catch (error) {
-      if (generation !== detailGeneration) return null;
+      if (!isCurrentRequest()) return null;
       console.error("Failed to load project detail:", error);
       detailStatusById.value[projectId] = "error";
       return null;
@@ -54,13 +83,19 @@ export const useProjectStore = defineStore("project", () => {
 
     let request = pendingDetails.get(projectId);
     if (!request) {
-      request = fetchProjectDetail(projectId);
+      const controller = new AbortController();
+      request = { controller, promise: fetchProjectDetail(projectId, controller.signal) };
       pendingDetails.set(projectId, request);
     }
     try {
-      return await request;
+      return await request.promise;
     } finally {
-      if (pendingDetails.get(projectId) === request) pendingDetails.delete(projectId);
+      if (pendingDetails.get(projectId) === request) {
+        pendingDetails.delete(projectId);
+        if (detailStatusById.value[projectId] === "loading") {
+          detailStatusById.value[projectId] = "error";
+        }
+      }
     }
   }
 
@@ -123,6 +158,10 @@ export const useProjectStore = defineStore("project", () => {
   }
 
   function removeProject(projectId: string): void {
+    pendingDetails.get(projectId)?.controller.abort();
+    pendingDetails.delete(projectId);
+    // oxlint-disable-next-line no-dynamic-delete
+    delete detailStatusById.value[projectId];
     // oxlint-disable-next-line no-dynamic-delete
     delete persistedProjects.value[projectId];
     // oxlint-disable-next-line no-dynamic-delete
@@ -182,12 +221,14 @@ export const useProjectStore = defineStore("project", () => {
   }
 
   function clearAllState(): void {
-    detailGeneration += 1;
+    for (const request of pendingDetails.values()) request.controller.abort();
     pendingDetails.clear();
     detailStatusById.value = {};
     persistedProjects.value = {};
     projectDrafts.value = {};
   }
+
+  onScopeDispose(clearAllState);
 
   return {
     persistedProjects,

@@ -35,6 +35,55 @@ function response(data: HydratedProject | null): Response {
 }
 
 describe("project detail loading", () => {
+  test("fills detail without overwriting a newer summary received during the request", async () => {
+    const id = crypto.randomUUID();
+    const pending = Promise.withResolvers<Response>();
+    const started = Promise.withResolvers<void>();
+    spyOn(globalThis, "fetch").mockImplementationOnce(
+      Object.assign(
+        () => {
+          started.resolve();
+          return pending.promise;
+        },
+        { preconnect: originalFetch.preconnect },
+      ),
+    );
+    const store = useProjectStore();
+    const request = store.loadProjectDetail(id);
+    await started.promise;
+    store.upsertProjectSummary({
+      ...createLocalProject({ id, name: "New receipt" }),
+      status: "pending",
+    });
+    pending.resolve(response(project(id)));
+
+    expect((await request)?.name).toBe("New receipt");
+    expect(store.getHydratedProject(id)?.status).toBe("pending");
+  });
+
+  test("a detail request cannot resurrect a deleted project", async () => {
+    const id = crypto.randomUUID();
+    const pending = Promise.withResolvers<Response>();
+    const started = Promise.withResolvers<void>();
+    spyOn(globalThis, "fetch").mockImplementationOnce(
+      Object.assign(
+        () => {
+          started.resolve();
+          return pending.promise;
+        },
+        { preconnect: originalFetch.preconnect },
+      ),
+    );
+    const store = useProjectStore();
+    const request = store.loadProjectDetail(id);
+    await started.promise;
+    store.removeProject(id);
+    pending.resolve(response(project(id)));
+
+    expect(await request).toBeNull();
+    expect(store.getProjectById(id)).toBeNull();
+  });
+
   test("distinguishes an unavailable project from a pending request", async () => {
     const id = crypto.randomUUID();
     spyOn(globalThis, "fetch").mockResolvedValue(response(null));

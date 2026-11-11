@@ -4,6 +4,7 @@ import { toastError } from "@/services/core/toast";
 interface ErrorHandlingOptions {
   /** Toast message to show on error */
   errorMessage?: string;
+  signal?: AbortSignal;
 }
 
 /**
@@ -20,11 +21,12 @@ export async function loadOrNull<T>(
   fn: () => T | Promise<T>,
   options: ErrorHandlingOptions = {},
 ): Promise<T | null> {
-  const { errorMessage } = options;
+  const { errorMessage, signal } = options;
 
   try {
     return await fn();
   } catch (error) {
+    if (signal?.aborted) return null;
     console.error(errorMessage ?? "Error occurred:", error);
 
     if (errorMessage) {

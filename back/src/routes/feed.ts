@@ -559,6 +559,7 @@ export const feedRouter = router({
     .query(async ({ input }): Promise<FeedPage> => {
       try {
         const now = Date.now();
+        const generation = feedCacheGeneration;
         const key = cacheKey(input);
         if (key) {
           const hit = firstPageCache.get(key);
@@ -618,7 +619,7 @@ export const feedRouter = router({
               : null,
         };
 
-        if (key) {
+        if (key && generation === feedCacheGeneration) {
           firstPageCache.set(key, { page, timestamp: now });
         }
 

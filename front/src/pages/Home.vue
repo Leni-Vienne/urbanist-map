@@ -177,6 +177,8 @@ function handleShapesDone(geometry: GeoJSON.GeometryCollection) {
   toastSuccess(t("shapes.savedLocally"));
 }
 
+const viewController = new AbortController();
+
 onMounted(() => {
   maintenanceTickInterval = globalThis.setInterval(() => {
     now.value = new Date();
@@ -187,6 +189,7 @@ onMounted(() => {
 
 async function restoreSessionAndConsumeAuthParams() {
   await authStore.initialize();
+  if (viewController.signal.aborted) return;
 
   if (route.query.auth === "success") {
     if (route.query.provider === "osm" || route.query.provider === "google") {
@@ -198,7 +201,7 @@ async function restoreSessionAndConsumeAuthParams() {
   }
 
   // Fire-and-forget: the deep-link handler waits for the map to be ready on its own.
-  void handleProjectDeepLink(route.params.slug, t);
+  void handleProjectDeepLink(route.params.slug, t, viewController.signal);
 
   // Strip the auth params the OAuth callback appended so they don't linger in the URL.
   // Done via the History API to leave the map-state hash (managed in map.ts) untouched.
@@ -229,6 +232,7 @@ function getErrorMessage(error: string): string {
 }
 
 onUnmounted(() => {
+  viewController.abort();
   if (maintenanceTickInterval !== undefined) {
     globalThis.clearInterval(maintenanceTickInterval);
   }

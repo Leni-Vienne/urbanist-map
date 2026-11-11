@@ -3,14 +3,14 @@ import { t } from "@/locales";
 import { mobileAwareFlyTo, mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
 import { useOverlayStore } from "@/stores/overlayStore";
 import type { OverlayObject } from "@/types/index";
-import { trpc } from "@/client";
 import { openOverlayDetail, raiseSelectedOverlayWhenReady } from "@/services/overlay/selection";
 import { getMarker } from "@/services/overlay/mapLayers";
 import { getOverlayBounds } from "@/services/overlay/markers";
-import { overlayWireToData } from "@/utils/typeFactories";
 import { toastError } from "@/services/core/toast";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
-import { useAuthStore } from "@/stores/authStore";
+import { useFocusStore } from "@/stores/focusStore";
+import { useUiStore } from "@/stores/uiStore";
+import { getMapOrNull } from "@/services/core/map";
 
 // Helper to zoom to overlay bounds
 function zoomToOverlayBounds(overlay: OverlayObject): void {
@@ -32,55 +32,27 @@ function zoomToOverlayBounds(overlay: OverlayObject): void {
   }
 }
 
-const overlayLoadRequests = new WeakMap<
-  ReturnType<typeof useOverlayStore>,
-  Map<string, Promise<OverlayObject>>
->();
-
-async function fetchOverlay(overlayId: string): Promise<OverlayObject> {
-  const store = useOverlayStore();
-  const auth = useAuthStore();
-  const epoch = auth.getSessionEpoch();
-  const userId = auth.user?.id;
-  const result = await trpc.overlay.getOverlay.query({ id: overlayId });
-  if (epoch !== auth.getSessionEpoch() || userId !== auth.user?.id) {
-    throw new Error(t("submission.overlayUnavailable"));
-  }
-  return store.ingestBackendOverlay(overlayWireToData(result));
-}
-
 export async function ensureOverlayLoaded(overlayId: string): Promise<OverlayObject> {
-  const overlayStore = useOverlayStore();
-  const existing = overlayStore.liveOverlays[overlayId];
-
-  if (existing && overlayStore.hasFullOverlayData(overlayId)) return existing;
-
-  let requests = overlayLoadRequests.get(overlayStore);
-  if (!requests) {
-    requests = new Map();
-    overlayLoadRequests.set(overlayStore, requests);
-  }
-  const auth = useAuthStore();
-  const requestKey = `${auth.getSessionEpoch()}/${auth.user?.id ?? ""}/${overlayId}`;
-  const pendingRequest = requests.get(requestKey);
-  if (pendingRequest) return pendingRequest;
-
-  const request = fetchOverlay(overlayId);
-  requests.set(requestKey, request);
-  try {
-    return await request;
-  } finally {
-    if (requests.get(requestKey) === request) {
-      requests.delete(requestKey);
-    }
-  }
+  const overlay = await useOverlayStore().loadOverlay(overlayId);
+  if (!overlay) throw new Error(t("submission.overlayUnavailable"));
+  return overlay;
 }
 
 /**
  * Navigates to a specific overlay by ID (loads + selects + centers).
  */
 export async function navigateToOverlay(overlayId: string): Promise<boolean> {
-  await ensureOverlayLoaded(overlayId);
+  const isCurrent = useFocusStore().beginNavigation();
+  const uiStore = useUiStore();
+  const mode = uiStore.mode;
+  const target = getMapOrNull();
+  try {
+    await ensureOverlayLoaded(overlayId);
+  } catch (error) {
+    if (!isCurrent() || getMapOrNull() !== target || uiStore.mode !== mode) return false;
+    throw error;
+  }
+  if (!isCurrent() || !target || getMapOrNull() !== target || uiStore.mode !== mode) return false;
   return selectAndCenterOverlay(overlayId);
 }
 
@@ -89,10 +61,7 @@ export async function navigateToOverlay(overlayId: string): Promise<boolean> {
  */
 export async function viewOriginalOverlay(originalOverlayId: string): Promise<void> {
   try {
-    const success = await navigateToOverlay(originalOverlayId);
-    if (!success) {
-      toastError(t("overlay.failedToNavigate"), t("overlay.navigationFailed"));
-    }
+    await navigateToOverlay(originalOverlayId);
   } catch (error) {
     console.error("Failed to navigate to original overlay:", error);
     toastError(
