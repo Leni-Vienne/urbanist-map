@@ -161,9 +161,9 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  function signIn(email: string, password: string, rememberMe = false) {
+  function signIn(email: string, password: string) {
     return changeSession(async () => {
-      const result = await authClient.signIn.email({ email, password, rememberMe });
+      const result = await authClient.signIn.email({ email, password });
       throwAuthError(result.error);
       setLastUsedMethod("email", email);
     });

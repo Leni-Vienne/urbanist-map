@@ -328,8 +328,6 @@
     "lastUsedGoogle": "La dernière fois, vous vous êtes connecté avec Google",
     "lastUsedOpenStreetMap": "La dernière fois, vous vous êtes connecté avec OpenStreetMap",
     "lastUsed": "Dernier utilisé",
-    "rememberMe": "Se souvenir de moi",
-    "rememberMeHint": "Rester connecté pendant 30 jours",
     "error": {
       "emailUsesGoogleSignIn": "Cet email est enregistré avec Google Sign-In. Veuillez vous connecter avec Google.",
       "usernameTaken": "Ce nom d'utilisateur est déjà pris.",
@@ -451,7 +449,7 @@
         "content": "J'entrepose vos données comme suit :",
         "account": "Données de compte (email, nom d'utilisateur, mot de passe) : Jusqu'à la suppression de votre compte",
         "logs": "Journaux serveur (adresses IP) : Supprimés automatiquement après 90 jours",
-        "sessions": "Les sessions de connexion expirent après 24 heures pour une connexion par email sans « Se souvenir de moi », ou après 30 jours dans les autres cas. Les données de session, dont l’adresse IP et les informations sur le navigateur, sont supprimées à la déconnexion, à la révocation de la session ou lors du nettoyage quotidien après expiration.",
+        "sessions": "Les sessions de connexion expirent après 30 jours. Les données de session, dont l’adresse IP et les informations sur le navigateur, sont supprimées à la déconnexion, à la révocation de la session ou lors du nettoyage quotidien après expiration.",
         "contributions": "Contributions (projets, images) : Anonymisées lorsque vous supprimez votre compte, mais peuvent rester publiquement visibles",
         "analytics": "Statistiques d'audience anonymes : Supprimées automatiquement selon la durée de conservation de l'offre Umami Cloud",
         "deletion": "Lorsque vous supprimez votre compte, toutes vos données personnelles sont définitivement supprimées sous 30 jours."
@@ -459,7 +457,7 @@
       "cookies": {
         "title": "Cookies",
         "content": "J'utilise uniquement des cookies essentiels :",
-        "sessionCookie": "Les cookies de connexion maintiennent votre connexion. Une connexion par email sans « Se souvenir de moi » utilise un cookie de session du navigateur ; les autres connexions utilisent des cookies valables jusqu’à 30 jours. L’activité ne prolonge pas leur validité.",
+        "sessionCookie": "Les cookies de connexion maintiennent votre connexion pendant 30 jours maximum. L’activité ne prolonge pas leur validité.",
         "purpose": "Ce cookie est strictement nécessaire pour l'authentification et ne requiert pas de consentement.",
         "noTracking": "J'utilise aucun cookie de suivi, d'analyse ou publicitaire."
       },

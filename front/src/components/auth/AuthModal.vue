@@ -192,17 +192,6 @@
           }}</small>
         </div>
 
-        <!-- Remember Me Checkbox (only in login mode) -->
-        <div v-if="isLoginMode" class="flex items-center gap-2">
-          <Checkbox inputId="auth-remember-me" v-model="form.rememberMe" :binary="true" />
-          <label for="auth-remember-me" class="text-sm cursor-pointer select-none">
-            {{ $t("auth.rememberMe") }}
-            <span class="text-muted-color text-[13px] ml-1">
-              ({{ $t("auth.rememberMeHint") }})
-            </span>
-          </label>
-        </div>
-
         <!-- CAPTCHA Widget (only for registration) -->
         <div v-if="!isLoginMode" class="flex justify-center py-2">
           <div ref="captchaContainer"></div>
@@ -315,7 +304,6 @@ const form = reactive({
   email: "",
   password: "",
   username: "",
-  rememberMe: false,
 });
 
 // The email badge also requires the typed email to match the recorded one.
@@ -411,7 +399,6 @@ function resetForm() {
   form.email = "";
   form.password = "";
   form.username = "";
-  form.rememberMe = false;
   errorMessage.value = "";
   emailError.value = "";
   passwordError.value = "";
@@ -447,7 +434,7 @@ async function handleSubmit() {
 
   try {
     if (isLoginMode.value) {
-      const result = await authStore.signIn(form.email, form.password, form.rememberMe);
+      const result = await authStore.signIn(form.email, form.password);
       if (!ownsRequest(owner)) return;
       if (result.success) {
         visible.value = false;
