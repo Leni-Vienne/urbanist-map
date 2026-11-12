@@ -14,7 +14,7 @@ import { t } from "@/locales";
 import * as registry from "@/services/overlay/mapLayers";
 import { openOverlayDetail } from "@/services/overlay/selection";
 import { useFocusStore } from "@/stores/focusStore";
-import { calculateCentroidFromCorners } from "@shared/overlayValidation";
+import { calculateCentroidFromCorners, validateOverlaySize } from "@shared/overlayValidation";
 import { resolveOverlayCorners } from "@/services/overlay/data";
 import { hasOpenChangeRequest, showsSuggestedState } from "@/services/overlay/positionState";
 import { isOverlayUnsaved } from "@/services/overlay/unsavedState";
@@ -101,12 +101,14 @@ function getOverlayMarkerColor(
   // Extract overlay-specific properties (not present on all overlay types)
   const hasBeenModified = isOverlayUnsaved(overlayData);
   const hasChangeRequest = hasOpenChangeRequest(overlayData);
-  const isTooBig = "isTooBig" in overlayData && overlayData.isTooBig === true;
   const isReplacement = Boolean(overlayData.replacesOverlayId);
   const status = overlayData.status;
 
   // Size validation error.
-  if (mode === "edit" && isTooBig) return "red";
+  if (mode === "edit") {
+    const corners = resolveOverlayCorners(overlayData);
+    if (corners && !validateOverlaySize(corners).isValid) return "red";
+  }
 
   // Local replacement overlay (before submission)
   if (isReplacement && hasBeenModified && status !== "approved") return "purple";

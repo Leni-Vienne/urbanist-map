@@ -288,21 +288,13 @@ export function refreshEditHandlesGeometry(skipCorner = -1): void {
   syncSvgOutline();
 }
 
-function flagSize(overlayObject: OverlayObject, transform: OverlayTransform): void {
-  const valid = validateOverlaySize(transformToCorners(transform)).isValid;
-  if (overlayObject.isTooBig !== !valid) {
-    useOverlayStore().updateOverlayDraft(overlayObject.id, { isTooBig: !valid });
-  }
-  if (!valid) {
-    toastWarn(t("upload.maximumSizeOnMap"), t("upload.overlayTooLarge"));
-  }
-}
-
 function commitGesture(overlayId: string, transform: OverlayTransform): void {
   const overlayObject = useOverlayStore().getOverlayById(overlayId);
   if (!overlayObject) return;
   const corners = transformToCorners(transform);
-  flagSize(overlayObject, transform);
+  if (!validateOverlaySize(corners).isValid) {
+    toastWarn(t("upload.maximumSizeOnMap"), t("upload.overlayTooLarge"));
+  }
   commitOverlayEdit(overlayObject.id, corners);
   updateMarkerPosition(overlayObject, corners);
   registry.finishGestureOwnership(overlayObject.id, corners);

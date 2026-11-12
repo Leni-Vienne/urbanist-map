@@ -19,7 +19,7 @@ import type {
 type OverlayDraft = Partial<
   Pick<
     OverlayObject,
-    "caption" | "filename" | "imageUrl" | "history" | "redoStack" | "isTooBig" | "positionState"
+    "caption" | "filename" | "imageUrl" | "history" | "redoStack" | "positionState"
   >
 > & {
   base?: RuntimeOverlayData;
@@ -37,7 +37,6 @@ function toRuntimeOverlayData(overlay: OverlayObject): RuntimeOverlayData {
     imageUrl: _imageUrl,
     history: _history,
     redoStack: _redoStack,
-    isTooBig: _isTooBig,
     positionState: _positionState,
     ...data
   } = overlay;
@@ -118,7 +117,6 @@ export const useOverlayStore = defineStore("overlay", () => {
       imageUrl: overlay.imageUrl,
       history: overlay.history,
       redoStack: overlay.redoStack,
-      isTooBig: overlay.isTooBig,
       positionState: overlay.positionState,
     };
   }

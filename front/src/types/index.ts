@@ -189,7 +189,6 @@ export type OverlayObject = RuntimeOverlayData & {
   // Editor state
   history: OverlayHistoryState[];
   redoStack: OverlayHistoryState[];
-  isTooBig?: boolean; // Flag for real-time size validation warning
   positionState: OverlayPositionState;
 };
 
