@@ -181,7 +181,6 @@ uploadsApp.post(
       // Reject malformed or excessive pixel dimensions before allocating decoded pixel buffers.
       // 64 MP permits an 8000x8000 plan; encoded file size alone does not bound decoding cost.
       const imageOptions = { maxPixels: 64_000_000 };
-      // oxlint-disable-next-line init-declarations
       let metadata: Bun.Image.Metadata;
       try {
         metadata = await new Bun.Image(originalBuffer, imageOptions).metadata();
@@ -235,7 +234,7 @@ uploadsApp.post(
           originalSize: compressionResult.originalSize,
           finalSize: compressionResult.finalSize,
           savedBytes: savings,
-          savingsPercent: Number.parseFloat(savingsPercent),
+          savingsPercent: Number(savingsPercent),
           wasCompressed: compressionResult.wasCompressed,
         },
         compressionResult.wasCompressed

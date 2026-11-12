@@ -23,7 +23,7 @@ function escapeHtml(unsafe: string) {
 
 // Replaces {{placeholder}} markers with HTML-escaped values
 function renderTemplate(template: string, data: Record<string, string>): string {
-  return template.replaceAll(/\{\{(?<key>\w+)\}\}/g, (_, key) => {
+  return template.replaceAll(/\{\{(?<key>\w+)\}\}/g, (_match: string, key: string) => {
     const value = data[key] ?? "";
     return escapeHtml(value);
   });

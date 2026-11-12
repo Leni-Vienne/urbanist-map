@@ -59,9 +59,8 @@ export function formatRelativeTime(
     return diffMonths === 1
       ? t("relativeTime.monthAgo", { count: diffMonths })
       : t("relativeTime.monthsAgo", { count: diffMonths });
-  } else {
-    return diffYears === 1
-      ? t("relativeTime.yearAgo", { count: diffYears })
-      : t("relativeTime.yearsAgo", { count: diffYears });
   }
+  return diffYears === 1
+    ? t("relativeTime.yearAgo", { count: diffYears })
+    : t("relativeTime.yearsAgo", { count: diffYears });
 }

@@ -106,7 +106,7 @@ function buildFeatureDiff(
   color: string,
 ): Feature[] {
   const features: Feature[] = [];
-  const hasDiff = JSON.stringify(newGeom || {}) !== JSON.stringify(oldGeom || {});
+  const hasDiff = JSON.stringify(newGeom ?? null) !== JSON.stringify(oldGeom ?? null);
 
   if (oldGeom?.geometries && hasDiff) {
     const ghostFeatures = toShapeFeatures(oldGeom.geometries);

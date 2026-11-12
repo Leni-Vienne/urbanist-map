@@ -25,9 +25,7 @@ export function useDetailProject() {
 
   const project = computed<Project | undefined>(() => {
     const id = focusStore.selectedProjectId;
-    if (!id) return undefined;
-
-    return projectStore.getPersistedProject(id) ?? projects.value[id];
+    return id ? (projectStore.getPersistedProject(id) ?? projects.value[id]) : undefined;
   });
 
   const loadStatus = computed(() => {

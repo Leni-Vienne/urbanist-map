@@ -45,7 +45,7 @@ import {
 function watchRotationSetting(target: MaplibreMap): void {
   function applyRotation(enabled: boolean): void {
     if (enabled) {
-      target.dragRotate.enable();
+      target.dragRotate.enable({ movement: "linear" });
       target.touchZoomRotate.enableRotation();
       target.touchPitch.enable();
       return;

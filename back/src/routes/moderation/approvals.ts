@@ -33,7 +33,7 @@ async function incrementRejectedCount(tx: Transaction, userId: string | null): P
 
 // Schema for version-aware approval to prevent race conditions
 const setApprovalStatusWithVersionSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   expectedVersion: z.number().int(),
   status: z.enum(["approved", "rejected"]),
   rejectionReason: z.string().max(500).optional(),

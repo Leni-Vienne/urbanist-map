@@ -56,6 +56,16 @@ describe("image upload sequencing", () => {
     expect(await second).toBe("second.png");
   });
 
+  test("a malformed success response is rejected without caching it for the next attempt", async () => {
+    const fetchSpy = spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(Response.json({}))
+      .mockResolvedValue(Response.json({ filename: "retry.png" }));
+    const file = new File(["image"], "image.png");
+    expect(await uploadImageFile(file).catch((error: unknown) => error)).toBeInstanceOf(Error);
+    expect(await uploadImageFile(file)).toBe("retry.png");
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
   test("queued images are not uploaded under a different account", async () => {
     const firstResponse = Promise.withResolvers<Response>();
     const entered = Promise.withResolvers<undefined>();

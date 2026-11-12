@@ -2,6 +2,10 @@ import { getApiUrl } from "@/utils/apiUrl";
 import { MAX_UPLOAD_FILE_SIZE_BYTES, MAX_UPLOAD_FILE_SIZE_MB } from "@shared/uploadLimits";
 import { t } from "@/locales";
 import { useAuthStore } from "@/stores/authStore";
+import * as z from "zod";
+
+const uploadErrorSchema = z.object({ error: z.string() });
+const uploadResultSchema = z.object({ filename: z.string().min(1) });
 
 const uploadedFiles = new WeakMap<
   File,
@@ -56,14 +60,17 @@ async function upload(file: File): Promise<string> {
     // The endpoint returns { error } where error is an i18n key (quota, rate limit, etc.).
     let message = t("upload.error.uploadFailed");
     try {
-      const body: { error?: string } = await response.json();
-      if (body.error) message = t(body.error);
+      const body: unknown = await response.json();
+      const result = uploadErrorSchema.safeParse(body);
+      if (result.success && result.data.error) message = t(result.data.error);
     } catch {
       // Non-JSON body: keep the generic message.
     }
     throw new Error(message);
   }
 
-  const result: { filename: string } = await response.json();
-  return result.filename;
+  const body: unknown = await response.json();
+  const result = uploadResultSchema.safeParse(body);
+  if (!result.success) throw new Error(t("upload.error.uploadFailed"));
+  return result.data.filename;
 }

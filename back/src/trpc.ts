@@ -3,6 +3,7 @@ import superjson from "superjson";
 import type { SessionUser, AppEnv } from "./lib/types";
 import type { Context as HonoContext } from "hono";
 import { isModeratorOrAdmin } from "./db/helpers";
+import { ZodError } from "zod";
 
 export { TRPCError } from "@trpc/server";
 
@@ -27,14 +28,12 @@ const t = initTRPC.context<Context>().create({
     };
 
     // Handle Zod validation errors with custom messages
-    if (error.code === "BAD_REQUEST" && error.cause?.name === "ZodError") {
-      // oxlint-disable-next-line no-unsafe-type-assertion
-      const zodError = error.cause as any;
-      const firstError = zodError.issues?.[0];
-      if (firstError?.message) {
+    if (error.code === "BAD_REQUEST" && error.cause instanceof ZodError) {
+      const message = error.cause.issues[0]?.message;
+      if (message) {
         return {
           ...safeShape,
-          message: firstError.message,
+          message,
         };
       }
     }

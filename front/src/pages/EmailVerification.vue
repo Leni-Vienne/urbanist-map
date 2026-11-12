@@ -61,7 +61,7 @@ watch(
   () => route.query.token,
   async (token, _previous, onCleanup) => {
     let active = true;
-    let redirect: ReturnType<typeof setTimeout> | undefined = undefined;
+    let redirect: ReturnType<typeof setTimeout> | undefined;
     onCleanup(() => {
       active = false;
       clearTimeout(redirect);

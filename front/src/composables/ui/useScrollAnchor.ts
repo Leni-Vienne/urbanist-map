@@ -1,13 +1,12 @@
-import { computed, onBeforeUnmount, shallowRef, watch, type Ref } from "vue";
+import { onBeforeUnmount, watch, type Ref } from "vue";
 
 /** Keep a row in place through layout changes until the next user interaction. */
 export function useScrollAnchor(scrollAreaRef: Readonly<Ref<HTMLElement | null>>) {
-  const anchor = shallowRef<{ observer: ResizeObserver; input: AbortController } | null>(null);
-  const isAnchoring = computed(() => anchor.value !== null);
+  let anchor: { observer: ResizeObserver; input: AbortController } | null = null;
 
   function clearAnchor(): void {
-    const previous = anchor.value;
-    anchor.value = null;
+    const previous = anchor;
+    anchor = null;
     previous?.observer.disconnect();
     previous?.input.abort();
   }
@@ -22,7 +21,7 @@ export function useScrollAnchor(scrollAreaRef: Readonly<Ref<HTMLElement | null>>
 
     const input = new AbortController();
     const observer = new ResizeObserver(() => {
-      if (anchor.value?.input !== input) return;
+      if (anchor?.input !== input) return;
       if (area.clientHeight === 0) {
         clearAnchor();
         return;
@@ -35,7 +34,7 @@ export function useScrollAnchor(scrollAreaRef: Readonly<Ref<HTMLElement | null>>
       );
       area.scrollTo({ top: viewport.top + offset - top, behavior: "instant" });
     });
-    anchor.value = { observer, input };
+    anchor = { observer, input };
     observer.observe(area);
     for (const event of ["pointerdown", "wheel", "touchstart", "keydown"]) {
       area.ownerDocument.addEventListener(event, clearAnchor, {
@@ -49,5 +48,5 @@ export function useScrollAnchor(scrollAreaRef: Readonly<Ref<HTMLElement | null>>
   watch(scrollAreaRef, clearAnchor);
   onBeforeUnmount(clearAnchor);
 
-  return { captureRow, clearAnchor, isAnchoring };
+  return { captureRow, clearAnchor };
 }

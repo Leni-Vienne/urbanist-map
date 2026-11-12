@@ -57,10 +57,6 @@ function materializeOverlay(data: RuntimeOverlayData): OverlayObject {
   };
 }
 
-function copyCorner(corner: LatLng): LatLng {
-  return { lat: corner.lat, lng: corner.lng };
-}
-
 export const useOverlayStore = defineStore("overlay", () => {
   const submissionStore = useSubmissionStore();
   const authStore = useAuthStore();
@@ -125,10 +121,9 @@ export const useOverlayStore = defineStore("overlay", () => {
     if (submissionStore.isSubmitting) return;
     const overlay = getOverlayById(overlayId);
     if (!overlay) return;
-    let existing = overlayDrafts.value[overlayId];
-    if (!existing) {
-      existing = persistedOverlays.value[overlayId] ? {} : { base: toRuntimeOverlayData(overlay) };
-    }
+    const existing =
+      overlayDrafts.value[overlayId] ??
+      (persistedOverlays.value[overlayId] ? {} : { base: toRuntimeOverlayData(overlay) });
     overlayDrafts.value[overlayId] = {
       ...existing,
       ...updates,
@@ -139,12 +134,6 @@ export const useOverlayStore = defineStore("overlay", () => {
   function rememberUploadedImage(overlayId: string, imageUrl: string, filename: string): void {
     const draft = overlayDrafts.value[overlayId];
     if (draft) draft.uploadedImage = { imageUrl, filename };
-  }
-
-  function hasFullOverlayData(overlayId: string): boolean {
-    return Boolean(
-      persistedOverlays.value[overlayId] || overlayDrafts.value[overlayId]?.base?.status === null,
-    );
   }
 
   async function fetchOverlay(
@@ -164,7 +153,8 @@ export const useOverlayStore = defineStore("overlay", () => {
   }
 
   async function loadOverlay(overlayId: string): Promise<OverlayObject | null> {
-    if (hasFullOverlayData(overlayId)) return getOverlayById(overlayId);
+    if (persistedOverlays.value[overlayId] || overlayDrafts.value[overlayId]?.base?.status === null)
+      return getOverlayById(overlayId);
     let request = pendingDetails.get(overlayId);
     if (!request) {
       const controller = new AbortController();
@@ -250,7 +240,7 @@ export const useOverlayStore = defineStore("overlay", () => {
       corners.length === 4
         ? [
             {
-              corners: corners.map(copyCorner),
+              corners: corners.map(({ lat, lng }) => ({ lat, lng })),
               imageUrl: overlay.imageUrl,
               positionState,
             },
@@ -331,7 +321,6 @@ export const useOverlayStore = defineStore("overlay", () => {
     frontOverlayIds,
     overlayOpacities,
     getOverlayById,
-    hasFullOverlayData,
     loadOverlay,
     addLocalOverlay,
     updateOverlayDraft,

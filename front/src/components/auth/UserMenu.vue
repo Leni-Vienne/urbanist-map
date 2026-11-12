@@ -120,12 +120,9 @@ function openAuthModal() {
 }
 
 async function handleSignOut() {
-  if (hasUnsavedChanges()) {
-    // Use a generic warning about unsaved data (reusing existing key)
-    if (!confirm(t("navigation.unsavedOverlaysWarning"))) {
-      userPopover.value?.hide();
-      return;
-    }
+  if (hasUnsavedChanges() && !confirm(t("navigation.unsavedOverlaysWarning"))) {
+    userPopover.value?.hide();
+    return;
   }
 
   const result = await signOut();

@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { getConnInfo } from "hono/bun";
+import { getConnInfo } from "@hono/bun";
 
 export function getClientIp(c: Context): string {
   // Cloudflare specific header (most secure if behind Cloudflare)

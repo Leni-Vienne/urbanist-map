@@ -29,14 +29,6 @@ function readString(value: unknown): string | null {
   return null;
 }
 
-function isString(value: unknown): value is string {
-  return typeof value === "string";
-}
-
-function hasInvalidCorner(corner: { lat: number; lng: number }): boolean {
-  return Number.isNaN(corner.lat) || Number.isNaN(corner.lng);
-}
-
 // MapLibre types tile properties as an untyped `{ [name: string]: any }` bag, so values
 // are normalized through `unknown` here rather than accessed ad hoc.
 function decodeFootprint(feat: maplibregl.GeoJSONFeature): DecodedFootprint {
@@ -58,7 +50,11 @@ function decodeFootprint(feat: maplibregl.GeoJSONFeature): DecodedFootprint {
     { lat: Number(props.c3_lat), lng: Number(props.c3_lng) },
   ];
 
-  if (!id || !filename || corners.some(hasInvalidCorner)) {
+  if (
+    !id ||
+    !filename ||
+    corners.some((corner) => Number.isNaN(corner.lat) || Number.isNaN(corner.lng))
+  ) {
     return { overlay: null, project };
   }
 
@@ -84,7 +80,9 @@ function readStringArray(value: unknown): string[] {
   if (typeof value !== "string" || value.length === 0) return [];
   try {
     const parsed: unknown = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed.filter(isString) : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === "string")
+      : [];
   } catch {
     return [];
   }

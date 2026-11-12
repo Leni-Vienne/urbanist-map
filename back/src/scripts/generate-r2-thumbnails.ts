@@ -1,7 +1,7 @@
 import { db } from "../database";
 import { overlays } from "../db/schema";
 import { eq } from "drizzle-orm";
-import { R2StorageS3, getThumbnailFilename, streamToBuffer } from "../lib/storage";
+import { R2StorageS3, getThumbnailFilename } from "../lib/storage";
 
 // Generate and upload thumbnails for existing approved overlays in R2
 // This is a one-time migration script for overlays that were approved before thumbnail feature
@@ -39,7 +39,7 @@ async function generateR2Thumbnails() {
       if (existingThumbnail) {
         // Try to read the size to ensure it's a real file, not an empty folder marker
         try {
-          const buffer = await streamToBuffer(existingThumbnail.body);
+          const buffer = await new Response(existingThumbnail.body).bytes();
           if (buffer.length > 0) {
             console.log(
               `Valid thumbnail already exists for ${overlay.filename} (${buffer.length} bytes), skipping`,
@@ -62,7 +62,7 @@ async function generateR2Thumbnails() {
         continue;
       }
 
-      const imageBuffer = await streamToBuffer(originalImage.body);
+      const imageBuffer = await new Response(originalImage.body).bytes();
 
       const thumbnailBytes = await new Bun.Image(imageBuffer)
         .resize(120, 120, { fit: "inside" })

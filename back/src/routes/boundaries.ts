@@ -33,8 +33,13 @@ async function resolveAncestors(osmIds: string[]): Promise<Map<string, Ancestors
     sql`, `,
   );
 
-  // oxlint-disable-next-line no-unsafe-type-assertion
-  const rows = (await db.execute(sql`
+  const rows = await db.execute<{
+    root_id: string;
+    admin_level: number;
+    name: string;
+    name_en: string | null;
+    names: Record<string, string> | null;
+  }>(sql`
     WITH RECURSIVE chain AS (
       SELECT osm_id AS root_id, osm_id, parent_id, admin_level, name, name_en, names, 1 AS depth
       FROM admin_boundaries
@@ -47,13 +52,7 @@ async function resolveAncestors(osmIds: string[]): Promise<Map<string, Ancestors
     )
     SELECT root_id, admin_level, name, name_en, names FROM chain
     WHERE admin_level IN (2, 4) OR admin_level BETWEEN 6 AND 8
-  `)) as {
-    root_id: string;
-    admin_level: number;
-    name: string;
-    name_en: string | null;
-    names: Record<string, string> | null;
-  }[];
+  `);
 
   // For the city bucket (6..8), keep the deepest level seen so a municipality (8) wins over a
   // county (6) in the same chain.

@@ -45,7 +45,6 @@ interface CropSession {
   svgContainer: SVGSVGElement;
   maskPath: SVGPathElement;
   framePath: SVGPathElement;
-  onRender: () => void;
 }
 
 const MIN_FRAC = 0.05;
@@ -222,9 +221,8 @@ export function showCropHandles(overlayObject: OverlayObject): void {
   framePath.setAttribute("stroke-width", "2");
   framePath.setAttribute("fill", "transparent");
 
-  svgContainer.appendChild(maskPath);
-  svgContainer.appendChild(framePath);
-  mlMap.getCanvasContainer().appendChild(svgContainer);
+  svgContainer.append(maskPath, framePath);
+  mlMap.getCanvasContainer().append(svgContainer);
 
   function makeHandle(edge: Edge, t: OverlayTransform): maplibregl.Marker {
     const { u, v } = handleNorm(edge, bounds);
@@ -241,10 +239,7 @@ export function showCropHandles(overlayObject: OverlayObject): void {
     right: makeHandle("right", baseTransform),
   } satisfies Record<Edge, maplibregl.Marker>;
 
-  function onRender(): void {
-    syncCrop();
-  }
-  mlMap.on("render", onRender);
+  mlMap.on("render", syncCrop);
 
   session = {
     id: overlayObject.id,
@@ -258,10 +253,9 @@ export function showCropHandles(overlayObject: OverlayObject): void {
     svgContainer,
     maskPath,
     framePath,
-    onRender,
   };
 
-  EDGES.forEach(wireHandle);
+  for (const edge of EDGES) wireHandle(edge);
   // Own the overlay for the whole crop session: the image sits still while the crop window is
   // dragged, and applyCrop swaps it (via replaceOverlayImageSource) before hideCropHandles releases,
   // so the reconciler must not touch it in between.
@@ -279,8 +273,8 @@ export function hideCropHandles(): void {
   releaseGestureOwnership(s.id);
   for (const edge of EDGES) s.handles[edge].remove();
 
-  s.map.off("render", s.onRender);
-  if (s.svgContainer.parentNode) s.svgContainer.parentNode.removeChild(s.svgContainer);
+  s.map.off("render", syncCrop);
+  s.svgContainer.remove();
 }
 
 // Read the source image into a canvas and return the crop window as a fresh WebP data URL.

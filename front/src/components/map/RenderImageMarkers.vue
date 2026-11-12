@@ -108,12 +108,14 @@ function syncPins(): void {
         points.push(point);
       }
       const existing = next.get(data.projectId);
-      if (!existing) next.set(data.projectId, { data, points });
-      else
-        for (const point of points) {
-          if (!existing.points.some((entry) => entry.source === point.source))
-            existing.points.push(point);
-        }
+      if (!existing) {
+        next.set(data.projectId, { data, points });
+        continue;
+      }
+      for (const point of points) {
+        if (!existing.points.some((entry) => entry.source === point.source))
+          existing.points.push(point);
+      }
     }
   }
   let changed = false;

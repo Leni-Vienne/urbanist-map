@@ -152,6 +152,8 @@ export const auth = betterAuth({
               message: "auth.error.usernameTaken",
             });
           // Display names remain unique; provider identity is always the stable subject.
+          // Better Auth accepts both no return (keep the user) and a patch (change it).
+          // oxlint-disable-next-line typescript/consistent-return
           return {
             data: {
               ...user,

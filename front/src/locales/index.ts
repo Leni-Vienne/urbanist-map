@@ -104,7 +104,7 @@ export function updateTranslationSettings(currentLocale: Locale): void {
     metaTag ??= document.createElement("meta");
     if (!metaTag.hasAttribute("name")) {
       metaTag.setAttribute("name", "google");
-      document.head.appendChild(metaTag);
+      document.head.append(metaTag);
     }
     metaTag.setAttribute("content", "notranslate");
   } else {

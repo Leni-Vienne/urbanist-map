@@ -350,7 +350,7 @@ const hasUnsavedModifications = computed(() => {
 });
 
 function onOpacityInput(e: Event) {
-  const val = Number.parseInt((e.target as HTMLInputElement).value, 10);
+  const val = (e.target as HTMLInputElement).valueAsNumber;
   opacity.value = val;
   const id = selectedId.value;
   if (id) setOverlayImageOpacity(id, val / 100);

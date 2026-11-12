@@ -5,8 +5,8 @@
  */
 export function throttle<T extends (...args: any[]) => any>(func: T, wait: number) {
   let lastRun = 0;
-  let trailing: ReturnType<typeof setTimeout> | undefined = undefined;
-  let lastArgs: Parameters<T> | undefined = undefined;
+  let trailing: ReturnType<typeof setTimeout> | undefined;
+  let lastArgs: Parameters<T> | undefined;
 
   function invoke(...args: Parameters<T>): void {
     lastArgs = args;
@@ -16,8 +16,8 @@ export function throttle<T extends (...args: any[]) => any>(func: T, wait: numbe
       trailing = undefined;
       lastRun = Date.now();
       func(...args);
-    } else if (trailing === undefined) {
-      trailing = setTimeout(() => {
+    } else {
+      trailing ??= setTimeout(() => {
         lastRun = Date.now();
         trailing = undefined;
         if (lastArgs) func(...lastArgs);

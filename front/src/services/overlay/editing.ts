@@ -189,9 +189,8 @@ interface EditSession {
   onEnter?: () => void;
   onLeave?: () => void;
   onDown?: (e: MapMouseEvent) => void;
-  svgContainer?: SVGSVGElement;
-  svgPath?: SVGPathElement;
-  onRender?: () => void;
+  svgContainer: SVGSVGElement;
+  svgPath: SVGPathElement;
 }
 
 function getSessionOverlay(editSession: EditSession): OverlayObject | null {
@@ -233,7 +232,7 @@ function cornerHandleElement(): HTMLElement {
 }
 
 function syncSvgOutline(): void {
-  if (!session?.svgPath) return;
+  if (!session) return;
   const mlMap = getMap();
   const overlay = getSessionOverlay(session);
   if (!overlay) return;
@@ -244,9 +243,7 @@ function syncSvgOutline(): void {
   const threshold = getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS);
   const isVisible = mlMap.getZoom() >= threshold;
 
-  if (session.svgContainer) {
-    session.svgContainer.style.display = isVisible ? "block" : "none";
-  }
+  session.svgContainer.style.display = isVisible ? "block" : "none";
 
   session.cornerMarkers.forEach((marker) => {
     const el = marker.getElement();
@@ -506,14 +503,11 @@ export function showEditHandles(overlayObject: OverlayObject): void {
   svgPath.setAttribute("stroke", "#3b82f6");
   svgPath.setAttribute("stroke-width", "2");
   svgPath.setAttribute("fill", "transparent");
-  svgContainer.appendChild(svgPath);
+  svgContainer.append(svgPath);
 
-  mlMap.getCanvasContainer().appendChild(svgContainer);
+  mlMap.getCanvasContainer().append(svgContainer);
 
-  function onRender(): void {
-    syncSvgOutline();
-  }
-  mlMap.on("render", onRender);
+  mlMap.on("render", syncSvgOutline);
 
   session = {
     id: overlayObject.id,
@@ -524,7 +518,6 @@ export function showEditHandles(overlayObject: OverlayObject): void {
     gesture: { type: "idle" },
     svgContainer,
     svgPath,
-    onRender,
   };
 
   wireCornerDrag(session);
@@ -539,7 +532,7 @@ export function hideEditHandles(): void {
   const mlMap = s.map;
   session = null;
 
-  s.cornerMarkers.forEach((marker) => marker.remove());
+  for (const marker of s.cornerMarkers) marker.remove();
 
   // Tear down an in-flight surface drag so its mousemove handler stops mutating a dead session
   // and dragPan is restored now rather than on a mouseup that may never reach this overlay.
@@ -562,11 +555,8 @@ export function hideEditHandles(): void {
   if (s.onEnter) mlMap.off("mouseenter", s.fillLayerId, s.onEnter);
   if (s.onLeave) mlMap.off("mouseleave", s.fillLayerId, s.onLeave);
   if (s.onDown) mlMap.off("mousedown", s.fillLayerId, s.onDown);
-  if (s.onRender) mlMap.off("render", s.onRender);
-
-  if (s.svgContainer?.parentNode) {
-    s.svgContainer.parentNode.removeChild(s.svgContainer);
-  }
+  mlMap.off("render", syncSvgOutline);
+  s.svgContainer.remove();
 
   mlMap.getCanvas().style.cursor = "";
   if (mlMap.getLayer(s.fillLayerId)) mlMap.removeLayer(s.fillLayerId);

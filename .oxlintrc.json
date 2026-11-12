@@ -80,7 +80,24 @@
 
     "eslint/no-undef": "off", // warns about console, document, etc. in front-end code
     "eslint/no-await-in-loop": "off", // false positives in several places
-    "eslint/func-style": ["warn", "declaration"],
+    "eslint/func-style": ["warn", "declaration", { "allowArrowFunctions": true }],
+    // Typed named callbacks do not need forwarding arrows solely to discard extra arguments.
+    "unicorn/no-array-callback-reference": "off",
+    "typescript/no-confusing-void-expression": ["warn", { "ignoreArrowShorthand": true }],
+    "unicorn/no-useless-undefined": ["warn", { "checkArrowFunctionBody": false }],
+    // ES modules have well-defined block-scoped functions, including inside debug guards.
+    "eslint/no-inner-declarations": ["warn", "functions", { "blockScopedFunctions": "allow" }],
+    // Empty strings deliberately trigger fallbacks for URLs, labels and form fields.
+    "typescript/prefer-nullish-coalescing": ["warn", { "ignorePrimitives": { "string": true } }],
+    // Parsing and coercion accept different inputs; choose according to the input contract.
+    "unicorn/prefer-number-coercion": "off",
+    // Background startup work and the frontend bootstrap intentionally do not block module evaluation.
+    "unicorn/prefer-top-level-await": "off",
+    // Related storage implementations can share a file; these syntax choices need no enforcement.
+    "eslint/max-classes-per-file": "off",
+    "unicorn/prefer-query-selector": "off",
+    "unicorn/prefer-string-raw": "off",
+    "eslint/no-plusplus": "off", // prefix increments clearly capture session/request generations
     "arrow-body-style": ["off", "as-needed"],
     "eslint/sort-keys": "off",
     "eslint/sort-imports": "off",
@@ -129,6 +146,7 @@
     "max-lines-per-function": "off", // seems irrelevant with vue composables since they are large
     "max-statements": "off",
     "no-undefined": "off",
+    "eslint/init-declarations": "off", // conflicts with no-useless-undefined; TS checks assignment before use
     "no-alert": "off", // temp
     "explicit-module-boundary-types": "off", // demands return types on functions
     "explicit-function-return-type": "off", // demands return types on functions

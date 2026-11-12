@@ -21,7 +21,7 @@ import * as z from "zod";
 
 export const queueProcedures = {
   checkReplacementConflicts: moderatorProcedure
-    .input(z.object({ overlayId: z.string().uuid() }))
+    .input(z.object({ overlayId: z.uuid() }))
     .query(async ({ input, ctx }) => {
       try {
         await checkModeratorOverlayPermission(input.overlayId, ctx.user);
@@ -141,13 +141,11 @@ export const queueProcedures = {
         // Early permission check - validate country access before any DB queries.
         // moderatorProcedure guarantees a non-admin has a non-empty moderatedCountries,
         // so the country gate applies to every non-admin (fail closed via ?. below).
-        if (!isAdmin) {
-          if (!userModeratedCountries?.includes(input.countryCode)) {
-            throw new TRPCError({
-              code: "FORBIDDEN",
-              message: "You do not have permission to moderate this country",
-            });
-          }
+        if (!isAdmin && !userModeratedCountries?.includes(input.countryCode)) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "You do not have permission to moderate this country",
+          });
         }
 
         const hiddenUserIds = await buildHiddenUserIdsSet(moderatorId);

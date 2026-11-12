@@ -544,12 +544,11 @@ async function handleApproveChange(changeId: string) {
 
   try {
     const result = await approveChangeRequests([changeId]);
+    await refreshAfterChangeRequest();
 
     if (result) {
-      await refreshAfterChangeRequest();
       toastSuccess(t("moderation.changeApprovedDetail"), t("moderation.changeApproved"));
     } else {
-      await refreshAfterChangeRequest();
       toastError(t("moderation.approvalFailedDetail"), t("moderation.approvalFailed"));
     }
   } finally {
@@ -603,12 +602,11 @@ function handleRejectChange(changeId: string, userId: string | null) {
 // Execute change request rejection after confirmation
 async function executeRejectChange(changeId: string): Promise<boolean> {
   const rejected = await rejectChangeRequests([changeId]);
+  await refreshAfterChangeRequest();
 
   if (rejected) {
-    await refreshAfterChangeRequest();
     toastInfo(t("moderation.changeRejectedDetail"), t("moderation.changeRejected"));
   } else {
-    await refreshAfterChangeRequest();
     toastError(t("moderation.rejectionFailedDetail"), t("moderation.rejectionFailed"));
   }
 

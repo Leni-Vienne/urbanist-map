@@ -1,4 +1,3 @@
-// @ts-expect-error PrimeVue toasteventbus lacks type declarations
 import ToastEventBus from "primevue/toasteventbus";
 import { t } from "@/locales";
 

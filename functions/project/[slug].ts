@@ -125,12 +125,10 @@ function resolveSeoDateLabel(data: Partial<SeoProject>): string {
 // the ld+json block and inject live DOM. Escaping these to their \uXXXX forms keeps the JSON valid and
 // closes that hole.
 function serializeJsonLd(value: unknown): string {
-  // Backslash from its char code, so the \uXXXX escapes are assembled rather than written literally.
-  const bs = String.fromCharCode(92);
   return JSON.stringify(value)
-    .replace(/</g, `${bs}u003c`)
-    .replace(/>/g, `${bs}u003e`)
-    .replace(/&/g, `${bs}u0026`);
+    .replaceAll("<", "\\u003c")
+    .replaceAll(">", "\\u003e")
+    .replaceAll("&", "\\u0026");
 }
 
 // Build the schema.org Place JSON-LD string, including the timeline stage/dates as PropertyValue

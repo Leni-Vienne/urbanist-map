@@ -119,8 +119,7 @@ async function prepareImageForServer(overlay: OverlayObject): Promise<string> {
     return filename;
   }
 
-  const urlParts = overlay.imageUrl.split("/");
-  const filename = urlParts[urlParts.length - 1];
+  const filename = overlay.imageUrl.split("/").at(-1);
 
   if (!filename) {
     throw new Error(t("overlay.publishErrorNoFilename"));

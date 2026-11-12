@@ -55,14 +55,10 @@ function buildSubmissionDraft(): SubmissionDraft | null {
     entityName: pending.entityName,
     projectChanges: buildProjectDraft(project, projectChanges),
     overlayModifications: getStagedOverlayModifications(pending.projectId),
-    newOverlayIds: getNewOverlaysForProject(pending.projectId).map(getOverlayId),
+    newOverlayIds: getNewOverlaysForProject(pending.projectId).map((overlay) => overlay.id),
     pendingRender:
       stagedRender && pending.renderId ? { ...stagedRender, id: pending.renderId } : undefined,
   };
-}
-
-function getOverlayId(overlay: OverlayObject): string {
-  return overlay.id;
 }
 
 function getSubmissionSummary(): SubmissionSummary | null {
@@ -171,7 +167,7 @@ async function handleRemoveOverlayChange(
 
 function hasSubmissionWork(draft: SubmissionDraft): boolean {
   return Boolean(
-    draft.projectChanges ||
+    draft.projectChanges !== undefined ||
     draft.overlayModifications.length > 0 ||
     draft.newOverlayIds.length > 0 ||
     draft.pendingRender,

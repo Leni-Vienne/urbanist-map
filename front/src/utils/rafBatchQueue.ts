@@ -13,7 +13,7 @@ export function createRafBatchQueue<T>(
   let rafId: number | null = null;
 
   function scheduleDrain() {
-    if (rafId === null) rafId = requestAnimationFrame(drain);
+    rafId ??= requestAnimationFrame(drain);
   }
 
   function drain() {

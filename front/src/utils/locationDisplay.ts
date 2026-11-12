@@ -4,7 +4,6 @@ export interface BoundaryLevels {
   city: LocalizedBoundaryName | null;
   state: LocalizedBoundaryName | null;
   country: LocalizedBoundaryName | null;
-  countryCode: string | null;
 }
 
 // Prefer the name in the current UI locale, falling back to English, then the boundary's local name.

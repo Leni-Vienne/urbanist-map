@@ -54,8 +54,10 @@ export function useUserContributions() {
   });
 
   const overlaysById = computed<Record<string, ProjectPanelOverlay>>(() => {
-    const result: Record<string, ProjectPanelOverlay> = {};
-    Object.assign(result, contributionStore.overlaysById);
+    const result: Record<string, ProjectPanelOverlay> = Object.assign(
+      {},
+      contributionStore.overlaysById,
+    );
     const visibleProjectIds = new Set(allContributions.value.map((project) => project.id));
     if (pinnedExternalProject.value) visibleProjectIds.add(pinnedExternalProject.value.id);
 

@@ -216,41 +216,35 @@ export function getDrawnGeometry(): GeoJSON.GeometryCollection {
   return { type: "GeometryCollection", geometries };
 }
 
-function makeFeature(
-  geom: GeoJSON.LineString | GeoJSON.Polygon,
-  mode: ShapeDrawMode,
-): GeoJSONStoreFeatures {
-  return {
-    type: "Feature",
-    // oxlint-disable-next-line no-non-null-assertion
-    id: draw!.getFeatureId(),
-    geometry: geom,
-    properties: { mode },
-  };
-}
-
 /**
  * Convert a single GeoJSON geometry into Terra Draw features. Terra Draw modes
  * only accept single LineString/Polygon geometries, so Multi* are split into parts.
  * Each feature is tagged with the `mode` property Terra Draw uses for routing.
  */
-function geometryToFeatures(geometry: GeoJSON.Geometry): GeoJSONStoreFeatures[] {
-  switch (geometry.type) {
-    case "LineString":
-      return [makeFeature(geometry, "linestring")];
-    case "MultiLineString":
-      return geometry.coordinates.map((coords) =>
-        makeFeature({ type: "LineString", coordinates: coords }, "linestring"),
-      );
-    case "Polygon":
-      return [makeFeature(geometry, "polygon")];
-    case "MultiPolygon":
-      return geometry.coordinates.map((coords) =>
-        makeFeature({ type: "Polygon", coordinates: coords }, "polygon"),
-      );
-    default:
-      return [];
+function geometryToFeatures(geometry: GeoJSON.Geometry, editor: TerraDraw): GeoJSONStoreFeatures[] {
+  function makeFeature(
+    geom: GeoJSON.LineString | GeoJSON.Polygon,
+    mode: ShapeDrawMode,
+  ): GeoJSONStoreFeatures {
+    return {
+      type: "Feature",
+      id: editor.getFeatureId(),
+      geometry: geom,
+      properties: { mode },
+    };
   }
+
+  if (geometry.type === "LineString") return [makeFeature(geometry, "linestring")];
+  if (geometry.type === "MultiLineString")
+    return geometry.coordinates.map((coords) =>
+      makeFeature({ type: "LineString", coordinates: coords }, "linestring"),
+    );
+  if (geometry.type === "Polygon") return [makeFeature(geometry, "polygon")];
+  if (geometry.type === "MultiPolygon")
+    return geometry.coordinates.map((coords) =>
+      makeFeature({ type: "Polygon", coordinates: coords }, "polygon"),
+    );
+  return [];
 }
 
 /**
@@ -270,14 +264,16 @@ export async function addLayersFromGeometry(
   // Process in batches to yield between each, keeping the browser responsive.
   for (let i = 0; i < drawableGeoms.length; i += 1) {
     if (i > 0 && i % BATCH_SIZE === 0) {
-      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 0);
+      });
     }
 
     if (draw !== editor) return null;
     // oxlint-disable-next-line no-non-null-assertion
     const geom = drawableGeoms[i]!;
 
-    editor.addFeatures(geometryToFeatures(geom));
+    editor.addFeatures(geometryToFeatures(geom, editor));
 
     bounds = extendBoundsWithGeometry(bounds, geom);
   }

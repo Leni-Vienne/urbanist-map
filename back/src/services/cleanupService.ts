@@ -47,7 +47,7 @@ async function reapOrphanedUploads(): Promise<number> {
   return reaped;
 }
 
-async function pruneReviewedSubmissions(cutoff: Date): Promise<void> {
+export async function pruneReviewedSubmissions(cutoff: Date): Promise<void> {
   const removedImages = await db.transaction(async (tx) => {
     // Lock the parents so a resubmission cannot race their cascading deletion. Collect the
     // child filenames before deleting projects, including children removed by that cascade.

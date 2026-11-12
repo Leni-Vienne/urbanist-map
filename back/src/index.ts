@@ -1,5 +1,5 @@
-import { Hono, type Context } from "hono";
-import { serveStatic } from "hono/bun";
+import { Hono, type Context, type MiddlewareHandler } from "hono";
+import { serveStatic } from "@hono/bun";
 import { cors } from "hono/cors";
 import { trpcServer } from "@hono/trpc-server";
 import { secureHeaders } from "hono/secure-headers";
@@ -39,12 +39,13 @@ app.use(
 // Secure headers (Helmet equivalent)
 // Adds CSP, HSTS, X-Frame-Options, etc.
 // Exclude /uploads/* path from secureHeaders to allow cross-origin resource loading
-app.use("*", (c, next) => {
+const applySecureHeaders: MiddlewareHandler<AppEnv> = secureHeaders();
+app.use("*", (c: Context<AppEnv, string>, next) => {
   if (c.req.path.startsWith("/uploads/")) {
     // Skip secureHeaders for uploads to allow custom CORS/CORP headers
     return next();
   }
-  return secureHeaders()(c, next);
+  return applySecureHeaders(c, next);
 });
 
 // Keep health checks outside request logging; they have their own heartbeat log.

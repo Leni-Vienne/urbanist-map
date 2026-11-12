@@ -159,7 +159,7 @@ function applyBuildings3DState(extruded: boolean): void {
 }
 
 // Cached after first load, undefined until the user first uses satellite mode
-let countryBorders: CountryBorder[] | undefined = undefined;
+let countryBorders: CountryBorder[] | undefined;
 
 // Dynamically imports all country borders as a single chunk, only loads on first satellite use
 async function ensureCountryBordersLoaded(): Promise<CountryBorder[]> {

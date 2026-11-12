@@ -284,7 +284,7 @@ export function clearActiveFilter(filter: ActiveFilter): void {
       return;
     case "images":
       showOnlyWithImages.value = false;
-      return;
+      break;
     default:
   }
 }

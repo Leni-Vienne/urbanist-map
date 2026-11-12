@@ -37,6 +37,7 @@ import {
 import { mobileAwareFlyTo } from "@/services/core/mapNavigation";
 import { getApiUrl } from "@/utils/apiUrl";
 import { PROJECT_TAGS } from "@/constants/projectTags";
+import { throttle } from "@/utils/throttle";
 import {
   SHAPE_LINE_WIDTH,
   SHAPE_LINE_WIDTH_HOVER,
@@ -144,7 +145,7 @@ function getProjectPointColorExpression(): ExpressionSpecification {
   for (let i = knownTags.length - 1; i >= 0; i -= 1) {
     const tag = knownTags[i];
     if (tag === undefined) continue;
-    const tagColor = PROJECT_LINE_COLOR_BY_TAG[tag] || DEFAULT_PROJECT_LINE_COLOR;
+    const tagColor = PROJECT_LINE_COLOR_BY_TAG[tag] ?? DEFAULT_PROJECT_LINE_COLOR;
 
     const isMax: unknown[] = ["all"];
     for (const other of knownTags) {
@@ -932,10 +933,6 @@ function registerMapInteractionListeners(mlMap: MaplibreMap): void {
   // mousemove fires at up to 500+/sec, which would saturate the main thread.
   // Throttling to ~30fps caps the cost to ~8ms/s instead of ~460ms/s.
   // Position updates are exempt from throttling so the card follows the cursor smoothly.
-  let hoverThrottlePending = false;
-  let hoverTrailingEvent: { event: MapMouseEvent; clientX: number; clientY: number } | null = null;
-  let hoverThrottleTimer: ReturnType<typeof setTimeout> | null = null;
-
   function processHover(event: MapMouseEvent, clientX: number, clientY: number): void {
     // A DOM thumbnail owns hover above the canvas. Check the current pointer target as well
     // as stopping its mousemove events, so a queued canvas hover cannot cover its preview.
@@ -947,11 +944,10 @@ function registerMapInteractionListeners(mlMap: MaplibreMap): void {
 
     mlMap.getContainer().classList.toggle("cursor-pointer", features.length > 0);
     const vectorFeature = pointFeature ? null : getVectorFeatureFromFeatures(features);
-    setCursorHoverState(
-      mlMap,
-      vectorFeature,
-      pointFeature?.properties.id ?? pointFeature?.id ?? null,
-    );
+    const pointId = pointFeature
+      ? (getFeatureProperty(pointFeature, "id") ?? pointFeature.id ?? null)
+      : null;
+    setCursorHoverState(mlMap, vectorFeature, pointId);
     // Re-assert the pinned/external highlight every frame so a project selected without a cursor
     // move (sidebar hover, detail open) stays lit; the diff makes an unchanged set a no-op.
     setSelectedHoverState(mlMap);
@@ -959,6 +955,7 @@ function registerMapInteractionListeners(mlMap: MaplibreMap): void {
     // Hover preview card, only on pointer devices (no touch)
     updateHoverPreview(vectorFeature, pointFeature, clientX, clientY);
   }
+  const throttledHover = throttle(processHover, 32);
 
   mlMap.on("mousemove", (event: MapMouseEvent) => {
     const orig = event.originalEvent;
@@ -972,26 +969,11 @@ function registerMapInteractionListeners(mlMap: MaplibreMap): void {
     // Always update card position immediately, bypasses Vue render via direct DOM write.
     updateHoverPreviewPosition(clientX, clientY);
 
-    if (hoverThrottlePending) {
-      // Keep the latest event so the trailing run lands on the feature under the final cursor
-      // position; without it the last move before the cursor stops is dropped and the highlight
-      // can rest on the wrong feature.
-      hoverTrailingEvent = { event, clientX, clientY };
-      return;
-    }
-    hoverThrottlePending = true;
-    hoverThrottleTimer = setTimeout(() => {
-      hoverThrottleTimer = null;
-      hoverThrottlePending = false;
-      const trailing = hoverTrailingEvent;
-      hoverTrailingEvent = null;
-      if (trailing) processHover(trailing.event, trailing.clientX, trailing.clientY);
-    }, 32);
-
-    processHover(event, clientX, clientY);
+    throttledHover(event, clientX, clientY);
   });
 
   mlMap.on("mouseout", () => {
+    throttledHover.cancel();
     mlMap.getContainer().classList.remove("cursor-pointer");
     clearHoverPreview();
 
@@ -1003,14 +985,16 @@ function registerMapInteractionListeners(mlMap: MaplibreMap): void {
   // Camera gestures keep the card hidden for their whole duration. Rotate and pitch keep firing
   // mousemove while the map turns under a still cursor, so a one-shot clear at gesture start is
   // undone by the next hover. Right-click drag rotates/pitches without firing dragstart.
-  mlMap.on("dragstart", () => beginHoverPreviewGesture("drag"));
-  mlMap.on("dragend", () => endHoverPreviewGesture("drag"));
-  mlMap.on("rotatestart", () => beginHoverPreviewGesture("rotate"));
-  mlMap.on("rotateend", () => endHoverPreviewGesture("rotate"));
-  mlMap.on("pitchstart", () => beginHoverPreviewGesture("pitch"));
-  mlMap.on("pitchend", () => endHoverPreviewGesture("pitch"));
+  for (const gesture of ["drag", "rotate", "pitch"] as const) {
+    mlMap.on(`${gesture}start`, () => {
+      throttledHover.cancel();
+      beginHoverPreviewGesture(gesture);
+    });
+    mlMap.on(`${gesture}end`, () => endHoverPreviewGesture(gesture));
+  }
 
   mlMap.on("click", (event: MapMouseEvent) => {
+    throttledHover.cancel();
     clearHoverPreview();
 
     const { features, pointFeature } = queryInteractionFeatures(event, mlMap);
@@ -1029,8 +1013,7 @@ function registerMapInteractionListeners(mlMap: MaplibreMap): void {
   });
 
   function onRemove(): void {
-    if (hoverThrottleTimer !== null) clearTimeout(hoverThrottleTimer);
-    hoverTrailingEvent = null;
+    throttledHover.cancel();
     if (interactionListenersMap === mlMap) interactionListenersMap = null;
     for (const gesture of ["drag", "rotate", "pitch"]) endHoverPreviewGesture(gesture);
     clearHoverPreview();

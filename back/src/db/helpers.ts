@@ -307,9 +307,8 @@ export function buildOverlayVisibilityCondition(
         OR (${overlays.authorId} = ${user.id} AND ${overlays.status} = 'pending')
         OR ${overlays.id} = ANY(${idsArray}::uuid[])
       )`;
-    } else {
-      return sql`(${overlays.status} = 'approved' OR (${overlays.authorId} = ${user.id} AND ${overlays.status} = 'pending'))`;
     }
+    return sql`(${overlays.status} = 'approved' OR (${overlays.authorId} = ${user.id} AND ${overlays.status} = 'pending'))`;
   }
 
   if (mode === "moderation" && user) {

@@ -208,9 +208,8 @@ function createMapOptions(): maplibre.MapOptions {
     maxZoom: 21,
     attributionControl: false, // custom attribution control added below
     transformRequest: transformMapRequest,
-    dragRotate: mapRotationEnabled.value,
+    dragRotate: mapRotationEnabled.value ? { movement: "linear" } : false,
     pitchWithRotate: mapRotationEnabled.value,
-    aroundCenter: false, // otherwise the control scheme is ass
     rollEnabled: false,
     touchPitch: mapRotationEnabled.value, // two-finger pitch fights pinch-zoom, so it is gated behind the rotation opt-in
     maxPitch: 85,

@@ -113,7 +113,7 @@ const now = ref(new Date());
 const maintenanceBannerDismissed = computed(
   () => dismissedMaintenanceDay.value === now.value.toISOString().slice(0, 10),
 );
-let maintenanceTickInterval: ReturnType<typeof globalThis.setInterval> | undefined = undefined;
+let maintenanceTickInterval: ReturnType<typeof globalThis.setInterval> | undefined;
 
 const authStore = useAuthStore();
 const uiStore = useUiStore();

@@ -100,8 +100,7 @@ export const useProjectStore = defineStore("project", () => {
   }
 
   function getEffectiveProjects() {
-    const effective: ProjectIndex = {};
-    Object.assign(effective, persistedProjects.value);
+    const effective = { ...persistedProjects.value };
     for (const [id, draft] of Object.entries(projectDrafts.value)) {
       const persisted = persistedProjects.value[id];
       if (persisted) effective[id] = mergeProject(persisted, draft);

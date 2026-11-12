@@ -2,31 +2,6 @@ import type { StorageInterface } from "./types";
 import { S3Client } from "bun";
 import { mkdir, unlink } from "node:fs/promises";
 
-// Helper function to read ReadableStream into Uint8Array buffer
-// Used when migrating files between storage backends or processing streams
-export async function streamToBuffer(stream: ReadableStream): Promise<Uint8Array> {
-  const reader = stream.getReader();
-  const chunks: Uint8Array[] = [];
-  let totalLength = 0;
-
-  // eslint-disable-next-line no-unnecessary-condition
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-    totalLength += value.length;
-  }
-
-  const buffer = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const chunk of chunks) {
-    buffer.set(chunk, offset);
-    offset += chunk.length;
-  }
-
-  return buffer;
-}
-
 // Copies a Uint8Array into a fresh ArrayBuffer of exactly the right size.
 // Avoids exposing the source buffer (which may be a pool slice or SharedArrayBuffer).
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {

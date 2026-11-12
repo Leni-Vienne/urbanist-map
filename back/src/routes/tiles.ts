@@ -17,6 +17,10 @@ function entryBytes(val: Uint8Array | null): number {
   return val === null ? 0 : val.length;
 }
 
+function parseTileCoordinate(value: string | undefined): number {
+  return /^\d+$/.test(value ?? "") ? Number(value) : Number.NaN;
+}
+
 function lngLatToTileXY(lng: number, lat: number, z: number): [number, number] {
   const n = 2 ** z;
   const x = Math.floor(((lng + 180) / 360) * n);
@@ -170,7 +174,7 @@ function createTileService(
   // bytes) and yields a value that can be served directly on every subsequent cache hit.
   async function generateTile(z: number, x: number, y: number): Promise<Uint8Array | null> {
     const client = z <= LOW_ZOOM_MAX ? tilesSqlClientLowZoom : tilesSqlClientHighZoom;
-    const [row] = await client.file(sqlPath, getParams(z, x, y));
+    const [row] = await client.file<{ tile: Buffer }[]>(sqlPath, getParams(z, x, y));
     const rawTile = row?.tile;
     return Buffer.isBuffer(rawTile) && rawTile.length > 0 ? new Uint8Array(rawTile) : null;
   }
@@ -251,18 +255,15 @@ function createTileService(
   // project-points). See the variant SQL for the exact layer contents.
   app.get(routePath, async (c) => {
     try {
-      const z = Number.parseInt(c.req.param("z") ?? "", 10);
-      const x = Number.parseInt(c.req.param("x") ?? "", 10);
-      const y = Number.parseInt(c.req.param("y") ?? "", 10);
+      const z = parseTileCoordinate(c.req.param("z"));
+      const x = parseTileCoordinate(c.req.param("x"));
+      const y = parseTileCoordinate(c.req.param("y"));
 
       if (
-        Number.isNaN(z) ||
-        Number.isNaN(x) ||
-        Number.isNaN(y) ||
-        z < 0 ||
+        ![z, x, y].every((value) => Number.isInteger(value) && value >= 0) ||
         z > 22 ||
-        x < 0 ||
-        y < 0
+        x >= 2 ** z ||
+        y >= 2 ** z
       ) {
         return c.json({ error: "Invalid tile coordinates" }, 400);
       }

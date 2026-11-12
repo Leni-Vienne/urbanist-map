@@ -29,7 +29,6 @@ async function deleteFilesFromStorage(storage: StorageInterface, filename: strin
  */
 async function deleteLocalOriginal(compressedFilename: string): Promise<void> {
   const base = compressedFilename.replace(/\.[^./]+$/, "");
-  // oxlint-disable-next-line init-declarations
   let entries: string[];
   try {
     entries = await readdir("./uploads/originals");
@@ -65,12 +64,8 @@ async function deleteFromStorageBackends(
   filename: string,
   storageBackends: StorageInterface[],
 ): Promise<void> {
-  function deleteFromStorage(storage: StorageInterface): Promise<void> {
-    return deleteFilesFromStorage(storage, filename);
-  }
-
   const results = await Promise.allSettled([
-    ...storageBackends.map(deleteFromStorage),
+    ...storageBackends.map((storage) => deleteFilesFromStorage(storage, filename)),
     deleteLocalOriginal(filename),
   ]);
   const failures: unknown[] = [];

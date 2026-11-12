@@ -109,6 +109,8 @@ export const useAuthStore = defineStore("auth", () => {
     try {
       const response = await fetch(`${getApiUrl()}/api/check-session`, { credentials: "include" });
       if (!response.ok) throw new Error("Session check failed");
+      // The application-owned session endpoint returns the shared AuthUser contract.
+      // oxlint-disable-next-line typescript/no-unsafe-assignment
       const result: { user: AuthUser | null; infoMessage: string | null } = await response.json();
       if (epoch !== sessionEpoch) return;
       user.value = result.user;

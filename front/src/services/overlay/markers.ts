@@ -147,7 +147,6 @@ function applyMarkerColorAndTooltip(
     const isPending = overlayObject.status === "pending";
     const isRejected = overlayObject.status === "rejected";
 
-    // eslint-disable-next-line init-declarations
     let statusText: string;
     let modifierText = "";
 
