@@ -99,8 +99,6 @@ function registerImageHandle(id: string, handle: OverlayImageHandle, corners: La
 
   const waiters = imageReadyWaiters.get(id);
   if (waiters) {
-    // Each fire() detaches its own waiter via cleanup(); deleting the current element mid-iteration
-    // is well-defined for a Set, so no snapshot copy is needed.
     for (const waiter of waiters) waiter.fire();
   }
 }
@@ -120,66 +118,36 @@ const imageReadyWaiters = new Map<string, Set<ImageReadyWaiter>>();
  * Run `onReady` once the overlay's image layer is ready: immediately if it already is, otherwise
  * when createOverlayImage next registers it. The callback always runs on a microtask, never inline
  * during image creation. A `timeoutMs` may be given for overlays that might never render (e.g. one
- * that stays outside the viewport); `onTimeout` fires instead in that case. Returns a cancel
- * function; calling it before the callback fires detaches the waiter.
+ * that stays outside the viewport). Returns a cancel function that also suppresses queued delivery.
  */
-export function whenImageReady(
-  id: string,
-  onReady: () => void,
-  options: { timeoutMs?: number; onTimeout?: () => void } = {},
-): () => void {
-  let state: "waiting" | "queued" | "settled" = "waiting";
+export function whenImageReady(id: string, onReady: () => void, timeoutMs?: number): () => void {
   let timer: ReturnType<typeof setTimeout> | undefined = undefined;
+  const waiters = imageReadyWaiters.get(id) ?? new Set<ImageReadyWaiter>();
+  imageReadyWaiters.set(id, waiters);
 
-  function cleanup(): void {
-    const waiters = imageReadyWaiters.get(id);
-    if (waiters) {
-      waiters.delete(waiter);
-      if (waiters.size === 0) imageReadyWaiters.delete(id);
-    }
+  function cancel(): void {
+    if (!waiters.delete(waiter)) return;
+    if (waiters.size === 0) imageReadyWaiters.delete(id);
     if (timer !== undefined) clearTimeout(timer);
   }
 
   function fire(): void {
-    if (state !== "waiting") return;
-    state = "queued";
     if (timer !== undefined) clearTimeout(timer);
-    // Keep the waiter registered until delivery so cancellation and map teardown
-    // can still suppress a callback queued during source creation.
+    // Membership lasts until delivery, so cancellation also suppresses queued callbacks.
     queueMicrotask(() => {
-      if (state !== "queued") return;
-      state = "settled";
-      cleanup();
+      if (!waiters.has(waiter)) return;
+      cancel();
       onReady();
     });
   }
 
-  function cancel(): void {
-    if (state === "settled") return;
-    state = "settled";
-    cleanup();
-  }
-
-  function onExpire(): void {
-    if (state !== "waiting") return;
-    state = "settled";
-    cleanup();
-    options.onTimeout?.();
-  }
-
   const waiter: ImageReadyWaiter = { fire, cancel };
-
-  let waiters = imageReadyWaiters.get(id);
-  if (!waiters) {
-    waiters = new Set();
-    imageReadyWaiters.set(id, waiters);
-  }
   waiters.add(waiter);
 
   if (hasReadyLayer(id)) {
     fire();
-  } else if (options.timeoutMs !== undefined) {
-    timer = setTimeout(onExpire, options.timeoutMs);
+  } else if (timeoutMs !== undefined) {
+    timer = setTimeout(cancel, timeoutMs);
   }
 
   return cancel;

@@ -61,7 +61,7 @@ export function whenImageReadyIfSelected(overlayId: string, run: () => void): ()
     () => {
       if (useFocusStore().selectedOverlayId === overlayId) run();
     },
-    { timeoutMs: OVERLAY_READY_TIMEOUT_MS },
+    OVERLAY_READY_TIMEOUT_MS,
   );
 }
 

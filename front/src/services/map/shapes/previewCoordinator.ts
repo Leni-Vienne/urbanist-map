@@ -23,7 +23,7 @@ function resolveProjectShapePreview() {
   return { project, geometry, baselineGeometry };
 }
 
-export function syncProjectShapePreview(): void {
+function syncProjectShapePreview(): void {
   const mlMap = getMapOrNull();
   if (!mlMap?.getSource("project-sources")) return;
 

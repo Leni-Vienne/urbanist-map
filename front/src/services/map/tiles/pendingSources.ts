@@ -1,9 +1,7 @@
 import { useMapSessionStore, type MapSessionMode } from "@/stores/mapSessionStore";
 import { watchEffect } from "vue";
-import {
-  updatePendingProjectPointsSource,
-  updatePendingProjectShapesSource,
-} from "@/services/map/tiles/basemap";
+import { getMapOrNull } from "@/services/core/map";
+import type { GeoJSONSource } from "maplibre-gl";
 import type { Project, RuntimeOverlayData } from "@/types/index";
 import { isValidQuad } from "@/services/overlay/transform";
 import { useProjectStore } from "@/stores/projectStore";
@@ -209,6 +207,15 @@ function createProjectShapeFeature(
   };
 }
 
+function updatePendingSources(
+  points: GeoJSON.FeatureCollection,
+  shapes: GeoJSON.FeatureCollection,
+): void {
+  const map = getMapOrNull();
+  void map?.getSource<GeoJSONSource>("pending-project-points-source")?.setData(points);
+  void map?.getSource<GeoJSONSource>("pending-project-shapes-source")?.setData(shapes);
+}
+
 function renderPendingProjectSources(
   overlaysData: RuntimeOverlayData[],
   projectsData: Project[],
@@ -231,11 +238,10 @@ function renderPendingProjectSources(
     imageProjectIds,
   );
 
-  updatePendingProjectPointsSource({
-    type: "FeatureCollection",
-    features: [...pendingPoints.values()],
-  });
-  updatePendingProjectShapesSource({ type: "FeatureCollection", features: pendingShapes });
+  updatePendingSources(
+    { type: "FeatureCollection", features: [...pendingPoints.values()] },
+    { type: "FeatureCollection", features: pendingShapes },
+  );
 }
 
 /**
@@ -281,8 +287,10 @@ function collectPendingPoints(
 export function renderMapSessionPendingSources(): void {
   const session = useMapSessionStore().snapshot;
   if (!session || session.mode !== useUiStore().mode) {
-    updatePendingProjectPointsSource({ type: "FeatureCollection", features: [] });
-    updatePendingProjectShapesSource({ type: "FeatureCollection", features: [] });
+    updatePendingSources(
+      { type: "FeatureCollection", features: [] },
+      { type: "FeatureCollection", features: [] },
+    );
     return;
   }
   const projectStore = useProjectStore();

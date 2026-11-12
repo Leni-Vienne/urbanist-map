@@ -1,7 +1,8 @@
 import { useMapSessionStore } from "@/stores/mapSessionStore";
-import { afterAll, afterEach, expect, spyOn, test } from "bun:test";
+import { afterAll, afterEach, expect, mock, spyOn, test } from "bun:test";
 import { createPinia, setActivePinia } from "pinia";
 import { nextTick } from "vue";
+import type { Map as MaplibreMap } from "maplibre-gl";
 import { useAuthStore } from "@/stores/authStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useOverlayStore } from "@/stores/overlayStore";
@@ -37,17 +38,23 @@ globalThis.matchMedia = (media) =>
     addListener: () => undefined,
     removeListener: () => undefined,
   });
-const sources = await import("./basemap");
+const map = await import("@/services/core/map");
 const { watchPendingProjectSources } = await import("./pendingSources");
 const { syncSessionDataForMode } = await import("../viewportTriggers");
 globalThis.matchMedia = originalMatchMedia;
 globalThis.localStorage = originalStorage;
 
-const points = spyOn(sources, "updatePendingProjectPointsSource");
-const shapes = spyOn(sources, "updatePendingProjectShapesSource");
+const points = mock((_data: GeoJSON.FeatureCollection) => Promise.resolve());
+const shapes = mock((_data: GeoJSON.FeatureCollection) => Promise.resolve());
+// Only source writes are simulated; no MapLibre renderer is constructed.
+const currentMap = spyOn(map, "getMapOrNull").mockReturnValue({
+  getSource: (id: string) => ({
+    setData: id === "pending-project-points-source" ? points : shapes,
+  }),
+  // oxlint-disable-next-line anti-slop/no-chained-type-assertions, typescript/no-unsafe-type-assertion
+} as unknown as MaplibreMap);
 afterAll(() => {
-  points.mockRestore();
-  shapes.mockRestore();
+  currentMap.mockRestore();
 });
 let stop: (() => void) | null = null;
 afterEach(() => {

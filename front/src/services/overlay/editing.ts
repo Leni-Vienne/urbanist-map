@@ -602,11 +602,6 @@ function syncEditHandles(selectedId: string | null, mode: AppMode): void {
   });
 }
 
-/** Project the retained selection onto a map once its style and project layers are ready. */
-export function syncEditHandlesForCurrentState(): void {
-  syncEditHandles(useFocusStore().selectedOverlayId, useUiStore().mode);
-}
-
 export function watchEditHandles(): () => void {
   const submissionStore = useSubmissionStore();
   const uiStore = useUiStore();
@@ -626,7 +621,7 @@ export function watchEditHandles(): () => void {
       hideCropHandles();
       hideEditHandles();
     } else {
-      syncEditHandlesForCurrentState();
+      syncEditHandles(useFocusStore().selectedOverlayId, useUiStore().mode);
     }
   });
 

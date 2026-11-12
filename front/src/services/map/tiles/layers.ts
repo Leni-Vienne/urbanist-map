@@ -899,12 +899,10 @@ export function syncModeVectorFilters(): void {
   if (mlMap) applyTagFiltersToVectorLayers(mlMap);
 }
 
-export function watchTileLayerState(): () => void {
-  const stops = [watchHiddenProjects(), watchHiddenOverlays(), watchSelectedHoverState()];
-
-  return function stopTileLayerStateWatchers(): void {
-    for (const stop of stops.toReversed()) stop();
-  };
+export function watchTileLayerState(): void {
+  watchHiddenProjects();
+  watchHiddenOverlays();
+  watchSelectedHoverState();
 }
 
 export function syncTileLayerState(): void {

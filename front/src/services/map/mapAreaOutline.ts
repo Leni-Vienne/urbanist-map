@@ -126,7 +126,7 @@ function removeAreaLayers(mlMap: MaplibreMap): void {
  * Draw the frozen bounds of the map-area filter, or clear them. Reads the map rather than a cached
  * flag, so it also rebuilds the layers a style swap destroyed.
  */
-export function syncMapAreaOutline(): void {
+function syncMapAreaOutline(): void {
   const mlMap = getMapOrNull();
   if (!mlMap?.getSource("project-sources")) return;
 

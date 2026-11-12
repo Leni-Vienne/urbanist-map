@@ -2,13 +2,11 @@ import { ref, watch } from "vue";
 import type { FeatureCollection, MultiPolygon, Polygon } from "geojson";
 import type {
   AllPaintProperties,
-  GeoJSONSource,
   Map as MaplibreMap,
   RasterSourceSpecification,
   StyleSpecification,
 } from "maplibre-gl";
 import {
-  getMap,
   getMapOrNull,
   OPENFREEMAP_STYLE_URL,
   markMapReady,
@@ -163,9 +161,6 @@ function applyBuildings3DState(extruded: boolean): void {
 // Cached after first load, undefined until the user first uses satellite mode
 let countryBorders: CountryBorder[] | undefined = undefined;
 
-let lastPendingProjectPointsGeojson: GeoJSON.FeatureCollection | null = null;
-let lastPendingProjectShapesGeojson: GeoJSON.FeatureCollection | null = null;
-
 // Dynamically imports all country borders as a single chunk, only loads on first satellite use
 async function ensureCountryBordersLoaded(): Promise<CountryBorder[]> {
   if (countryBorders) return countryBorders;
@@ -269,69 +264,6 @@ async function detectCountryFromCoordinates(
   return undefined;
 }
 
-/** Run a callback once the map style is loaded (immediately if it already is). */
-function whenStyleLoaded(mlMap: MaplibreMap, cb: () => void): () => void {
-  if (mlMap.isStyleLoaded()) {
-    cb();
-    return () => undefined;
-  }
-  // style.load fires once the style JSON is parsed, before the initial basemap tiles finish
-  // downloading, so the backend tile source registers and fetches in parallel. "idle" is a
-  // fallback covering the window where style.load has already fired but sources are still
-  // loading (isStyleLoaded() false), which a once("style.load") registered late would miss.
-  let active = true;
-  function runOnce(): void {
-    if (!active) return;
-    stop();
-    cb();
-  }
-  function stop(): void {
-    active = false;
-    mlMap.off("style.load", runOnce);
-    mlMap.off("idle", runOnce);
-  }
-  mlMap.on("style.load", runOnce);
-  mlMap.on("idle", runOnce);
-  return stop;
-}
-
-/**
- * Drop the pending-source payloads replayed onto a new style, so a new map starts with empty
- * pending sources instead of the previous mount's session content.
- */
-function clearPendingProjectSourceCache(): void {
-  lastPendingProjectPointsGeojson = null;
-  lastPendingProjectShapesGeojson = null;
-}
-
-/** Rebuild the application layers on either the initial style or a replacement. */
-function initializeStyle(mlMap: MaplibreMap, plan: boolean): void {
-  try {
-    if (plan) {
-      applyPlanStyleRoadOverrides(mlMap);
-      applyRailStyleOverrides(mlMap);
-      applyPoiVisibilityOverrides(mlMap);
-      applySky(mlMap);
-      applyMapLabelLanguage(mlMap);
-      applyBuildings3DState(show3DBuildings.value);
-    }
-    addProjectDataToMlMap(mlMap);
-
-    initializeHybridInteractionHandlers();
-
-    if (lastPendingProjectPointsGeojson) {
-      updatePendingProjectPointsSource(lastPendingProjectPointsGeojson);
-    }
-    if (lastPendingProjectShapesGeojson) {
-      updatePendingProjectShapesSource(lastPendingProjectShapesGeojson);
-    }
-    markMapReady(mlMap);
-  } catch (error) {
-    console.error("Failed to initialize MapLibre project layers:", error);
-    toastError(error instanceof Error ? error.message : undefined, t("errors.mapInitFailed"));
-  }
-}
-
 function refreshProjectFilters(): void {
   const mlMap = getMapOrNull();
   if (!mlMap) return;
@@ -355,26 +287,6 @@ watch(
 watch(show3DBuildings, (extruded) => {
   applyBuildings3DState(extruded);
 });
-
-/** Update the pending-project-points source with fresh GeoJSON data (edit/moderation mode). */
-export function updatePendingProjectPointsSource(geojson: GeoJSON.FeatureCollection): void {
-  lastPendingProjectPointsGeojson = geojson;
-
-  const source = getMapOrNull()?.getSource<GeoJSONSource>("pending-project-points-source");
-  if (source) {
-    void source.setData(geojson);
-  }
-}
-
-/** Update the pending-project-shapes source with fresh GeoJSON data (edit/moderation mode). */
-export function updatePendingProjectShapesSource(geojson: GeoJSON.FeatureCollection): void {
-  lastPendingProjectShapesGeojson = geojson;
-
-  const source = getMapOrNull()?.getSource<GeoJSONSource>("pending-project-shapes-source");
-  if (source) {
-    void source.setData(geojson);
-  }
-}
 
 /**
  * Build a minimal MapLibre style containing only the given satellite raster source.
@@ -414,27 +326,19 @@ function buildSatelliteStyle(
 }
 
 // Only this pointer is shared; requests, timers and style listeners belong to one map.
-let activeBasemap: {
-  switchLayer: (layer: TileLayerType) => Promise<void>;
-  stop: () => void;
-} | null = null;
+let activeBasemap: ((layer: TileLayerType) => Promise<void>) | null = null;
 // Location metadata is reusable across mounts; the applied source resolution is not.
 const maxZoomCache = new Map<string, number>();
 
 /** Own initial style setup, satellite switching and metadata requests until map teardown. */
-export function addTileLayer(): () => void {
-  activeBasemap?.stop();
-  const target = getMap();
-  let stopped = false;
+export function startBasemap(target: MaplibreMap): () => void {
   let layerRequest = 0;
   let esriMaxZoom = BASELINE_ESRI_MAX_ZOOM;
-  let stopInitialStyle: (() => void) | null = null;
-  let stopStyleSwitch: (() => void) | null = null;
   let metadataTimer: ReturnType<typeof setTimeout> | null = null;
   let metadataRequest: AbortController | null = null;
 
   function isCurrent(): boolean {
-    return !stopped && getMapOrNull() === target;
+    return activeBasemap === switchLayer && getMapOrNull() === target;
   }
 
   function cancelMetadata(): void {
@@ -445,61 +349,40 @@ export function addTileLayer(): () => void {
   }
 
   function stop(): void {
-    if (stopped) return;
-    stopped = true;
     cancelMetadata();
-    stopInitialStyle?.();
-    stopStyleSwitch?.();
+    target.off("style.load", onStyleLoad);
+    target.off("idle", onStyleLoad);
     target.off("moveend", onMoveEnd);
-    if (activeBasemap === owner) {
+    if (activeBasemap === switchLayer) {
       activeBasemap = null;
-      clearPendingProjectSourceCache();
       originalExtrusionPaint.clear();
     }
   }
 
-  // Cancelling a switch also settles its caller; removing the map must not leave
-  // a UI action awaiting a style.load event that can no longer arrive.
-  function switchToStyle(style: StyleSpecification | string): Promise<void> {
-    // A user can choose satellite before the initial plan style finishes loading.
-    // Only the incoming style may initialize the application layers in that case.
-    stopInitialStyle?.();
-    stopInitialStyle = null;
-    stopStyleSwitch?.();
-    return new Promise<void>((resolve, reject) => {
-      function cleanup(): void {
-        target.off("style.load", onLoad);
-        stopStyleSwitch = null;
+  // Initial load and style replacements restore exactly the same application layers.
+  function onStyleLoad(): void {
+    target.off("idle", onStyleLoad);
+    if (!isCurrent()) return;
+    try {
+      if (currentTileLayer.value === "plan") {
+        applyPlanStyleRoadOverrides(target);
+        applyRailStyleOverrides(target);
+        applyPoiVisibilityOverrides(target);
+        applySky(target);
+        applyMapLabelLanguage(target);
+        applyBuildings3DState(show3DBuildings.value);
       }
-      function cancel(): void {
-        cleanup();
-        resolve();
-      }
-      function onLoad(): void {
-        if (stopStyleSwitch !== cancel) return;
-        cleanup();
-        if (!isCurrent()) {
-          resolve();
-          return;
-        }
-        try {
-          initializeStyle(target, style === OPENFREEMAP_STYLE_URL);
-          emitStyleSwitch("after");
-          checkEsriMaxZoom();
-        } finally {
-          resolve();
-        }
-      }
-      stopStyleSwitch = cancel;
-      target.on("style.load", onLoad);
-      try {
-        emitStyleSwitch("before");
-        target.setStyle(style);
-      } catch (error) {
-        cleanup();
-        reject(error instanceof Error ? error : new Error(String(error)));
-      }
-    });
+      addProjectDataToMlMap(target);
+
+      initializeHybridInteractionHandlers();
+
+      markMapReady(target);
+      emitStyleSwitch("after");
+      checkEsriMaxZoom();
+    } catch (error) {
+      console.error("Failed to initialize MapLibre project layers:", error);
+      toastError(error instanceof Error ? error.message : undefined, t("errors.mapInitFailed"));
+    }
   }
 
   async function resolveSatelliteLayer(): Promise<SatelliteLayerType> {
@@ -518,11 +401,13 @@ export function addTileLayer(): () => void {
     if (!isCurrent() || request !== layerRequest) return;
     if (currentTileLayer.value !== resolved) {
       currentTileLayer.value = resolved;
-      await switchToStyle(
+      emitStyleSwitch("before");
+      target.setStyle(
         resolved === "plan" ? OPENFREEMAP_STYLE_URL : buildSatelliteStyle(resolved, esriMaxZoom),
       );
+    } else {
+      checkEsriMaxZoom();
     }
-    if (isCurrent() && request === layerRequest) checkEsriMaxZoom();
   }
 
   function applyEsriMaxZoom(zoom: number): void {
@@ -579,8 +464,7 @@ export function addTileLayer(): () => void {
     });
   }
 
-  const owner = { switchLayer, stop };
-  activeBasemap = owner;
+  activeBasemap = switchLayer;
   currentTileLayer.value = "plan";
   originalExtrusionPaint.clear();
   try {
@@ -588,9 +472,11 @@ export function addTileLayer(): () => void {
       target.addImage(id, { width: 1, height: 1, data: new Uint8ClampedArray(4) });
     });
     target.on("moveend", onMoveEnd);
-    stopInitialStyle = whenStyleLoaded(target, () => {
-      if (isCurrent()) initializeStyle(target, true);
-    });
+    target.on("style.load", onStyleLoad);
+    // The initial style.load may have fired before startup while tiles are still loading.
+    // In that window isStyleLoaded() is false; idle supplies the missed initial notification.
+    target.on("idle", onStyleLoad);
+    if (target.isStyleLoaded()) onStyleLoad();
   } catch (error) {
     stop();
     throw error;
@@ -600,7 +486,7 @@ export function addTileLayer(): () => void {
 
 /** Switch only the mounted map; continuations from an older owner are inert. */
 export async function switchTileLayer(layer: TileLayerType): Promise<void> {
-  await activeBasemap?.switchLayer(layer);
+  await activeBasemap?.(layer);
 }
 
 // Interface for the Esri Identify API response

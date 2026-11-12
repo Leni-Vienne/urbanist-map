@@ -16,7 +16,7 @@ globalThis.matchMedia = (media) =>
     addListener() {},
     removeListener() {},
   });
-const { addTileLayer, switchTileLayer } = await import("./basemap");
+const { startBasemap, switchTileLayer } = await import("./basemap");
 const map = await import("@/services/core/map");
 globalThis.matchMedia = originalMatchMedia;
 globalThis.localStorage = originalStorage;
@@ -45,49 +45,26 @@ function pendingMap() {
   return { target, setStyle, listenerCount };
 }
 
-test("satellite resolution started by a retired map cannot switch a replacement map", async () => {
+test("style requests need no load event, and retired maps cannot switch their replacement", async () => {
   setActivePinia(createPinia());
   const old = pendingMap();
   const next = pendingMap();
-  const getMap = spyOn(map, "getMap").mockReturnValue(old.target);
   const currentMap = spyOn(map, "getMapOrNull").mockReturnValue(old.target);
-  const stopOld = addTileLayer();
+  const stopOld = startBasemap(old.target);
   let stopNext: (() => void) | undefined = undefined;
   try {
+    await switchTileLayer("CHE");
     const switching = switchTileLayer("esri");
     stopOld();
-    getMap.mockReturnValue(next.target);
     currentMap.mockReturnValue(next.target);
-    stopNext = addTileLayer();
+    stopNext = startBasemap(next.target);
     await switching;
-    expect(old.setStyle).not.toHaveBeenCalled();
+    expect(old.setStyle).toHaveBeenCalledTimes(1);
     expect(next.setStyle).not.toHaveBeenCalled();
     expect(old.listenerCount()).toBe(0);
   } finally {
     stopOld();
     stopNext?.();
-    getMap.mockRestore();
-    currentMap.mockRestore();
-  }
-});
-
-test("superseding a style switch and retiring a map settle pending callers without style.load", async () => {
-  setActivePinia(createPinia());
-  const { target, setStyle, listenerCount } = pendingMap();
-  const getMap = spyOn(map, "getMap").mockReturnValue(target);
-  const currentMap = spyOn(map, "getMapOrNull").mockReturnValue(target);
-  const stop = addTileLayer();
-  try {
-    const first = switchTileLayer("CHE");
-    const second = switchTileLayer("FRA");
-    await first;
-    stop();
-    await second;
-    expect(setStyle).toHaveBeenCalledTimes(2);
-    expect(listenerCount()).toBe(0);
-  } finally {
-    stop();
-    getMap.mockRestore();
     currentMap.mockRestore();
   }
 });

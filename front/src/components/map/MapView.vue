@@ -105,7 +105,7 @@ async function initializeMapAndOverlays() {
     if (mountedMap !== target) return;
     target.resize();
 
-    stopMapRuntime = startMapRuntime(target).stop;
+    stopMapRuntime = startMapRuntime(target);
   } catch (error) {
     handleMapViewUnmount();
     console.error("Error initializing map and overlays:", error);
