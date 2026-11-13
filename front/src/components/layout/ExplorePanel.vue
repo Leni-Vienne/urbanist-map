@@ -249,36 +249,50 @@
       </div>
     </div>
 
-    <template v-if="rows.length > 0">
+    <!-- Listbox's footer is outside its scroller; place this after the virtual rows instead. -->
+    <Teleport
+      v-if="
+        scrollAreaRef &&
+        rows.length > 0 &&
+        !hasMore &&
+        !isOsmIncluded &&
+        !hasPopoverFilters &&
+        !isLoading &&
+        !isFeedStale &&
+        !hasLoadMoreError
+      "
+      :to="scrollAreaRef"
+    >
       <div
-        v-if="hasLoadMoreError && !isFeedStale"
-        class="feed-load-error shrink-0 flex items-center justify-between gap-2 border-t border-surface px-2 py-1 text-xs"
-        role="status"
+        class="absolute inset-x-0 flex p-2 transition-colors duration-150 hover:bg-black/5 dark:hover:bg-white/10"
+        :style="{ top: `${rows.length * virtualScrollerOptions.itemSize}px` }"
       >
-        <span>{{ t("contribution.loadMoreError") }}</span>
         <Button
-          :label="t('common.retry')"
-          :loading="isLoadingMore"
-          :disabled="isLoading || isFeedStale"
-          severity="secondary"
+          :label="t('contribution.moreProjectsWithOsm')"
+          variant="text"
           size="small"
-          text
-          @click="retryFeed"
+          class="w-full hover:bg-transparent!"
+          @click="isOsmIncluded = true"
         />
       </div>
-      <div
-        v-else-if="!hasMore && !isOsmIncluded && !hasPopoverFilters && !isLoading && !isFeedStale"
-        class="shrink-0 flex items-center justify-center border-t border-surface px-2 py-3"
-      >
-        <button
-          type="button"
-          class="rounded-md border-0 bg-transparent px-3 py-1.5 text-[13px] font-medium text-primary-color cursor-pointer hover:bg-black/5 hover:text-primary-hover-color dark:hover:bg-white/10"
-          @click="isOsmIncluded = true"
-        >
-          {{ t("contribution.moreProjectsWithOsm") }}
-        </button>
-      </div>
-    </template>
+    </Teleport>
+
+    <div
+      v-if="rows.length > 0 && hasLoadMoreError && !isFeedStale"
+      class="feed-load-error shrink-0 flex items-center justify-between gap-2 border-t border-surface px-2 py-1 text-xs"
+      role="status"
+    >
+      <span>{{ t("contribution.loadMoreError") }}</span>
+      <Button
+        :label="t('common.retry')"
+        :loading="isLoadingMore"
+        :disabled="isLoading || isFeedStale"
+        severity="secondary"
+        size="small"
+        text
+        @click="retryFeed"
+      />
+    </div>
 
     <Popover ref="filterPopover" appendTo="body" :pt="{ root: { class: 'filter-popover' } }">
       <!-- overflow-x hidden removes the spurious horizontal scrollbar from the sliders -->
