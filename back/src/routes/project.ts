@@ -8,7 +8,7 @@ import {
   users,
   deletedProjects,
 } from "../db/schema";
-import { eq, sql, and, or, inArray, exists, desc } from "drizzle-orm";
+import { eq, sql, and, or, inArray, exists, desc, type SQL } from "drizzle-orm";
 import { union } from "drizzle-orm/pg-core";
 import { TRPCError } from "@trpc/server";
 import { db } from "../database";
@@ -28,6 +28,36 @@ import type { SessionUser } from "../lib/types";
 function requestLanguageCode(acceptLanguage: string | undefined): string {
   const language = acceptLanguage?.split(",")[0]?.split(";")[0]?.trim().split("-")[0];
   return language && /^[a-z]{2,3}$/i.test(language) ? language.toLowerCase() : "en";
+}
+
+async function getProjectDetail(condition: SQL, user: SessionUser | null | undefined) {
+  const statusCondition = user
+    ? or(eq(projects.status, "approved"), eq(projects.ownerId, user.id))
+    : eq(projects.status, "approved");
+
+  const [project] = await db
+    .select({
+      ...PROJECT_COLUMNS,
+      adminBoundaryId: projects.adminBoundaryId,
+      slug: projects.slug,
+      importSource: IMPORT_SOURCE_COLUMNS,
+      ownerUsername: users.username,
+    })
+    .from(projects)
+    .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
+    .leftJoin(users, eq(users.id, projects.ownerId))
+    .where(and(condition, statusCondition))
+    .limit(1);
+
+  if (!project) return null;
+
+  const { adminBoundaryId, ...projectData } = project;
+  const [images, boundaryPath] = await Promise.all([
+    getProjectImages(project.id, user),
+    resolveBoundaryPath(adminBoundaryId),
+  ]);
+
+  return { ...projectData, ...images, boundaryPath };
 }
 
 async function getProjectImages(projectId: string, user: SessionUser | null | undefined) {
@@ -156,34 +186,7 @@ export const projectRouter = router({
   // Returns approved projects to everyone; also returns the project to its owner regardless of status.
   getById: publicProcedure.input(z.object({ id: z.uuid() })).query(async ({ input, ctx }) => {
     try {
-      const statusCondition = ctx.user
-        ? or(eq(projects.status, "approved"), eq(projects.ownerId, ctx.user.id))
-        : eq(projects.status, "approved");
-
-      const rows = await db
-        .select({
-          ...PROJECT_COLUMNS,
-          adminBoundaryId: projects.adminBoundaryId,
-          slug: projects.slug,
-          importSource: IMPORT_SOURCE_COLUMNS,
-          ownerUsername: users.username,
-        })
-        .from(projects)
-        .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
-        .leftJoin(users, eq(users.id, projects.ownerId))
-        .where(and(eq(projects.id, input.id), statusCondition))
-        .limit(1);
-
-      const project = rows[0];
-      if (!project) return null;
-
-      const { adminBoundaryId, ...projectData } = project;
-      const [images, boundaryPath] = await Promise.all([
-        getProjectImages(project.id, ctx.user),
-        resolveBoundaryPath(adminBoundaryId),
-      ]);
-
-      return { ...projectData, ...images, boundaryPath };
+      return await getProjectDetail(eq(projects.id, input.id), ctx.user);
     } catch (error) {
       console.error("Error fetching project by id:", error);
       throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to fetch project" });
@@ -196,35 +199,11 @@ export const projectRouter = router({
   // tombstone (deleted project) so the SPA can center the map on the last known location.
   getBySlug: publicProcedure.input(z.object({ slug: z.string() })).query(async ({ input, ctx }) => {
     try {
-      const statusCondition = ctx.user
-        ? or(eq(projects.status, "approved"), eq(projects.ownerId, ctx.user.id))
-        : eq(projects.status, "approved");
-
-      const rows = await db
-        .select({
-          ...PROJECT_COLUMNS,
-          adminBoundaryId: projects.adminBoundaryId,
-          slug: projects.slug,
-          importSource: IMPORT_SOURCE_COLUMNS,
-          ownerUsername: users.username,
-        })
-        .from(projects)
-        .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
-        .leftJoin(users, eq(users.id, projects.ownerId))
-        .where(and(eq(projects.slug, input.slug), statusCondition))
-        .limit(1);
-
-      const project = rows[0];
+      const project = await getProjectDetail(eq(projects.slug, input.slug), ctx.user);
       if (project) {
-        const { adminBoundaryId, ...projectData } = project;
-        const [images, boundaryPath] = await Promise.all([
-          getProjectImages(project.id, ctx.user),
-          resolveBoundaryPath(adminBoundaryId),
-        ]);
-
         return {
           found: true as const,
-          project: { ...projectData, ...images, boundaryPath },
+          project,
         };
       }
 

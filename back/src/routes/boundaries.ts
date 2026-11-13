@@ -4,7 +4,11 @@ import { adminBoundaries } from "../db/schema";
 import { sql } from "drizzle-orm";
 import { db } from "../database";
 import { countAlphanumeric, MIN_LOCATION_SEARCH_ALNUM } from "@shared/locationSearch";
-import type { LocalizedBoundaryName } from "@shared/types/boundary";
+import {
+  selectBoundaryLevels,
+  type BoundaryLevels,
+  type BoundaryPathEntry,
+} from "@shared/types/boundary";
 
 const searchBoundariesNearLocationSchema = z.object({
   lat: z.number().min(-90).max(90),
@@ -13,19 +17,13 @@ const searchBoundariesNearLocationSchema = z.object({
   limit: z.number().min(1).max(25).default(10),
 });
 
-type Ancestors = {
-  city: LocalizedBoundaryName | null; // deepest of admin_level 6..8
-  state: LocalizedBoundaryName | null; // admin_level 4
-  country: LocalizedBoundaryName | null; // admin_level 2
-};
-
 // Resolve city/state/country ancestors for a set of boundaries in one query. A recursive CTE walks
 // every root's parent_id chain at once (PK lookup + idx_admin_boundaries_parent, both indexed),
 // tagging each chain row with its root_id, then we bucket by admin_level in JS. Done as its own
 // query rather than correlated subqueries on the search so the search keeps its trigram-index plan
 // (correlated recursive subqueries forced a full table scan and timed out).
-async function resolveAncestors(osmIds: string[]): Promise<Map<string, Ancestors>> {
-  const byRoot = new Map<string, Ancestors>();
+async function resolveAncestors(osmIds: string[]): Promise<Map<string, BoundaryLevels>> {
+  const byRoot = new Map<string, BoundaryLevels>();
   if (osmIds.length === 0) return byRoot;
 
   const idList = sql.join(
@@ -51,29 +49,20 @@ async function resolveAncestors(osmIds: string[]): Promise<Map<string, Ancestors
       WHERE c.depth < 12
     )
     SELECT root_id, admin_level, name, name_en, names FROM chain
-    WHERE admin_level IN (2, 4) OR admin_level BETWEEN 6 AND 8
   `);
 
-  // For the city bucket (6..8), keep the deepest level seen so a municipality (8) wins over a
-  // county (6) in the same chain.
-  const cityLevel = new Map<string, number>();
-
+  const paths = new Map<string, BoundaryPathEntry[]>();
   for (const row of rows) {
-    let entry = byRoot.get(row.root_id);
-    if (!entry) {
-      entry = { city: null, state: null, country: null };
-      byRoot.set(row.root_id, entry);
-    }
-    const value: LocalizedBoundaryName = { name: row.name, nameEn: row.name_en, names: row.names };
-    if (row.admin_level === 2) {
-      entry.country = value;
-    } else if (row.admin_level === 4) {
-      entry.state = value;
-    } else if (row.admin_level > (cityLevel.get(row.root_id) ?? -1)) {
-      cityLevel.set(row.root_id, row.admin_level);
-      entry.city = value;
-    }
+    const path = paths.get(row.root_id) ?? [];
+    path.push({
+      name: row.name,
+      nameEn: row.name_en,
+      names: row.names,
+      adminLevel: row.admin_level,
+    });
+    paths.set(row.root_id, path);
   }
+  for (const [id, path] of paths) byRoot.set(id, selectBoundaryLevels(path));
 
   return byRoot;
 }

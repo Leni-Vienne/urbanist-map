@@ -18,7 +18,7 @@ import {
 } from "@shared/validation/schemas";
 import { t } from "@/locales";
 import { getProjectValidationErrors } from "@/utils/validationHelpers";
-import { projectValuesEqual } from "@/utils/projectValues";
+import { projectValuesEqual } from "@shared/projectValues";
 import { resolveOverlaySubmissionCorners } from "@/services/overlay/data";
 import { acknowledgeSubmission } from "./submissionReceipt";
 import {
@@ -63,7 +63,7 @@ export function detectProjectChanges(project: Project): ProjectFieldChange[] {
     if (!(field in draft)) continue;
     const oldValue = originalProject[field];
     const newValue = project[field];
-    if (projectValuesEqual(field, oldValue, newValue)) continue;
+    if (projectValuesEqual(oldValue, newValue)) continue;
     changes.push(
       field === "geometry"
         ? { fieldName: field, oldValue: originalProject.geometry, newValue: project.geometry }

@@ -1,6 +1,7 @@
 import { db } from "../database";
-import { adminBoundaries, overlays, projects } from "../db/schema";
-import { eq, sql, type SQL } from "drizzle-orm";
+import { overlays, projects } from "../db/schema";
+import { eq } from "drizzle-orm";
+import { boundaryName } from "../db/helpers";
 
 type DiscordEmbedField = { name: string; value: string; inline?: boolean };
 
@@ -61,22 +62,6 @@ type ChangeDetail = {
   changeReason?: string | null;
 };
 
-// Resolves a single boundary name at a given OSM admin_level bucket by walking the project's
-// assigned admin boundary up its parent_id chain, mirroring feed.ts. `range` maps to a grade:
-//   city -> deepest of 6..8, state -> level 4 exactly, country -> level 2.
-function boundaryName(range: SQL): SQL<string | null> {
-  return sql<string | null>`(
-    WITH RECURSIVE chain AS (
-      SELECT osm_id, parent_id, admin_level, name
-      FROM ${adminBoundaries} WHERE osm_id = ${projects.adminBoundaryId}
-      UNION ALL
-      SELECT b.osm_id, b.parent_id, b.admin_level, b.name
-      FROM ${adminBoundaries} b JOIN chain c ON b.osm_id = c.parent_id
-    )
-    SELECT name FROM chain WHERE ${range} ORDER BY admin_level DESC LIMIT 1
-  )`;
-}
-
 // Maps a notification to the project whose boundary describes its location. Change requests on an
 // overlay entity carry the overlay id, so they need an extra lookup to reach the owning project.
 async function resolveProjectId(notification: SubmissionNotification): Promise<string | null> {
@@ -101,18 +86,22 @@ async function resolveLocationLabel(notification: SubmissionNotification): Promi
     if (!projectId) return null;
     const rows = await db
       .select({
-        city: boundaryName(sql`admin_level BETWEEN 6 AND 8`),
-        state: boundaryName(sql`admin_level = 4`),
-        country: boundaryName(sql`admin_level = 2`),
+        city: boundaryName("city"),
+        state: boundaryName("state"),
+        country: boundaryName("country"),
       })
       .from(projects)
       .where(eq(projects.id, projectId))
       .limit(1);
     const row = rows[0];
     if (!row) return null;
-    const parts = [row.city, row.state, row.country].filter((part): part is string =>
-      Boolean(part),
-    );
+    const parts = [
+      ...new Set(
+        [row.city?.name, row.state?.name, row.country?.name].filter((part): part is string =>
+          Boolean(part),
+        ),
+      ),
+    ];
     return parts.length > 0 ? parts.join(", ") : null;
   } catch (error) {
     console.error("Failed to resolve location for Discord notification:", error);

@@ -10,7 +10,12 @@ import {
   importSources,
 } from "./schema";
 import type { AppMode } from "@shared/types";
-import type { LocalizedBoundaryName, BoundaryPathEntry } from "@shared/types/boundary";
+import {
+  BOUNDARY_LEVEL_RANGES,
+  type BoundaryLevel,
+  type LocalizedBoundaryName,
+  type BoundaryPathEntry,
+} from "@shared/types/boundary";
 import { buildOwnOverlayProposal } from "./overlayProposal";
 import { overlayCornersJsonSql } from "./geometry";
 
@@ -77,28 +82,23 @@ export function textArray(values: string[]): SQL {
 //   country -> level 2.
 // Returns NULL when the project has no assigned boundary or the chain lacks that grade.
 // The outer column is written qualified for the reason given on countryNameSql.
-export function boundaryName(
-  pick: "city" | "state" | "country",
-): SQL<LocalizedBoundaryName | null> {
-  const range = {
-    city: sql`admin_level BETWEEN 6 AND 8`,
-    state: sql`admin_level = 4`,
-    country: sql`admin_level = 2`,
-  }[pick];
+export function boundaryName(pick: BoundaryLevel): SQL<LocalizedBoundaryName | null> {
+  const [minLevel, maxLevel] = BOUNDARY_LEVEL_RANGES[pick];
   return sql<LocalizedBoundaryName | null>`(
     WITH RECURSIVE chain AS (
-      SELECT osm_id, parent_id, admin_level, name, name_en, names
+      SELECT osm_id, parent_id, admin_level, name, name_en, names, 1 AS depth
       FROM ${adminBoundaries} WHERE osm_id = "projects"."admin_boundary_id"
       UNION ALL
-      SELECT b.osm_id, b.parent_id, b.admin_level, b.name, b.name_en, b.names
+      SELECT b.osm_id, b.parent_id, b.admin_level, b.name, b.name_en, b.names, c.depth + 1
       FROM ${adminBoundaries} b JOIN chain c ON b.osm_id = c.parent_id
+      WHERE c.depth < 12
     )
     SELECT json_build_object('name', name, 'nameEn', name_en, 'names', (
       SELECT json_object_agg(n.k, n.v)
       FROM jsonb_each_text(COALESCE(names, '{}'::jsonb)) AS n(k, v)
       WHERE n.k = ANY(${textArray(BOUNDARY_NAME_LOCALES)})
     ))
-    FROM chain WHERE ${range} ORDER BY admin_level DESC LIMIT 1
+    FROM chain WHERE admin_level BETWEEN ${minLevel} AND ${maxLevel} ORDER BY admin_level DESC LIMIT 1
   )`;
 }
 

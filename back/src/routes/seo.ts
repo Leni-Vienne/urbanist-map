@@ -6,16 +6,12 @@ import { resolveBoundaryPath } from "../db/boundaryAssignment";
 import { config } from "../config";
 import type { JsonObject } from "@shared/json";
 import type { SeoLocation, SeoProject, SeoProjectResponse } from "@shared/types/seo";
+import { localizedBoundaryName, selectBoundaryLevels } from "@shared/types/boundary";
 
 // Public, cookie-free endpoints consumed by the Cloudflare Pages Function (and any link-preview
 // scraper). They return JSON the Function splices into the static index.html shell, plus the
 // sitemap. Mounted before the session middleware so they never create a session.
 export const seoApp = new Hono();
-
-// OSM admin_level -> location component. 8 = city, 4 = state/province, 2 = country.
-const CITY_LEVEL = 8;
-const STATE_LEVEL = 4;
-const COUNTRY_LEVEL = 2;
 
 // Walk the admin-boundary chain to a human location string. Prefers the English name. Falls back to
 // the bare country code when the project has no assigned boundary (still common pending the boundary
@@ -27,14 +23,10 @@ async function resolveLocationLabel(
   if (!adminBoundaryId) {
     return { city: null, state: null, country: countryCode, label: countryCode };
   }
-  const path = await resolveBoundaryPath(adminBoundaryId);
-  function pick(level: number): string | null {
-    const entry = path.find((p) => p.adminLevel === level);
-    return entry ? (entry.nameEn ?? entry.name) : null;
-  }
-  const city = pick(CITY_LEVEL);
-  const state = pick(STATE_LEVEL);
-  const country = pick(COUNTRY_LEVEL) ?? countryCode;
+  const levels = selectBoundaryLevels(await resolveBoundaryPath(adminBoundaryId));
+  const city = localizedBoundaryName(levels.city, "en");
+  const state = localizedBoundaryName(levels.state, "en");
+  const country = localizedBoundaryName(levels.country, "en") ?? countryCode;
   const label = [city, state, country].filter(Boolean).join(", ") || countryCode;
   return { city, state, country, label };
 }

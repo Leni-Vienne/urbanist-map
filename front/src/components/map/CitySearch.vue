@@ -43,9 +43,9 @@ import { useModerationStore } from "@/stores/moderationStore";
 import { LngLatBounds } from "maplibre-gl";
 import { loadOrNull } from "@/services/core/errorHandling";
 import { countAlphanumeric, MIN_LOCATION_SEARCH_ALNUM } from "@shared/locationSearch";
+import { localizedBoundaryName } from "@shared/types/boundary";
 
 type BoundarySearchResult = RouterOutput["boundaries"]["searchBoundariesNearLocation"][number];
-type LocalizedBoundaryName = Pick<BoundarySearchResult, "name" | "nameEn" | "names">;
 type BoundarySuggestion = BoundarySearchResult & {
   primary: string;
   secondary: string;
@@ -64,21 +64,13 @@ onUnmounted(cancelSearch);
 // AutoComplete debounces its complete event; retire results as soon as its input changes.
 watch(selectedCity, cancelSearch, { flush: "sync" });
 
-// Prefer the name in the current UI locale, falling back to English, then the boundary's local name.
-function localizedName(level: LocalizedBoundaryName | null): string | null {
-  if (!level) {
-    return null;
-  }
-  return level.names?.[locale.value] ?? level.nameEn ?? level.name;
-}
-
 // Build "City, State, Country (CODE)" from the matched boundary and its ancestors, skipping missing
 // levels and collapsing duplicate names (city-states repeat the same name across levels). `primary`
 // is the matched boundary, `secondary` is the path above it shown muted in the option list.
 function buildDisplay(boundary: BoundarySearchResult): BoundarySuggestion {
   const parts: string[] = [];
   for (const level of [boundary, boundary.city, boundary.state, boundary.country]) {
-    const name = localizedName(level);
+    const name = localizedBoundaryName(level, locale.value);
     if (name && !parts.includes(name)) {
       parts.push(name);
     }

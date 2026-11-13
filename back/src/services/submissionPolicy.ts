@@ -1,4 +1,5 @@
 import { TRPCError } from "@trpc/server";
+import { projectValuesEqual } from "@shared/projectValues";
 import {
   projectSchema,
   PROJECT_CHANGE_FIELDS,
@@ -72,10 +73,6 @@ function requireChangedFields(fields: readonly unknown[], entityName: string): v
   }
 }
 
-function valuesDiffer(oldValue: unknown, newValue: unknown): boolean {
-  return JSON.stringify(oldValue) !== JSON.stringify(newValue);
-}
-
 function buildProjectChangeRequest(
   patch: ProjectPatch,
   existing: ExistingSubmissionProject,
@@ -86,7 +83,7 @@ function buildProjectChangeRequest(
     if (!(fieldName in patch)) continue;
     const oldValue = fieldName === "tags" ? (existing.tags ?? []) : existing[fieldName];
     const newValue = patch[fieldName] ?? null;
-    if (valuesDiffer(oldValue, newValue)) {
+    if (!projectValuesEqual(oldValue, newValue)) {
       changes.push({ fieldName, oldValue, newValue, changeReason: reason });
     }
   }
@@ -110,7 +107,7 @@ function buildOverlayChangeRequest(
   for (const fieldName of overlay.changedFields) {
     const oldValue = fieldName === "caption" ? existing.caption : existing.corners;
     const newValue = fieldName === "caption" ? (overlay.caption ?? null) : overlay.corners;
-    if (valuesDiffer(oldValue, newValue)) {
+    if (!projectValuesEqual(oldValue, newValue)) {
       changes.push({ fieldName, oldValue, newValue, changeReason: reason });
     }
   }

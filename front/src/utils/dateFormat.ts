@@ -1,6 +1,6 @@
 /**
  * Simple date formatting utilities with no external dependencies.
- * For project date ranges with flexible precision, use projectDateFormat.ts instead.
+ * For project date ranges with flexible precision, use shared/projectDates.ts instead.
  */
 
 /** Format a date as dd/mm/yyyy. */

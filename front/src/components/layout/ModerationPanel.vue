@@ -479,7 +479,7 @@ async function reportUser(userId: string, reason: string): Promise<boolean> {
       t("moderation.reportUser.reportSuccessDetail"),
       t("moderation.reportUser.reportSuccess"),
     );
-    await fetchPendingSubmissions({ force: true });
+    await Promise.all([fetchPendingSubmissions({ force: true }), refetchPendingCounts()]);
     return true;
   } catch (error) {
     console.error("Failed to report user:", error);

@@ -1,7 +1,7 @@
 import type { TimelineStatus } from "@shared/types/project";
 import type { ProjectFormData } from "@/types/index";
 import type { DatePrecision } from "@shared/types/flexibleDate";
-import { projectValuesEqual } from "@/utils/projectValues";
+import { projectValuesEqual } from "@shared/projectValues";
 
 function toDateObject(value: Date | string | null | undefined): Date | null {
   if (value instanceof Date) return value;
@@ -42,9 +42,5 @@ export function projectFormFieldsDiffer(
   original: ProjectFormData[keyof ProjectFormData],
   current: ProjectFormData[keyof ProjectFormData],
 ): boolean {
-  return !projectValuesEqual(
-    Array.isArray(original) && Array.isArray(current) ? "tags" : "",
-    original,
-    current,
-  );
+  return !projectValuesEqual(original, current);
 }

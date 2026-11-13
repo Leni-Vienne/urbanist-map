@@ -1,7 +1,7 @@
 import { ref } from "vue";
 import type { AllLayoutProperties, Map as MaplibreMap, ExpressionSpecification } from "maplibre-gl";
 import { getMapOrNull } from "@/services/core/map";
-import type { LocalizedBoundaryName } from "@shared/types/boundary";
+import { localizedBoundaryName, type LocalizedBoundaryName } from "@shared/types/boundary";
 
 const STORAGE_KEY = "urbanist-map-label-lang";
 
@@ -46,7 +46,7 @@ export function pickBoundaryName(
 ): string {
   if (preference === "local") return entry.name;
   const byMapLanguage = preference === "auto" ? entry.names?.[getBrowserLanguageCode()] : undefined;
-  return byMapLanguage ?? entry.names?.[uiLocale] ?? entry.nameEn ?? entry.name;
+  return byMapLanguage ?? localizedBoundaryName(entry, uiLocale) ?? entry.name;
 }
 
 // Each label layer's untouched text-field, captured the first time we override it, so the

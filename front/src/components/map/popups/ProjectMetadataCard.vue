@@ -173,7 +173,7 @@
 <script setup lang="ts">
 import { computed, useTemplateRef } from "vue";
 import type { Project } from "@/types/index";
-import { formatProjectDateRangeParts } from "@/utils/projectDateFormat";
+import { formatProjectDateRangeParts } from "@shared/projectDates";
 import { formatSourceUrl } from "@/utils/urlFormat";
 import { useI18n } from "vue-i18n";
 import { useWikidataEntity, type WikidataEntity } from "@/composables/project/useWikidataEntity";
@@ -248,7 +248,7 @@ function formatDate(date: Date | string | null | undefined): string {
 
 const periodParts = computed(() => {
   if (!props.project) return null;
-  return formatProjectDateRangeParts(props.project, $t);
+  return formatProjectDateRangeParts(props.project, $t, navigator.language);
 });
 
 const importSourceUrl = computed(() => {

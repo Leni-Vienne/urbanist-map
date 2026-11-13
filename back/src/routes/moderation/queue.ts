@@ -1,15 +1,9 @@
 import { moderatorProcedure } from "../../trpc";
 import { checkModeratorOverlayPermission } from "./shared";
 import { db } from "../../database";
-import {
-  projects,
-  overlays,
-  changeRequests,
-  users,
-  userReports,
-  type EntityType,
-} from "../../db/schema";
-import { and, eq, sql, inArray, ne, type SQL } from "drizzle-orm";
+import { projects, overlays, changeRequests, users, userReports } from "../../db/schema";
+import { and, eq, sql, inArray, ne, or, isNull, notInArray, type SQL } from "drizzle-orm";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import {
   buildProjectModerationQuery,
   buildOverlayModerationQuery,
@@ -148,121 +142,38 @@ export const queueProcedures = {
           });
         }
 
-        const hiddenUserIds = await buildHiddenUserIdsSet(moderatorId);
+        const { hiddenUserIds, reportCounts } = await fetchUserReports(moderatorId);
 
-        const projectModerationConditions = [
-          // Start from the small pending queue, then fetch projects by primary key.
-          sql`${projects.id} IN (
-            SELECT ${projects.id} FROM ${projects} WHERE ${projects.status} = 'pending'
-            UNION
-            SELECT ${overlays.projectId} FROM ${overlays} WHERE ${overlays.status} = 'pending'
-            UNION
-            SELECT ${changeRequests.entityId} FROM ${changeRequests}
-            WHERE ${changeRequests.status} = 'pending' AND ${changeRequests.entityType} = 'project'
-            UNION
-            SELECT ${overlays.projectId} FROM ${changeRequests}
-            INNER JOIN ${overlays} ON ${overlays.id} = ${changeRequests.entityId}
-            WHERE ${changeRequests.status} = 'pending' AND ${changeRequests.entityType} = 'overlay'
-          )`,
+        const pending = buildPendingModerationQuery(
           eq(projects.countryCode, input.countryCode),
-        ];
-
+          hiddenUserIds,
+        ).as("pending");
         const { projectsResult, overlaysResult, overlayChanges, projectChanges } =
-          await fetchModerationData(projectModerationConditions);
-
-        const changeRequestsResult = [...overlayChanges, ...projectChanges].toSorted(
-          (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
-        );
-
-        // Filter out rejected and replaced overlays
-        const visibleOverlays = overlaysResult.filter(
-          (overlay) => overlay.status !== "rejected" && overlay.status !== "replaced",
-        );
-
-        // Filter by reported users
-        const ownerVisibleProjects = filterContentByReportedUsers(
-          projectsResult,
-          hiddenUserIds,
-          "ownerId",
-        );
-        const ownerVisibleProjectIds = new Set(ownerVisibleProjects.map((project) => project.id));
-        const authorVisibleOverlays = filterContentByReportedUsers(
-          visibleOverlays,
-          hiddenUserIds,
-          "authorId",
-        ).filter(
-          (overlay) => overlay.projectId !== null && ownerVisibleProjectIds.has(overlay.projectId),
-        );
-        const visibleOverlayIds = new Set(authorVisibleOverlays.map((overlay) => overlay.id));
-        const overlayProjectById = new Map(
-          authorVisibleOverlays.flatMap((overlay) =>
-            overlay.projectId === null ? [] : [[overlay.id, overlay.projectId] as const],
+          await fetchModerationData(
+            inArray(projects.id, db.select({ projectId: pending.projectId }).from(pending)),
+            hiddenUserIds,
+          );
+        const changes = addConflictFlags(
+          [...overlayChanges, ...projectChanges].toSorted(
+            (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
           ),
         );
-        const requesterVisibleChanges = filterContentByReportedUsers(
-          changeRequestsResult,
-          hiddenUserIds,
-          "requestedBy",
-        ).filter((change) =>
-          change.entityType === "project"
-            ? ownerVisibleProjectIds.has(change.entityId)
-            : visibleOverlayIds.has(change.entityId),
-        );
-        const filteredChangeRequests = addConflictFlags(requesterVisibleChanges);
-
-        const actionableProjectIds = new Set(
-          ownerVisibleProjects
-            .filter((project) => project.status === "pending")
-            .map((project) => project.id),
-        );
-        for (const overlay of authorVisibleOverlays) {
-          if (overlay.status === "pending" && overlay.projectId !== null) {
-            actionableProjectIds.add(overlay.projectId);
-          }
-        }
-        for (const change of filteredChangeRequests) {
-          const projectId =
-            change.entityType === "project"
-              ? change.entityId
-              : overlayProjectById.get(change.entityId);
-          if (projectId) actionableProjectIds.add(projectId);
-        }
-
-        const filteredProjects = ownerVisibleProjects.filter((project) =>
-          actionableProjectIds.has(project.id),
-        );
-        const filteredProjectIds = new Set(filteredProjects.map((project) => project.id));
-        const filteredOverlays = authorVisibleOverlays.filter(
-          (overlay) => overlay.projectId !== null && filteredProjectIds.has(overlay.projectId),
-        );
-
         const changedOverlayIds = new Set(
-          filteredChangeRequests
+          changes
             .filter((change) => change.entityType === "overlay")
             .map((change) => change.entityId),
         );
-        const mapOverlayIds = filteredOverlays
+        const mapOverlayIds = overlaysResult
           .filter(
             (overlay) =>
               overlay.kind === "map" &&
-              overlay.projectId !== null &&
-              filteredProjectIds.has(overlay.projectId) &&
               (overlay.status === "pending" || changedOverlayIds.has(overlay.id)),
           )
           .map((overlay) => overlay.id);
 
-        const [mapOverlays, collections] = await Promise.all([
-          fetchModerationMapOverlays(mapOverlayIds),
-          normalizeModerationCollections(
-            filteredProjects,
-            filteredOverlays,
-            filteredChangeRequests,
-          ),
-        ]);
-
         return {
-          ...collections,
-          mapOverlays,
+          ...normalizeModerationCollections(projectsResult, overlaysResult, changes, reportCounts),
+          mapOverlays: await fetchModerationMapOverlays(mapOverlayIds),
         };
       } catch (error) {
         console.error("Error fetching pending submissions:", error);
@@ -280,7 +191,7 @@ export const queueProcedures = {
       const isAdmin = ctx.user.role === "admin";
 
       // moderatorProcedure guarantees a non-admin has a non-empty moderatedCountries.
-      let countryFilter: SQL | undefined = sql`${projects.countryCode} IS NOT NULL`;
+      let countryFilter: SQL = sql`${projects.countryCode} IS NOT NULL`;
       if (!isAdmin) {
         const allowed = userModeratedCountries ?? [];
         countryFilter = sql`${projects.countryCode} = ANY(ARRAY[${sql.join(
@@ -289,68 +200,12 @@ export const queueProcedures = {
         )}]::text[])`;
       }
 
-      // Count each pending entity type with its own simple GROUP BY, then sum
-      // them per country. Counting separately avoids the combinatorial row
-      // fan-out of joining projects x overlays x changeRequests in one query.
-      const countByCountry = sql<string>`COUNT(*)`.as("count");
-
-      const pendingProjects = db
-        .select({ countryCode: projects.countryCode, count: countByCountry })
-        .from(projects)
-        .where(and(eq(projects.status, "pending"), countryFilter))
-        .groupBy(projects.countryCode);
-
-      const pendingOverlays = db
-        .select({ countryCode: projects.countryCode, count: countByCountry })
-        .from(overlays)
-        .innerJoin(projects, eq(overlays.projectId, projects.id))
-        .where(and(eq(overlays.status, "pending"), countryFilter))
-        .groupBy(projects.countryCode);
-
-      const pendingProjectChanges = db
-        .select({ countryCode: projects.countryCode, count: countByCountry })
-        .from(changeRequests)
-        .innerJoin(projects, eq(changeRequests.entityId, projects.id))
-        .where(
-          and(
-            eq(changeRequests.entityType, "project"),
-            eq(changeRequests.status, "pending"),
-            countryFilter,
-          ),
-        )
-        .groupBy(projects.countryCode);
-
-      const pendingOverlayChanges = db
-        .select({ countryCode: projects.countryCode, count: countByCountry })
-        .from(changeRequests)
-        .innerJoin(overlays, eq(changeRequests.entityId, overlays.id))
-        .innerJoin(projects, eq(overlays.projectId, projects.id))
-        .where(
-          and(
-            eq(changeRequests.entityType, "overlay"),
-            eq(changeRequests.status, "pending"),
-            countryFilter,
-          ),
-        )
-        .groupBy(projects.countryCode);
-
-      const pending = pendingProjects
-        .unionAll(pendingOverlays)
-        .unionAll(pendingProjectChanges)
-        .unionAll(pendingOverlayChanges)
-        .as("pending");
-
-      const result = await db
-        .select({
-          countryCode: pending.countryCode,
-          total: sql<string>`SUM(${pending.count})`,
-        })
+      const { hiddenUserIds } = await fetchUserReports(ctx.user.id);
+      const pending = buildPendingModerationQuery(countryFilter, hiddenUserIds).as("pending");
+      return await db
+        .select({ countryCode: pending.countryCode, total: sql<number>`COUNT(*)::int` })
         .from(pending)
         .groupBy(pending.countryCode);
-
-      return result
-        .map((row) => ({ countryCode: row.countryCode, total: Number(row.total) }))
-        .filter((row) => row.total > 0);
     } catch (error) {
       console.error("Error fetching pending counts by country:", error);
       throw new TRPCError({
@@ -361,7 +216,7 @@ export const queueProcedures = {
   }),
 };
 
-async function buildHiddenUserIdsSet(moderatorId: string): Promise<Set<string>> {
+async function fetchUserReports(moderatorId: string) {
   // One grouped row per reported user instead of loading the whole user_reports table.
   // A user is hidden if this moderator reported them, or 3+ moderators reported them.
   const rows = await db
@@ -374,20 +229,86 @@ async function buildHiddenUserIdsSet(moderatorId: string): Promise<Set<string>> 
     .groupBy(userReports.reportedUserId);
 
   const hiddenUserIds = new Set<string>();
+  const reportCounts = new Map<string, number>();
   for (const row of rows) {
+    reportCounts.set(row.reportedUserId, row.reportCount);
     if (row.reportedByMe || row.reportCount >= 3) {
       hiddenUserIds.add(row.reportedUserId);
     }
   }
 
-  return hiddenUserIds;
+  return { hiddenUserIds, reportCounts };
 }
 
-async function fetchModerationData(projectModerationConditions: (SQL | undefined)[]) {
+function moderationVisibility(hiddenUserIds: ReadonlySet<string>) {
+  const hidden = [...hiddenUserIds];
+  function visibleUser(column: AnyPgColumn) {
+    return hidden.length > 0 ? or(isNull(column), notInArray(column, hidden)) : undefined;
+  }
+  return {
+    project: visibleUser(projects.ownerId),
+    overlay: and(
+      notInArray(overlays.status, ["rejected", "replaced"]),
+      visibleUser(overlays.authorId),
+    ),
+    change: visibleUser(changeRequests.requestedBy),
+  };
+}
+
+// One row per actionable entity. Both project membership and country badges read this relation.
+function buildPendingModerationQuery(countryFilter: SQL, hiddenUserIds: ReadonlySet<string>) {
+  const visible = moderationVisibility(hiddenUserIds);
+  const columns = { projectId: projects.id, countryCode: projects.countryCode };
+  const scope = and(countryFilter, visible.project);
+  return db
+    .select(columns)
+    .from(projects)
+    .where(and(eq(projects.status, "pending"), scope))
+    .unionAll(
+      db
+        .select(columns)
+        .from(overlays)
+        .innerJoin(projects, eq(overlays.projectId, projects.id))
+        .where(and(eq(overlays.status, "pending"), scope, visible.overlay)),
+    )
+    .unionAll(
+      db
+        .select(columns)
+        .from(changeRequests)
+        .innerJoin(projects, eq(changeRequests.entityId, projects.id))
+        .where(
+          and(
+            eq(changeRequests.entityType, "project"),
+            eq(changeRequests.status, "pending"),
+            scope,
+            visible.change,
+          ),
+        ),
+    )
+    .unionAll(
+      db
+        .select(columns)
+        .from(changeRequests)
+        .innerJoin(overlays, eq(changeRequests.entityId, overlays.id))
+        .innerJoin(projects, eq(overlays.projectId, projects.id))
+        .where(
+          and(
+            eq(changeRequests.entityType, "overlay"),
+            eq(changeRequests.status, "pending"),
+            scope,
+            visible.overlay,
+            visible.change,
+          ),
+        ),
+    );
+}
+
+async function fetchModerationData(projectCondition: SQL, hiddenUserIds: ReadonlySet<string>) {
+  const visible = moderationVisibility(hiddenUserIds);
   // Fetch projects first to scope change request queries to exact project IDs,
   // avoiding slow full-table scans via COALESCE country conditions on the join
   const projectsResult = await buildProjectModerationQuery(db)
-    .where(and(...projectModerationConditions))
+    .where(projectCondition)
     .orderBy(sql`${projects.createdAt} DESC`, sql`${projects.id} DESC`);
 
   const projectIds = projectsResult.map((p) => p.id);
@@ -396,23 +317,26 @@ async function fetchModerationData(projectModerationConditions: (SQL | undefined
     return { projectsResult, overlaysResult: [], overlayChanges: [], projectChanges: [] };
   }
 
+  const changeColumns = {
+    id: changeRequests.id,
+    entityType: changeRequests.entityType,
+    entityId: changeRequests.entityId,
+    fieldName: changeRequests.fieldName,
+    oldValue: changeRequests.oldValue,
+    newValue: changeRequests.newValue,
+    changeReason: changeRequests.changeReason,
+    status: changeRequests.status,
+    requestedBy: changeRequests.requestedBy,
+    requestedByUsername: users.username,
+    createdAt: changeRequests.createdAt,
+  };
   const [overlaysResult, overlayChanges, projectChanges] = await Promise.all([
-    buildOverlayModerationQuery(db).where(inArray(overlays.projectId, projectIds)),
+    buildOverlayModerationQuery(db).where(
+      and(inArray(overlays.projectId, projectIds), visible.overlay),
+    ),
     // Overlay change requests scoped to the fetched project IDs
     db
-      .select({
-        id: changeRequests.id,
-        entityType: changeRequests.entityType,
-        entityId: changeRequests.entityId,
-        fieldName: changeRequests.fieldName,
-        oldValue: changeRequests.oldValue,
-        newValue: changeRequests.newValue,
-        changeReason: changeRequests.changeReason,
-        status: changeRequests.status,
-        requestedBy: changeRequests.requestedBy,
-        requestedByUsername: users.username,
-        createdAt: changeRequests.createdAt,
-      })
+      .select(changeColumns)
       .from(changeRequests)
       .leftJoin(overlays, eq(changeRequests.entityId, overlays.id))
       .leftJoin(users, eq(changeRequests.requestedBy, users.id))
@@ -421,23 +345,13 @@ async function fetchModerationData(projectModerationConditions: (SQL | undefined
           eq(changeRequests.entityType, "overlay"),
           eq(changeRequests.status, "pending"),
           inArray(overlays.projectId, projectIds),
+          visible.overlay,
+          visible.change,
         ),
       ),
 
     db
-      .select({
-        id: changeRequests.id,
-        entityType: changeRequests.entityType,
-        entityId: changeRequests.entityId,
-        fieldName: changeRequests.fieldName,
-        oldValue: changeRequests.oldValue,
-        newValue: changeRequests.newValue,
-        changeReason: changeRequests.changeReason,
-        status: changeRequests.status,
-        requestedBy: changeRequests.requestedBy,
-        requestedByUsername: users.username,
-        createdAt: changeRequests.createdAt,
-      })
+      .select(changeColumns)
       .from(changeRequests)
       .leftJoin(users, eq(changeRequests.requestedBy, users.id))
       .where(
@@ -445,6 +359,7 @@ async function fetchModerationData(projectModerationConditions: (SQL | undefined
           eq(changeRequests.entityType, "project"),
           eq(changeRequests.status, "pending"),
           inArray(changeRequests.entityId, projectIds),
+          visible.change,
         ),
       ),
   ]);
@@ -452,61 +367,14 @@ async function fetchModerationData(projectModerationConditions: (SQL | undefined
   return { projectsResult, overlaysResult, overlayChanges, projectChanges };
 }
 
-function filterContentByReportedUsers<
-  T extends { ownerId?: string | null; authorId?: string | null; requestedBy?: string | null },
->(items: T[], hiddenUserIds: Set<string>, userIdField: keyof T): T[] {
-  return items.filter((item) => {
-    const userId = item[userIdField];
-    if (typeof userId !== "string") return true;
-    return !hiddenUserIds.has(userId);
-  });
-}
+type ModerationData = Awaited<ReturnType<typeof fetchModerationData>>;
 
-async function normalizeModerationCollections(
-  filteredProjects: Awaited<ReturnType<ReturnType<typeof buildProjectModerationQuery>["execute"]>>,
-  filteredOverlays: Awaited<ReturnType<ReturnType<typeof buildOverlayModerationQuery>["execute"]>>,
-  filteredChangeRequests: {
-    id: string;
-    entityType: EntityType;
-    entityId: string;
-    fieldName: string;
-    oldValue: unknown;
-    newValue: unknown;
-    changeReason: string | null;
-    status: "pending" | "approved" | "rejected" | "conflicted";
-    requestedBy: string | null;
-    requestedByUsername: string | null;
-    createdAt: Date;
-    hasConflict: boolean;
-  }[],
+function normalizeModerationCollections(
+  filteredProjects: ModerationData["projectsResult"],
+  filteredOverlays: ModerationData["overlaysResult"],
+  filteredChangeRequests: (ModerationData["projectChanges"][number] & { hasConflict: boolean })[],
+  reportCounts: Map<string, number>,
 ) {
-  const userIds = new Set<string>();
-  for (const project of filteredProjects) {
-    if (project.ownerId) userIds.add(project.ownerId);
-  }
-  for (const overlay of filteredOverlays) {
-    if (overlay.authorId) userIds.add(overlay.authorId);
-  }
-  for (const change of filteredChangeRequests) {
-    if (change.requestedBy) userIds.add(change.requestedBy);
-  }
-
-  const reportCountMap = new Map<string, number>();
-  if (userIds.size > 0) {
-    const reportCounts = await db
-      .select({
-        reportedUserId: userReports.reportedUserId,
-        count: sql<string>`COUNT(*)`,
-      })
-      .from(userReports)
-      .where(inArray(userReports.reportedUserId, [...userIds]))
-      .groupBy(userReports.reportedUserId);
-
-    for (const row of reportCounts) {
-      reportCountMap.set(row.reportedUserId, Number(row.count));
-    }
-  }
-
   const projectsById: Record<
     string,
     (typeof filteredProjects)[number] & { ownerReportCount: number }
@@ -519,20 +387,20 @@ async function normalizeModerationCollections(
   for (const project of filteredProjects) {
     projectsById[project.id] = {
       ...project,
-      ownerReportCount: project.ownerId ? (reportCountMap.get(project.ownerId) ?? 0) : 0,
+      ownerReportCount: project.ownerId ? (reportCounts.get(project.ownerId) ?? 0) : 0,
     };
   }
   for (const overlay of filteredOverlays) {
     overlaysById[overlay.id] = {
       ...overlay,
-      authorReportCount: overlay.authorId ? (reportCountMap.get(overlay.authorId) ?? 0) : 0,
+      authorReportCount: overlay.authorId ? (reportCounts.get(overlay.authorId) ?? 0) : 0,
     };
   }
 
   const changeRequestsWithReports = [];
   for (const change of filteredChangeRequests) {
     const requestedByReportCount = change.requestedBy
-      ? (reportCountMap.get(change.requestedBy) ?? 0)
+      ? (reportCounts.get(change.requestedBy) ?? 0)
       : 0;
     changeRequestsWithReports.push({ ...change, requestedByReportCount });
   }

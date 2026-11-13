@@ -6,7 +6,7 @@ import type { Project, HydratedProject, LocalProject } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import { trpc } from "@/client";
 import { hasProjectDetailFields, projectFromWire } from "@/utils/typeFactories";
-import { projectValuesEqual } from "@/utils/projectValues";
+import { projectValuesEqual } from "@shared/projectValues";
 
 type ProjectDraft = Partial<Project> & Pick<Project, "id">;
 type ProjectIndex = Record<string, Project>;
@@ -129,7 +129,7 @@ export const useProjectStore = defineStore("project", () => {
     if (!persisted) return isLocalProjectDraft(draft);
     return Object.entries(draft).some(
       ([field, value]) =>
-        field !== "id" && !projectValuesEqual(field, persisted[field as keyof Project], value),
+        field !== "id" && !projectValuesEqual(persisted[field as keyof Project], value),
     );
   }
 
@@ -185,7 +185,7 @@ export const useProjectStore = defineStore("project", () => {
     const persisted = persistedProjects.value[projectId];
     if (persisted) {
       for (const field of Object.keys(draft) as (keyof Project)[]) {
-        if (field !== "id" && projectValuesEqual(field, persisted[field], draft[field])) {
+        if (field !== "id" && projectValuesEqual(persisted[field], draft[field])) {
           // oxlint-disable-next-line no-dynamic-delete
           delete draft[field];
         }

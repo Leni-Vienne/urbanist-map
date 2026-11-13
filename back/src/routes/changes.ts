@@ -1,13 +1,6 @@
 import { moderatorProcedure, loggedInProcedure, router } from "../trpc";
 import * as z from "zod"; // Smaller bundle compared to 'import { z } from 'zod';
-import {
-  projects,
-  overlays,
-  changeRequests,
-  changeHistory,
-  type EntityType,
-  users,
-} from "../db/schema";
+import { projects, overlays, changeRequests, changeHistory, users } from "../db/schema";
 import { eq, and, inArray, sql, isNull, isNotNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../database";
@@ -19,6 +12,11 @@ import {
 } from "../db/geometry";
 import { captureProjectMapState } from "../db/projectMapState";
 import { reconcileProjectChanges } from "../services/projectEffects";
+import {
+  checkModeratorCountryPermission,
+  checkModeratorOverlayPermission,
+  type ModeratorUser,
+} from "./moderation/shared";
 
 const approveChangeRequestSchema = z.object({
   changeRequestIds: z.array(z.uuid()),
@@ -27,11 +25,6 @@ const approveChangeRequestSchema = z.object({
 const rejectChangeRequestSchema = z.object({
   changeRequestIds: z.array(z.uuid()),
 });
-
-// Helper to check if entity type is supported
-function isSupportedEntityType(type: string): type is EntityType {
-  return type === "project" || type === "overlay";
-}
 
 // Project fields backed by timestamp columns. Stored in jsonb as ISO strings,
 // so they need coercion back to Date before Drizzle serializes them.
@@ -61,31 +54,10 @@ function buildProjectUpdateData(change: { fieldName: string; newValue: unknown }
   return { [change.fieldName]: change.newValue };
 }
 
-// Helper to get country code for an entity (project or overlay)
-async function getEntityCountryCode(
-  entityType: EntityType,
-  entityId: string,
-): Promise<string | undefined> {
-  const query =
-    entityType === "project"
-      ? db
-          .select({ countryCode: projects.countryCode })
-          .from(projects)
-          .where(eq(projects.id, entityId))
-      : db
-          .select({ countryCode: projects.countryCode })
-          .from(overlays)
-          .innerJoin(projects, eq(overlays.projectId, projects.id))
-          .where(eq(overlays.id, entityId));
-
-  const result = await query.limit(1);
-  return result[0]?.countryCode;
-}
-
 // Helper to check if moderator has permission for a change request's country
 async function checkModeratorChangeRequestPermission(
   changeRequestId: string,
-  user: { role: string | null; moderatedCountries: string[] | null },
+  user: ModeratorUser,
 ): Promise<string> {
   // Admins can moderate any country
   if (user.role === "admin") {
@@ -109,36 +81,24 @@ async function checkModeratorChangeRequestPermission(
 
   const { entityType, entityId } = request;
 
-  if (!isSupportedEntityType(entityType)) {
-    throw new TRPCError({
-      code: "INTERNAL_SERVER_ERROR",
-      // oxlint-disable-next-line restrict-template-expressions
-      message: `Invalid entity type: ${entityType}`,
-    });
+  switch (entityType) {
+    case "project":
+      return checkModeratorCountryPermission(entityId, user);
+    case "overlay":
+      return checkModeratorOverlayPermission(entityId, user);
+    default:
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: `Invalid entity type: ${String(entityType)}`,
+      });
   }
-
-  const countryCode = await getEntityCountryCode(entityType, entityId);
-
-  if (!countryCode) {
-    throw new TRPCError({ code: "NOT_FOUND", message: "Entity not found" });
-  }
-
-  // Check if moderator has permission for this country
-  if (!user.moderatedCountries?.includes(countryCode)) {
-    throw new TRPCError({
-      code: "FORBIDDEN",
-      message: "You do not have permission to moderate content in this country",
-    });
-  }
-
-  return countryCode;
 }
 
 // Shared guard for the approve/reject batch mutations: verify the moderator may moderate every
 // change request in the batch. Returns the moderator user id.
 async function authorizeChangeRequestBatch(
   changeRequestIds: string[],
-  user: { id: string; role: string | null; moderatedCountries: string[] | null },
+  user: ModeratorUser & { id: string },
 ): Promise<string> {
   for (const changeRequestId of changeRequestIds) {
     await checkModeratorChangeRequestPermission(changeRequestId, user);

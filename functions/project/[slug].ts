@@ -9,6 +9,11 @@
 // Status codes pass through from the backend: 200 (live), 410 (deleted -> de-index), 404 (unknown).
 
 import type { SeoLocation, SeoProject, SeoProjectResponse } from "../../shared/types/seo";
+import { formatProjectDateRangeParts } from "../../shared/projectDates";
+import {
+  tags as englishTagLabels,
+  timelineStatus as englishTimelineLabels,
+} from "../../front/src/locales/messages/en.json";
 
 interface PagesContext {
   request: Request;
@@ -52,72 +57,21 @@ function stripDefaultSeoTags(html: string): string {
     .replace(/<meta\b[^>]*\bname=["']twitter:[^"']*["'][^>]*>/gi, "");
 }
 
-// Human-readable timeline stage labels, mirroring the frontend timelineStatus messages.
-const TIMELINE_STATUS_LABELS = new Map(
-  Object.entries({
-    proposed: "Proposed",
-    planned: "Planned",
-    under_construction: "Under construction",
-    completed: "Completed",
-    canceled: "Canceled",
-  }),
-);
+// Plain message data is shared even though the Pages Function is bundled separately from Vue.
+const TIMELINE_STATUS_LABELS = new Map<string, string>(Object.entries(englishTimelineLabels));
+const TAG_LABELS = new Map<string, string>(Object.entries(englishTagLabels));
 
-// Display labels for project tag slugs, mirroring the en `tags.*` locale keys (the slug `subway`
-// reads "Metro", `light_rail` reads "Light Rail", etc.). Duplicated here because this Pages Function
-// is bundled separately from the app and cannot import the frontend i18n. Unknown slugs fall back to
-// the raw slug. Source of truth: front/src/locales/messages/en.json -> "tags".
-const TAG_LABELS = new Map(
-  Object.entries({
-    tram: "Tram",
-    light_rail: "Light Rail",
-    rail: "Railway",
-    subway: "Metro",
-    bus: "Bus",
-    cable_car: "Cable Car",
-    airport: "Airport",
-    bike: "Bike",
-    road: "Road",
-    waterway: "Waterway",
-    park: "Park / Green space",
-    building: "Building",
-    residential: "Residential",
-    commercial: "Commercial",
-    retail: "Retail",
-    office: "Office",
-    industrial: "Industrial",
-    pedestrian: "Pedestrian",
-  }),
-);
-
-// Format an ISO date string at the stored precision: year -> "2027", month -> "June 2027",
-// day (or null) -> "June 23, 2027". Returns "" for an unparseable date.
-function formatSeoDate(iso: string, precision: string | null | undefined): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "";
-  if (precision === "year") return String(date.getUTCFullYear());
-  const options: Intl.DateTimeFormatOptions =
-    precision === "month"
-      ? { year: "numeric", month: "long", timeZone: "UTC" }
-      : { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" };
-  return date.toLocaleDateString("en-US", options);
-}
-
-// Resolve the date sentence shown for a project, mirroring the SPA's proposed/period/start/end
-// priority (see utils/projectDateFormat.ts). Returns "" when no date is available.
 function resolveSeoDateLabel(data: Partial<SeoProject>): string {
-  if (data.timelineStatus === "proposed" && data.proposalDate) {
-    return `Proposed ${formatSeoDate(data.proposalDate, data.proposalDatePrecision)}`;
-  }
-  const start = data.startDate ? formatSeoDate(data.startDate, data.startDatePrecision) : "";
-  const end = data.endDate ? formatSeoDate(data.endDate, data.endDatePrecision) : "";
-  if (start && end) return `${start} - ${end}`;
-  if (start) return `Starts ${start}`;
-  if (end) return `Estimated completion ${end}`;
-  if (data.proposalDate) {
-    return `Proposed ${formatSeoDate(data.proposalDate, data.proposalDatePrecision)}`;
-  }
-  return "";
+  const labels = new Map<string, string>(
+    Object.entries({
+      "project.proposalDate": "Proposed",
+      "project.period": "",
+      "project.startDate": "Starts",
+      "project.estimatedCompletion": "Estimated completion",
+    }),
+  );
+  const result = formatProjectDateRangeParts(data, (key) => labels.get(key) ?? "", "en-US");
+  return result ? [result.label, result.value].filter(Boolean).join(" ") : "";
 }
 
 // Serialize a value for embedding inside a <script> element. JSON.stringify produces valid JSON but

@@ -2,7 +2,7 @@ import { moderatorProcedure, adminProcedure } from "../../trpc";
 import { db } from "../../database";
 import { projects, overlays, users, userReports } from "../../db/schema";
 import { and, eq, or, sql, inArray } from "drizzle-orm";
-import { deleteImagesEverywhere, deleteLocalImages } from "../../lib/imageCleanup";
+import { deleteImagesEverywhere } from "../../lib/imageCleanup";
 import { deleteUserSessions } from "../../lib/auth";
 import { captureProjectMapState } from "../../db/projectMapState";
 import { reconcileProjectChanges } from "../../services/projectEffects";
@@ -187,7 +187,7 @@ export const reportProcedures = {
     )
     .mutation(async ({ input, ctx }) => {
       try {
-        await db.transaction(async (tx) => {
+        const removed = await db.transaction(async (tx) => {
           await tx
             .update(users)
             .set({
@@ -198,48 +198,64 @@ export const reportProcedures = {
             })
             .where(eq(users.id, input.userId));
 
+          const projectRows = input.deleteContent
+            ? await tx
+                .select({ id: projects.id })
+                .from(projects)
+                .where(
+                  and(
+                    eq(projects.ownerId, input.userId),
+                    inArray(projects.status, ["pending", "rejected"]),
+                  ),
+                )
+                .for("update")
+            : [];
+          const projectIds = projectRows.map((project) => project.id);
+          const imageCondition = or(
+            and(
+              eq(overlays.authorId, input.userId),
+              inArray(overlays.status, ["pending", "rejected"]),
+            ),
+            inArray(overlays.projectId, projectIds),
+          );
+          const images = input.deleteContent
+            ? await tx
+                .select({
+                  id: overlays.id,
+                  filename: overlays.filename,
+                  projectId: overlays.projectId,
+                })
+                .from(overlays)
+                .where(imageCondition)
+                .for("update")
+            : [];
+          const before = await captureProjectMapState(tx, [
+            ...projectIds,
+            ...images.flatMap((image) => (image.projectId ? [image.projectId] : [])),
+          ]);
           if (input.deleteContent) {
-            const overlaysToDelete = await tx
-              .select({ filename: overlays.filename })
-              .from(overlays)
-              .where(
-                and(
-                  eq(overlays.authorId, input.userId),
-                  or(eq(overlays.status, "pending"), eq(overlays.status, "rejected")),
-                ),
-              );
-
-            await tx
-              .delete(projects)
-              .where(
-                and(
-                  eq(projects.ownerId, input.userId),
-                  or(eq(projects.status, "pending"), eq(projects.status, "rejected")),
-                ),
-              );
-
-            await tx
-              .delete(overlays)
-              .where(
-                and(
-                  eq(overlays.authorId, input.userId),
-                  or(eq(overlays.status, "pending"), eq(overlays.status, "rejected")),
-                ),
-              );
-
-            for (const overlay of overlaysToDelete) {
-              try {
-                await deleteLocalImages(overlay.filename);
-              } catch (error) {
-                console.error(`Failed to delete images for ${overlay.filename}:`, error);
-              }
-            }
+            // Include other contributors' images removed with a rejected/pending parent project.
+            await tx.delete(overlays).where(
+              inArray(
+                overlays.id,
+                images.map((image) => image.id),
+              ),
+            );
+            await tx.delete(projects).where(inArray(projects.id, projectIds));
           }
-
           await tx.delete(userReports).where(eq(userReports.reportedUserId, input.userId));
+          return { images, before };
         });
 
         await deleteUserSessions(input.userId);
+        await reconcileProjectChanges(removed.before);
+        for (const image of removed.images) {
+          try {
+            await deleteImagesEverywhere(image.filename);
+          } catch (error) {
+            console.error(`Failed to delete images for ${image.filename}:`, error);
+          }
+        }
       } catch (error) {
         console.error("Error banning user:", error);
         throw new TRPCError({

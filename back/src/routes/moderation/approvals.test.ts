@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, mock, spyOn, test } from "bun:test";
 import { Context } from "hono";
 import { drizzle } from "drizzle-orm/pg-proxy";
+import type { Transaction } from "../../database";
 
 process.env.DATABASE_URL ??= "postgres://test:test@localhost:1/test";
 process.env.CORS_ORIGIN ??= "http://localhost";
@@ -12,13 +13,19 @@ const [database, publication, effects, { approvalProcedures }, { router }] = awa
   import("./approvals"),
   import("../../trpc"),
 ]);
+const [images, auth, mapState, { reportProcedures }] = await Promise.all([
+  import("../../lib/imageCleanup"),
+  import("../../lib/auth"),
+  import("../../db/projectMapState"),
+  import("./reports"),
+]);
 
 const previousNodeEnv = process.env.NODE_ENV;
 const overlayId = "11111111-1111-4111-8111-111111111111";
 const projectId = "22222222-2222-4222-8222-222222222222";
 const filename = "123-example.webp";
 const committed = { overlay: { filename }, before: { projectIds: [projectId], bounds: [] } };
-const caller = router(approvalProcedures).createCaller({
+const caller = router({ ...approvalProcedures, ...reportProcedures }).createCaller({
   user: {
     id: "33333333-3333-4333-8333-333333333333",
     email: "admin@example.com",
@@ -91,4 +98,46 @@ test("transaction failure prevents local cleanup", async () => {
   expect(failure).toHaveProperty("code", "INTERNAL_SERVER_ERROR");
   expect(calls.copy).toHaveBeenCalledWith(filename);
   expect(calls.cleanup).not.toHaveBeenCalled();
+});
+
+function stubBan(commit: boolean) {
+  let committed = false;
+  const proxy = drizzle(async (query) => ({
+    rows: query.startsWith("select")
+      ? query.includes('from "projects"')
+        ? [[projectId]]
+        : [[overlayId, filename, projectId]]
+      : [],
+  }));
+  spyOn(mapState, "captureProjectMapState").mockResolvedValue({
+    projectIds: [projectId],
+    bounds: [],
+  });
+  spyOn(auth, "deleteUserSessions").mockResolvedValue(undefined);
+  spyOn(database.db, "transaction").mockImplementation(async (work) => {
+    // Query responses and the commit outcome are simulated; no SQL is executed against a database.
+    // oxlint-disable-next-line no-unsafe-type-assertion
+    const result = await work(proxy as Transaction);
+    if (!commit) throw new Error("Commit failed");
+    committed = true;
+    return result;
+  });
+  return spyOn(images, "deleteImagesEverywhere").mockImplementation(async () => {
+    expect(committed).toBe(true);
+  });
+}
+
+test("ban cleanup is requested only after its transaction succeeds", async () => {
+  const cleanup = stubBan(true);
+  await caller.banUser({ userId: projectId, reason: "Spam", deleteContent: true });
+  expect(cleanup).toHaveBeenCalledWith(filename);
+});
+
+test("a failed ban transaction never requests file deletion", async () => {
+  const cleanup = stubBan(false);
+  const result = await caller
+    .banUser({ userId: projectId, reason: "Spam", deleteContent: true })
+    .catch((error: unknown) => error);
+  expect(result).toHaveProperty("code", "INTERNAL_SERVER_ERROR");
+  expect(cleanup).not.toHaveBeenCalled();
 });

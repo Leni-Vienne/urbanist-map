@@ -256,70 +256,106 @@ async function writeProject(
   });
 }
 
-async function writeOverlay(
-  tx: Transaction,
-  overlay: SubmissionBatchInput["overlays"][number],
-  projectId: string,
-  user: SessionUser,
-  existingOverlays: SubmissionState["existingOverlays"],
-  notifications: Notification[],
-  supersededFilenames: string[],
-): Promise<void> {
-  const existing = existingOverlays.get(overlay.id);
-  if (existing && existing.kind !== "map") {
-    throw new TRPCError({ code: "BAD_REQUEST", message: "Overlay kind cannot be changed" });
+type SubmittedImage =
+  | (SubmissionBatchInput["overlays"][number] & { kind: "map" })
+  | (NonNullable<SubmissionBatchInput["render"]> & { kind: "render" });
+
+type SubmittedImageReceipt = {
+  id: string;
+  filename: string;
+  status: "pending";
+  authorId: string;
+};
+
+// Map geometry and render placement are the only kind-specific part of image persistence.
+async function imagePlacement(tx: Transaction, image: SubmittedImage, projectId: string) {
+  if (image.kind === "render") {
+    const [project] = await tx
+      .select({ lat: projects.lat, lng: projects.lng })
+      .from(projects)
+      .where(eq(projects.id, projectId))
+      .limit(1);
+    if (!project) throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
+    return { position: {}, location: project };
   }
-  if (existing?.status === "approved") {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: "APPROVED_OVERLAY_REQUIRES_CHANGE_REQUEST",
-    });
-  }
-  if (existing && existing.authorId !== user.id) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Not authorized to modify this overlay" });
-  }
-  const filenameClaim = await tx
-    .select({ id: overlays.id })
-    .from(overlays)
-    .where(and(eq(overlays.filename, overlay.filename), ne(overlays.id, overlay.id)))
-    .limit(1);
-  if (filenameClaim[0]) {
-    throw new TRPCError({ code: "BAD_REQUEST", message: "validation.filenameInvalid" });
-  }
-  if (overlay.replacesOverlayId) {
-    const replacementTarget = await tx
+  if (image.replacesOverlayId) {
+    const [target] = await tx
       .select({ id: overlays.id })
       .from(overlays)
       .where(
         and(
-          eq(overlays.id, overlay.replacesOverlayId),
+          eq(overlays.id, image.replacesOverlayId),
           eq(overlays.projectId, projectId),
           eq(overlays.status, "approved"),
         ),
       )
       .limit(1);
-    if (!replacementTarget[0]) {
+    if (!target) {
       throw new TRPCError({
         code: "BAD_REQUEST",
         message: "A replacement must target an approved overlay from the same project",
       });
     }
   }
-
-  const centroid = calculateCentroidFromCorners(overlay.corners);
-  if (!centroid) {
+  const location = calculateCentroidFromCorners(image.corners);
+  if (!location)
     throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid corner coordinates" });
+  return {
+    position: {
+      caption: image.caption,
+      replacesOverlayId: image.replacesOverlayId ?? null,
+      ...overlayGeometryValues(image.corners),
+    },
+    location,
+  };
+}
+
+async function writeImage(
+  tx: Transaction,
+  image: SubmittedImage,
+  projectId: string,
+  user: SessionUser,
+  existingOverlays: SubmissionState["existingOverlays"],
+  notifications: Notification[],
+  supersededFilenames: string[],
+): Promise<SubmittedImageReceipt> {
+  const existing = existingOverlays.get(image.id);
+  if (existing && existing.kind !== image.kind) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "Overlay kind cannot be changed" });
   }
+  if (existing?.status === "approved") {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message:
+        image.kind === "map"
+          ? "APPROVED_OVERLAY_REQUIRES_CHANGE_REQUEST"
+          : "Approved render cannot be changed",
+    });
+  }
+  if (existing && existing.authorId !== user.id) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Not authorized to modify this image" });
+  }
+  if (existing && existing.projectId !== projectId) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "Image belongs to another project" });
+  }
+  const filenameClaim = await tx
+    .select({ id: overlays.id })
+    .from(overlays)
+    .where(and(eq(overlays.filename, image.filename), ne(overlays.id, image.id)))
+    .limit(1);
+  if (filenameClaim[0]) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "validation.filenameInvalid" });
+  }
+  const { position, location } = await imagePlacement(tx, image, projectId);
   const values = {
-    filename: overlay.filename,
-    caption: overlay.caption,
+    filename: image.filename,
     projectId,
     authorId: user.id,
-    replacesOverlayId: overlay.replacesOverlayId ?? null,
-    ...overlayGeometryValues(overlay.corners),
+    kind: image.kind,
+    ...position,
   };
   if (existing) {
-    const updated = await tx
+    const [updated] = await tx
       .update(overlays)
       .set({
         ...values,
@@ -330,122 +366,32 @@ async function writeOverlay(
       })
       .where(
         and(
-          eq(overlays.id, overlay.id),
+          eq(overlays.id, image.id),
           eq(overlays.authorId, user.id),
-          or(eq(overlays.status, "pending"), eq(overlays.status, "rejected")),
+          inArray(overlays.status, ["pending", "rejected"]),
         ),
       )
       .returning({ id: overlays.id });
-    if (!updated[0]) {
+    if (!updated) {
       throw new TRPCError({
         code: "CONFLICT",
-        message: "Overlay status changed while it was being updated",
+        message: "Image status changed while it was being updated",
       });
     }
-    if (existing.filename !== overlay.filename) supersededFilenames.push(existing.filename);
-    return;
-  }
-
-  await tx.insert(overlays).values({ id: overlay.id, ...values });
-  notifications.push({
-    kind: "overlay",
-    author: { email: user.email, username: user.username },
-    overlayId: overlay.id,
-    caption: overlay.caption ?? null,
-    projectId,
-    lat: centroid.lat,
-    lng: centroid.lng,
-  });
-}
-
-type SubmittedRender = {
-  id: string;
-  filename: string;
-  status: "pending";
-  authorId: string | null;
-};
-
-async function writeRender(
-  tx: Transaction,
-  render: NonNullable<SubmissionBatchInput["render"]>,
-  projectId: string,
-  user: SessionUser,
-  existingOverlays: SubmissionState["existingOverlays"],
-  notifications: Notification[],
-  supersededFilenames: string[],
-): Promise<SubmittedRender> {
-  const existing = existingOverlays.get(render.id);
-  if (existing && existing.kind !== "render") {
-    throw new TRPCError({ code: "BAD_REQUEST", message: "Overlay kind cannot be changed" });
-  }
-  if (existing?.status === "approved") {
-    throw new TRPCError({ code: "BAD_REQUEST", message: "Approved render cannot be changed" });
-  }
-  if (existing && existing.authorId !== user.id) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Not authorized to modify this render" });
-  }
-  const project = await tx
-    .select({ lat: projects.lat, lng: projects.lng })
-    .from(projects)
-    .where(eq(projects.id, projectId))
-    .limit(1);
-  if (!project[0]) {
-    throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
-  }
-  const filenameClaim = await tx
-    .select({ id: overlays.id })
-    .from(overlays)
-    .where(and(eq(overlays.filename, render.filename), ne(overlays.id, render.id)))
-    .limit(1);
-  if (filenameClaim[0]) {
-    throw new TRPCError({ code: "BAD_REQUEST", message: "validation.filenameInvalid" });
-  }
-
-  if (existing) {
-    const updated = await tx
-      .update(overlays)
-      .set({
-        filename: render.filename,
-        projectId,
-        status: "pending",
-        rejectionReason: null,
-        version: sql`${overlays.version} + 1`,
-        updatedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(overlays.id, render.id),
-          eq(overlays.authorId, user.id),
-          or(eq(overlays.status, "pending"), eq(overlays.status, "rejected")),
-        ),
-      )
-      .returning({ id: overlays.id });
-    if (!updated[0]) {
-      throw new TRPCError({
-        code: "CONFLICT",
-        message: "Render status changed while it was being updated",
-      });
-    }
-    if (existing.filename !== render.filename) supersededFilenames.push(existing.filename);
+    if (existing.filename !== image.filename) supersededFilenames.push(existing.filename);
   } else {
-    await tx.insert(overlays).values({
-      id: render.id,
-      filename: render.filename,
-      projectId,
-      authorId: user.id,
-      kind: "render",
-    });
+    await tx.insert(overlays).values({ id: image.id, ...values });
     notifications.push({
       kind: "overlay",
       author: { email: user.email, username: user.username },
-      overlayId: render.id,
-      caption: null,
+      overlayId: image.id,
+      caption: image.kind === "map" ? (image.caption ?? null) : null,
       projectId,
-      lat: project[0].lat,
-      lng: project[0].lng,
+      lat: location.lat,
+      lng: location.lng,
     });
   }
-  return { id: render.id, filename: render.filename, status: "pending", authorId: user.id };
+  return { id: image.id, filename: image.filename, status: "pending", authorId: user.id };
 }
 
 async function writeChangeRequest(
@@ -549,9 +495,9 @@ export const submissionRouter = router({
         }
 
         for (const overlay of plan.overlays) {
-          await writeOverlay(
+          await writeImage(
             tx,
-            overlay,
+            { ...overlay, kind: "map" },
             input.projectId,
             ctx.user,
             state.existingOverlays,
@@ -561,9 +507,9 @@ export const submissionRouter = router({
         }
 
         const render = input.render
-          ? await writeRender(
+          ? await writeImage(
               tx,
-              input.render,
+              { ...input.render, kind: "render" },
               input.projectId,
               ctx.user,
               state.existingOverlays,

@@ -1,4 +1,5 @@
 import type { FlexibleDateInput, DatePrecision } from "@shared/types/flexibleDate";
+import { formatStoredDate } from "@shared/projectDates";
 
 /** Convert a Date to a FlexibleDateInput at the given precision. */
 function dateToFlexibleInput(date: Date, precision: DatePrecision): FlexibleDateInput {
@@ -37,26 +38,6 @@ export function flexibleDateToDb(input: FlexibleDateInput | null | undefined): D
 
 /** Format a flexible date for display with localization. */
 export function formatFlexibleDate(input: FlexibleDateInput | null | undefined): string {
-  if (!input) return "";
-
-  const { year, month, day, precision } = input;
-  const userLocale = navigator.language;
-
-  // Create a date object for formatting
-  // Use noon to avoid timezone rollover issues with basic dates
-  const date = new Date(year, (month ?? 1) - 1, day ?? 1, 12, 0, 0);
-
-  if (precision === "year") {
-    return year.toString();
-  }
-
-  if (precision === "month") {
-    return new Intl.DateTimeFormat(userLocale, { year: "numeric", month: "long" }).format(date);
-  }
-
-  return new Intl.DateTimeFormat(userLocale, {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  }).format(date);
+  const date = flexibleDateToDb(input);
+  return date && input ? formatStoredDate(date, input.precision, navigator.language) : "";
 }

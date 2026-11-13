@@ -34,6 +34,15 @@ function response(data: HydratedProject | null): Response {
   return Response.json([{ result: { data: superjson.serialize(data) } }]);
 }
 
+test("changing the primary tag keeps a project draft even when the tag set is unchanged", () => {
+  const store = useProjectStore();
+  const original = { ...project(crypto.randomUUID()), tags: ["park", "building"] };
+  store.upsertHydratedProject(original);
+  store.updateProjectDraft(original.id, { tags: ["building", "park"] });
+  expect(store.hasProjectDraft(original.id)).toBe(true);
+  expect(store.getProjectById(original.id)?.tags).toEqual(["building", "park"]);
+});
+
 describe("project detail loading", () => {
   test("fills detail without overwriting a newer summary received during the request", async () => {
     const id = crypto.randomUUID();
