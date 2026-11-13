@@ -3,9 +3,10 @@ import { useUiStore } from "@/stores/uiStore";
 import type { OverlayObject, LatLng } from "@/types/index";
 import { isValidQuad, parseQuadValue } from "@/services/overlay/transform";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
+import { getEditModeRestingCorners } from "@/services/overlay/defaultState";
 
 type OverlayPositionInput = Pick<OverlayObject, "id" | "baselineCorners" | "ownProposal"> &
-  Partial<Pick<OverlayObject, "history" | "positionState">>;
+  Partial<Pick<OverlayObject, "history" | "showApprovedPosition">>;
 
 export function updateOverlayInfo(id: string, info: { caption?: string }): void {
   const overlayStore = useOverlayStore();
@@ -22,10 +23,11 @@ export function updateOverlayInfo(id: string, info: { caption?: string }): void 
 export function resolveOverlayCorners(overlay: OverlayPositionInput): LatLng[] | null {
   const mode = useUiStore().mode;
   if (mode === "edit") {
-    if (overlay.positionState === "suggested" && isValidQuad(overlay.ownProposal?.corners)) {
-      return overlay.ownProposal.corners;
-    }
-    return resolveOverlaySubmissionCorners(overlay);
+    const corners =
+      (overlay.history?.length ?? 0) > 1
+        ? resolveOverlaySubmissionCorners(overlay)
+        : getEditModeRestingCorners(overlay);
+    return isValidQuad(corners) ? corners : null;
   }
   if (mode === "moderation") {
     const preview = useChangeRequestStore().previewState;
@@ -44,8 +46,7 @@ export function resolveOverlayCorners(overlay: OverlayPositionInput): LatLng[] |
 // Geometry submitted to the backend is the staged history position when present, otherwise the
 // backend baseline. Suggested change-request previews are display state, not a new submission.
 export function resolveOverlaySubmissionCorners(overlay: OverlayPositionInput): LatLng[] | null {
-  const history = overlay.history ?? useOverlayStore().liveOverlays[overlay.id]?.history ?? [];
-  const historyCorners = history.at(-1)?.corners;
+  const historyCorners = overlay.history?.at(-1)?.corners;
   if (isValidQuad(historyCorners)) return historyCorners;
   return isValidQuad(overlay.baselineCorners) ? overlay.baselineCorners : null;
 }

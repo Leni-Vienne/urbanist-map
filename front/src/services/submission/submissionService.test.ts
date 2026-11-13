@@ -102,7 +102,7 @@ function localOverlay(): OverlayObject {
     imageUrl: "https://example.com/123456-image.webp",
     history: [{ corners, imageUrl: "https://example.com/123456-image.webp" }],
     redoStack: [],
-    positionState: "baseline",
+    showApprovedPosition: false,
   };
 }
 
@@ -250,10 +250,8 @@ describe("submission acknowledgement", () => {
     const overlayStore = useOverlayStore();
     const imageUrl = localOverlay().imageUrl;
     const moved = corners.map((corner) => ({ lat: corner.lat + 0.001, lng: corner.lng }));
-    overlayStore.commitHistory(OVERLAY_ID, [
-      { corners: moved, imageUrl },
-      { corners, imageUrl },
-    ]);
+    overlayStore.commitOverlayEdit(OVERLAY_ID, moved);
+    overlayStore.commitOverlayEdit(OVERLAY_ID, corners);
     overlayStore.updateOverlayDraft(OVERLAY_ID, { redoStack: [{ corners: moved, imageUrl }] });
     const file = new File(["first"], "first.png", { type: "image/png" });
     useSubmissionStore().setStagedRender(PROJECT_ID, { file, previewUrl: "first" });
@@ -366,7 +364,7 @@ describe("submission acknowledgement", () => {
   test("retains local work without re-uploading images on mutation retry", async () => {
     seedLocal();
     const imageUrl = "data:image/png;base64,aGVsbG8=";
-    useOverlayStore().updateOverlayDraft(OVERLAY_ID, { imageUrl });
+    useOverlayStore().commitOverlayEdit(OVERLAY_ID, corners, { imageUrl });
     const file = new File(["render"], "render.png", { type: "image/png" });
     const submission = {
       ...draft(),

@@ -13,10 +13,10 @@ type ProjectLike = Pick<Project, "id" | "status">;
 
 // History can retain useful undo steps even after moving back to the starting position.
 function getStagedCornersDelta(
-  overlay: Pick<OverlayObject, "status" | "history" | "baselineCorners" | "positionState">,
+  overlay: Pick<OverlayObject, "status" | "history" | "baselineCorners">,
 ): { current: LatLng[]; original: LatLng[] } | null {
   if (overlay.status === null) return null; // new overlays: position lives only in history
-  if (overlay.positionState !== "staged") return null;
+  if (overlay.history.length <= 1) return null;
   const current = overlay.history.at(-1)?.corners;
   if (!current || sameCorners(current, overlay.history[0]?.corners ?? null)) return null;
   return { current, original: overlay.baselineCorners ?? [] };

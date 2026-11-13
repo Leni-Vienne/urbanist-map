@@ -22,15 +22,6 @@ export type PendingOverlayModification = { overlayId: string } & (
 
 export type MarkerColor = "blue" | "green" | "orange" | "red" | "yellow" | "purple" | "grey";
 
-/**
- * Where an overlay's edit-session display rests.
- * - `baseline`: no open change request; rests at approved corners.
- * - `suggested`: open change request; rests on its proposed state (caption-only CRs included, whose
- *   proposed corners resolve to baseline).
- * - `approved-toggled`: open change request; user explicitly viewing the approved state.
- * - `staged`: unsubmitted corner edits; the position is the top of the undo history.
- */ export type OverlayPositionState = "baseline" | "suggested" | "staged" | "approved-toggled";
-
 export type PendingChangeRequestWire =
   RouterOutput["moderation"]["getPendingSubmissions"]["changeRequests"][0];
 
@@ -179,8 +170,6 @@ export interface OverlayHistoryState {
   corners: LatLng[];
   imageUrl: string;
   cropRect?: NormalizedRect;
-  // Only the history seed carries the position to restore when the last edit is undone.
-  positionState?: Exclude<OverlayPositionState, "staged">;
 }
 
 export type OverlayObject = RuntimeOverlayData & {
@@ -189,7 +178,8 @@ export type OverlayObject = RuntimeOverlayData & {
   // Editor state
   history: OverlayHistoryState[];
   redoStack: OverlayHistoryState[];
-  positionState: OverlayPositionState;
+  // Explicit viewing choice; staged edits are determined by history, not a separate flag.
+  showApprovedPosition: boolean;
 };
 
 export type PanelTab = "explore" | "filter" | "contribute" | "moderation";

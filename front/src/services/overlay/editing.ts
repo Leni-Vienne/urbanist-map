@@ -7,7 +7,6 @@ import type { GeoJSONSource, MapMouseEvent } from "maplibre-gl";
 import type { Feature, Polygon } from "geojson";
 import { getMap, getMapOrNull, onStyleSwitch } from "@/services/core/map";
 import {
-  deriveOverlayFilename,
   getImageHandle,
   setOverlayImageTransform,
   raiseOverlayImage,
@@ -31,7 +30,6 @@ import { t } from "@/locales";
 import { MAP_CONFIG, getEffectiveThreshold } from "@/constants/mapConstants";
 import type { OverlayObject, LatLng, Project } from "@/types/index";
 import { openOverlayDetail, whenImageReadyIfSelected } from "@/services/overlay/selection";
-import { makeHistoryState, commitOverlayEdit } from "@/services/overlay/history";
 import { watch } from "vue";
 import { toastWarn } from "@/services/core/toast";
 import { resolveOverlayCorners } from "@/services/overlay/data";
@@ -46,7 +44,9 @@ function buildLocalOverlay(id: string, imageUrl: string, projectId: string): Ove
   const now = new Date();
   return {
     id,
-    filename: deriveOverlayFilename(id, imageUrl),
+    filename: imageUrl.startsWith("data:")
+      ? `pending-${id}.webp`
+      : (imageUrl.split("/").at(-1) ?? ""),
     caption: null,
     status: null,
     projectId,
@@ -59,7 +59,7 @@ function buildLocalOverlay(id: string, imageUrl: string, projectId: string): Ove
     baselineCaption: null,
     history: [],
     redoStack: [],
-    positionState: "baseline",
+    showApprovedPosition: false,
   };
 }
 
@@ -154,7 +154,7 @@ export async function createLocalOverlay(
 
   const corners = defaultCorners(placement.center, aspect);
   overlay.baselineCorners = corners;
-  overlay.history = [makeHistoryState(corners, overlay.imageUrl)];
+  overlay.history = [{ corners, imageUrl: overlay.imageUrl }];
 
   overlayStore.addLocalOverlay(id, overlay);
   if (focus.selection === previousSelection && useUiStore().editingTarget.type === "none")
@@ -292,7 +292,7 @@ function commitGesture(overlayId: string, transform: OverlayTransform): void {
   if (!validateOverlaySize(corners).isValid) {
     toastWarn(t("upload.maximumSizeOnMap"), t("upload.overlayTooLarge"));
   }
-  commitOverlayEdit(overlayObject.id, corners);
+  useOverlayStore().commitOverlayEdit(overlayObject.id, corners);
   updateMarkerPosition(overlayObject, corners);
   registry.finishGestureOwnership(overlayObject.id, corners);
 }

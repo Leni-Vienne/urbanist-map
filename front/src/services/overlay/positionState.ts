@@ -1,5 +1,4 @@
-import type { LatLng, OverlayObject } from "@/types/index";
-import { isValidQuad } from "@/services/overlay/transform";
+import type { OverlayObject } from "@/types/index";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useModerationStore } from "@/stores/moderationStore";
@@ -15,37 +14,16 @@ export function hasOpenChangeRequest(overlay: Pick<OverlayObject, "id" | "ownPro
   return overlay.ownProposal !== undefined;
 }
 
-// The position an overlay shows in edit mode absent any staged edits: the suggested position of
-// the user's own open change request when one exists, otherwise the backend baseline.
-function getEditModeDefaultCorners(
-  overlay: Pick<OverlayObject, "ownProposal" | "baselineCorners">,
-): LatLng[] | null {
-  if (isValidQuad(overlay.ownProposal?.corners)) {
-    return overlay.ownProposal.corners;
-  }
-  return overlay.baselineCorners;
-}
-
-// The edit-mode default, except when the user explicitly toggled "view approved position"
-// (positionState === "approved-toggled"), which shows the baseline. This is the position an
-// overlay with no staged edits rests at in edit mode, and the history seed / undo target.
-export function getEditModeRestingCorners(
-  overlay: Pick<OverlayObject, "ownProposal" | "baselineCorners"> &
-    Partial<Pick<OverlayObject, "positionState">>,
-): LatLng[] | null {
-  if (overlay.positionState === "approved-toggled") return overlay.baselineCorners;
-  return getEditModeDefaultCorners(overlay);
-}
-
 // Whether the map shows the suggested (proposed) state of an overlay's open change request.
 // Edit mode defaults to it (any state other than the explicit approved-position toggle, so
 // caption-only CRs still count). Non-edit modes show the approved state unless an explicit
 // moderation preview of the suggested position is active for this overlay.
 export function showsSuggestedState(
-  overlay: Pick<OverlayObject, "id"> & Partial<Pick<OverlayObject, "positionState">>,
+  overlay: Pick<OverlayObject, "id"> &
+    Partial<Pick<OverlayObject, "history" | "showApprovedPosition">>,
 ): boolean {
   if (useUiStore().mode === "edit") {
-    return overlay.positionState !== "approved-toggled";
+    return (overlay.history?.length ?? 0) > 1 || !overlay.showApprovedPosition;
   }
   const preview = useChangeRequestStore().previewState;
   return (

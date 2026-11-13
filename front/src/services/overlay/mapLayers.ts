@@ -414,14 +414,6 @@ export function setOverlayImageTransform(id: string, transform: OverlayTransform
   );
 }
 
-// Derive an overlay's filename from its image URL: local data-URI uploads get a synthetic
-// `pending-<id>.webp` name, backend URLs keep their last path segment.
-export function deriveOverlayFilename(id: string, imageUrl: string, fallback = ""): string {
-  return imageUrl.startsWith("data:")
-    ? `pending-${id}.webp`
-    : (imageUrl.split("/").pop() ?? fallback);
-}
-
 // Swap an overlay's image bytes (and footprint) on the map: tear down the existing source/layer
 // and rebuild it from a new imageUrl at the given corners. Used when an edit changes the pixels
 // (crop apply, or undo/redo stepping across a crop), not just the position. Opacity and front/back

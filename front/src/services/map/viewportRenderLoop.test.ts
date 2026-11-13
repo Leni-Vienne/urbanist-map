@@ -75,12 +75,7 @@ test("tile arrivals, selection and draft history request rendering without a mod
     if (!overlay) throw new Error("Tile overlay was not ingested");
     const originalCorners = tile.baselineCorners;
     const editedCorners = originalCorners.map((corner) => ({ ...corner, lng: corner.lng + 1 }));
-    await expectRender(() =>
-      overlays.commitHistory(tile.id, [
-        { corners: originalCorners, imageUrl: overlay.imageUrl },
-        { corners: editedCorners, imageUrl: overlay.imageUrl },
-      ]),
-    );
+    await expectRender(() => overlays.commitOverlayEdit(tile.id, editedCorners));
     await expectRender(() => {
       overlays.undoHistory(tile.id);
     });

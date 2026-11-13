@@ -8,8 +8,7 @@ import { getMapOrNull } from "@/services/core/map";
 import { loadOrNull } from "@/services/core/errorHandling";
 import { getOverlayBounds } from "@/services/overlay/markers";
 import { getImageHandle } from "@/services/overlay/mapLayers";
-import { isValidQuad, parsePointValue, parseQuadValue } from "@/services/overlay/transform";
-import { getEditModeRestingCorners } from "@/services/overlay/positionState";
+import { parsePointValue, parseQuadValue } from "@/services/overlay/transform";
 import { openOverlayDetail } from "@/services/overlay/selection";
 import { ensureOverlayLoaded } from "@/services/overlay/navigation";
 import { mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
@@ -78,12 +77,11 @@ export async function previewGeometry(
 
     // Toggling an untouched edit position also changes where the first undo returns.
     // Staged edits and their redo history keep their own position.
-    if (mode === "edit" && overlay.positionState !== "staged" && overlay.redoStack.length === 0) {
+    if (mode === "edit" && overlay.history.length <= 1 && overlay.redoStack.length === 0) {
       overlays.updateOverlayDraft(overlayId, {
-        positionState: side === "suggested" ? "suggested" : "approved-toggled",
+        showApprovedPosition: side === "current",
       });
-      const restingCorners = getEditModeRestingCorners(overlays.liveOverlays[overlayId] ?? overlay);
-      if (isValidQuad(restingCorners)) overlays.resetHistoryBaseline(overlayId, restingCorners);
+      overlays.resetHistoryBaseline(overlayId);
     }
     changes.previewIntent = { changeId: change.id, side };
     openOverlayDetail(overlayId);

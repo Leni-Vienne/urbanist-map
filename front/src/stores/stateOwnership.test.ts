@@ -21,7 +21,8 @@ import {
   hasUnsavedChanges,
   isOverlayUnsaved,
 } from "@/services/overlay/unsavedState";
-import { getEditModeRestingCorners, hasOpenChangeRequest } from "@/services/overlay/positionState";
+import { getEditModeRestingCorners } from "@/services/overlay/defaultState";
+import { hasOpenChangeRequest } from "@/services/overlay/positionState";
 import { resolveOverlayCorners } from "@/services/overlay/data";
 import { buildOwnOverlayProposal } from "../../../back/src/db/overlayProposal";
 import type {
@@ -219,17 +220,19 @@ function authenticateTestUser(role: "admin" | null = null): void {
 }
 
 function makeLocalOverlay(id: string, projectId: string): OverlayObject {
+  const baseline = makeBackendOverlay(id);
+  const imageUrl = `data:image/webp;base64,${id}`;
   return {
-    ...makeBackendOverlay(id),
+    ...baseline,
     id,
     filename: `${id}.webp`,
     caption: id,
     status: null,
     projectId,
-    imageUrl: `data:image/webp;base64,${id}`,
-    history: [],
+    imageUrl,
+    history: [{ corners: baseline.baselineCorners ?? [], imageUrl }],
     redoStack: [],
-    positionState: "baseline",
+    showApprovedPosition: false,
   };
 }
 
@@ -366,7 +369,7 @@ function overlayStateOwnership() {
       false,
     );
     expect(store.liveOverlays[baseline.id]?.caption).toBeNull();
-    expect(store.liveOverlays[baseline.id]?.positionState).toBe("suggested");
+    expect(store.liveOverlays[baseline.id]?.showApprovedPosition).toBe(false);
     expect(hasOpenChangeRequest(submitted)).toBe(true);
     expect(isOverlayUnsaved(baseline)).toBe(false);
     expect(getStagedOverlayModifications("project-1")).toEqual([]);
@@ -384,6 +387,92 @@ function overlayStateOwnership() {
     expect(store.liveOverlays[baseline.id]?.caption).toBe("Server caption");
     expect(isOverlayUnsaved(baseline)).toBe(false);
   });
+  test.each([false, true])(
+    "undo preserves the approved-position choice: %s",
+    (showApprovedPosition) => {
+      authenticateTestUser();
+      useUiStore().setMode("edit");
+      const store = useOverlayStore();
+      const baseline = makeBackendOverlay("Server caption");
+      const approved = baseline.baselineCorners ?? [];
+      const suggested = approved.map((c) => ({ ...c, lat: c.lat + 1 }));
+      store.ingestBackendOverlay({ ...baseline, ownProposal: { corners: suggested } });
+      store.updateOverlayDraft(baseline.id, { showApprovedPosition });
+      const changes = useChangeRequestStore();
+      changes.setPendingChangeRequests([
+        {
+          id: "own-change",
+          entityType: "overlay",
+          entityId: baseline.id,
+          fieldName: "corners",
+          oldValue: approved,
+          newValue: suggested,
+          changeReason: null,
+          status: "pending",
+          requestedBy: "user-1",
+          requestedByUsername: "user",
+          requestedByReportCount: 0,
+          createdAt: new Date(0),
+          hasConflict: false,
+        },
+      ]);
+      useFocusStore().setSelectionTarget({
+        kind: "overlay",
+        overlayId: baseline.id,
+        projectId: baseline.projectId,
+      });
+      const restingSide = showApprovedPosition ? "current" : "suggested";
+      expect(changes.previewState?.side).toBe(restingSide);
+      const resting = showApprovedPosition ? approved : suggested;
+      const moved = resting.map((c) => ({ ...c, lng: c.lng + 1 }));
+
+      store.commitOverlayEdit(baseline.id, moved);
+      expect(resolveOverlayCorners(store.getOverlayById(baseline.id)!)).toEqual(moved);
+      expect(changes.previewState?.side).toBe("suggested");
+      expect(isOverlayUnsaved(baseline)).toBe(true);
+      store.undoHistory(baseline.id);
+      expect(resolveOverlayCorners(store.getOverlayById(baseline.id)!)).toEqual(resting);
+      expect(store.getOverlayById(baseline.id)?.showApprovedPosition).toBe(showApprovedPosition);
+      expect(changes.previewState?.side).toBe(restingSide);
+      expect(isOverlayUnsaved(baseline)).toBe(false);
+      store.redoHistory(baseline.id);
+      expect(resolveOverlayCorners(store.getOverlayById(baseline.id)!)).toEqual(moved);
+
+      // Returning to the seed keeps undo useful without making the submission dirty.
+      store.commitOverlayEdit(baseline.id, resting);
+      expect(isOverlayUnsaved(baseline)).toBe(false);
+    },
+  );
+  test("crop undo/redo restores image URLs and corners, including a new edit after undo", () => {
+    authenticateTestUser();
+    useUiStore().setMode("edit");
+    const store = useOverlayStore();
+    const local = makeLocalOverlay("local-overlay", "project-1");
+    store.addLocalOverlay(local.id, local);
+    const cropped = local.history[0]!.corners.map((c) => ({ ...c, lat: c.lat + 0.1 }));
+    const image = {
+      imageUrl: "data:image/webp;base64,cropped",
+      cropRect: { u0: 0, u1: 1, v0: 0.1, v1: 1 },
+    };
+    store.commitOverlayEdit(local.id, cropped, image);
+    expect(store.getOverlayById(local.id)?.imageUrl).toBe(image.imageUrl);
+    expect(resolveOverlayCorners(store.getOverlayById(local.id)!)).toEqual(cropped);
+    store.undoHistory(local.id);
+    expect(store.getOverlayById(local.id)?.imageUrl).toBe(local.imageUrl);
+    expect(resolveOverlayCorners(store.getOverlayById(local.id)!)).toEqual(local.baselineCorners);
+    store.redoHistory(local.id);
+    expect(store.getOverlayById(local.id)?.imageUrl).toBe(image.imageUrl);
+
+    store.undoHistory(local.id);
+    store.commitOverlayEdit(local.id, cropped);
+    expect(store.getOverlayById(local.id)?.imageUrl).toBe(local.imageUrl);
+    expect(store.getOverlayById(local.id)?.redoStack).toEqual([]);
+    expect(store.getOverlayById(local.id)?.history.at(-1)?.cropRect).toBeUndefined();
+    store.commitOverlayEdit(local.id, cropped, image);
+    store.resetHistoryBaseline(local.id);
+    expect(store.getOverlayById(local.id)?.imageUrl).toBe(local.imageUrl);
+    expect(resolveOverlayCorners(store.getOverlayById(local.id)!)).toEqual(local.baselineCorners);
+  });
   test.each([undefined, "Local caption"])(
     "clears a caption removal proposal while preserving a subsequent edit: %s",
     (localCaption) => {
@@ -397,7 +486,7 @@ function overlayStateOwnership() {
       const overlay = store.getOverlayById(baseline.id);
       expect(overlay?.ownProposal).toBeUndefined();
       expect(overlay?.caption).toBe(localCaption ?? baseline.caption);
-      expect(overlay?.positionState).toBe("baseline");
+      expect(overlay?.showApprovedPosition).toBe(false);
       expect(isOverlayUnsaved(baseline)).toBe(localCaption !== undefined);
     },
   );
@@ -418,7 +507,7 @@ function overlayStateOwnership() {
     ui.setMode("edit");
     expect(resolveOverlayCorners(overlay)).toEqual(ownCorners);
     expect(getEditModeRestingCorners(overlay)).toEqual(ownCorners);
-    expect(getEditModeRestingCorners({ ...overlay, positionState: "approved-toggled" })).toEqual(
+    expect(getEditModeRestingCorners({ ...overlay, showApprovedPosition: true })).toEqual(
       baseline.baselineCorners,
     );
 
@@ -497,7 +586,8 @@ function overlayStateOwnership() {
     });
     overlayStore.updateOverlayDraft("overlay-1", {
       caption: "Local caption",
-      filename: "local-preview.webp",
+    });
+    overlayStore.commitOverlayEdit("overlay-1", makeTileOverlay("preview").baselineCorners, {
       imageUrl: "data:image/webp;base64,local-preview",
     });
     overlayStore.addLocalOverlay("local-overlay", makeLocalOverlay("local-overlay", "project-1"));
@@ -505,7 +595,7 @@ function overlayStateOwnership() {
     const contributions = useUserContributions();
     expect(contributions.overlaysById.value["overlay-1"]).toMatchObject({
       caption: "Local caption",
-      filename: "local-preview.webp",
+      filename: "overlay.webp",
       imageUrl: "data:image/webp;base64,local-preview",
       authorUsername: "user",
       authorApprovedCount: 7,

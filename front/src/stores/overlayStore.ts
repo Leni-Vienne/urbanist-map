@@ -5,31 +5,34 @@ import { trpc } from "@/client";
 import { useAuthStore } from "@/stores/authStore";
 import { overlayWireToData } from "@/utils/typeFactories";
 import { buildImageUrl } from "@/utils/imageUrl";
-import { getEditModeDefaultCaption } from "@/services/overlay/defaultState";
+import {
+  getEditModeDefaultCaption,
+  getEditModeRestingCorners,
+} from "@/services/overlay/defaultState";
+import { isValidQuad } from "@/services/overlay/transform";
 import type {
   BackendOverlayData,
   LatLng,
+  NormalizedRect,
   OverlayHistoryState,
   OverlayObject,
-  OverlayPositionState,
   RuntimeOverlayData,
   TileOverlayData,
 } from "@/types/index";
 
 type OverlayDraft = Partial<
-  Pick<
-    OverlayObject,
-    "caption" | "filename" | "imageUrl" | "history" | "redoStack" | "positionState"
-  >
+  Pick<OverlayObject, "caption" | "history" | "redoStack" | "showApprovedPosition">
 > & {
   base?: RuntimeOverlayData;
   uploadedImage?: { imageUrl: string; filename: string };
 };
 
-function restingPositionState(overlay: OverlayObject): Exclude<OverlayPositionState, "staged"> {
-  const seedState = overlay.history[0]?.positionState;
-  if (overlay.ownProposal !== undefined && seedState) return seedState;
-  return overlay.ownProposal !== undefined ? "suggested" : "baseline";
+function makeHistoryState(
+  corners: LatLng[],
+  imageUrl: string,
+  cropRect?: NormalizedRect,
+): OverlayHistoryState {
+  return { corners: corners.map((c) => ({ lat: c.lat, lng: c.lng })), imageUrl, cropRect };
 }
 
 function toRuntimeOverlayData(overlay: OverlayObject): RuntimeOverlayData {
@@ -37,24 +40,10 @@ function toRuntimeOverlayData(overlay: OverlayObject): RuntimeOverlayData {
     imageUrl: _imageUrl,
     history: _history,
     redoStack: _redoStack,
-    positionState: _positionState,
+    showApprovedPosition: _showApprovedPosition,
     ...data
   } = overlay;
   return data;
-}
-
-function materializeOverlay(data: RuntimeOverlayData): OverlayObject {
-  const forceBackendUrl = data.status === "pending" || data.status === null;
-  const imageUrl = data.filename.startsWith("data:")
-    ? data.filename
-    : buildImageUrl(data.filename, forceBackendUrl);
-  return {
-    ...data,
-    imageUrl,
-    history: [],
-    redoStack: [],
-    positionState: data.ownProposal !== undefined ? "suggested" : "baseline",
-  };
 }
 
 export const useOverlayStore = defineStore("overlay", () => {
@@ -80,11 +69,19 @@ export const useOverlayStore = defineStore("overlay", () => {
       tileOverlays.value[overlayId] ??
       (selectedTileOverlay.value?.id === overlayId ? selectedTileOverlay.value : undefined);
     if (!data) return null;
-    const overlay = materializeOverlay(data);
-    overlay.caption = getEditModeDefaultCaption(overlay);
-    if (!draft) return overlay;
-    const { base: _base, uploadedImage: _uploadedImage, ...updates } = draft;
-    return Object.assign(overlay, updates);
+    const history = draft?.history ?? [];
+    return {
+      ...data,
+      caption: draft?.caption === undefined ? getEditModeDefaultCaption(data) : draft.caption,
+      history,
+      redoStack: draft?.redoStack ?? [],
+      showApprovedPosition: draft?.showApprovedPosition ?? false,
+      imageUrl:
+        history.at(-1)?.imageUrl ??
+        (data.filename.startsWith("data:")
+          ? data.filename
+          : buildImageUrl(data.filename, data.status === "pending" || data.status === null)),
+    };
   }
 
   function getEffectiveOverlays() {
@@ -109,11 +106,9 @@ export const useOverlayStore = defineStore("overlay", () => {
     overlayDrafts.value[overlayId] = {
       base: toRuntimeOverlayData(overlay),
       caption: overlay.caption,
-      filename: overlay.filename,
-      imageUrl: overlay.imageUrl,
       history: overlay.history,
       redoStack: overlay.redoStack,
-      positionState: overlay.positionState,
+      showApprovedPosition: overlay.showApprovedPosition,
     };
   }
 
@@ -208,8 +203,7 @@ export const useOverlayStore = defineStore("overlay", () => {
     updatePersistedOverlay(overlayId, {
       ownProposal: undefined,
     });
-    const nextState = overlay.positionState === "staged" ? "staged" : "baseline";
-    const draftUpdate: OverlayDraft = { positionState: nextState };
+    const draftUpdate: OverlayDraft = { showApprovedPosition: false };
     if (captionWasUntouched) draftUpdate.caption = overlay.baselineCaption;
     updateOverlayDraft(overlayId, draftUpdate);
     if (
@@ -217,39 +211,46 @@ export const useOverlayStore = defineStore("overlay", () => {
       overlay.redoStack.length === 0 &&
       overlay.baselineCorners?.length === 4
     ) {
-      resetHistoryBaseline(overlayId, overlay.baselineCorners);
+      resetHistoryBaseline(overlayId);
     }
   }
 
-  function commitHistory(overlayId: string, history: OverlayHistoryState[]) {
+  // Commit a completed gesture or crop. Seed the first undo with the untouched image and the
+  // chosen approved/suggested position; subsequent moves carry the active crop window forward.
+  function commitOverlayEdit(
+    overlayId: string,
+    corners: LatLng[],
+    image?: Pick<OverlayHistoryState, "imageUrl" | "cropRect">,
+  ) {
     const overlay = getOverlayById(overlayId);
-    if (!overlay) return;
+    if (!overlay || !isValidQuad(corners)) return;
+    const current = makeHistoryState(
+      corners,
+      image?.imageUrl ?? overlay.imageUrl,
+      image?.cropRect ?? overlay.history.at(-1)?.cropRect,
+    );
+    let history = overlay.history;
+    if (history.length === 0) {
+      const resting = getEditModeRestingCorners(overlay);
+      if (isValidQuad(resting)) history = [makeHistoryState(resting, overlay.imageUrl)];
+    }
+    if (JSON.stringify(current) === JSON.stringify(history.at(-1))) return;
     updateOverlayDraft(overlayId, {
-      history,
+      history: [...history, current],
       redoStack: [],
-      positionState: history.length > 1 ? "staged" : restingPositionState(overlay),
     });
   }
 
-  function resetHistoryBaseline(overlayId: string, corners: LatLng[]) {
+  function resetHistoryBaseline(overlayId: string) {
     const overlay = getOverlayById(overlayId);
     if (!overlay) return;
-    const positionState =
-      overlay.positionState === "staged" ? restingPositionState(overlay) : overlay.positionState;
-    const history =
-      corners.length === 4
-        ? [
-            {
-              corners: corners.map(({ lat, lng }) => ({ lat, lng })),
-              imageUrl: overlay.imageUrl,
-              positionState,
-            },
-          ]
-        : [];
+    const corners = getEditModeRestingCorners(overlay);
+    const history = isValidQuad(corners)
+      ? [makeHistoryState(corners, overlay.history[0]?.imageUrl ?? overlay.imageUrl)]
+      : [];
     updateOverlayDraft(overlayId, {
       history,
       redoStack: [],
-      positionState,
     });
   }
 
@@ -264,7 +265,6 @@ export const useOverlayStore = defineStore("overlay", () => {
     updateOverlayDraft(overlayId, {
       history,
       redoStack: [...overlay.redoStack, current],
-      positionState: history.length === 1 ? restingPositionState(overlay) : overlay.positionState,
     });
     return target;
   }
@@ -277,7 +277,6 @@ export const useOverlayStore = defineStore("overlay", () => {
     updateOverlayDraft(overlayId, {
       history: [...overlay.history, target],
       redoStack: overlay.redoStack.slice(0, -1),
-      positionState: "staged",
     });
     return target;
   }
@@ -331,7 +330,7 @@ export const useOverlayStore = defineStore("overlay", () => {
     retainSelectedTileOverlay,
     clearSelectedTileOverlay,
     clearPendingChangeRequest,
-    commitHistory,
+    commitOverlayEdit,
     resetHistoryBaseline,
     undoHistory,
     redoHistory,

@@ -6,7 +6,6 @@ import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
 import {
   getImageHandle,
-  deriveOverlayFilename,
   replaceOverlayImageSource,
   takeGestureOwnership,
   releaseGestureOwnership,
@@ -19,7 +18,6 @@ import {
   type OverlayTransform,
   type NormPoint,
 } from "@/services/overlay/transform";
-import { commitOverlayEdit } from "@/services/overlay/history";
 import { updateMarkerPosition } from "@/services/overlay/markers";
 import { imageRequiresCredentials } from "@/utils/imageUrl";
 import { createSvgCanvasLayer, createSvgPath } from "@/utils/svgCanvasLayer";
@@ -362,21 +360,17 @@ export async function applyCrop(): Promise<boolean> {
   };
   const newCorners = transformToCorners(newTransform);
   const overlayStore = useOverlayStore();
-  const currentOverlay = overlayStore.liveOverlays[overlay.id];
-  if (!currentOverlay) {
+  if (!overlayStore.liveOverlays[overlay.id]) {
     hideCropHandles();
     return false;
   }
 
-  // Store the cropped pixels, project them at the shrunk footprint, then record a history step.
-  // The new imageUrl makes the step distinct from the pre-crop one, so undo restores both the
-  // original pixels and the original footprint.
-  overlayStore.updateOverlayDraft(overlay.id, {
+  // Commit pixels and footprint together; the live image is derived from this history step.
+  overlayStore.commitOverlayEdit(overlay.id, newCorners, {
     imageUrl: dataUrl,
-    filename: deriveOverlayFilename(overlay.id, dataUrl, currentOverlay.filename),
+    cropRect: originalRect,
   });
   replaceOverlayImageSource(overlay.id, dataUrl, newCorners);
-  commitOverlayEdit(overlay.id, newCorners, originalRect);
   updateMarkerPosition(overlay, newCorners);
   hideCropHandles();
 

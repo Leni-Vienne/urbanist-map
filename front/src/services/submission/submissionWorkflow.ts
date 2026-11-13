@@ -7,7 +7,6 @@ import { useProjectStore } from "@/stores/projectStore";
 import { useUiStore } from "@/stores/uiStore";
 import { getStagedOverlayModifications } from "@/services/overlay/unsavedState";
 import { getEditModeDefaultCaption } from "@/services/overlay/defaultState";
-import { getEditModeRestingCorners } from "@/services/overlay/positionState";
 import { detectProjectChanges, submitDraft } from "./submissionService";
 import {
   isOverlayChangeField,
@@ -159,8 +158,7 @@ async function handleRemoveOverlayChange(
         caption: getEditModeDefaultCaption(overlayObject),
       });
     } else {
-      const corners = getEditModeRestingCorners(overlayObject);
-      if (corners?.length === 4) useOverlayStore().resetHistoryBaseline(overlayId, corners);
+      useOverlayStore().resetHistoryBaseline(overlayId);
     }
   }
 }

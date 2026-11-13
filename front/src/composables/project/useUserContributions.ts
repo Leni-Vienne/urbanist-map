@@ -68,8 +68,9 @@ export function useUserContributions() {
           ...contributionOverlay,
           caption: overlay.caption,
           filename: overlay.filename,
-          imageUrl:
-            overlayStore.overlayDrafts[overlay.id]?.imageUrl ?? contributionOverlay.imageUrl,
+          imageUrl: overlay.imageUrl.startsWith("data:")
+            ? overlay.imageUrl
+            : contributionOverlay.imageUrl,
         };
         continue;
       }

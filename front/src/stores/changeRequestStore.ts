@@ -39,7 +39,8 @@ export const useChangeRequestStore = defineStore("changeRequest", () => {
 
     if (selection.kind === "overlay" && useUiStore().mode === "edit") {
       const overlay = useOverlayStore().liveOverlays[entityId];
-      const side = overlay?.positionState === "approved-toggled" ? "current" : "suggested";
+      const side =
+        overlay?.showApprovedPosition && overlay.history.length <= 1 ? "current" : "suggested";
       if (side === "suggested" && !Array.isArray(change.newValue)) return null;
       return { change, side };
     }
