@@ -265,7 +265,7 @@ describe("latest contribution loading", () => {
   test("pagination failure keeps loaded rows and retries the same page", async () => {
     const feed = useLatestContributionsStore();
     const first = project("first");
-    const cursor = { direct: { date: first.updatedAt.toISOString(), id: first.id } };
+    const cursor = { date: first.updatedAt.toISOString(), projectId: first.id };
     respondToPages(async () => pageResponse([first], cursor));
     await feed.activateLatestContributions();
     respondToPages(async () => {

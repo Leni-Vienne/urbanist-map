@@ -4,24 +4,11 @@ import { db } from "../database";
 import { overlays, projects } from "../db/schema";
 import { sql, eq, and, or, desc, type SQL } from "drizzle-orm";
 import { boundaryName, textArray } from "../db/helpers";
-import {
-  advanceFeedCursor,
-  EXHAUSTED_STREAM,
-  type FeedCursor,
-  type FeedStreamCursor,
-  type FeedStreamName,
-  type FetchedCounts,
-} from "./feedCursor";
 
-// Position of the last row consumed from one underlying query. Each query keeps its own, so a
-// page boundary never falls between two rows sharing a timestamp.
-const feedPositionSchema = z.object({ date: z.string(), id: z.string() });
-const feedStreamCursorSchema = z.union([feedPositionSchema, z.literal(EXHAUSTED_STREAM)]);
-
+// One row per project makes its UUID a unique tie-breaker across all contribution sources.
 const feedCursorSchema = z.object({
-  overlay: feedStreamCursorSchema.nullish(),
-  direct: feedStreamCursorSchema.nullish(),
-  imported: feedStreamCursorSchema.nullish(),
+  date: z.iso.datetime(),
+  projectId: z.uuid(),
 });
 
 const MAX_WEB_MERCATOR_LATITUDE = 85.05112878;
@@ -157,12 +144,10 @@ function imageMapAreaConditions(input: FeedInput): SQL[] {
 function keysetCondition(
   dateExpr: SQL,
   idExpr: SQL | typeof projects.id,
-  cursor: FeedStreamCursor | null | undefined,
+  cursor: FeedPageInput["cursor"],
 ): SQL[] {
-  if (cursor === null || cursor === undefined || cursor === EXHAUSTED_STREAM) return [];
-  return [
-    sql`(${dateExpr}, ${idExpr}) < (${new Date(cursor.date)}::timestamptz, ${cursor.id}::uuid)`,
-  ];
+  if (!cursor) return [];
+  return [sql`(${dateExpr}, ${idExpr}) < (${cursor.date}::timestamptz, ${cursor.projectId}::uuid)`];
 }
 
 type StandaloneStream = "direct" | "imported";
@@ -185,7 +170,7 @@ function standaloneImportFilter(stream: StandaloneStream): SQL {
 function standaloneConditions(
   stream: StandaloneStream,
   input: FeedInput,
-  cursor?: FeedStreamCursor | null,
+  cursor?: FeedPageInput["cursor"],
 ): SQL[] {
   const contributionDate = standaloneContributionDate(stream);
   const conditions: SQL[] = [
@@ -228,86 +213,22 @@ function projectGeometryBbox() {
   ) ELSE NULL END`.as("geometryBbox");
 }
 
-// Builds the standalone-projects feed query (approved, no approved map overlay).
-// The candidate subquery keeps sorting and pagination independent from the recursive location and
-// geometry projections used to hydrate the selected page.
-function buildStandaloneProjectsQuery(
-  stream: StandaloneStream,
-  limit: number,
-  input: FeedInput,
-  cursor: FeedStreamCursor | null | undefined,
-) {
+// Limit each indexed branch before merging; hydrate location and geometry only for the final page.
+function standaloneCandidates(stream: StandaloneStream, input: FeedPageInput) {
   const contributionDate = standaloneContributionDate(stream);
-
-  const candidates = db
+  const enabled = stream === "direct" ? input.source !== "osm" : input.source !== "community";
+  return db
     .select({
-      id: projects.id,
+      projectId: projects.id,
+      overlayId: sql<string | null>`NULL::uuid`.as("overlayId"),
       updatedAt: contributionDate.as("updatedAt"),
     })
     .from(projects)
-    .where(and(...standaloneConditions(stream, input, cursor)))
+    .where(
+      and(...standaloneConditions(stream, input, input.cursor), enabled ? undefined : sql`FALSE`),
+    )
     .orderBy(sql`${contributionDate} DESC, ${projects.id} DESC`)
-    .limit(limit)
-    .as("standalone_candidates");
-
-  return db
-    .select({
-      type: sql<"standalone">`'standalone'`,
-      id: projects.id,
-      name: projects.name,
-      filename: sql<null>`NULL`,
-      updatedAt: candidates.updatedAt,
-      city: boundaryName("city"),
-      state: boundaryName("state"),
-      countryCode: projects.countryCode,
-      country: boundaryName("country"),
-      tags: projects.tags,
-      // Simplified, low-precision shape used as the thumbnail for untagged projects and projects
-      // carrying only the generic construction fallback. Only fetched for those rows.
-      shape: sql<GeoJSON.GeometryCollection | null>`CASE
-        WHEN ${projects.geometry} IS NOT NULL AND (
-          COALESCE(cardinality(${projects.tags}), 0) = 0
-          OR ${projects.tags} = ARRAY['construction']::text[]
-        )
-        THEN ST_AsGeoJSON(ST_Simplify(${projects.geometry}, 0.00003), 5)::json
-        ELSE NULL
-      END`,
-      lat: projects.lat,
-      lng: projects.lng,
-      geometryBbox: projectGeometryBbox(),
-    })
-    .from(candidates)
-    .innerJoin(projects, eq(projects.id, candidates.id))
-    .orderBy(desc(candidates.updatedAt), desc(candidates.id));
-}
-
-type StandaloneProjectRow = Awaited<ReturnType<typeof buildStandaloneProjectsQuery>>[number];
-
-function mapStandaloneProject(p: StandaloneProjectRow) {
-  return {
-    type: "standalone" as const,
-    id: p.id,
-    name: p.name,
-    filename: null as string | null,
-    updatedAt: p.updatedAt,
-    city: p.city,
-    state: p.state,
-    countryCode: p.countryCode,
-    country: p.country,
-    tags: p.tags ?? [],
-    shape: p.shape,
-    lat: p.lat,
-    lng: p.lng,
-    geometryBbox: p.geometryBbox,
-  };
-}
-
-function overlayContributionDate(): SQL<Date> {
-  return sql<Date>`GREATEST(${overlays.updatedAt}, ${projects.updatedAt})`;
-}
-
-function overlayProjectName(): SQL<string> {
-  return sql<string>`COALESCE(${projects.name}, ${overlays.caption})`;
+    .limit(input.limit + 1);
 }
 
 function imageConditions(input: FeedInput): SQL[] {
@@ -324,41 +245,21 @@ function imageConditions(input: FeedInput): SQL[] {
   ];
 }
 
-// One feed entry per project: the most recently updated approved map image or render.
-function buildLatestImagesQuery(
-  limit: number,
-  input: FeedInput,
-  cursor: FeedStreamCursor | null | undefined,
-) {
-  const contributionDate = overlayContributionDate();
-  const overlayName = overlayProjectName();
-
+// Choose the latest approved image before applying the cursor, so an older image from the
+// same project cannot reappear on a later page. UUID breaks ties between equally recent images.
+function imageCandidates(input: FeedPageInput) {
   const latestImagePerProject = db
     .selectDistinctOn([overlays.projectId], {
-      type: sql<"overlay">`'overlay'`.as("type"),
-      id: overlays.id,
-      name: overlayName.as("name"),
-      filename: overlays.filename,
-      kind: overlays.kind,
-      updatedAt: contributionDate.as("updatedAt"),
-      city: boundaryName("city").as("city"),
-      state: boundaryName("state").as("state"),
-      countryCode: projects.countryCode,
-      country: boundaryName("country").as("country"),
-      tags: projects.tags,
-      projectId: overlays.projectId,
-      lat: projects.lat,
-      lng: projects.lng,
-      geometryBbox: projectGeometryBbox(),
+      projectId: projects.id,
+      overlayId: sql<string | null>`${overlays.id}`.as("overlayId"),
+      updatedAt: sql<Date>`GREATEST(${overlays.updatedAt}, ${projects.updatedAt})`.as("updatedAt"),
     })
     .from(overlays)
     .innerJoin(projects, eq(overlays.projectId, projects.id))
-    .where(and(...imageConditions(input)))
-    .orderBy(overlays.projectId, desc(overlays.updatedAt))
+    .where(and(...imageConditions(input), input.source === "osm" ? sql`FALSE` : undefined))
+    .orderBy(overlays.projectId, desc(overlays.updatedAt), desc(overlays.id))
     .as("latest_image_per_project");
 
-  // The keyset lands outside the DISTINCT ON, whose ordering picks the surviving overlay per
-  // project rather than the feed order.
   return db
     .select()
     .from(latestImagePerProject)
@@ -366,60 +267,72 @@ function buildLatestImagesQuery(
       and(
         ...keysetCondition(
           sql`${latestImagePerProject.updatedAt}`,
-          sql`${latestImagePerProject.id}`,
-          cursor,
+          sql`${latestImagePerProject.projectId}`,
+          input.cursor,
         ),
       ),
     )
-    .orderBy(desc(latestImagePerProject.updatedAt), desc(latestImagePerProject.id))
-    .limit(limit);
+    .orderBy(desc(latestImagePerProject.updatedAt), desc(latestImagePerProject.projectId))
+    .limit(input.limit + 1);
 }
 
-type LatestImageRow = Awaited<ReturnType<typeof buildLatestImagesQuery>>[number];
+export function buildFeedQuery(input: FeedPageInput) {
+  const candidates = standaloneCandidates("direct", input)
+    .unionAll(standaloneCandidates("imported", input))
+    .unionAll(imageCandidates(input))
+    .as("feed_candidates");
+  const page = db
+    .select()
+    .from(candidates)
+    .orderBy(desc(candidates.updatedAt), desc(candidates.projectId))
+    .limit(input.limit + 1)
+    .as("feed_page");
 
-function mapImageContribution(o: LatestImageRow) {
-  return {
-    type: "overlay" as const,
-    id: o.id,
-    name: o.name,
-    filename: o.filename,
-    kind: o.kind,
-    updatedAt: o.updatedAt,
-    city: o.city,
-    state: o.state,
-    countryCode: o.countryCode,
-    country: o.country,
-    tags: o.tags ?? [],
-    projectId: o.projectId,
-    lat: o.lat,
-    lng: o.lng,
-    geometryBbox: o.geometryBbox,
-  };
+  return db
+    .select({
+      projectId: sql<string>`${projects.id}`.as("projectId"),
+      name: sql<string | null>`COALESCE(${projects.name}, ${overlays.caption})`.as("name"),
+      updatedAt: page.updatedAt,
+      // Keep PostgreSQL microseconds: converting through Date would skip rows within the same ms.
+      cursorDate:
+        sql<string>`to_char(${page.updatedAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`.as(
+          "cursorDate",
+        ),
+      city: boundaryName("city"),
+      state: boundaryName("state"),
+      countryCode: projects.countryCode,
+      country: boundaryName("country"),
+      tags: projects.tags,
+      shape: sql<GeoJSON.GeometryCollection | null>`CASE
+        WHEN ${page.overlayId} IS NULL AND ${projects.geometry} IS NOT NULL AND (
+          COALESCE(cardinality(${projects.tags}), 0) = 0
+          OR ${projects.tags} = ARRAY['construction']::text[]
+        )
+        THEN ST_AsGeoJSON(ST_Simplify(${projects.geometry}, 0.00003), 5)::json
+        ELSE NULL
+      END`,
+      lat: projects.lat,
+      lng: projects.lng,
+      geometryBbox: projectGeometryBbox(),
+      image: { id: overlays.id, filename: overlays.filename, kind: overlays.kind },
+    })
+    .from(page)
+    .innerJoin(projects, eq(projects.id, page.projectId))
+    .leftJoin(overlays, eq(overlays.id, page.overlayId))
+    .orderBy(desc(page.updatedAt), desc(page.projectId));
 }
 
-type LatestContributionItem =
-  | ReturnType<typeof mapStandaloneProject>
-  | ReturnType<typeof mapImageContribution>;
-
-// A fetched row tagged with the query it came from, so the emitted page can advance exactly the
-// cursors it consumed.
-type PendingRow = { stream: FeedStreamName; item: LatestContributionItem };
-
-function rowTime(row: PendingRow): number {
-  return new Date(row.item.updatedAt).getTime();
-}
-
-function mergeStreams(rows: PendingRow[], limit: number): PendingRow[] {
-  return rows.toSorted(byNewest).slice(0, limit);
-}
-
-function byNewest(a: PendingRow, b: PendingRow): number {
-  return rowTime(b) - rowTime(a);
+function mapContribution(row: Awaited<ReturnType<typeof buildFeedQuery>>[number]) {
+  const { image, projectId, cursorDate: _cursorDate, shape, ...project } = row;
+  const common = { ...project, tags: project.tags ?? [] };
+  return image
+    ? { ...common, type: "overlay" as const, ...image, projectId }
+    : { ...common, type: "standalone" as const, id: projectId, filename: null, shape };
 }
 
 type FeedPage = {
-  items: LatestContributionItem[];
-  nextCursor: FeedCursor | null;
+  items: ReturnType<typeof mapContribution>[];
+  nextCursor: z.infer<typeof feedCursorSchema> | null;
 };
 
 // Only the default, unfiltered first page is cached: it is the one every visitor requests, and
@@ -536,10 +449,6 @@ async function getCachedContributionCount(input: FeedInput): Promise<number> {
   }
 }
 
-function shouldQueryStream(enabled: boolean, cursor: FeedStreamCursor | null | undefined): boolean {
-  return enabled && cursor !== EXHAUSTED_STREAM;
-}
-
 export const feedRouter = router({
   getContributionCount: publicProcedure.input(feedQuerySchema).query(async ({ input }) => {
     try {
@@ -568,54 +477,14 @@ export const feedRouter = router({
           }
         }
 
-        // Over-fetch by one per stream so a full page can still tell whether more rows exist.
-        const fetchSize = input.limit + 1;
-        const wantsCommunity = input.source !== "osm";
-        const wantsImported = input.source !== "community";
-        const queryOverlays = shouldQueryStream(wantsCommunity, input.cursor?.overlay);
-        const queryDirect = shouldQueryStream(wantsCommunity, input.cursor?.direct);
-        const queryImported = shouldQueryStream(wantsImported, input.cursor?.imported);
-
-        // An import with an approved user edit (importLockedAt set) counts as a human
-        // contribution, so it joins the direct group rather than the import one.
-        const [overlayRows, directRows, importedRows] = await Promise.all([
-          queryOverlays
-            ? buildLatestImagesQuery(fetchSize, input, input.cursor?.overlay)
-            : Promise.resolve([]),
-          queryDirect
-            ? buildStandaloneProjectsQuery("direct", fetchSize, input, input.cursor?.direct)
-            : Promise.resolve([]),
-          queryImported
-            ? buildStandaloneProjectsQuery("imported", fetchSize, input, input.cursor?.imported)
-            : Promise.resolve([]),
-        ]);
-
-        const pending: PendingRow[] = [
-          ...overlayRows.map((o) => ({
-            stream: "overlay" as const,
-            item: mapImageContribution(o),
-          })),
-          ...directRows.map((p) => ({
-            stream: "direct" as const,
-            item: mapStandaloneProject(p),
-          })),
-          ...importedRows.map((p) => ({
-            stream: "imported" as const,
-            item: mapStandaloneProject(p),
-          })),
-        ];
-
-        const emitted = mergeStreams(pending, input.limit);
-        const fetchedCounts: FetchedCounts = {
-          overlay: queryOverlays ? overlayRows.length : null,
-          direct: queryDirect ? directRows.length : null,
-          imported: queryImported ? importedRows.length : null,
-        };
+        const rows = await buildFeedQuery(input);
+        const items = rows.slice(0, input.limit);
+        const last = items.at(-1);
         const page: FeedPage = {
-          items: emitted.map((row) => row.item),
+          items: items.map(mapContribution),
           nextCursor:
-            emitted.length < pending.length
-              ? advanceFeedCursor(emitted, input.cursor, fetchedCounts, fetchSize)
+            rows.length > input.limit && last
+              ? { date: last.cursorDate, projectId: last.projectId }
               : null,
         };
 
