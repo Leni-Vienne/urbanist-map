@@ -9,7 +9,7 @@ import {
   userReports,
   type EntityType,
 } from "../../db/schema";
-import { and, eq, or, sql, inArray, ne, type SQL } from "drizzle-orm";
+import { and, eq, sql, inArray, ne, type SQL } from "drizzle-orm";
 import {
   buildProjectModerationQuery,
   buildOverlayModerationQuery,
@@ -151,29 +151,19 @@ export const queueProcedures = {
         const hiddenUserIds = await buildHiddenUserIdsSet(moderatorId);
 
         const projectModerationConditions = [
-          or(
-            eq(projects.status, "pending"),
-            sql`EXISTS (
-              SELECT 1 FROM ${overlays}
-              WHERE ${overlays.projectId} = ${projects.id}
-                AND ${overlays.status} = 'pending'
-            )`,
-            sql`EXISTS (
-              SELECT 1 FROM ${changeRequests}
-              WHERE ${changeRequests.status} = 'pending'
-                AND (
-                  (${changeRequests.entityType} = 'project' AND ${changeRequests.entityId} = ${projects.id})
-                  OR (
-                    ${changeRequests.entityType} = 'overlay'
-                    AND EXISTS (
-                      SELECT 1 FROM ${overlays}
-                      WHERE ${overlays.id} = ${changeRequests.entityId}
-                        AND ${overlays.projectId} = ${projects.id}
-                    )
-                  )
-                )
-            )`,
-          ),
+          // Start from the small pending queue, then fetch projects by primary key.
+          sql`${projects.id} IN (
+            SELECT ${projects.id} FROM ${projects} WHERE ${projects.status} = 'pending'
+            UNION
+            SELECT ${overlays.projectId} FROM ${overlays} WHERE ${overlays.status} = 'pending'
+            UNION
+            SELECT ${changeRequests.entityId} FROM ${changeRequests}
+            WHERE ${changeRequests.status} = 'pending' AND ${changeRequests.entityType} = 'project'
+            UNION
+            SELECT ${overlays.projectId} FROM ${changeRequests}
+            INNER JOIN ${overlays} ON ${overlays.id} = ${changeRequests.entityId}
+            WHERE ${changeRequests.status} = 'pending' AND ${changeRequests.entityType} = 'overlay'
+          )`,
           eq(projects.countryCode, input.countryCode),
         ];
 

@@ -10,19 +10,24 @@ export const countriesRouter = router({
   // `countries` table.
   getAllCountries: publicProcedure.query(async () => {
     try {
-      return await db
+      const countries = await db
         .select({
           // WHERE guarantees non-null; coerce the type so callers get `string`, not `string | null`.
           code: sql<string>`${adminBoundaries.countryCode}`,
           name: adminBoundaries.name,
-          centerCoordinates: sql<{
-            x: number;
-            y: number;
-          }>`json_build_object('x', ST_X(ST_PointOnSurface(${adminBoundaries.geom})), 'y', ST_Y(ST_PointOnSurface(${adminBoundaries.geom})))`,
+          center: sql<
+            [number, number]
+          >`ST_AsGeoJSON(ST_PointOnSurface(${adminBoundaries.geom}), 15)::json -> 'coordinates'`,
         })
         .from(adminBoundaries)
         .where(and(eq(adminBoundaries.adminLevel, 2), isNotNull(adminBoundaries.countryCode)))
         .orderBy(adminBoundaries.name);
+
+      return countries.map(({ code, name, center: [x, y] }) => ({
+        code,
+        name,
+        centerCoordinates: { x, y },
+      }));
     } catch (error) {
       console.error("Error fetching all countries:", error);
       throw new TRPCError({
