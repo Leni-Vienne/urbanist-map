@@ -21,13 +21,38 @@ const REVIEWED_RETENTION_DAYS = 7;
 // submitted) and no other cleanup path can reach it.
 const ORPHANED_UPLOAD_GRACE_HOURS = 24;
 
+// Share the upload row lock with submission. Recheck references after acquiring it: a
+// candidate selected before a submission committed may have become a live image meanwhile.
+// Keep attribution until file deletion succeeds so failed cleanup remains retryable.
+export async function deleteUnclaimedImage(
+  filename: string,
+  removeFiles: (filename: string) => Promise<void> = deleteImagesEverywhere,
+): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    await tx
+      .select({ id: uploadedFiles.id })
+      .from(uploadedFiles)
+      .where(eq(uploadedFiles.filename, filename))
+      .for("update");
+    const [claimed] = await tx
+      .select({ id: overlays.id })
+      .from(overlays)
+      .where(eq(overlays.filename, filename))
+      .limit(1);
+    if (claimed) return false;
+    await removeFiles(filename);
+    await tx.delete(uploadedFiles).where(eq(uploadedFiles.filename, filename));
+    return true;
+  });
+}
+
 // Delete stored images that no overlay ever claimed, along with their attribution rows.
 async function reapOrphanedUploads(): Promise<number> {
   const cutoff = new Date();
   cutoff.setHours(cutoff.getHours() - ORPHANED_UPLOAD_GRACE_HOURS);
 
   const orphans = await db
-    .select({ id: uploadedFiles.id, filename: uploadedFiles.filename })
+    .select({ filename: uploadedFiles.filename })
     .from(uploadedFiles)
     .leftJoin(overlays, eq(overlays.filename, uploadedFiles.filename))
     .where(and(lt(uploadedFiles.createdAt, cutoff), isNull(overlays.id)));
@@ -37,9 +62,7 @@ async function reapOrphanedUploads(): Promise<number> {
     try {
       // Replaced images may have lived in R2; the same sweep also retries cleanup after a
       // reviewed row was removed but its file deletion failed.
-      await deleteImagesEverywhere(orphan.filename);
-      await db.delete(uploadedFiles).where(eq(uploadedFiles.id, orphan.id));
-      reaped += 1;
+      if (await deleteUnclaimedImage(orphan.filename)) reaped += 1;
     } catch (error) {
       logger.error({ error, filename: orphan.filename }, "Failed to reap orphaned upload");
     }
@@ -71,7 +94,7 @@ export async function pruneReviewedSubmissions(cutoff: Date): Promise<void> {
 
   for (const image of removedImages) {
     try {
-      await deleteImagesEverywhere(image.filename);
+      await deleteUnclaimedImage(image.filename);
     } catch (error) {
       logger.error({ error, filename: image.filename }, "Failed to clean up reviewed image");
     }

@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { createPinia, setActivePinia } from "pinia";
 import superjson from "superjson";
 import type { RouterOutput } from "@/client";
-import type { OverlayObject } from "@/types/index";
+import type { HydratedProject, OverlayObject } from "@/types/index";
 import type { SubmissionBatchInput } from "@shared/validation/schemas";
 import { useAuthStore } from "@/stores/authStore";
 import { useProjectStore } from "@/stores/projectStore";
@@ -22,6 +22,7 @@ import type { SubmissionDraft } from "./submissionTypes";
 import { detectProjectChanges, submitDraft } from "./submissionService";
 import { prepareSubmission, confirmSubmission } from "./submissionWorkflow";
 import { signOut } from "@/services/auth/signOut";
+import { acknowledgeSubmission } from "./submissionReceipt";
 
 const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
 const OVERLAY_ID = "22222222-2222-4222-8222-222222222222";
@@ -129,7 +130,7 @@ function seedLocal(): void {
   useOverlayStore().addLocalOverlay(OVERLAY_ID, localOverlay());
 }
 
-function response(result: SubmissionResult): Response {
+function response(result: SubmissionResult | HydratedProject): Response {
   return Response.json([{ result: { data: superjson.serialize(result) } }]);
 }
 
@@ -150,6 +151,52 @@ afterEach(() => {
 });
 
 describe("submission acknowledgement", () => {
+  test("a receipt replaces an older in-flight detail read before it can restore the old render", async () => {
+    const result = receipt();
+    result.render = {
+      id: crypto.randomUUID(),
+      filename: "123456-render.webp",
+      status: "pending",
+      authorId: USER_ID,
+    };
+    const oldDetail = {
+      ...projectFromWire(result.receipt.project),
+      slug: "example-project",
+      ownerUsername: "User",
+      boundaryPath: [],
+      render: null,
+      mapOverlays: [],
+    };
+    const store = useProjectStore();
+    store.upsertHydratedProject(oldDetail);
+    const render = {
+      filename: result.render.filename,
+      caption: null,
+      status: result.render.status,
+    };
+    const oldResponse = Promise.withResolvers<Response>();
+    const oldStarted = Promise.withResolvers<void>();
+    spyOn(globalThis, "fetch")
+      .mockImplementationOnce(
+        Object.assign(
+          () => {
+            oldStarted.resolve();
+            return oldResponse.promise;
+          },
+          { preconnect: originalFetch.preconnect },
+        ),
+      )
+      .mockResolvedValueOnce(response({ ...oldDetail, render }));
+    const oldRead = store.loadProjectDetail(PROJECT_ID, true);
+    await oldStarted.promise;
+    acknowledgeSubmission(result, { projectId: PROJECT_ID, overlays: [] });
+    expect(store.getPersistedProject(PROJECT_ID)?.render?.filename).toBe(result.render.filename);
+    await store.loadProjectDetail(PROJECT_ID);
+    oldResponse.resolve(response(oldDetail));
+    expect(await oldRead).toBeNull();
+    expect(store.getHydratedProject(PROJECT_ID)?.render).toEqual(render);
+  });
+
   test("acknowledges new entities and list membership without a contributions request", async () => {
     seedLocal();
     useMapSessionStore().snapshot = {
@@ -361,7 +408,7 @@ describe("submission acknowledgement", () => {
     expect(useSubmissionStore().isSubmitting).toBeFalse();
   });
 
-  test("retains local work without re-uploading images on mutation retry", async () => {
+  test("retains local work and uploads fresh images on mutation retry", async () => {
     seedLocal();
     const imageUrl = "data:image/png;base64,aGVsbG8=";
     useOverlayStore().commitOverlayEdit(OVERLAY_ID, corners, { imageUrl });
@@ -393,7 +440,7 @@ describe("submission acknowledgement", () => {
     expect(useOverlayStore().getOverlayById(OVERLAY_ID)?.status).toBeNull();
     expect(useSubmissionStore().isSubmitting).toBeFalse();
     await submitDraft(submission, "");
-    expect(uploads).toBe(2);
+    expect(uploads).toBe(4);
     expect(mutations).toBe(2);
   });
 

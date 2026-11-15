@@ -24,7 +24,6 @@ type OverlayDraft = Partial<
   Pick<OverlayObject, "caption" | "history" | "redoStack" | "showApprovedPosition">
 > & {
   base?: RuntimeOverlayData;
-  uploadedImage?: { imageUrl: string; filename: string };
 };
 
 function makeHistoryState(
@@ -125,12 +124,6 @@ export const useOverlayStore = defineStore("overlay", () => {
     };
   }
 
-  // Upload bookkeeping may complete while user edits are frozen.
-  function rememberUploadedImage(overlayId: string, imageUrl: string, filename: string): void {
-    const draft = overlayDrafts.value[overlayId];
-    if (draft) draft.uploadedImage = { imageUrl, filename };
-  }
-
   async function fetchOverlay(
     overlayId: string,
     signal: AbortSignal,
@@ -143,12 +136,20 @@ export const useOverlayStore = defineStore("overlay", () => {
       return null;
     // Keep a receipt or moderation update that arrived after this request started.
     const current = persistedOverlays.value[overlayId];
-    if (current && current !== original) return getOverlayById(overlayId);
+    if (current && current !== original && current.version >= result.version)
+      return getOverlayById(overlayId);
     return ingestBackendOverlay(overlayWireToData(result));
   }
 
-  async function loadOverlay(overlayId: string): Promise<OverlayObject | null> {
-    if (persistedOverlays.value[overlayId] || overlayDrafts.value[overlayId]?.base?.status === null)
+  async function loadOverlay(overlayId: string, force = false): Promise<OverlayObject | null> {
+    if (force) {
+      pendingDetails.get(overlayId)?.controller.abort();
+      pendingDetails.delete(overlayId);
+    }
+    if (
+      (!force && persistedOverlays.value[overlayId]) ||
+      overlayDrafts.value[overlayId]?.base?.status === null
+    )
       return getOverlayById(overlayId);
     let request = pendingDetails.get(overlayId);
     if (!request) {
@@ -323,7 +324,6 @@ export const useOverlayStore = defineStore("overlay", () => {
     loadOverlay,
     addLocalOverlay,
     updateOverlayDraft,
-    rememberUploadedImage,
     updatePersistedOverlay,
     ingestBackendOverlay,
     replaceTileOverlays,

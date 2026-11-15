@@ -4,7 +4,7 @@ import { eq, sql, and, inArray } from "drizzle-orm";
 import { db } from "../database";
 import { captureProjectMapState } from "../db/projectMapState";
 import { reconcileProjectChanges } from "../services/projectEffects";
-import { deleteImagesEverywhere } from "../lib/imageCleanup";
+import { deleteUnclaimedImage } from "../services/cleanupService";
 import { TRPCError } from "@trpc/server";
 import * as z from "zod";
 import { countryNameSql } from "../db/helpers";
@@ -168,7 +168,7 @@ export const adminRouter = router({
         // Clean up overlay images
         for (const overlay of projectOverlays) {
           try {
-            await deleteImagesEverywhere(overlay.filename);
+            await deleteUnclaimedImage(overlay.filename);
           } catch (error) {
             console.error(`Failed to delete images for overlay ${overlay.id}:`, error);
             // Continue - don't fail if image cleanup fails

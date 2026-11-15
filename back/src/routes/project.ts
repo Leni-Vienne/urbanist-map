@@ -20,6 +20,7 @@ import {
   IMPORT_SOURCE_COLUMNS,
 } from "../db/helpers";
 import { deleteLocalImages } from "../lib/imageCleanup";
+import { deleteUnclaimedImage } from "../services/cleanupService";
 import { resolveBoundaryPath } from "../db/boundaryAssignment";
 import { getEditSessionData } from "../services/editSession";
 import { getMyChangeRequests } from "../db/changeRequests";
@@ -121,7 +122,8 @@ export const projectRouter = router({
             })
             .from(projects)
             .where(eq(projects.id, input.id))
-            .limit(1);
+            .limit(1)
+            .for("update");
 
           const projectRecord = project[0];
 
@@ -169,8 +171,7 @@ export const projectRouter = router({
         // If image deletion fails, DB is still consistent (orphaned images are less critical)
         for (const overlay of projectOverlays) {
           try {
-            await deleteLocalImages(overlay.filename);
-            console.log(`Deleted local images for overlay ${overlay.id}`);
+            await deleteUnclaimedImage(overlay.filename, deleteLocalImages);
           } catch (error) {
             console.error(`Failed to delete images for overlay ${overlay.id}:`, error);
           }

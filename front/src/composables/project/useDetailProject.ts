@@ -31,8 +31,10 @@ export function useDetailProject() {
   const loadStatus = computed(() => {
     const id = focusStore.selectedProjectId;
     if (!id) return "unavailable";
+    const status = projectStore.detailStatusById[id];
+    if (status === "loading" || status === "error") return status;
     if (projectStore.getHydratedProject(id) || project.value?.status === null) return "ready";
-    return projectStore.detailStatusById[id] ?? "loading";
+    return status ?? "loading";
   });
 
   async function retry(): Promise<void> {

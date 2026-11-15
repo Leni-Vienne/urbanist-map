@@ -40,6 +40,14 @@ export function acknowledgeSubmission(result: SubmissionResult, batch: Submissio
     });
     useSubmissionStore().acknowledgeStagedRender(batch.projectId);
   }
+  // The receipt supersedes detail reads started before the commit. Refresh an open/cached
+  // detail through the existing loader so those responses cannot restore its old render.
+  if (
+    projectStore.getHydratedProject(batch.projectId) ||
+    projectStore.detailStatusById[batch.projectId] === "loading"
+  ) {
+    void projectStore.loadProjectDetail(batch.projectId, true);
+  }
   if (useUiStore().mode === "edit")
     useMapSessionStore().mergeEditSession(batch.projectId, [...overlayIds]);
 }

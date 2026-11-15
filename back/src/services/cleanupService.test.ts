@@ -21,7 +21,8 @@ const projectId = "11111111-1111-4111-8111-111111111111";
 function stubTransaction(commit = true) {
   let committed = false;
   const proxy = drizzle(async (query) => {
-    if (query.startsWith("select")) return { rows: [[projectId]] };
+    if (query.startsWith("select") && query.includes('from "projects"'))
+      return { rows: [[projectId]] };
     if (query.includes('returning "filename"')) {
       return { rows: [["rejected.webp"], ["replaced.webp"], ["project-child.webp"]] };
     }
@@ -67,4 +68,19 @@ describe("reviewed submission retention", () => {
     expect(deleted).toHaveBeenCalledTimes(3);
     expect(logged).toHaveBeenCalledTimes(1);
   });
+});
+
+test("cleanup rechecks image references after requesting the upload lock", async () => {
+  const queries: string[] = [];
+  const proxy = drizzle(async (query) => {
+    queries.push(query);
+    return { rows: [[projectId]] };
+  });
+  spyOn(database.db, "transaction").mockImplementation(async (work) => work(proxy as Transaction));
+  const remove = mock(async () => undefined);
+  expect(await cleanup.deleteUnclaimedImage("claimed.webp", remove)).toBe(false);
+  expect(queries[0]).toContain('from "uploaded_files"');
+  expect(queries[0]).toContain("for update");
+  expect(queries[1]).toContain('from "overlays"');
+  expect(remove).not.toHaveBeenCalled();
 });

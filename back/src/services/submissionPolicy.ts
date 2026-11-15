@@ -133,8 +133,10 @@ export function classifySubmission(
   if (input.project) {
     const existing = state.existingProject;
     if ("create" in input.project) {
-      if (existing) {
-        throw new TRPCError({ code: "CONFLICT", message: "Project already exists" });
+      // A lost response may leave the client holding a local creation whose ID committed.
+      // Pending/rejected replays use the same owner/status checks as ordinary direct edits.
+      if (existing?.status === "approved") {
+        throw new TRPCError({ code: "CONFLICT", message: "Project is already approved" });
       }
       plan.project = { ...input.project.create, id: input.project.id };
     } else {
@@ -163,7 +165,6 @@ export function classifySubmission(
     if (existing?.status === "approved") {
       plan.changeRequests.push(buildOverlayChangeRequest(overlay, existing, input.reason));
     } else {
-      if (existing) requireChangedFields(overlay.changedFields, "overlay");
       plan.overlays.push(overlay);
     }
   }

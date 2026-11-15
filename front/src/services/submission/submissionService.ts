@@ -92,9 +92,6 @@ async function prepareImageForServer(overlay: OverlayObject): Promise<string> {
     const auth = useAuthStore();
     const epoch = auth.getSessionEpoch();
     const userId = auth.user?.id;
-    const store = useOverlayStore();
-    const uploaded = store.overlayDrafts[overlay.id]?.uploadedImage;
-    if (uploaded?.imageUrl === overlay.imageUrl) return uploaded.filename;
     const response = await fetch(overlay.imageUrl);
     const blob = await response.blob();
 
@@ -115,7 +112,6 @@ async function prepareImageForServer(overlay: OverlayObject): Promise<string> {
     if (epoch !== auth.getSessionEpoch() || userId !== auth.user?.id) {
       throw new Error(t("errors.submissionFailed"));
     }
-    store.rememberUploadedImage(overlay.id, overlay.imageUrl, filename);
     return filename;
   }
 

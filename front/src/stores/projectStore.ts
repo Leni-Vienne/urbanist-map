@@ -2,7 +2,7 @@ import { useSubmissionStore } from "@/stores/submissionStore";
 import { defineStore, acceptHMRUpdate } from "pinia";
 import { computed, onScopeDispose, ref } from "vue";
 import { useAuthStore } from "@/stores/authStore";
-import type { Project, HydratedProject, LocalProject } from "@/types/index";
+import type { Project, ProjectSummary, HydratedProject, LocalProject } from "@/types/index";
 import type { AppMode } from "@shared/types";
 import { trpc } from "@/client";
 import { hasProjectDetailFields, projectFromWire } from "@/utils/typeFactories";
@@ -14,6 +14,19 @@ type DetailStatus = "loading" | "ready" | "error" | "unavailable";
 
 function mergeProject(project: Project, draft: ProjectDraft | undefined): Project {
   return draft ? { ...project, ...draft } : project;
+}
+
+// Summary freshness and detail completeness are independent: a newer project row does not
+// carry a fresh gallery. Preserve the whole summary, taking detail fields only from the response.
+function withProjectDetail(summary: ProjectSummary, detail: HydratedProject): HydratedProject {
+  return {
+    ...summary,
+    slug: detail.slug,
+    render: detail.render,
+    mapOverlays: detail.mapOverlays,
+    ownerUsername: detail.ownerUsername,
+    boundaryPath: detail.boundaryPath,
+  };
 }
 
 function hasDraftFields(draft: ProjectDraft): boolean {
@@ -51,24 +64,30 @@ export const useProjectStore = defineStore("project", () => {
     try {
       const fresh = await trpc.project.getById.query({ id: projectId }, { signal });
       if (!isCurrentRequest()) return null;
-      // A contribution receipt or summary refresh may have arrived while detail was loading.
       const current = persistedProjects.value[projectId];
-      if (current !== original && current && hasProjectDetailFields(current)) {
-        detailStatusById.value[projectId] = "ready";
-        return getHydratedProject(projectId);
-      }
-      if (fresh && current && current !== original) {
-        if (current.status === null) return null;
-        const project = projectFromWire(fresh);
-        const fields: [string, unknown][] = Object.entries(current);
-        for (const [field, value] of fields) {
-          if (value !== undefined) Object.assign(project, { [field]: value });
+      if (!fresh) {
+        if (current && current !== original) {
+          const hydrated = getHydratedProject(projectId);
+          detailStatusById.value[projectId] = hydrated ? "ready" : "error";
+          return hydrated;
         }
-        detailStatusById.value[projectId] = "ready";
-        return upsertHydratedProject(project);
+        removeProject(projectId);
+        detailStatusById.value[projectId] = "unavailable";
+        return null;
       }
-      detailStatusById.value[projectId] = fresh ? "ready" : "unavailable";
-      return fresh ? upsertHydratedProject(projectFromWire(fresh)) : null;
+      let project: HydratedProject = projectFromWire(fresh);
+      // A summary accepted while loading wins ties. Compare snapshots, not individual values:
+      // a newer edit may deliberately restore a field to its original value.
+      if (
+        current &&
+        current !== original &&
+        current.status !== null &&
+        current.version >= project.version
+      ) {
+        project = withProjectDetail(current, project);
+      }
+      detailStatusById.value[projectId] = "ready";
+      return upsertHydratedProject(project);
     } catch (error) {
       if (!isCurrentRequest()) return null;
       console.error("Failed to load project detail:", error);
@@ -77,9 +96,21 @@ export const useProjectStore = defineStore("project", () => {
     }
   }
 
-  async function loadProjectDetail(projectId: string): Promise<HydratedProject | null> {
+  async function loadProjectDetail(
+    projectId: string,
+    force = false,
+  ): Promise<HydratedProject | null> {
+    if (force) {
+      pendingDetails.get(projectId)?.controller.abort();
+      pendingDetails.delete(projectId);
+    }
     const cached = getHydratedProject(projectId);
-    if (cached || getProjectById(projectId)?.status === null) return cached;
+    const status = detailStatusById.value[projectId];
+    if (
+      (!force && cached && status !== "error" && status !== "loading") ||
+      getProjectById(projectId)?.status === null
+    )
+      return cached;
 
     let request = pendingDetails.get(projectId);
     if (!request) {
@@ -145,15 +176,25 @@ export const useProjectStore = defineStore("project", () => {
 
   function upsertProjectSummary(project: Project): Project {
     const current = persistedProjects.value[project.id];
-    const stored = current ? { ...current, ...project } : project;
+    if (current && current.version > project.version)
+      return mergeProject(current, projectDrafts.value[project.id]);
+    // Selection may supply a complete cached project. A summary write must not restore its
+    // old gallery; list metadata such as ownerUsername and boundaryPath can still be refreshed.
+    const { slug: _slug, render: _render, mapOverlays: _mapOverlays, ...summary } = project;
+    const stored = current ? { ...current, ...summary } : summary;
     persistedProjects.value[project.id] = stored;
     return mergeProject(stored, projectDrafts.value[project.id]);
   }
 
   function upsertHydratedProject(project: HydratedProject): HydratedProject {
-    persistedProjects.value[project.id] = project;
-    const merged = mergeProject(project, projectDrafts.value[project.id]);
-    return hasProjectDetailFields(merged) ? merged : project;
+    const current = persistedProjects.value[project.id];
+    const stored =
+      current && current.status !== null && current.version > project.version
+        ? withProjectDetail(current, project)
+        : project;
+    persistedProjects.value[project.id] = stored;
+    const merged = mergeProject(stored, projectDrafts.value[project.id]);
+    return hasProjectDetailFields(merged) ? merged : stored;
   }
 
   function removeProject(projectId: string): void {

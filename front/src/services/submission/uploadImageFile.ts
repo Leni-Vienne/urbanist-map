@@ -7,7 +7,7 @@ import * as z from "zod";
 const uploadErrorSchema = z.object({ error: z.string() });
 const uploadResultSchema = z.object({ filename: z.string().min(1) });
 
-const uploadedFiles = new WeakMap<
+const pendingUploads = new WeakMap<
   File,
   { epoch: number; userId?: string; request: Promise<string> }
 >();
@@ -19,7 +19,7 @@ export async function uploadImageFile(file: File): Promise<string> {
   const auth = useAuthStore();
   const epoch = auth.getSessionEpoch();
   const userId = auth.user?.id;
-  const cached = uploadedFiles.get(file);
+  const cached = pendingUploads.get(file);
   if (cached?.epoch === epoch && cached.userId === userId) return cached.request;
   // The single backend processes one upload at a time. Preserve batch submissions without
   // sending competing uploads, and never send queued file bytes after an account switch.
@@ -33,12 +33,12 @@ export async function uploadImageFile(file: File): Promise<string> {
     () => undefined,
     () => undefined,
   );
-  uploadedFiles.set(file, { epoch, userId, request });
+  pendingUploads.set(file, { epoch, userId, request });
   try {
     return await request;
-  } catch (error) {
-    if (uploadedFiles.get(file)?.request === request) uploadedFiles.delete(file);
-    throw error;
+  } finally {
+    // Only share in-flight work. An unsubmitted upload can expire on the server.
+    if (pendingUploads.get(file)?.request === request) pendingUploads.delete(file);
   }
 }
 

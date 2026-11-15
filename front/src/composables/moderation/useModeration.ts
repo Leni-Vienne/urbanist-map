@@ -3,6 +3,9 @@ import { trpc } from "@/client";
 
 import { useModerationStore } from "@/stores/moderationStore";
 import { useOverlayStore } from "@/stores/overlayStore";
+import { useProjectStore } from "@/stores/projectStore";
+import { useContributionStore } from "@/stores/contributionStore";
+import { useAuthStore } from "@/stores/authStore";
 import { removeOverlayFromState } from "@/services/entity/entityRemoval";
 import { t } from "@/locales";
 import { useLatestContributionsStore } from "@/stores/latestContributionsStore";
@@ -31,6 +34,20 @@ export function useModeration() {
 
   const { fetchPendingSubmissions } = moderationStore;
 
+  async function refreshAfterDecision(affected: { projectIds: string[]; overlayIds: string[] }) {
+    useContributionStore().invalidateRequests();
+    useLatestContributionsStore().invalidateLatestContributions();
+    const results = await Promise.allSettled([
+      ...affected.projectIds.map((id) => useProjectStore().loadProjectDetail(id, true)),
+      ...affected.overlayIds.map((id) => useOverlayStore().loadOverlay(id, true)),
+    ]);
+    for (const result of results) {
+      if (result.status === "rejected")
+        console.error("Failed to refresh moderated contribution:", result.reason);
+    }
+    await fetchPendingSubmissions({ force: true });
+  }
+
   async function setApprovalStatus(request: ApprovalRequest): Promise<ApprovalResult> {
     const { id, status, itemType } = request;
     const isOverlay = itemType === "overlay";
@@ -51,48 +68,47 @@ export function useModeration() {
         : `moderation.${itemType}RejectionFailed`;
 
     const expectedVersion = item.version;
+    const projectId = isOverlay ? moderationStore.overlaysById[id]?.projectId : id;
+    const rejectedImageIds = isOverlay
+      ? [id]
+      : overlays.value.flatMap((image) =>
+          request.rejectAllOverlays && image.projectId === id && image.status === "pending"
+            ? [image.id]
+            : [],
+        );
+    const auth = useAuthStore();
+    const epoch = auth.getSessionEpoch();
 
-    function submitApproval(): Promise<{ success: boolean }> {
-      if (isOverlay) {
-        return trpc.moderation.setOverlayApprovalStatusWithVersion.mutate({
-          id,
-          expectedVersion,
-          status,
-          rejectionReason: request.rejectionReason,
-        });
-      }
-
-      return trpc.moderation.setProjectApprovalStatusWithVersion.mutate({
-        id,
-        expectedVersion,
-        status,
-        rejectionReason: request.rejectionReason,
-        rejectAllOverlays: request.rejectAllOverlays,
-      });
+    let result;
+    try {
+      result = isOverlay
+        ? await trpc.moderation.setOverlayApprovalStatusWithVersion.mutate({
+            id,
+            expectedVersion,
+            status,
+            rejectionReason: request.rejectionReason,
+          })
+        : await trpc.moderation.setProjectApprovalStatusWithVersion.mutate({
+            id,
+            expectedVersion,
+            status,
+            rejectionReason: request.rejectionReason,
+            rejectAllOverlays: request.rejectAllOverlays,
+          });
+    } catch (error) {
+      console.error(`Failed to set ${itemType} moderation status:`, error);
+      await fetchPendingSubmissions({ force: true });
+      return { success: false, error: "unknown", message: t(failureMessageKey) };
     }
-
-    async function submitApprovalOrNull(): Promise<{ success: boolean } | null> {
-      try {
-        return await submitApproval();
-      } catch (error) {
-        console.error(`Failed to set ${itemType} moderation status:`, error);
-        await fetchPendingSubmissions({ force: true });
-        return null;
-      }
+    if (auth.getSessionEpoch() !== epoch) return { success: false, error: "unknown" };
+    if (result.success && status === "rejected") {
+      for (const imageId of rejectedImageIds) removeOverlayFromState(imageId);
     }
-
-    const result = await submitApprovalOrNull();
-    if (!result) {
-      return {
-        success: false,
-        error: "unknown",
-        message: t(failureMessageKey),
-      };
-    }
-
-    // Refetch so the panel reflects the new server state, whether the write
-    // succeeded or hit a version conflict.
-    await fetchPendingSubmissions({ force: true });
+    await refreshAfterDecision({
+      projectIds: projectId ? [projectId] : [],
+      overlayIds: isOverlay && status === "approved" ? [id] : [],
+    });
+    if (auth.getSessionEpoch() !== epoch) return { success: false, error: "unknown" };
 
     if (!result.success) {
       return {
@@ -101,8 +117,6 @@ export function useModeration() {
         message: t(`moderation.${itemType}VersionConflict`),
       };
     }
-
-    useLatestContributionsStore().invalidateLatestContributions();
 
     return {
       success: true,
@@ -114,10 +128,7 @@ export function useModeration() {
     status: "approved" | "rejected",
     rejectionReason?: string,
   ): Promise<ApprovalResult> {
-    const overlayStore = useOverlayStore();
-
-    const overlay = overlays.value.find((o) => o.id === id);
-    const replacesOverlayId = overlay?.replacesOverlayId;
+    const replacesOverlayId = overlays.value.find((o) => o.id === id)?.replacesOverlayId;
 
     const result = await setApprovalStatus({
       id,
@@ -126,23 +137,15 @@ export function useModeration() {
       rejectionReason,
     });
 
-    if (result.success) {
-      const overlayObject = overlayStore.liveOverlays[id];
-
-      if (overlayObject) {
-        overlayStore.updatePersistedOverlay(id, { status });
-      }
-
-      // If a replacement overlay was approved, remove the original and any competing replacements
-      if (status === "approved" && replacesOverlayId) {
-        removeOverlayFromState(replacesOverlayId);
-
-        const competingReplacements = Object.values(overlayStore.liveOverlays).filter(
-          (o) => o.replacesOverlayId === replacesOverlayId && o.id !== id,
-        );
-
-        for (const competing of competingReplacements) {
-          removeOverlayFromState(competing.id);
+    // The refreshed entity carries its authoritative version/status. Retire the replaced
+    // images too: they disappear from the pending response but can still be cached locally.
+    if (result.success && status === "approved" && replacesOverlayId) {
+      for (const overlay of Object.values(useOverlayStore().liveOverlays)) {
+        if (
+          overlay.id === replacesOverlayId ||
+          (overlay.replacesOverlayId === replacesOverlayId && overlay.id !== id)
+        ) {
+          removeOverlayFromState(overlay.id);
         }
       }
     }
@@ -191,5 +194,6 @@ export function useModeration() {
     approveProject,
     rejectProject,
     fetchPendingSubmissions,
+    refreshAfterDecision,
   };
 }

@@ -2,7 +2,7 @@ import { moderatorProcedure, adminProcedure } from "../../trpc";
 import { db } from "../../database";
 import { projects, overlays, users, userReports } from "../../db/schema";
 import { and, eq, or, sql, inArray } from "drizzle-orm";
-import { deleteImagesEverywhere } from "../../lib/imageCleanup";
+import { deleteUnclaimedImage } from "../../services/cleanupService";
 import { deleteUserSessions } from "../../lib/auth";
 import { captureProjectMapState } from "../../db/projectMapState";
 import { reconcileProjectChanges } from "../../services/projectEffects";
@@ -251,7 +251,7 @@ export const reportProcedures = {
         await reconcileProjectChanges(removed.before);
         for (const image of removed.images) {
           try {
-            await deleteImagesEverywhere(image.filename);
+            await deleteUnclaimedImage(image.filename);
           } catch (error) {
             console.error(`Failed to delete images for ${image.filename}:`, error);
           }
@@ -317,7 +317,7 @@ export const reportProcedures = {
         await reconcileProjectChanges(before);
 
         try {
-          await deleteImagesEverywhere(overlay.filename);
+          await deleteUnclaimedImage(overlay.filename);
         } catch (error) {
           console.error(`Failed to delete images for overlay ${input.id}:`, error);
         }

@@ -7,16 +7,16 @@ export type ModeratorUser = { role: string | null; moderatedCountries: string[] 
 
 // Enforces that the moderator may act on a resolved country row (undefined when the entity is
 // missing). Returns the country code, throwing NOT_FOUND / FORBIDDEN otherwise.
-function assertModeratorCountry(
+export function assertModeratorCountry(
   user: ModeratorUser,
   row: { countryCode: string } | undefined,
-  notFoundMessage: string,
+  notFoundMessage = "Contribution not found",
 ): string {
   if (!row) {
     throw new TRPCError({ code: "NOT_FOUND", message: notFoundMessage });
   }
 
-  if (!user.moderatedCountries?.includes(row.countryCode)) {
+  if (user.role !== "admin" && !user.moderatedCountries?.includes(row.countryCode)) {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "You do not have permission to moderate content in this country",

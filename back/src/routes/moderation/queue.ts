@@ -256,7 +256,10 @@ function moderationVisibility(hiddenUserIds: ReadonlySet<string>) {
 }
 
 // One row per actionable entity. Both project membership and country badges read this relation.
-function buildPendingModerationQuery(countryFilter: SQL, hiddenUserIds: ReadonlySet<string>) {
+export function buildPendingModerationQuery(
+  countryFilter: SQL,
+  hiddenUserIds: ReadonlySet<string>,
+) {
   const visible = moderationVisibility(hiddenUserIds);
   const columns = { projectId: projects.id, countryCode: projects.countryCode };
   const scope = and(countryFilter, visible.project);

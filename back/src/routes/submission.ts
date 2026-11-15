@@ -7,7 +7,7 @@ import {
 import { calculateCentroidFromCorners } from "@shared/overlayValidation";
 import { buildProjectSlug } from "../utils/projectSlug";
 import { db, type Transaction } from "../database";
-import { changeRequests, overlays, projects } from "../db/schema";
+import { changeRequests, overlays, projects, uploadedFiles } from "../db/schema";
 import { isUserBlocked } from "../db/helpers";
 import { resolveCountryCode } from "../db/boundaryAssignment";
 import {
@@ -19,6 +19,8 @@ import {
 import { captureProjectMapState } from "../db/projectMapState";
 import { reconcileProjectChanges } from "../services/projectEffects";
 import { deleteLocalImages } from "../lib/imageCleanup";
+import { getThumbnailFilename } from "../lib/storage";
+import { deleteUnclaimedImage } from "../services/cleanupService";
 import * as rateLimit from "../lib/rateLimit";
 import { notifyNewSubmission } from "../services/discordNotifier";
 import { getSubmissionReceipt } from "../services/submissionReceipt";
@@ -84,13 +86,16 @@ async function loadSubmissionState(tx: Transaction, input: SubmissionBatchInput,
     .select(PROJECT_SUBMISSION_COLUMNS)
     .from(projects)
     .where(eq(projects.id, input.projectId))
-    .limit(1);
+    .limit(1)
+    .for("update");
   const existingOverlayRows =
     submittedOverlayIds.length > 0
       ? await tx
           .select(OVERLAY_SUBMISSION_COLUMNS)
           .from(overlays)
           .where(inArray(overlays.id, submittedOverlayIds))
+          .orderBy(overlays.id)
+          .for("update")
       : [];
   const existingProject = existingProjectRows[0];
   const existingOverlays = new Map(existingOverlayRows.map((row) => [row.id, row]));
@@ -338,6 +343,27 @@ async function writeImage(
   if (existing && existing.projectId !== projectId) {
     throw new TRPCError({ code: "BAD_REQUEST", message: "Image belongs to another project" });
   }
+  // Cleanup takes this same lock before checking references and removing files. A legacy
+  // image may lack attribution, but only its existing owner may retain that same filename.
+  const [upload] = await tx
+    .select({ uploaderId: uploadedFiles.uploaderId })
+    .from(uploadedFiles)
+    .where(eq(uploadedFiles.filename, image.filename))
+    .for("update");
+  const filesExist = await Promise.all(
+    [image.filename, getThumbnailFilename(image.filename)].map((name) =>
+      Bun.file(`./uploads/${name}`).exists(),
+    ),
+  );
+  if (
+    (upload ? upload.uploaderId !== user.id : existing?.filename !== image.filename) ||
+    !filesExist.every(Boolean)
+  ) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Image upload is missing or expired. Submit again to upload the image.",
+    });
+  }
   const filenameClaim = await tx
     .select({ id: overlays.id })
     .from(overlays)
@@ -450,6 +476,9 @@ export const submissionRouter = router({
         });
       }
       const committed = await db.transaction(async (tx) => {
+        // One account may submit from several tabs. Serialize its batches, including the
+        // contribution limits and replacement of its open field requests.
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${userId}, 0))`);
         const state = await loadSubmissionState(tx, input, userId);
         const plan = classifySubmission(input, state);
         const outcome = submissionOutcome(input, plan, state);
@@ -535,7 +564,7 @@ export const submissionRouter = router({
       if (committed.before.projectIds.length > 0) await reconcileProjectChanges(committed.before);
       for (const filename of committed.supersededFilenames) {
         try {
-          await deleteLocalImages(filename);
+          await deleteUnclaimedImage(filename, deleteLocalImages);
         } catch (error) {
           console.error("Failed to delete superseded submission image:", filename, error);
         }

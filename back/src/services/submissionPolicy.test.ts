@@ -172,6 +172,21 @@ function crossProjectOverlayId() {
 }
 
 function submissionPolicy() {
+  test("replays pending creation IDs after a lost response through the direct-write path", () => {
+    const input = submissionBatchSchema.parse({
+      projectId: PROJECT_ID,
+      project: { id: PROJECT_ID, create: submittedProject() },
+      overlays: [{ ...submittedOverlay(), changedFields: [] }],
+    });
+    const plan = classifySubmission(
+      input,
+      policyState(existingProject("pending"), { ...existingOverlay(), status: "pending" }),
+    );
+    expect(plan.project?.id).toBe(PROJECT_ID);
+    expect(plan.overlays.map((image) => image.id)).toEqual([OVERLAY_ID]);
+    expect(plan.changeRequests).toEqual([]);
+  });
+
   test("turns approved project intent into a server-sourced change request", approvedProjectIntent);
   test("keeps pending project intent as a direct write", pendingProjectIntent);
   test("classifies an approved overlay from persisted status", approvedOverlayIntent);

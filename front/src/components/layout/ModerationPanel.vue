@@ -115,11 +115,9 @@
         </template>
 
         <template #overlay-actions="{ overlay, project }">
-          <!-- Show approve/reject buttons only when project is NOT pending (approved/rejected) -->
-          <!-- This allows moderators to approve overlays once project is approved, -->
-          <!-- and reject overlays even if project is rejected -->
           <ModerationActionButtons
-            v-if="overlay.status === 'pending' && project.status !== 'pending'"
+            v-if="overlay.status === 'pending'"
+            :approve-disabled="project.status !== 'approved'"
             :disabled="Boolean(overlay.replacesOverlayId) && !viewedOverlayIds.includes(overlay.id)"
             :disabled-tooltip="
               overlay.replacesOverlayId && !viewedOverlayIds.includes(overlay.id)
@@ -130,16 +128,6 @@
             @approve="handleApproveOverlay(overlay.id)"
             @reject="handleRejectOverlay(overlay.id, overlay.authorId ?? null)"
           />
-          <!-- Show locked button (padlock) when project is still pending -->
-          <!-- This prevents approving overlays before their parent project is approved -->
-          <button
-            v-if="overlay.status === 'pending' && project.status === 'pending'"
-            class="w-8 h-8 border border-surface rounded-md bg-content-background flex items-center justify-center text-muted-color cursor-not-allowed opacity-60"
-            disabled
-            v-tooltip.top="$t('tooltips.approveProjectFirst')"
-          >
-            <i class="pi pi-lock"></i>
-          </button>
         </template>
 
         <template #change-actions="{ change }">
@@ -167,9 +155,10 @@ import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useModeration, type ApprovalResult } from "@/composables/moderation/useModeration";
 import { useModerationCountrySelector } from "@/composables/moderation/useModerationCountrySelector";
-import { approveChangeRequests, rejectChangeRequests } from "@/services/changes/changeRequests";
+import { rejectChangeRequests } from "@/services/changes/changeRequests";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useModerationStore } from "@/stores/moderationStore";
+import { useAuthStore } from "@/stores/authStore";
 import type { ProjectPanelOverlay, PendingChangeRequest, UserStatsPayload } from "@/types/index";
 import { trpc } from "@/client";
 import { handleOverlayClickNavigation } from "@/services/overlay/clickHandler";
@@ -184,9 +173,10 @@ import UserStatsDialog from "@/components/moderation/UserStatsDialog.vue";
 import ModerationActionButtons from "@/components/moderation/ModerationActionButtons.vue";
 import RejectionDialog from "@/components/moderation/RejectionDialog.vue";
 
-const { t } = useI18n();
+const { t, te } = useI18n();
 
 const moderationStore = useModerationStore();
+const authStore = useAuthStore();
 const changeRequestStore = useChangeRequestStore();
 
 const {
@@ -197,6 +187,7 @@ const {
   approveOverlay,
   rejectOverlay,
   fetchPendingSubmissions,
+  refreshAfterDecision,
 } = useModeration();
 
 const {
@@ -541,16 +532,21 @@ async function refreshAfterChangeRequest(): Promise<void> {
 // Handle change request approval with toast notifications
 async function handleApproveChange(changeId: string) {
   if (!startProcessingItem("change", changeId)) return;
+  const epoch = authStore.getSessionEpoch();
 
   try {
-    const result = await approveChangeRequests([changeId]);
+    const affected = await trpc.changes.approveChangeRequests.mutate({
+      changeRequestIds: [changeId],
+    });
+    if (authStore.getSessionEpoch() !== epoch) return;
+    await Promise.all([refreshAfterDecision(affected), refetchPendingCounts()]);
+    if (authStore.getSessionEpoch() !== epoch) return;
+    toastSuccess(t("moderation.changeApprovedDetail"), t("moderation.changeApproved"));
+  } catch (error) {
+    if (authStore.getSessionEpoch() !== epoch) return;
     await refreshAfterChangeRequest();
-
-    if (result) {
-      toastSuccess(t("moderation.changeApprovedDetail"), t("moderation.changeApproved"));
-    } else {
-      toastError(t("moderation.approvalFailedDetail"), t("moderation.approvalFailed"));
-    }
+    const message = error instanceof Error ? error.message : "moderation.approvalFailedDetail";
+    toastError(te(message) ? t(message) : message, t("moderation.approvalFailed"));
   } finally {
     stopProcessingItem("change", changeId);
   }

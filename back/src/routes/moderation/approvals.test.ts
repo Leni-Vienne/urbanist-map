@@ -13,8 +13,8 @@ const [database, publication, effects, { approvalProcedures }, { router }] = awa
   import("./approvals"),
   import("../../trpc"),
 ]);
-const [images, auth, mapState, { reportProcedures }] = await Promise.all([
-  import("../../lib/imageCleanup"),
+const [cleanup, auth, mapState, { reportProcedures }] = await Promise.all([
+  import("../../services/cleanupService"),
   import("../../lib/auth"),
   import("../../db/projectMapState"),
   import("./reports"),
@@ -50,7 +50,7 @@ beforeEach(() => {
   spyOn(console, "error").mockImplementation(() => undefined);
   spyOn(effects, "reconcileProjectChanges").mockResolvedValue(undefined);
   // Supply the preflight row. Transaction internals are not executed by these ordering tests.
-  const proxy = drizzle(async () => ({ rows: [[filename, null, null, projectId]] }));
+  const proxy = drizzle(async () => ({ rows: [[filename, null, null, projectId, "approved"]] }));
   spyOn(database.db, "select").mockImplementation(proxy.select.bind(proxy));
 });
 
@@ -100,6 +100,15 @@ test("transaction failure prevents local cleanup", async () => {
   expect(calls.cleanup).not.toHaveBeenCalled();
 });
 
+test("an image under a rejected parent never begins publication", async () => {
+  const proxy = drizzle(async () => ({ rows: [[filename, null, null, projectId, "rejected"]] }));
+  spyOn(database.db, "select").mockImplementation(proxy.select.bind(proxy));
+  const calls = stubPublication();
+  expect(await approve()).toEqual({ success: false });
+  expect(calls.copy).not.toHaveBeenCalled();
+  expect(calls.transaction).not.toHaveBeenCalled();
+});
+
 function stubBan(commit: boolean) {
   let committed = false;
   const proxy = drizzle(async (query) => ({
@@ -122,8 +131,9 @@ function stubBan(commit: boolean) {
     committed = true;
     return result;
   });
-  return spyOn(images, "deleteImagesEverywhere").mockImplementation(async () => {
+  return spyOn(cleanup, "deleteUnclaimedImage").mockImplementation(async () => {
     expect(committed).toBe(true);
+    return true;
   });
 }
 

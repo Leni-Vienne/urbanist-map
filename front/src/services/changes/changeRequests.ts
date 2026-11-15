@@ -2,16 +2,6 @@ import { useContributionStore } from "@/stores/contributionStore";
 import { trpc } from "@/client";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 
-export async function approveChangeRequests(changeRequestIds: string[]) {
-  try {
-    await trpc.changes.approveChangeRequests.mutate({ changeRequestIds });
-    return true;
-  } catch (error) {
-    console.error("Failed to approve change requests:", error);
-    return null;
-  }
-}
-
 export async function rejectChangeRequests(changeRequestIds: string[]): Promise<boolean> {
   try {
     await trpc.changes.rejectChangeRequests.mutate({ changeRequestIds });

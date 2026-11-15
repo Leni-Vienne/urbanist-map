@@ -1,7 +1,7 @@
 import { moderatorProcedure } from "../../trpc";
-import { checkModeratorCountryPermission, checkModeratorOverlayPermission } from "./shared";
+import { assertModeratorCountry } from "./shared";
 import { projects, overlays, changeRequests, users } from "../../db/schema";
-import { and, eq, or, sql, inArray, ne } from "drizzle-orm";
+import { and, eq, or, sql, ne } from "drizzle-orm";
 import { db, type DatabaseExecutor, type Transaction } from "../../database";
 import { TRPCError } from "@trpc/server";
 import { copyImageToR2, removePublishedLocalCopies } from "../../services/imagePublication";
@@ -44,9 +44,6 @@ export const approvalProcedures = {
   setProjectApprovalStatusWithVersion: moderatorProcedure
     .input(setApprovalStatusWithVersionSchema)
     .mutation(async ({ input, ctx }): Promise<{ success: boolean }> => {
-      // Outside the try so its FORBIDDEN / NOT_FOUND reaches the client instead of a 500.
-      await checkModeratorCountryPermission(input.id, ctx.user);
-
       try {
         const statusCondition =
           input.status === "rejected"
@@ -69,12 +66,13 @@ export const approvalProcedures = {
                 statusCondition,
               ),
             )
-            .returning({ ownerId: projects.ownerId });
+            .returning({ ownerId: projects.ownerId, countryCode: projects.countryCode });
 
           const updatedProject = updateResult[0];
           if (!updatedProject) {
             throw new ModerationConflictError("Project gone, version moved, or already processed");
           }
+          assertModeratorCountry(ctx.user, updatedProject);
 
           const ownerId = updatedProject.ownerId;
           if (input.status === "approved") {
@@ -85,22 +83,17 @@ export const approvalProcedures = {
           await incrementRejectedCount(tx, ownerId);
           if (!input.rejectAllOverlays) return before;
 
-          const pendingOverlays = await tx
-            .select({
-              id: overlays.id,
-              authorId: overlays.authorId,
-            })
-            .from(overlays)
-            .where(and(eq(overlays.projectId, input.id), eq(overlays.status, "pending")));
-
-          if (pendingOverlays.length === 0) return before;
-
-          await tx
+          const rejectedOverlays = await tx
             .update(overlays)
-            .set({ status: "rejected", rejectionReason: input.rejectionReason ?? null })
-            .where(and(eq(overlays.projectId, input.id), eq(overlays.status, "pending")));
+            .set({
+              status: "rejected",
+              version: sql`${overlays.version} + 1`,
+              rejectionReason: input.rejectionReason ?? null,
+            })
+            .where(and(eq(overlays.projectId, input.id), eq(overlays.status, "pending")))
+            .returning({ authorId: overlays.authorId });
 
-          for (const overlay of pendingOverlays) {
+          for (const overlay of rejectedOverlays) {
             await incrementRejectedCount(tx, overlay.authorId);
           }
 
@@ -114,6 +107,7 @@ export const approvalProcedures = {
         if (error instanceof ModerationConflictError) {
           return { success: false };
         }
+        if (error instanceof TRPCError) throw error;
 
         console.error("Error updating project status with version:", error);
         throw new TRPCError({
@@ -126,13 +120,32 @@ export const approvalProcedures = {
   setOverlayApprovalStatusWithVersion: moderatorProcedure
     .input(setApprovalStatusWithVersionSchema)
     .mutation(async ({ input, ctx }): Promise<{ success: boolean }> => {
-      // Outside the try so its FORBIDDEN / NOT_FOUND reaches the client instead of a 500.
-      await checkModeratorOverlayPermission(input.id, ctx.user);
-
       try {
-        if (input.status === "rejected") {
-          await db.transaction(async (tx) => {
-            const overlay = await getOverlayForModeration(tx, input.id, input.expectedVersion);
+        const pendingOverlay = await getOverlayForModeration(db, input.id, input.expectedVersion);
+        assertModeratorCountry(ctx.user, pendingOverlay);
+        if (input.status === "approved" && pendingOverlay.projectStatus !== "approved") {
+          throw new ModerationConflictError("Approve the project before approving its images");
+        }
+        const publishToR2 = input.status === "approved" && process.env.NODE_ENV === "production";
+        if (publishToR2) await copyImageToR2(pendingOverlay.filename);
+
+        const approval = await db.transaction(async (tx) => {
+          // Parent first for either decision, as in submission/deletion. This also keeps
+          // individual rejections and cascading project rejections in the same lock order.
+          const [parent] = await tx
+            .select({ id: projects.id, status: projects.status, countryCode: projects.countryCode })
+            .from(projects)
+            .where(eq(projects.id, pendingOverlay.projectId))
+            .for("update");
+          if (!parent || (input.status === "approved" && parent.status !== "approved")) {
+            throw new ModerationConflictError("Project is missing or no longer approved");
+          }
+          assertModeratorCountry(ctx.user, parent);
+          const overlay = await getOverlayForModeration(tx, input.id, input.expectedVersion);
+          if (overlay.filename !== pendingOverlay.filename || overlay.projectId !== parent.id) {
+            throw new ModerationConflictError("Image changed while it was being reviewed");
+          }
+          if (input.status === "rejected") {
             await rejectOverlay(
               tx,
               input.id,
@@ -140,19 +153,7 @@ export const approvalProcedures = {
               overlay.authorId,
               input.rejectionReason,
             );
-          });
-
-          return { success: true };
-        }
-
-        const pendingOverlay = await getOverlayForModeration(db, input.id, input.expectedVersion);
-        const publishToR2 = process.env.NODE_ENV === "production";
-        if (publishToR2) await copyImageToR2(pendingOverlay.filename);
-
-        const approval = await db.transaction(async (tx) => {
-          const overlay = await getOverlayForModeration(tx, input.id, input.expectedVersion);
-          if (overlay.filename !== pendingOverlay.filename) {
-            throw new ModerationConflictError("Image changed while it was being published");
+            return { overlay, before: null };
           }
           const before = await captureProjectMapState(tx, [overlay.projectId]);
           if (overlay.replacesOverlayId) {
@@ -172,13 +173,14 @@ export const approvalProcedures = {
 
         if (publishToR2) await removePublishedLocalCopies(approval.overlay.filename);
 
-        await reconcileProjectChanges(approval.before);
+        if (approval.before) await reconcileProjectChanges(approval.before);
 
         return { success: true };
       } catch (error) {
         if (error instanceof ModerationConflictError) {
           return { success: false };
         }
+        if (error instanceof TRPCError) throw error;
 
         console.error("Error updating overlay status with version:", error);
         throw new TRPCError({
@@ -200,8 +202,11 @@ async function getOverlayForModeration(
       replacesOverlayId: overlays.replacesOverlayId,
       authorId: overlays.authorId,
       projectId: overlays.projectId,
+      projectStatus: projects.status,
+      countryCode: projects.countryCode,
     })
     .from(overlays)
+    .innerJoin(projects, eq(projects.id, overlays.projectId))
     .where(
       and(
         eq(overlays.id, overlayId),
@@ -299,8 +304,8 @@ async function resolveReplacementConflicts(
     );
 
   const competingReplacements = await tx
-    .select({ id: overlays.id, authorId: overlays.authorId })
-    .from(overlays)
+    .update(overlays)
+    .set({ status: "rejected", version: sql`${overlays.version} + 1` })
     .where(
       and(
         eq(overlays.replacesOverlayId, replacesOverlayId),
@@ -308,25 +313,10 @@ async function resolveReplacementConflicts(
         eq(overlays.status, "pending"),
         ne(overlays.id, newOverlayId),
       ),
-    );
-
-  if (competingReplacements.length > 0) {
-    await tx
-      .update(overlays)
-      .set({
-        status: "rejected",
-        version: sql`${overlays.version} + 1`,
-      })
-      .where(
-        inArray(
-          overlays.id,
-          competingReplacements.map((o: { id: string }) => o.id),
-        ),
-      );
-
-    for (const competing of competingReplacements) {
-      await incrementRejectedCount(tx, competing.authorId);
-    }
+    )
+    .returning({ authorId: overlays.authorId });
+  for (const competing of competingReplacements) {
+    await incrementRejectedCount(tx, competing.authorId);
   }
 }
 

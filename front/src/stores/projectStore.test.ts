@@ -6,6 +6,7 @@ import { useProjectStore } from "@/stores/projectStore";
 import { createLocalProject } from "@/utils/typeFactories";
 import type { HydratedProject } from "@/types/index";
 import { useDetailProject } from "@/composables/project/useDetailProject";
+import { openProjectDetail } from "@/services/core/projectSelection";
 
 const originalFetch = globalThis.fetch;
 
@@ -43,7 +44,84 @@ test("changing the primary tag keeps a project draft even when the tag set is un
   expect(store.getProjectById(original.id)?.tags).toEqual(["building", "park"]);
 });
 
+test.each(["summary", "detail"])(
+  "a delayed older %s cannot downgrade the project baseline",
+  (source) => {
+    const store = useProjectStore();
+    const current = { ...project(crypto.randomUUID()), name: "Current name", version: 3 };
+    store.upsertHydratedProject(current);
+    store.updateProjectDraft(current.id, { description: "Local edit" });
+    const older = { ...current, name: "Old name", version: 2 };
+    if (source === "summary") store.upsertProjectSummary(older);
+    else store.upsertHydratedProject(older);
+    expect(store.getPersistedProject(current.id)?.name).toBe("Current name");
+    expect(store.getPersistedProject(current.id)?.version).toBe(3);
+    expect(store.getProjectById(current.id)?.description).toBe("Local edit");
+  },
+);
+
+test("selecting an older copy of a project cannot restore its cached gallery", () => {
+  const store = useProjectStore();
+  const older = project(crypto.randomUUID());
+  const mapOverlays = [{ id: "image", filename: "123-image.webp", caption: "Approved image" }];
+  store.upsertHydratedProject({ ...older, mapOverlays });
+  openProjectDetail(older);
+  expect(useFocusStore().selectedProjectId).toBe(older.id);
+  expect(store.getHydratedProject(older.id)?.mapOverlays).toEqual(mapOverlays);
+});
+
 describe("project detail loading", () => {
+  test("a moderation refresh replaces already hydrated fields and keeps local edits", async () => {
+    const id = crypto.randomUUID();
+    const store = useProjectStore();
+    store.upsertHydratedProject(project(id));
+    store.updateProjectDraft(id, { description: "Local draft" });
+    const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(
+      response({ ...project(id), name: "Approved name", version: 2 }),
+    );
+    await store.loadProjectDetail(id, true);
+    expect(store.getPersistedProject(id)?.name).toBe("Approved name");
+    expect(store.getProjectById(id)?.description).toBe("Local draft");
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  test.each([
+    { name: "New summary", version: 2 },
+    { name: "Example project", version: 3 },
+  ])(
+    "a concurrent summary wins without retaining an old gallery: %o",
+    async ({ name, version }) => {
+      const id = crypto.randomUUID();
+      const store = useProjectStore();
+      const original = project(id);
+      store.upsertHydratedProject(original);
+      const pending = Promise.withResolvers<Response>();
+      const started = Promise.withResolvers<void>();
+      spyOn(globalThis, "fetch").mockImplementationOnce(
+        Object.assign(
+          () => {
+            started.resolve();
+            return pending.promise;
+          },
+          { preconnect: originalFetch.preconnect },
+        ),
+      );
+      const loading = store.loadProjectDetail(id, true);
+      await started.promise;
+      store.upsertProjectSummary({
+        ...createLocalProject({ id, name }),
+        status: "approved",
+        version,
+      });
+      const mapOverlays = [{ id: "image", filename: "123-image.webp", caption: "Fresh image" }];
+      pending.resolve(response({ ...original, mapOverlays, version: 2 }));
+      await loading;
+      expect(store.getHydratedProject(id)?.name).toBe(name);
+      expect(store.getHydratedProject(id)?.version).toBe(version);
+      expect(store.getHydratedProject(id)?.mapOverlays).toEqual(mapOverlays);
+    },
+  );
+
   test("fills detail without overwriting a newer summary received during the request", async () => {
     const id = crypto.randomUUID();
     const pending = Promise.withResolvers<Response>();

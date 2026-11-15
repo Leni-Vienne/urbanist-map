@@ -5,6 +5,7 @@ import { eq, and } from "drizzle-orm";
 import { db } from "../database";
 import { buildOverlayQuery, buildOverlayVisibilityCondition } from "../db/helpers";
 import { deleteLocalImages } from "../lib/imageCleanup";
+import { deleteUnclaimedImage } from "../services/cleanupService";
 
 const getOverlaySchema = z.object({
   id: z.uuid(),
@@ -94,12 +95,10 @@ export const overlayRouter = router({
         }
 
         try {
-          await deleteLocalImages(deletedOverlay.filename);
-          console.log(`Deleted local images for overlay ${input.id}`);
+          await deleteUnclaimedImage(deletedOverlay.filename, deleteLocalImages);
         } catch (error) {
           console.error(`Failed to delete images for overlay ${input.id}:`, error);
           // Log to orphaned files but don't fail the deletion
-          // The deleteLocalImages function handles logging internally
         }
       } catch (error) {
         console.error("Error deleting overlay:", error);

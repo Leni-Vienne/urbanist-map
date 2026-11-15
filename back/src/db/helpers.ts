@@ -103,7 +103,7 @@ export function boundaryName(pick: BoundaryLevel): SQL<LocalizedBoundaryName | n
 }
 
 // Overlay fields shared by API reads, with PostGIS geometry decoded into coordinates.
-const OVERLAY_COLUMNS = {
+export const OVERLAY_COLUMNS = {
   id: overlays.id,
   version: overlays.version,
   filename: overlays.filename,

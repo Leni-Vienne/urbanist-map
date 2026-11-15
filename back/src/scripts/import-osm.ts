@@ -212,7 +212,9 @@ async function flushBatch(batch: any[]): Promise<{ ok: number; skipped: number }
     centerCoordinate: sql`CASE WHEN projects.geometry IS DISTINCT FROM EXCLUDED.geometry THEN EXCLUDED.center_coordinate ELSE projects.center_coordinate END`,
     // Reset geometry_size_m to NULL when geometry changes so it gets recomputed below.
     // Keeps the existing value when geometry is unchanged to avoid redundant PostGIS work.
-    geometrySizeM: sql`CASE WHEN projects.geometry IS DISTINCT FROM EXCLUDED.geometry THEN NULL ELSE projects.geometry_size_m END`,
+    geometrySizeM: FULL_REIMPORT
+      ? sql`NULL`
+      : sql`CASE WHEN projects.geometry IS DISTINCT FROM EXCLUDED.geometry THEN NULL ELSE projects.geometry_size_m END`,
     // Override Drizzle's $onUpdate auto-bump so updated_at only moves when a meaningful field
     // actually changed. Without this, every daily run would touch updated_at on every row.
     // external_revision and last_imported_at are importer bookkeeping and intentionally excluded.
@@ -699,107 +701,46 @@ async function main() {
     );
   }
 
-  // Compute geometry_size_m and the lat/lng/center_coordinate anchor in a single bulk UPDATE over
-  // the changed/new rows. This avoids the double geometryJson parse that would occur inline per row,
-  // and lets PostGIS pipeline the geography computations across all rows in one efficient pass.
-  // The anchor uses ST_PointOnSurface so lat/lng and center_coordinate land on the geometry itself
-  // (e.g. the midpoint of a railroad line) rather than the JS arithmetic centroid set during upsert,
-  // which can fall off curved or asymmetric shapes. It is what marker placement and tile-based
-  // navigation snap to. Unchanged rows keep the anchor a prior run already computed (see conflictSet).
+  // NULL size is unfinished derived work, including work left by an interrupted earlier run.
+  // Size, anchor and boundary are written by one statement so none can mark the others complete.
+  // Unchanged source revisions may skip upsert without skipping this recovery pass.
   log("geometry_started");
-  // New or geometry-changed rows: geometry_size_m IS NULL means the upsert nulled it on a geometry
-  // change, or the row is new. This is exactly the set whose size, anchor AND admin boundary need
-  // (re)computing, so it is captured once here and reused by the boundary-assignment pass below.
-  let changedRowIds: string[] = [];
-  try {
-    changedRowIds = (
-      await db.execute<{ id: string }>(sql`
-        SELECT id
-        FROM projects
-        WHERE import_source_id = ${importSource.id}
-          AND geometry IS NOT NULL
-          AND geometry_size_m IS NULL
-          AND last_imported_at >= ${syncStartTime.toISOString()}
-      `)
-    ).map((r) => r.id);
+  const changedRows = await db.execute<{ id: string }>(sql`
+    SELECT id FROM projects
+    WHERE import_source_id = ${importSource.id}
+      AND import_locked_at IS NULL
+      AND geometry IS NOT NULL AND geometry_size_m IS NULL
+    ORDER BY id
+  `);
+  log("geometry_rows", { rows: changedRows.length });
 
-    log("geometry_rows", { rows: changedRowIds.length });
-
-    const GEOMETRY_BATCH_SIZE = 2000;
-    for (let offset = 0; offset < changedRowIds.length; offset += GEOMETRY_BATCH_SIZE) {
-      const batchIds = changedRowIds.slice(offset, offset + GEOMETRY_BATCH_SIZE);
-      const idList = sql.join(
-        batchIds.map((id) => sql`${id}::uuid`),
-        sql`, `,
-      );
-      await db.execute(sql`
-        UPDATE projects AS p
-        SET geometry_size_m = sizes.size,
-            lat               = ST_Y(sizes.anchor),
-            lng               = ST_X(sizes.anchor),
-            center_coordinate = sizes.anchor
-        FROM (
-          SELECT id,
-            ST_PointOnSurface(geometry) AS anchor,
-            ${sql.raw(geometrySizeMSql("geometry", "env.e"))} AS size
-          FROM projects, LATERAL (SELECT ST_Envelope(geometry) AS e) env
-          WHERE id IN (${idList})
-        ) AS sizes
-        WHERE p.id = sizes.id
-      `);
-    }
-    log("geometry_completed", { rows: changedRowIds.length });
-  } catch (err) {
-    log("geometry_failed", { error: err }, "warning");
+  const DERIVATION_BATCH_SIZE = 2000;
+  for (let offset = 0; offset < changedRows.length; offset += DERIVATION_BATCH_SIZE) {
+    const idList = sql.join(
+      changedRows.slice(offset, offset + DERIVATION_BATCH_SIZE).map(({ id }) => sql`${id}::uuid`),
+      sql`, `,
+    );
+    await db.execute(sql`
+      UPDATE projects pr
+      SET geometry_size_m = derived.size,
+          lat = ST_Y(derived.anchor),
+          lng = ST_X(derived.anchor),
+          center_coordinate = derived.anchor,
+          admin_boundary_id = (
+            SELECT (${boundaryForGeometrySql("eff.geom")})
+            FROM (SELECT ${sql.raw(projectEffectiveGeometrySql("pr"))} AS geom OFFSET 0) eff
+          )
+      FROM (
+        SELECT id, ST_PointOnSurface(geometry) AS anchor,
+          ${sql.raw(geometrySizeMSql("geometry", "env.e"))} AS size
+        FROM projects, LATERAL (SELECT ST_Envelope(geometry) AS e) env
+        WHERE id IN (${idList})
+      ) derived
+      WHERE pr.id = derived.id AND pr.import_locked_at IS NULL
+        AND pr.geometry_size_m IS NULL
+    `);
   }
-
-  // Re-assign new and geometry-changed projects to their admin boundary (the majority-of-shape rule
-  // lives in boundaryAssignment.ts). import-osm only resolves the flat country_code inline; the deep
-  // admin_boundary_id is derived from the project's effective geometry, so it must be recomputed for
-  // exactly the rows inserted or whose geometry changed this run (changedRowIds). The user-submission
-  // and overlay-approval paths assign one project at a time; this is the bulk equivalent for the OSM
-  // sync, mirroring import-boundaries' own assign pass but scoped to an id list instead of all rows.
-  // Best-effort: a failure here must not fail the import.
-  if (changedRowIds.length > 0) {
-    const boundariesStarted = performance.now();
-    log("boundaries_started", { rows: changedRowIds.length });
-    const BOUNDARY_BATCH_SIZE = 2000;
-    try {
-      for (let offset = 0; offset < changedRowIds.length; offset += BOUNDARY_BATCH_SIZE) {
-        const batchStarted = performance.now();
-        const batchIds = changedRowIds.slice(offset, offset + BOUNDARY_BATCH_SIZE);
-        const idList = sql.join(
-          batchIds.map((id) => sql`${id}::uuid`),
-          sql`, `,
-        );
-        await db.execute(sql`
-          UPDATE projects pr
-          SET admin_boundary_id = chosen.boundary_id
-          FROM (
-            SELECT p.id AS project_id, boundary.boundary_id
-            FROM projects p
-            JOIN LATERAL (SELECT ${sql.raw(projectEffectiveGeometrySql("p"))} AS geom OFFSET 0) eff ON true
-            LEFT JOIN LATERAL (${boundaryForGeometrySql("eff.geom")}) boundary ON true
-            WHERE p.id IN (${idList})
-          ) chosen
-          WHERE pr.id = chosen.project_id
-            AND pr.admin_boundary_id IS DISTINCT FROM chosen.boundary_id
-        `);
-        log("boundaries_batch_completed", {
-          rows: batchIds.length,
-          processed: offset + batchIds.length,
-          total: changedRowIds.length,
-          duration_seconds: (performance.now() - batchStarted) / 1000,
-        });
-      }
-      log("boundaries_completed", {
-        rows: changedRowIds.length,
-        duration_seconds: (performance.now() - boundariesStarted) / 1000,
-      });
-    } catch (err) {
-      log("boundaries_failed", { error: err }, "warning");
-    }
-  }
+  log("geometry_completed", { rows: changedRows.length });
 
   // Prune OSM projects absent from this sync (their external_id is not in this run's seen-id set).
   // Projects with overlays are soft-detached: the OSM link (import source + external id) is severed,
