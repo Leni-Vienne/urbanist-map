@@ -157,11 +157,10 @@ function transformMapRequest(url: string): RequestParameters | undefined {
 // This reaches into the handler's private `_aroundPoint`, as there is no public API for it.
 function enableCursorTrackingScrollZoom(targetMap: MaplibreMap): void {
   /* eslint-disable no-underscore-dangle -- mirrors MapLibre's private fields */
-  // MapLibre types `_aroundPoint` as always present, but only assigns it once a gesture starts,
-  // so it is undefined on the wheel events that precede one.
   // eslint-disable-next-line no-unsafe-type-assertion
-  const handler = targetMap.scrollZoom as Omit<MaplibreMap["scrollZoom"], "_aroundPoint"> & {
+  const handler = targetMap.scrollZoom as unknown as Pick<MaplibreMap["scrollZoom"], "wheel"> & {
     _aroundPoint?: { x: number; y: number };
+    _aroundCenter?: boolean;
     cursorTrackingPatched?: boolean;
   };
   if (handler.cursorTrackingPatched) return;
@@ -169,13 +168,15 @@ function enableCursorTrackingScrollZoom(targetMap: MaplibreMap): void {
 
   const canvas = targetMap.getCanvas();
   const originalWheel = handler.wheel.bind(handler);
-  handler.wheel = function wheel(e: WheelEvent): void {
-    originalWheel(e);
+  handler.wheel = function wheel(e: WheelEvent): ReturnType<typeof originalWheel> {
+    const result = originalWheel(e);
     // _aroundCenter means zoom-to-center is requested, so the cursor is irrelevant.
-    if (handler._aroundCenter || !handler._aroundPoint) return;
-    const rect = canvas.getBoundingClientRect();
-    handler._aroundPoint.x = e.clientX - rect.left - canvas.clientLeft;
-    handler._aroundPoint.y = e.clientY - rect.top - canvas.clientTop;
+    if (!handler._aroundCenter && handler._aroundPoint) {
+      const rect = canvas.getBoundingClientRect();
+      handler._aroundPoint.x = e.clientX - rect.left - canvas.clientLeft;
+      handler._aroundPoint.y = e.clientY - rect.top - canvas.clientTop;
+    }
+    return result;
   };
   /* eslint-enable no-underscore-dangle */
 }
