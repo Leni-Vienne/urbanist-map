@@ -89,7 +89,7 @@ export function matchesProjectFilters(project: FilterableProject): boolean {
   const isNamed = Boolean(project.name?.trim());
   if (nameMode !== "all" && isNamed !== (nameMode === "named")) return false;
 
-  if (!matchesRange(project.geometrySizeM, sizeFilterRange.value)) return false;
+  if (!matchesRange(project.geometrySizeM ?? 0, sizeFilterRange.value)) return false;
   if (!matchesRange(project.lastModifiedMs, lastModifiedDateRange.value)) return false;
 
   return !showOnlyWithImages.value || project.hasImage;

@@ -360,8 +360,7 @@ function getStatusFilterExpression(): FilterSpecification | null {
 }
 
 /**
- * Match features whose size range overlaps the active filter range. Missing sizes do not match an
- * explicit range.
+ * Match features whose size range overlaps the active filter range. Missing sizes count as zero.
  */
 function getSizeFilterExpression(
   minProperty: string,
@@ -370,9 +369,9 @@ function getSizeFilterExpression(
   const [minSize, maxSize] = sizeFilterRange.value;
   if (minSize === 0 && maxSize === Infinity) return null;
 
-  const conditions: unknown[] = [[">=", ["get", maxProperty], minSize]];
+  const conditions: unknown[] = [[">=", ["coalesce", ["get", maxProperty], 0], minSize]];
   if (maxSize !== Infinity) {
-    conditions.push(["<=", ["get", minProperty], maxSize]);
+    conditions.push(["<=", ["coalesce", ["get", minProperty], 0], maxSize]);
   }
   return allOf(conditions);
 }

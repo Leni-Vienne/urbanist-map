@@ -136,7 +136,7 @@ points AS (
         COALESCE(p.tags, ARRAY[]::text[]) AS tags,
         COALESCE(p.tags[1], '') AS first_tag,
         p.timeline_status,
-        ROUND(p.geometry_size_m)::int AS geometry_size_m,
+        COALESCE(ROUND(p.geometry_size_m)::int, 0) AS geometry_size_m,
         CASE WHEN NULLIF(BTRIM(p.name), '') IS NOT NULL THEN 1 ELSE 0 END AS is_named,
         EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s,
         floor(

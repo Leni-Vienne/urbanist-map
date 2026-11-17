@@ -73,12 +73,11 @@ function projectFilterConditions(input: FeedInput): SQL[] {
   if (input.statuses.length > 0) {
     conditions.push(sql`${projects.timelineStatus} = ANY(${textArray(input.statuses)})`);
   }
-  // NULL geometry_size_m (no geometry) falls outside any explicit bound.
   if (input.minSizeM !== undefined) {
     conditions.push(sql`${projects.geometrySizeM} >= ${input.minSizeM}`);
   }
   if (input.maxSizeM !== undefined) {
-    conditions.push(sql`${projects.geometrySizeM} <= ${input.maxSizeM}`);
+    conditions.push(sql`COALESCE(${projects.geometrySizeM}, 0) <= ${input.maxSizeM}`);
   }
   if (input.named === "named") {
     conditions.push(sql`NULLIF(BTRIM(${projects.name}), '') IS NOT NULL`);

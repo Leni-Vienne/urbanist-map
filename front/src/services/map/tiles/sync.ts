@@ -37,7 +37,7 @@ function decodeFootprint(feat: maplibregl.GeoJSONFeature): DecodedFootprint {
     tags: readStringArray(props.tags),
     timelineStatus: readString(props.timeline_status),
     name: readString(props.name),
-    geometrySizeM: props.geometry_size_m === null ? null : Number(props.geometry_size_m),
+    geometrySizeM: Number(props.geometry_size_m ?? 0),
     lastModifiedMs: Number(props.last_modified_s) * 1000,
     hasImage: true,
   };
