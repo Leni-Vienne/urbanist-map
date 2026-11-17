@@ -1,12 +1,14 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import {
-  lastModifiedDateRange,
+  dateSliderPositions,
+  DATE_SLIDER_MAX,
+  posToMs,
   matchesProjectFilters,
   selectedNameFilter,
   selectedProjectTags,
   selectedStatusFilters,
   showOnlyWithImages,
-  sizeFilterRange,
+  sizeSliderPositions,
   toggleNameFilter,
   UNTAGGED_PROJECT_FILTER,
   type FilterableProject,
@@ -25,8 +27,8 @@ afterEach(() => {
   selectedProjectTags.value = [];
   selectedStatusFilters.value = [];
   selectedNameFilter.value = null;
-  sizeFilterRange.value = [0, Infinity];
-  lastModifiedDateRange.value = [0, Infinity];
+  sizeSliderPositions.value = [0, 100];
+  dateSliderPositions.value = [0, DATE_SLIDER_MAX];
   showOnlyWithImages.value = false;
 });
 
@@ -62,14 +64,14 @@ describe("matchesProjectFilters", () => {
   });
 
   test("rejects missing values when a range is active", () => {
-    sizeFilterRange.value = [500, Infinity];
+    sizeSliderPositions.value = [50, 100];
     expect(matchesProjectFilters({ ...project, geometrySizeM: null })).toBeFalse();
     expect(matchesProjectFilters(project)).toBeTrue();
 
-    sizeFilterRange.value = [0, Infinity];
-    lastModifiedDateRange.value = [1500, 2500];
+    sizeSliderPositions.value = [0, 100];
+    dateSliderPositions.value = [50, DATE_SLIDER_MAX];
     expect(matchesProjectFilters({ ...project, lastModifiedMs: Number.NaN })).toBeFalse();
-    expect(matchesProjectFilters(project)).toBeTrue();
+    expect(matchesProjectFilters({ ...project, lastModifiedMs: posToMs(75) })).toBeTrue();
   });
 
   test("requires an image only when requested", () => {
