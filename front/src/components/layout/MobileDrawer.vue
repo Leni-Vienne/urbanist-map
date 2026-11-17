@@ -1,5 +1,8 @@
 <template>
-  <DraggableDrawer v-model:height-percent="uiStore.mobileDrawerHeightPercent">
+  <DraggableDrawer
+    v-model:height-percent="uiStore.mobileDrawerHeightPercent"
+    :peek-target="peekTarget"
+  >
     <template #above>
       <SatellitePreview in-drawer />
     </template>
@@ -46,8 +49,9 @@
 </template>
 
 <script setup lang="ts">
-import { defineAsyncComponent } from "vue";
+import { computed, defineAsyncComponent } from "vue";
 import { useUiStore } from "@/stores/uiStore";
+import { useFocusStore } from "@/stores/focusStore";
 import { useDetailPanel } from "@/composables/layout/useDetailPanel";
 
 import DraggableDrawer from "./DraggableDrawer.vue";
@@ -59,10 +63,20 @@ import SatellitePreview from "@/components/map/SatellitePreview.vue";
 const ProjectDetailPanel = defineAsyncComponent(() => import("./ProjectDetailPanel.vue"));
 
 const uiStore = useUiStore();
+const focusStore = useFocusStore();
 
 // activeTab proxies uiStore (shared with the desktop SideMenu); detailVisible drives the detail
 // slide-over (suppressed in edit mode, where ContributePanel renders the selection inline).
 const { detailVisible, activeTab } = useDetailPanel();
+const peekTarget = computed(getPeekTarget);
+
+function getPeekTarget(): string | null {
+  const selection = focusStore.selection;
+  if (!detailVisible.value || !selection) return null;
+  return selection.kind === "overlay"
+    ? `overlay:${selection.overlayId}`
+    : `project:${selection.projectId}`;
+}
 </script>
 
 <style scoped>

@@ -51,15 +51,18 @@ import { ref, shallowRef, computed, watch, onMounted, onBeforeUnmount } from "vu
 
 interface Props {
   heightPercent?: number;
+  peekTarget?: string | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   heightPercent: 40,
+  peekTarget: null,
 });
 
 // Internal configuration (not exposed as props)
 const MIN_HEIGHT_PX = 65;
 const MAX_HEIGHT_PERCENT = 75;
+const PEEK_HEIGHT_PX = 128;
 
 const emit = defineEmits<{
   "update:heightPercent": [value: number];
@@ -75,6 +78,7 @@ const drag = shallowRef<{
 const isDragging = computed(() => drag.value !== null);
 const currentHeight = ref(props.heightPercent);
 const viewportHeight = ref(globalThis.innerHeight);
+let autoPeek = false;
 
 // Convert minimum height from pixels to viewport percentage
 const minHeightPercent = computed(() => {
@@ -92,6 +96,30 @@ const drawerStyle = computed(() => {
 const isCompact = computed(() => {
   return currentHeight.value <= minHeightPercent.value;
 });
+
+watch(getPeekTarget, updatePeek, { immediate: true });
+
+function getPeekTarget(): string | null {
+  return props.peekTarget;
+}
+
+function peekHeightPercent(): number {
+  return Math.min(MAX_HEIGHT_PERCENT, (PEEK_HEIGHT_PX / viewportHeight.value) * 100);
+}
+
+function updatePeek(peekTarget: string | null): void {
+  if (viewportHeight.value <= 0 || isDragging.value) return;
+  if (peekTarget !== null) {
+    if (currentHeight.value > ((MIN_HEIGHT_PX + 1) / viewportHeight.value) * 100) return;
+    autoPeek = true;
+    currentHeight.value = peekHeightPercent();
+  } else {
+    if (!autoPeek) return;
+    autoPeek = false;
+    currentHeight.value = minHeightPercent.value;
+  }
+  emit("update:heightPercent", currentHeight.value);
+}
 
 watch(
   () => props.heightPercent,
@@ -126,6 +154,7 @@ function beginDrag(event: PointerEvent) {
   if (target.closest("button, a, input, select, textarea, [role=button]")) return;
   event.preventDefault();
   element.setPointerCapture(event.pointerId);
+  autoPeek = false;
   drag.value = {
     pointerId: event.pointerId,
     element,
@@ -161,15 +190,13 @@ function finishDrag(event: PointerEvent) {
 function handleResize() {
   releaseDrag();
   viewportHeight.value = globalThis.innerHeight;
-  currentHeight.value = Math.min(
-    MAX_HEIGHT_PERCENT,
-    Math.max(minHeightPercent.value, currentHeight.value),
-  );
+  currentHeight.value = autoPeek
+    ? peekHeightPercent()
+    : Math.min(MAX_HEIGHT_PERCENT, Math.max(minHeightPercent.value, currentHeight.value));
   emit("update:heightPercent", currentHeight.value);
 }
 
 onMounted(() => {
-  currentHeight.value = props.heightPercent;
   viewportHeight.value = globalThis.innerHeight;
 
   globalThis.addEventListener("resize", handleResize);
