@@ -91,7 +91,7 @@ function readStringArray(value: unknown): string[] {
 export function syncOverlaysFromTiles(): void {
   const mlMap = getMapOrNull();
   // During style reloads, the layer can be absent when a listener fires.
-  if (!mlMap?.getLayer("overlay-footprints")) return;
+  if (!mlMap?.getLayer("overlay-footprints-fill")) return;
 
   try {
     // Source queries cover MapLibre's renderable in-view tiles and include features independently

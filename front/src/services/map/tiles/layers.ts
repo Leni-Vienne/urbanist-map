@@ -1238,7 +1238,7 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
   // pushed below project-shapes-fill (FOOTPRINT_BAND_BEFORE_ID) so back rasters can anchor between
   // the two: above every footprint border (no border cuts across a neighbour image) but below the
   // project geometry lines. "front" rasters go above the whole group (top of stack).
-  // The footprint outline/fill/sentinel layers insert just below the first project-shapes layer.
+  // The footprint outline/fill layers insert just below the first project-shapes layer.
   const FOOTPRINT_BAND_BEFORE_ID = "project-shapes-fill";
 
   // Cluster/point layers insert at the top of the stack (undefined beforeId) so the markers and
@@ -1281,20 +1281,6 @@ export function addProjectDataToMlMap(mlMap: MaplibreMap): void {
   };
   if (hiddenFilter !== undefined) footprintsFillLayer.filter = hiddenFilter;
   mlMap.addLayer(footprintsFillLayer, FOOTPRINT_BAND_BEFORE_ID);
-
-  // Invisible sentinel layer, no status filter needed since all footprints trigger overlay loading.
-  // sync.ts checks for this layer by name to confirm the map is ready.
-  mlMap.addLayer(
-    {
-      id: "overlay-footprints",
-      type: "line",
-      source: "project-sources",
-      "source-layer": "overlay-footprints",
-      minzoom: getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS),
-      paint: { "line-width": 0 },
-    },
-    FOOTPRINT_BAND_BEFORE_ID,
-  );
 
   // Permanent border for overlays. Without a shape outline these images can blend into the basemap,
   // so trace their footprint edge. Sits below the back rasters, so a neighbouring overlay image
