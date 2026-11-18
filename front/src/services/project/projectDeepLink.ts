@@ -24,7 +24,7 @@ import { toastInfo } from "@/services/core/toast";
 
 // Handle a /project/:slug deep link: a visitor arriving from Google or a pasted link lands directly
 // in the live app focused on the project. Resolves the slug to a project (or a deletion tombstone),
-// then flies the map and opens the detail panel once the map is ready.
+// then opens the detail panel and frames the project when the map is ready.
 //
 // `slug` and `t` are passed in (not read via useRoute/useI18n here) because this runs after an
 // await, with no active component instance, so those composables would return undefined.
@@ -40,7 +40,7 @@ export async function handleProjectDeepLink(
   const authStore = useAuthStore();
   const epoch = authStore.getSessionEpoch();
   const focus = useFocusStore();
-  const ownsNavigation = focus.beginNavigation();
+  let ownsNavigation = focus.beginNavigation();
   function isCurrent(): boolean {
     return !signal.aborted && ownsNavigation() && epoch === authStore.getSessionEpoch();
   }
@@ -62,10 +62,13 @@ export async function handleProjectDeepLink(
     const instant = bootedFromDeeplinkView.value;
     const camera = { mobileTopInset: MOBILE_CONTENT_TOP_INSET, instant };
     const shapeBounds = buildShapeBounds(project.geometry);
-    onMapReady((target) => {
+    openProjectDetail(project);
+    ownsNavigation = focus.beginNavigation();
+    const selection = focus.selection;
+    const cancelFrame = onMapReady((target) => {
       if (!isCurrent()) return;
       function frameProject(): void {
-        if (signal.aborted || getMapOrNull() !== target || focus.selection !== selection) return;
+        if (!isCurrent() || getMapOrNull() !== target || focus.selection !== selection) return;
         if (shapeBounds) {
           mobileAwareFlyToBounds(shapeBounds, { maxZoom: DEEPLINK_FIT_MAX_ZOOM, ...camera });
         } else if (typeof lat === "number" && typeof lng === "number") {
@@ -73,12 +76,11 @@ export async function handleProjectDeepLink(
         }
       }
 
-      openProjectDetail(project);
-      const selection = focus.selection;
       // Frame only once the detail is rendered: on mobile the bottom inset is measured off the
       // drawer, and estimating it while the drawer is absent leaves the project under it.
       void nextTick(frameProject);
     });
+    signal.addEventListener("abort", cancelFrame, { once: true });
     return;
   }
 

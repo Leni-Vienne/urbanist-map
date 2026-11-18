@@ -8,6 +8,8 @@ import type { JsonObject } from "@shared/json";
 import type { SeoLocation, SeoProject, SeoProjectResponse } from "@shared/types/seo";
 import { localizedBoundaryName, selectBoundaryLevels } from "@shared/types/boundary";
 
+const siteOrigin = new URL(config.PUBLIC_SITE_URL).origin;
+
 // Public, cookie-free endpoints consumed by the Cloudflare Pages Function (and any link-preview
 // scraper). They return JSON the Function splices into the static index.html shell, plus the
 // sitemap. Mounted before the session middleware so they never create a session.
@@ -78,6 +80,7 @@ seoApp.get("/seo/project/:slug", async (c): Promise<TypedResponse<SeoProjectResp
       .select({
         name: projects.name,
         description: projects.description,
+        sourceUrl: projects.sourceUrl,
         slug: projects.slug,
         timelineStatus: projects.timelineStatus,
         proposalDate: projects.proposalDate,
@@ -125,6 +128,7 @@ seoApp.get("/seo/project/:slug", async (c): Promise<TypedResponse<SeoProjectResp
         status: "ok" as const,
         name: project.name,
         description: project.description,
+        sourceUrl: project.sourceUrl,
         slug: project.slug,
         timelineStatus: project.timelineStatus,
         proposalDate: project.proposalDate,
@@ -149,11 +153,10 @@ seoApp.get("/seo/project/:slug", async (c): Promise<TypedResponse<SeoProjectResp
                 project.geometryBboxMaxLat,
               ] satisfies NonNullable<SeoProject["bounds"]>)
             : null,
-        // The page is only indexable when approved AND it carries showable content (see indexable.ts).
         indexable: project.indexable,
         location,
         image,
-        canonical: `${config.PUBLIC_SITE_URL}/project/${project.slug}`,
+        canonical: `${siteOrigin}/project/${encodeURIComponent(project.slug ?? slug)}`,
       });
     }
 
@@ -189,24 +192,29 @@ seoApp.get("/seo/project/:slug", async (c): Promise<TypedResponse<SeoProjectResp
   }
 });
 
-// GET /seo/sitemap.xml -> all indexable project URLs. ~4.5k fits one file (50k-URL limit).
+// GET /seo/sitemap.xml -> the homepage and indexable approved project URLs.
 seoApp.get("/seo/sitemap.xml", async (c) => {
   try {
     const rows = await db
       .select({ slug: projects.slug, updatedAt: projects.updatedAt })
       .from(projects)
-      .where(and(eq(projects.indexable, true), sql`${projects.slug} IS NOT NULL`));
+      .where(
+        and(
+          eq(projects.status, "approved"),
+          eq(projects.indexable, true),
+          sql`${projects.slug} IS NOT NULL`,
+        ),
+      );
 
-    const base = config.PUBLIC_SITE_URL;
     const urls = rows
       .map((r) => {
-        const loc = `${base}/project/${encodeURIComponent(String(r.slug))}`;
+        const loc = `${siteOrigin}/project/${encodeURIComponent(String(r.slug))}`;
         const lastmod = new Date(r.updatedAt).toISOString();
         return `  <url><loc>${loc}</loc><lastmod>${lastmod}</lastmod></url>`;
       })
       .join("\n");
 
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>`;
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>${siteOrigin}/</loc></url>\n${urls}\n</urlset>`;
 
     c.header("Content-Type", "application/xml; charset=utf-8");
     c.header("Cache-Control", "public, max-age=3600");

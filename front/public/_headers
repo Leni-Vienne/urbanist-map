@@ -1,0 +1,14 @@
+https://urbanistmap.org/
+  Link: <https://urbanistmap.org/>; rel="canonical"
+
+https://urbanistmap.org//
+  Link: <https://urbanistmap.org/>; rel="canonical"
+
+https://preview.urbanistmap.org/*
+  X-Robots-Tag: noindex
+
+https://:project.pages.dev/*
+  X-Robots-Tag: noindex
+
+https://:version.:project.pages.dev/*
+  X-Robots-Tag: noindex

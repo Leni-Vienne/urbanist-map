@@ -5,26 +5,18 @@ import { jsonObjectSql } from "./jsonObject";
 // Minimal shape both the app's shared and import script's Drizzle clients satisfy.
 type SqlExecutor = Pick<typeof db, "execute">;
 
-// The curation rule that decides whether a project is worth indexing in Google. A project qualifies
-// when it is approved, named, and carries visual content the SEO page can actually show: an approved
-// overlay (a georeferenced 'map' overlay or a 'render' artist's impression), or an external
-// wikidata/image tag the page can resolve a preview from. Detached projects pass on the strength of
-// their retained user overlays; the thin redrawn OSM twin only competes if it independently carries
-// its own wikidata/image tag (a name-only twin is excluded here).
-//
-// The fragment is reused verbatim by the bulk and per-project refresh so they can never drift.
 function indexableExpr(): ReturnType<typeof sql> {
   const properties = jsonObjectSql(sql`projects.external_properties`);
   return sql`COALESCE((
-    projects.name IS NOT NULL
+    NULLIF(BTRIM(projects.name), '') IS NOT NULL
     AND projects.status = 'approved'
     AND (
       EXISTS (
         SELECT 1 FROM overlays o
         WHERE o.project_id = projects.id AND o.status = 'approved'
       )
-      OR jsonb_exists(${properties}, 'wikidata')
-      OR jsonb_exists(${properties}, 'image')
+      OR NULLIF(BTRIM(${properties}->>'wikidata'), '') IS NOT NULL
+      OR NULLIF(BTRIM(${properties}->>'image'), '') IS NOT NULL
     )
   ), false)`;
 }

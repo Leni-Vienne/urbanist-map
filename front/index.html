@@ -50,6 +50,38 @@
       * {
         unicode-bidi: plaintext;
       }
+
+      body:has(> #project-summary) {
+        overflow: auto;
+      }
+
+      #project-summary {
+        max-width: 44rem;
+        margin: 0 auto;
+        padding: 1.5rem;
+        color: var(--p-text-color, CanvasText);
+        background: var(--p-content-background, Canvas);
+        overflow-wrap: anywhere;
+      }
+
+      #project-summary h1 {
+        font-size: 1.5rem;
+        font-weight: 600;
+      }
+
+      #project-summary p,
+      #project-summary ul {
+        margin-block: 0.75rem;
+      }
+
+      #project-summary p {
+        white-space: pre-line;
+      }
+
+      #project-summary a {
+        color: var(--p-primary-color, LinkText);
+        text-decoration: underline;
+      }
     </style>
   </head>
 

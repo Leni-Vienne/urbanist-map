@@ -54,7 +54,7 @@
           :class="isMobile ? 'pt-3 pb-2' : 'py-2.5'"
         >
           <div class="flex gap-2 items-center">
-            <div class="flex-1 flex items-center gap-1.5 min-w-0">
+            <h1 class="flex-1 flex items-center gap-1.5 min-w-0">
               <!-- Wikidata logo (e.g. metro line badge) shown when available -->
               <img
                 v-if="wikidataEntity?.logoUrl"
@@ -81,7 +81,7 @@
               >
                 {{ displayName }}
               </span>
-            </div>
+            </h1>
             <div class="flex gap-1 shrink-0">
               <!-- Edit: switch to edit mode and pin this project in the contribute panel, so the
                    user can act on it (add images, draw, edit fields) without closing the detail and
@@ -253,7 +253,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from "vue";
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  ref,
+  useTemplateRef,
+  watch,
+  watchPostEffect,
+} from "vue";
 import { useI18n } from "vue-i18n";
 
 import { useDetailProject } from "@/composables/project/useDetailProject";
@@ -306,6 +314,14 @@ const authStore = useAuthStore();
 const { imageErrors: thumbnailErrors, handleImageError: handleThumbnailError } = useImageErrors();
 
 const { project, overlay, loadStatus, retry } = useDetailProject();
+
+function replaceProjectSummary(): void {
+  if (detailPanel.value && project.value && loadStatus.value !== "unavailable") {
+    document.getElementById("project-summary")?.remove();
+  }
+}
+
+watchPostEffect(replaceProjectSummary);
 
 // Report the natural height, including the fixed header and scroll-area padding.
 // Observe the content as well as the panel so asynchronous text and images are included.

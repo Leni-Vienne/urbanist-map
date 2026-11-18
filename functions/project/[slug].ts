@@ -1,16 +1,8 @@
-// Cloudflare Pages Function for /project/:slug.
-//
-// Humans and bots receive the SAME built index.html shell (no cloaking). This Function fetches the
-// per-project metadata as JSON from the backend, splices <title>/description/OpenGraph/Twitter/
-// canonical/JSON-LD (and noindex when applicable) into the shell's <head>, then returns it. The SPA
-// then boots from that shell and focuses the map on the project (see useProjectDeepLink). Bots and
-// link-preview scrapers, which do not run JS, read the injected tags directly.
-//
-// Status codes pass through from the backend: 200 (live), 410 (deleted -> de-index), 404 (unknown).
-
 import type { SeoLocation, SeoProject, SeoProjectResponse } from "../../shared/types/seo";
 import { formatProjectDateRangeParts } from "../../shared/projectDates";
 import {
+  fields as englishFields,
+  project as englishProject,
   tags as englishTagLabels,
   timelineStatus as englishTimelineLabels,
 } from "../../front/src/locales/messages/en.json";
@@ -27,8 +19,6 @@ interface PagesContext {
 const DEFAULT_BACKEND = "https://api.urbanistmap.org";
 const SITE_URL = "https://urbanistmap.org";
 const DEFAULT_OG_IMAGE = `${SITE_URL}/og-preview.jpg`;
-// Site-level brand line appended to the crawlable noscript body. The count is a rounded, manually
-// maintained figure (kept in sync with the homepage shell's meta description, currently lower).
 const SITE_TAGLINE = "Explore 500,000+ urban projects worldwide.";
 
 function escapeHtml(value: string): string {
@@ -43,6 +33,13 @@ function escapeHtml(value: string): string {
 function truncate(value: string, max: number): string {
   const trimmed = value.trim();
   return trimmed.length <= max ? trimmed : `${trimmed.slice(0, max - 1).trimEnd()}…`;
+}
+
+function publicHttpUrl(value: string | null | undefined): string | undefined {
+  if (!value) return undefined;
+  const url = URL.parse(value);
+  if (url?.protocol === "https:" || url?.protocol === "http:") return url.href;
+  return undefined;
 }
 
 // Strip the default SEO tags shipped in index.html so the per-project ones replace (not duplicate)
@@ -74,17 +71,6 @@ function resolveSeoDateLabel(data: Partial<SeoProject>): string {
   return result ? [result.label, result.value].filter(Boolean).join(" ") : "";
 }
 
-// Serialize a value for embedding inside a <script> element. JSON.stringify produces valid JSON but
-// leaves `<`, `>` and `&` literal, so a user-authored field containing "</script>" would break out of
-// the ld+json block and inject live DOM. Escaping these to their \uXXXX forms keeps the JSON valid and
-// closes that hole.
-function serializeJsonLd(value: unknown): string {
-  return JSON.stringify(value)
-    .replaceAll("<", "\\u003c")
-    .replaceAll(">", "\\u003e")
-    .replaceAll("&", "\\u0026");
-}
-
 // Build the schema.org Place JSON-LD string, including the timeline stage/dates as PropertyValue
 // entries and the project tags as keywords.
 function buildJsonLd(
@@ -92,7 +78,7 @@ function buildJsonLd(
   name: string,
   description: string,
   canonical: string,
-  image: string,
+  image: string | undefined,
   locationLabel: string | null,
   statusLabel: string | null,
   dateLabel: string,
@@ -106,8 +92,8 @@ function buildJsonLd(
   const hasCoordinates =
     data.lat !== null && data.lat !== undefined && data.lng !== null && data.lng !== undefined;
 
-  // JSON.stringify drops undefined properties, so an absent field leaves no trace in the output.
-  return serializeJsonLd({
+  // Escape markup delimiters within the script element.
+  return JSON.stringify({
     "@context": "https://schema.org",
     "@type": "Place",
     name,
@@ -127,19 +113,23 @@ function buildJsonLd(
       : undefined,
     keywords: tags.length > 0 ? tags.join(", ") : undefined,
     additionalProperty: additionalProperty.length > 0 ? additionalProperty : undefined,
-  });
+  })
+    .replaceAll("<", "\\u003c")
+    .replaceAll(">", "\\u003e")
+    .replaceAll("&", "\\u0026");
 }
 
-// Render the timeline stage, dates and tags as a crawler-visible <ul> inside the noscript block.
-function buildNoscriptDetails(
+function buildProjectFacts(
+  locationLabel: string | null,
   statusLabel: string | null,
   dateLabel: string,
   tags: string[],
 ): string {
   const rows = [
-    statusLabel ? `<li>Status: ${escapeHtml(statusLabel)}</li>` : "",
-    dateLabel ? `<li>Timeline: ${escapeHtml(dateLabel)}</li>` : "",
-    tags.length > 0 ? `<li>Tags: ${escapeHtml(tags.join(", "))}</li>` : "",
+    locationLabel ? `<li>${englishProject.location}: ${escapeHtml(locationLabel)}</li>` : "",
+    statusLabel ? `<li>${englishFields.timelineStatus}: ${escapeHtml(statusLabel)}</li>` : "",
+    dateLabel ? `<li>${englishProject.period}: ${escapeHtml(dateLabel)}</li>` : "",
+    tags.length > 0 ? `<li>${englishFields.tags}: ${escapeHtml(tags.join(", "))}</li>` : "",
   ].filter(Boolean);
   return rows.length > 0 ? `<ul>${rows.join("")}</ul>` : "";
 }
@@ -195,12 +185,21 @@ function resolveSeoProjectName(
   return `${fallbackName}${titleLocation ? ` in ${titleLocation}` : ""}`;
 }
 
+function buildMapViewTag(data: Partial<SeoProject>): string {
+  if (data.bounds) return `<meta name="deeplink-bounds" content="${data.bounds.join(",")}" />`;
+  if (typeof data.lat === "number" && typeof data.lng === "number") {
+    return `<meta name="deeplink-view" content="${data.lat},${data.lng}" />`;
+  }
+  return "";
+}
+
 // Keep rendering fallbacks for incomplete metadata from older backend deployments.
 function buildLiveTags(data: Partial<SeoProject>): SeoTags {
   const projectName = (data.name ?? "").trim() || null;
   const locationLabel = data.location?.label ?? null;
-  const canonical = data.canonical ?? `${SITE_URL}/project/${data.slug ?? ""}`;
-  const image = data.image ?? DEFAULT_OG_IMAGE;
+  const canonical = data.canonical ?? `${SITE_URL}/project/${encodeURIComponent(data.slug ?? "")}`;
+  const projectImage = publicHttpUrl(data.image);
+  const image = projectImage ?? DEFAULT_OG_IMAGE;
   const robots = data.indexable ? "index,follow" : "noindex";
 
   const statusLabel = data.timelineStatus
@@ -215,16 +214,17 @@ function buildLiveTags(data: Partial<SeoProject>): SeoTags {
   const name = resolveSeoProjectName(projectName, category, data.location);
   const titleText = `${name} | Urbanist Map`;
 
-  const description = data.description
-    ? truncate(data.description, 200)
-    : buildFallbackDescription(projectName, locationLabel, category, data.timelineStatus);
+  const description =
+    data.description?.trim() ||
+    buildFallbackDescription(projectName, locationLabel, category, data.timelineStatus);
+  const snippet = truncate(description, 200);
 
   const jsonLd = buildJsonLd(
     data,
     name,
     description,
     canonical,
-    image,
+    projectImage,
     locationLabel,
     statusLabel,
     dateLabel,
@@ -232,30 +232,15 @@ function buildLiveTags(data: Partial<SeoProject>): SeoTags {
   );
 
   const t = escapeHtml(titleText);
-  const d = escapeHtml(description);
-  const ogDescription = escapeHtml(`${description}\n\n${SITE_TAGLINE}`);
+  const ogDescription = escapeHtml(`${snippet}\n\n${SITE_TAGLINE}`);
   const c = escapeHtml(canonical);
   const img = escapeHtml(image);
 
-  // Hand the project location or bounds to the SPA so the map is constructed already fitted to it (read in
-  // services/core/map.ts), instead of animating in from the default world view after boot.
-  let deeplinkTag = "";
-  if (data.bounds) {
-    deeplinkTag = `<meta name="deeplink-bounds" content="${data.bounds.join(",")}" />`;
-  } else if (
-    data.lat !== null &&
-    data.lat !== undefined &&
-    data.lng !== null &&
-    data.lng !== undefined
-  ) {
-    deeplinkTag = `<meta name="deeplink-view" content="${data.lat},${data.lng}" />`;
-  }
-
   const head = [
-    deeplinkTag,
+    buildMapViewTag(data),
     `<title>${t}</title>`,
     `<meta name="robots" content="${robots}" />`,
-    `<meta name="description" content="${d}" />`,
+    `<meta name="description" content="${escapeHtml(snippet)}" />`,
     `<link rel="canonical" href="${c}" />`,
     `<meta property="og:type" content="article" />`,
     `<meta property="og:site_name" content="Urbanist Map" />`,
@@ -263,8 +248,8 @@ function buildLiveTags(data: Partial<SeoProject>): SeoTags {
     `<meta property="og:description" content="${ogDescription}" />`,
     `<meta property="og:url" content="${c}" />`,
     `<meta property="og:image" content="${img}" />`,
-    `<meta property="og:image:width" content="1200" />`,
-    `<meta property="og:image:height" content="630" />`,
+    projectImage ? "" : `<meta property="og:image:width" content="1200" />`,
+    projectImage ? "" : `<meta property="og:image:height" content="630" />`,
     `<meta name="twitter:card" content="summary_large_image" />`,
     `<meta name="twitter:title" content="${t}" />`,
     `<meta name="twitter:description" content="${ogDescription}" />`,
@@ -274,8 +259,16 @@ function buildLiveTags(data: Partial<SeoProject>): SeoTags {
     .filter(Boolean)
     .join("\n    ");
 
-  // A <noscript> in <head> may only hold link/style/meta, so this flow content goes in the body.
-  const body = `<noscript><h1>${t}</h1><p>${d}</p>${buildNoscriptDetails(statusLabel, dateLabel, tags)}<p>${escapeHtml(SITE_TAGLINE)}</p></noscript>`;
+  const source = publicHttpUrl(data.sourceUrl);
+  const body = [
+    `<article id="project-summary" lang="en">`,
+    `<h1>${escapeHtml(name)}</h1>`,
+    `<p>${escapeHtml(description)}</p>`,
+    buildProjectFacts(locationLabel, statusLabel, dateLabel, tags),
+    source ? `<p><a href="${escapeHtml(source)}">${englishProject.sourceUrl}</a></p>` : "",
+    `<p><a href="/">Urbanist Map</a></p>`,
+    `</article>`,
+  ].join("\n");
 
   return { head, body };
 }
@@ -292,29 +285,27 @@ function buildGoneOrMissingTags(title: string, description: string): string {
 
 function injectIntoHead(html: string, tags: string): string {
   const stripped = stripDefaultSeoTags(html);
-  return stripped.replace(/<\/head>/i, `    ${tags}\n  </head>`);
+  return stripped.replace(/<\/head>/i, () => `    ${tags}\n  </head>`);
 }
 
-// Inject the per-project head tags and the crawler-visible <noscript> body block. The body block goes
-// right after the opening <body> tag so its flow content is valid markup (a <noscript> in <head> may
-// only contain link/style/meta).
 function injectLiveContent(html: string, parts: SeoTags): string {
   const withHead = injectIntoHead(html, parts.head);
   return withHead.replace(/<body\b[^>]*>/i, (match) => `${match}\n    ${parts.body}`);
 }
 
-// Fetch the backend verdict, returning null on any transport problem (unreachable backend, non-JSON
-// body such as a gateway error page or a plain-text 404 from a misrouted request). Returning null
-// keeps these failures distinct from the backend's deliberate ok/gone/not_found JSON contract, so a
-// transient hiccup never gets turned into a crawler-visible error status.
 async function fetchSeoProject(backend: string, slug: string): Promise<SeoProjectResponse | null> {
   try {
-    const response = await fetch(`${backend}/seo/project/${encodeURIComponent(slug)}`);
+    const response = await fetch(`${backend}/seo/project/${encodeURIComponent(slug)}`, {
+      signal: AbortSignal.timeout(5000),
+    });
     const contentType = response.headers.get("content-type") ?? "";
     if (!contentType.includes("application/json")) return null;
     // oxlint-disable-next-line no-unsafe-type-assertion
     const data = (await response.json()) as SeoProjectResponse | null;
-    return data && typeof data.status === "string" ? data : null;
+    if (response.status === 200 && data?.status === "ok") return data;
+    if (response.status === 410 && data?.status === "gone") return data;
+    if (response.status === 404 && data?.status === "not_found") return data;
+    return null;
   } catch {
     return null;
   }
@@ -325,23 +316,21 @@ export async function onRequest(context: PagesContext): Promise<Response> {
   const slugParam = params.slug;
   const slug = (Array.isArray(slugParam) ? slugParam[0] : slugParam) ?? "";
 
-  // Fetch the built shell from the same deployment.
-  const shellResponse = await env.ASSETS.fetch(new URL("/index.html", request.url));
+  const backend = env.BACKEND_API_URL ?? DEFAULT_BACKEND;
+  const [shellResponse, data] = await Promise.all([
+    env.ASSETS.fetch(new URL("/index.html", request.url)),
+    fetchSeoProject(backend, slug),
+  ]);
+  if (!shellResponse.ok) return temporaryFailure(null);
   let html = await shellResponse.text();
 
-  const backend = env.BACKEND_API_URL ?? DEFAULT_BACKEND;
-
-  // Default to serving the un-injected shell with 200 so humans always get a working app. The HTTP
-  // status is driven by the backend's verdict (gone, not_found), never by raw transport errors, so a
-  // backend blip can't tell Google to de-index a healthy project.
+  if (!data) return temporaryFailure(html);
   let status = 200;
   let cacheControl = "public, max-age=300";
 
-  const data = await fetchSeoProject(backend, slug);
-
-  if (data?.status === "ok") {
+  if (data.status === "ok") {
     html = injectLiveContent(html, buildLiveTags(data));
-  } else if (data?.status === "gone") {
+  } else if (data.status === "gone") {
     html = injectIntoHead(
       html,
       buildGoneOrMissingTags(
@@ -351,7 +340,7 @@ export async function onRequest(context: PagesContext): Promise<Response> {
     );
     status = 410;
     cacheControl = "no-cache";
-  } else if (data?.status === "not_found") {
+  } else if (data.status === "not_found") {
     html = injectIntoHead(
       html,
       buildGoneOrMissingTags(
@@ -362,9 +351,7 @@ export async function onRequest(context: PagesContext): Promise<Response> {
     status = 404;
     cacheControl = "no-cache";
   } else {
-    // Backend unreachable, non-JSON, or an unrecognized verdict: serve the SPA shell so humans get
-    // the app (bots see the shell's default tags) and keep 200 to avoid a spurious de-index signal.
-    cacheControl = "no-cache";
+    return temporaryFailure(html);
   }
 
   return new Response(html, {
@@ -372,6 +359,17 @@ export async function onRequest(context: PagesContext): Promise<Response> {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": cacheControl,
+    },
+  });
+}
+
+function temporaryFailure(html: string | null): Response {
+  return new Response(html, {
+    status: 503,
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store",
+      "Retry-After": "60",
     },
   });
 }

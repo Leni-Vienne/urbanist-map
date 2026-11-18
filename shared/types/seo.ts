@@ -28,6 +28,7 @@ export interface SeoProject {
   bounds: [number, number, number, number] | null;
   location: SeoLocation;
   image: string | null;
+  sourceUrl?: string | null;
   canonical: string;
 }
 

@@ -183,7 +183,6 @@ async function restoreSessionAndConsumeAuthParams() {
     toastError(errorMessage, t("pages.home.authenticationError"));
   }
 
-  // Fire-and-forget: the deep-link handler waits for the map to be ready on its own.
   void handleProjectDeepLink(route.params.slug, t, viewController.signal);
 
   // Strip the auth params the OAuth callback appended so they don't linger in the URL.
@@ -216,6 +215,7 @@ function getErrorMessage(error: string): string {
 
 onUnmounted(() => {
   viewController.abort();
+  document.getElementById("project-summary")?.remove();
   if (maintenanceTickInterval !== undefined) {
     globalThis.clearInterval(maintenanceTickInterval);
   }
