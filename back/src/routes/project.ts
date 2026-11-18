@@ -74,7 +74,7 @@ async function getProjectImages(projectId: string, user: SessionUser | null | un
         and(
           eq(overlays.projectId, projectId),
           eq(overlays.kind, "render"),
-          buildOverlayVisibilityCondition(user, "edit"),
+          buildOverlayVisibilityCondition(user),
         ),
       )
       .orderBy(

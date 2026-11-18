@@ -1,7 +1,8 @@
 import { db } from "../database";
 import { overlays, projects } from "../db/schema";
 import { eq } from "drizzle-orm";
-import { boundaryName } from "../db/helpers";
+import { boundaryPathSql } from "../db/helpers";
+import { selectBoundaryLevels } from "@shared/types/boundary";
 
 type DiscordEmbedField = { name: string; value: string; inline?: boolean };
 
@@ -79,27 +80,20 @@ async function resolveProjectId(notification: SubmissionNotification): Promise<s
   return rows[0]?.projectId ?? null;
 }
 
-// Builds a "City, State, Country" label from the project's admin boundary chain, like feed.ts.
 async function resolveLocationLabel(notification: SubmissionNotification): Promise<string | null> {
   try {
     const projectId = await resolveProjectId(notification);
     if (!projectId) return null;
-    const rows = await db
-      .select({
-        city: boundaryName("city"),
-        state: boundaryName("state"),
-        country: boundaryName("country"),
-      })
+    const [row] = await db
+      .select({ boundaryPath: boundaryPathSql() })
       .from(projects)
       .where(eq(projects.id, projectId))
       .limit(1);
-    const row = rows[0];
     if (!row) return null;
+    const { city, state, country } = selectBoundaryLevels(row.boundaryPath);
     const parts = [
       ...new Set(
-        [row.city?.name, row.state?.name, row.country?.name].filter((part): part is string =>
-          Boolean(part),
-        ),
+        [city?.name, state?.name, country?.name].filter((part): part is string => Boolean(part)),
       ),
     ];
     return parts.length > 0 ? parts.join(", ") : null;

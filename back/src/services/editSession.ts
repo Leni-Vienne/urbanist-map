@@ -1,12 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
-import { importSources, overlays, projects } from "../db/schema";
+import { changeRequests, importSources, overlays, projects } from "../db/schema";
 import type { DatabaseExecutor } from "../database";
-import {
-  fetchOverlaysForMap,
-  getUserOverlayChangeRequestIds,
-  PROJECT_COLUMNS,
-  IMPORT_SOURCE_COLUMNS,
-} from "../db/helpers";
+import { fetchOverlaysForMap, PROJECT_COLUMNS, IMPORT_SOURCE_COLUMNS } from "../db/helpers";
 import type { SessionUser } from "../lib/types";
 
 function buildEditModeProjectJoinCondition(userId: string): ReturnType<typeof sql> {
@@ -23,11 +18,16 @@ function mergeProjectsById<T extends { id: string }>(...projectGroups: T[][]): T
 
 export async function getEditSessionData(database: DatabaseExecutor, user: SessionUser) {
   const userId = user.id;
-  const openChangeRequestIds = await getUserOverlayChangeRequestIds(database, userId);
-  const overlayCondition =
-    openChangeRequestIds.length > 0
-      ? sql`((${overlays.authorId} = ${userId} AND ${overlays.status} = 'pending') OR ${overlays.id} = ANY(${`{${openChangeRequestIds.join(",")}}`}::uuid[]))`
-      : sql`(${overlays.authorId} = ${userId} AND ${overlays.status} = 'pending')`;
+  const overlayCondition = sql`(
+    (${overlays.authorId} = ${userId} AND ${overlays.status} = 'pending')
+    OR EXISTS (
+      SELECT 1 FROM ${changeRequests}
+      WHERE ${changeRequests.entityId} = ${overlays.id}
+        AND ${changeRequests.entityType} = 'overlay'
+        AND ${changeRequests.requestedBy} = ${userId}
+        AND ${changeRequests.status} IN ('pending', 'conflicted')
+    )
+  )`;
 
   const overlayResult = await fetchOverlaysForMap(
     database,

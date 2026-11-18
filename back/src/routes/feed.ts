@@ -3,7 +3,8 @@ import { z } from "zod";
 import { db } from "../database";
 import { overlays, projects } from "../db/schema";
 import { sql, eq, and, or, desc, type SQL } from "drizzle-orm";
-import { boundaryName, textArray } from "../db/helpers";
+import { boundaryPathSql, textArray } from "../db/helpers";
+import { selectBoundaryLevels, type BoundaryPathEntry } from "@shared/types/boundary";
 
 // One row per project makes its UUID a unique tie-breaker across all contribution sources.
 const feedCursorSchema = z.object({
@@ -297,10 +298,8 @@ export function buildFeedQuery(input: FeedPageInput) {
         sql<string>`to_char(${page.updatedAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`.as(
           "cursorDate",
         ),
-      city: boundaryName("city"),
-      state: boundaryName("state"),
       countryCode: projects.countryCode,
-      country: boundaryName("country"),
+      boundaryPath: boundaryPathSql().as("boundary_path"),
       tags: projects.tags,
       shape: sql<GeoJSON.GeometryCollection | null>`CASE
         WHEN ${page.overlayId} IS NULL AND ${projects.geometry} IS NOT NULL AND (
@@ -321,9 +320,22 @@ export function buildFeedQuery(input: FeedPageInput) {
     .orderBy(desc(page.updatedAt), desc(page.projectId));
 }
 
+function boundaryDisplayName(entry: BoundaryPathEntry | null) {
+  if (!entry) return null;
+  const { name, nameEn, names } = entry;
+  return { name, nameEn, names };
+}
+
 function mapContribution(row: Awaited<ReturnType<typeof buildFeedQuery>>[number]) {
-  const { image, projectId, cursorDate: _cursorDate, shape, ...project } = row;
-  const common = { ...project, tags: project.tags ?? [] };
+  const { image, projectId, cursorDate: _cursorDate, shape, boundaryPath, ...project } = row;
+  const { city, state, country } = selectBoundaryLevels(boundaryPath);
+  const common = {
+    ...project,
+    tags: project.tags ?? [],
+    city: boundaryDisplayName(city),
+    state: boundaryDisplayName(state),
+    country: boundaryDisplayName(country),
+  };
   return image
     ? { ...common, type: "overlay" as const, ...image, projectId }
     : { ...common, type: "standalone" as const, id: projectId, filename: null, shape };

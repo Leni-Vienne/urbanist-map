@@ -1,21 +1,7 @@
 import { sql, eq, and, inArray, type SQL } from "drizzle-orm";
 import { db, type Database, type DatabaseExecutor } from "../database";
-import {
-  projects,
-  overlays,
-  adminBoundaries,
-  changeRequests,
-  users,
-  userReports,
-  importSources,
-} from "./schema";
-import type { AppMode } from "@shared/types";
-import {
-  BOUNDARY_LEVEL_RANGES,
-  type BoundaryLevel,
-  type LocalizedBoundaryName,
-  type BoundaryPathEntry,
-} from "@shared/types/boundary";
+import { projects, overlays, changeRequests, users, userReports, importSources } from "./schema";
+import type { BoundaryPathEntry } from "@shared/types/boundary";
 import { buildOwnOverlayProposal } from "./overlayProposal";
 import { overlayCornersJsonSql } from "./geometry";
 
@@ -31,11 +17,8 @@ export const countryNameSql = sql<
 // nameEn, and each boundary's native/local label travels as name.
 const BOUNDARY_NAME_LOCALES = ["fr"];
 
-// Full administrative breadcrumb (deepest boundary up to the country), deepest-first, mirroring
-// project.getById's resolveBoundaryPath so list views render the same location as the detail panel.
-// Walks the parent chain from the project's assigned boundary. NULL boundary or no chain yields [].
-// The depth guard stops a malformed parent cycle from looping forever.
-function boundaryPathSql(requestLanguage: string): SQL<BoundaryPathEntry[]> {
+// The depth limit bounds malformed parent chains, including cycles.
+export function boundaryPathSql(requestLanguage = "en"): SQL<BoundaryPathEntry[]> {
   const nameLocales =
     requestLanguage === "en"
       ? BOUNDARY_NAME_LOCALES
@@ -70,36 +53,6 @@ export function textArray(values: string[]): SQL {
     values.map((value) => sql`${value}`),
     sql`, `,
   )}]::text[]`;
-}
-
-// Location source for a project, resolved by walking its assigned admin boundary's parent_id chain
-// (projects.admin_boundary_id -> admin_boundaries). `pick` maps to an OSM admin_level bucket:
-//   city    -> deepest of 6..8 (prefers the municipality at 8, e.g. Montréal/Paris; falls back to a
-//              county at 6 where no level-8 exists).
-//   state   -> level 4 exactly: the canonical province/region (Québec, Ontario, Île-de-France).
-//              Odd levels are informal groupings we must skip (5 = "Golden Horseshoe", 3 = "France
-//              métropolitaine").
-//   country -> level 2.
-// Returns NULL when the project has no assigned boundary or the chain lacks that grade.
-// The outer column is written qualified for the reason given on countryNameSql.
-export function boundaryName(pick: BoundaryLevel): SQL<LocalizedBoundaryName | null> {
-  const [minLevel, maxLevel] = BOUNDARY_LEVEL_RANGES[pick];
-  return sql<LocalizedBoundaryName | null>`(
-    WITH RECURSIVE chain AS (
-      SELECT osm_id, parent_id, admin_level, name, name_en, names, 1 AS depth
-      FROM ${adminBoundaries} WHERE osm_id = "projects"."admin_boundary_id"
-      UNION ALL
-      SELECT b.osm_id, b.parent_id, b.admin_level, b.name, b.name_en, b.names, c.depth + 1
-      FROM ${adminBoundaries} b JOIN chain c ON b.osm_id = c.parent_id
-      WHERE c.depth < 12
-    )
-    SELECT json_build_object('name', name, 'nameEn', name_en, 'names', (
-      SELECT json_object_agg(n.k, n.v)
-      FROM jsonb_each_text(COALESCE(names, '{}'::jsonb)) AS n(k, v)
-      WHERE n.k = ANY(${textArray(BOUNDARY_NAME_LOCALES)})
-    ))
-    FROM chain WHERE admin_level BETWEEN ${minLevel} AND ${maxLevel} ORDER BY admin_level DESC LIMIT 1
-  )`;
 }
 
 // Overlay fields shared by API reads, with PostGIS geometry decoded into coordinates.
@@ -268,56 +221,9 @@ type UserContext =
   | undefined
   | null;
 
-// Fetch overlay IDs where the user has an OPEN (pending/conflicted) change request.
-export async function getUserOverlayChangeRequestIds(
-  database: DatabaseExecutor,
-  userId: string,
-): Promise<string[]> {
-  const changeRequestResults = await database
-    .selectDistinct({ overlayId: changeRequests.entityId })
-    .from(changeRequests)
-    .where(
-      and(
-        eq(changeRequests.requestedBy, userId),
-        eq(changeRequests.entityType, "overlay"),
-        inArray(changeRequests.status, ["pending", "conflicted"]),
-      ),
-    );
-
-  return changeRequestResults.map((r) => r.overlayId);
-}
-
-export function buildOverlayVisibilityCondition(
-  user: UserContext,
-  mode: AppMode,
-  overlayChangeRequestIds?: string[],
-): SQL {
-  if (mode === "view") {
-    // View mode: only show approved overlays
-    return eq(overlays.status, "approved");
-  }
-
-  if (mode === "edit" && user) {
-    // Edit mode: show approved overlays OR user's own PENDING overlays OR overlays with user's change requests
-    // Rejected and replaced overlays are NOT shown even if user owns them
-    if (overlayChangeRequestIds && overlayChangeRequestIds.length > 0) {
-      const idsArray = `{${overlayChangeRequestIds.join(",")}}`;
-      return sql`(
-        ${overlays.status} = 'approved'
-        OR (${overlays.authorId} = ${user.id} AND ${overlays.status} = 'pending')
-        OR ${overlays.id} = ANY(${idsArray}::uuid[])
-      )`;
-    }
-    return sql`(${overlays.status} = 'approved' OR (${overlays.authorId} = ${user.id} AND ${overlays.status} = 'pending'))`;
-  }
-
-  if (mode === "moderation" && user) {
-    // Moderation mode: show ALL overlays (approved + pending) for review
-    return sql`(${overlays.status} = 'approved' OR ${overlays.status} = 'pending')`;
-  }
-
-  // Default (anonymous or unrecognized mode): only show approved overlays
-  return eq(overlays.status, "approved");
+export function buildOverlayVisibilityCondition(user: UserContext): SQL {
+  if (!user) return eq(overlays.status, "approved");
+  return sql`(${overlays.status} = 'approved' OR (${overlays.authorId} = ${user.id} AND ${overlays.status} = 'pending'))`;
 }
 
 type OverlayChangeValue = { fieldName: string; newValue: unknown };

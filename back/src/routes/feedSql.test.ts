@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { SQL as SqlClient } from "bun";
 import { desc, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/bun-sql";
+import type { BoundaryPathEntry } from "@shared/types/boundary";
 
 // Read-only, opt-in fixtures shadow all application tables. No application data is accessed.
 const databaseUrl = process.env.TEST_DATABASE_URL;
@@ -10,7 +11,12 @@ process.env.CORS_ORIGIN ??= "http://localhost";
 process.env.COOKIE_SECRET ??= "feed-sql-test-secret-32-characters";
 const { buildFeedQuery } = await import("./feed");
 type FeedInput = Parameters<typeof buildFeedQuery>[0];
-type Row = { projectId: string; date: string; imageId: string | null };
+type Row = {
+  projectId: string;
+  date: string;
+  imageId: string | null;
+  boundaryPath: BoundaryPathEntry[];
+};
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 
 const fixtures = sql`
@@ -25,7 +31,7 @@ const fixtures = sql`
       CASE WHEN source IN ('imported', 'locked') THEN 1 END AS import_source_id,
       CASE WHEN n IN (1, 3, 6) THEN ARRAY['rail'] ELSE ARRAY['road'] END AS tags,
       'planned'::text AS timeline_status, 100::float8 AS geometry_size_m,
-      NULL::bigint AS admin_boundary_id, 'FRA'::text AS country_code,
+      CASE WHEN n = 3 THEN 8 END::bigint AS admin_boundary_id, 'FRA'::text AS country_code,
       48::float8 AS lat, 2::float8 AS lng, NULL::geometry AS geometry,
       ST_SetSRID(ST_MakePoint(2, 48), 4326) AS center_coordinate
     FROM (VALUES (1, 'direct', 900), (2, 'imported', 900), (3, 'image', 0),
@@ -42,8 +48,11 @@ const fixtures = sql`
       (12, 3, 900, 'approved'), (13, 3, 100, 'approved'),
       (14, 8, 999, 'approved'), (15, 9, 999, 'pending')) o(n, project, micros, status)
   ), admin_boundaries AS (
-    SELECT NULL::bigint AS osm_id, NULL::bigint AS parent_id, NULL::int AS admin_level,
-      NULL::text AS name, NULL::text AS name_en, NULL::jsonb AS names WHERE FALSE
+    SELECT * FROM (VALUES
+      (8::bigint, 4::bigint, 8, 'Local city', 'English city', '{"fr":"French city","de":"German city"}'::jsonb),
+      (4, 2, 4, 'Local state', NULL, NULL),
+      (2, NULL, 2, 'Local country', 'English country', NULL)
+    ) b(osm_id, parent_id, admin_level, name, name_en, names)
   )
 `;
 
@@ -69,7 +78,8 @@ describe.skipIf(!databaseUrl)("feed pagination in PostgreSQL", () => {
   async function page(input: FeedInput): Promise<Row[]> {
     const feed = buildFeedQuery(input).as("feed");
     return await database.execute<Row>(sql`${fixtures}
-      SELECT ${feed.projectId} AS "projectId", ${feed.cursorDate} AS date, ${feed.image.id} AS "imageId"
+      SELECT ${feed.projectId} AS "projectId", ${feed.cursorDate} AS date,
+        ${feed.image.id} AS "imageId", ${feed.boundaryPath} AS "boundaryPath"
       FROM ${feed} ORDER BY ${desc(feed.updatedAt)}, ${desc(feed.projectId)}
     `);
   }
@@ -98,6 +108,16 @@ describe.skipIf(!databaseUrl)("feed pagination in PostgreSQL", () => {
       expect(rows.filter((row) => row.imageId).map((row) => row.imageId)).toEqual([id(12), id(11)]);
     },
   );
+
+  test("hydrates the boundary chain with the feed's localized names", async () => {
+    const [withPath, withoutPath] = await collect({ limit: 20 });
+    expect(withPath?.boundaryPath).toEqual([
+      { adminLevel: 8, name: "Local city", nameEn: "English city", names: { fr: "French city" } },
+      { adminLevel: 4, name: "Local state", nameEn: null, names: null },
+      { adminLevel: 2, name: "Local country", nameEn: "English country", names: null },
+    ]);
+    expect(withoutPath?.boundaryPath).toEqual([]);
+  });
 
   test.each([
     ["community", [3, 1, 4, 6, 9]],

@@ -14,9 +14,8 @@ const getOverlaySchema = z.object({
 export const overlayRouter = router({
   getOverlay: publicProcedure.input(getOverlaySchema).query(async ({ input, ctx }) => {
     try {
-      const mode = ctx.user ? "edit" : "view";
       const [overlay] = await buildOverlayQuery(db)
-        .where(and(eq(overlays.id, input.id), buildOverlayVisibilityCondition(ctx.user, mode)))
+        .where(and(eq(overlays.id, input.id), buildOverlayVisibilityCondition(ctx.user)))
         .limit(1);
 
       if (!overlay) {
