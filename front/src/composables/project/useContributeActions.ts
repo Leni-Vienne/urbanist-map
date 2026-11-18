@@ -42,7 +42,9 @@ function handleSaveProjectClick(project: Project): void {
   prepareSubmission(project);
 }
 
-export function useContributeActions(projectOverlayIds: ComputedRef<Record<string, string[]>>) {
+export function useContributeActions(
+  overlaysByProjectId: ComputedRef<Record<string, ProjectPanelOverlay[]>>,
+) {
   const { t } = useI18n();
 
   const uiStore = useUiStore();
@@ -50,7 +52,7 @@ export function useContributeActions(projectOverlayIds: ComputedRef<Record<strin
 
   async function handleDeleteProjectClick(project: Project): Promise<void> {
     const imageCount =
-      (projectOverlayIds.value[project.id]?.length ?? 0) +
+      (overlaysByProjectId.value[project.id]?.length ?? 0) +
       Number(useSubmissionStore().hasStagedRender(project.id));
     await confirmAndDeleteProject(project.id, project.name, imageCount);
   }

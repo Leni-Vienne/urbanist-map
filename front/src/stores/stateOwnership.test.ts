@@ -341,8 +341,10 @@ function overlayStateOwnership() {
       "project-1",
     ]);
     expect(contributions.filteredProjects.value[0]?.rejectionReason).toBe("insufficient_info");
-    expect(contributions.overlaysById.value.rejected?.rejectionReason).toBe("low_quality");
-    expect(contributions.overlaysById.value.replaced?.status).toBe("replaced");
+    expect(contributions.overlaysByProjectId.value["project-1"]).toMatchObject([
+      { id: "rejected", rejectionReason: "low_quality" },
+      { id: "replaced", status: "replaced" },
+    ]);
     expect(contributions.filterTabs.value.map((tab) => tab.count)).toEqual([2, 1, 1]);
 
     contributions.activeFilter.value = "pending";
@@ -594,22 +596,19 @@ function overlayStateOwnership() {
     overlayStore.addLocalOverlay("local-overlay", makeLocalOverlay("local-overlay", "project-1"));
 
     const contributions = useUserContributions();
-    expect(contributions.overlaysById.value["overlay-1"]).toMatchObject({
-      caption: "Local caption",
-      filename: "overlay.webp",
-      imageUrl: "data:image/webp;base64,local-preview",
-      authorUsername: "user",
-      authorApprovedCount: 7,
-      authorRejectedCount: 2,
-    });
-    expect(contributions.overlaysById.value["render-1"]).toMatchObject(render);
-    expect(contributions.overlaysById.value["rejected-1"]).toMatchObject(rejected);
-    expect(contributions.overlaysById.value["local-overlay"]?.status).toBeNull();
-    expect(contributions.projectOverlayIds.value["project-1"]).toEqual([
-      "overlay-1",
-      "render-1",
-      "rejected-1",
-      "local-overlay",
+    expect(contributions.overlaysByProjectId.value["project-1"]).toMatchObject([
+      {
+        id: "overlay-1",
+        caption: "Local caption",
+        filename: "overlay.webp",
+        imageUrl: "data:image/webp;base64,local-preview",
+        authorUsername: "user",
+        authorApprovedCount: 7,
+        authorRejectedCount: 2,
+      },
+      render,
+      rejected,
+      { id: "local-overlay", status: null },
     ]);
   });
 
@@ -633,25 +632,29 @@ function overlayStateOwnership() {
 
     const contributions = useUserContributions();
     expect(contributions.pinnedExternalProject.value?.id).toBe("external-project");
-    expect(contributions.projectOverlayIds.value["external-project"]).toEqual(["external-overlay"]);
+    expect(contributions.overlaysByProjectId.value["external-project"]).toMatchObject([
+      { id: "external-overlay" },
+    ]);
   });
 }
 
 function moderationStateOwnership() {
   test("derives project overlay groups from the normalized snapshot", () => {
     const store = useModerationStore();
+    const first = makePanelOverlay("overlay-1", "project-1");
+    const second = makePanelOverlay("overlay-2", "project-1");
     store.setModerationData({
       projectIds: ["project-1", "project-2"],
       overlaysById: {
-        "overlay-1": makePanelOverlay("overlay-1", "project-1"),
-        "overlay-2": makePanelOverlay("overlay-2", "project-1"),
+        "overlay-1": first,
+        "overlay-2": second,
         "overlay-outside": makePanelOverlay("overlay-outside", "project-outside"),
       },
       changeRequests: [],
     });
 
-    expect(store.projectOverlayIds).toEqual({
-      "project-1": ["overlay-1", "overlay-2"],
+    expect(store.overlaysByProjectId).toEqual({
+      "project-1": [first, second],
       "project-2": [],
     });
   });
@@ -695,7 +698,7 @@ test("loads contributions alongside a request for a retired field", async () => 
     await useContributionStore().refresh();
     const contributions = useUserContributions();
     expect(contributions.allContributions.value.map((item) => item.id)).toEqual([project.id]);
-    expect(contributions.projectOverlayIds.value[project.id]).toEqual([overlay.id]);
+    expect(contributions.overlaysByProjectId.value[project.id]).toEqual([overlay]);
     expect(useChangeRequestStore().pendingChangeRequests).toEqual([validChange]);
     expect(useMapSessionStore().snapshot?.projectIds).toEqual([project.id]);
   } finally {

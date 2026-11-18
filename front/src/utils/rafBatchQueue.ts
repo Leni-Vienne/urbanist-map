@@ -1,15 +1,5 @@
-/**
- * A keyed queue drained in animation-frame-sized batches.
- * Prevents long main-thread blocks when many similar operations are scheduled at once
- * (e.g. bulk overlay teardown on mode switch, or simultaneous cached-image load callbacks).
- *
- * Re-enqueueing an existing key is a no-op.
- */
-export function createRafBatchQueue<T>(
-  process: (value: T, key: string) => void,
-  batchSize: number,
-) {
-  const queue = new Map<string, T>();
+export function createRafBatchQueue(process: (id: string) => void, batchSize: number) {
+  const queue = new Set<string>();
   let rafId: number | null = null;
 
   function scheduleDrain() {
@@ -19,23 +9,23 @@ export function createRafBatchQueue<T>(
   function drain() {
     rafId = null;
     let count = 0;
-    for (const [key, value] of queue) {
+    for (const id of queue) {
       if (count >= batchSize) break;
-      process(value, key);
-      queue.delete(key);
+      process(id);
+      queue.delete(id);
       count += 1;
     }
     if (queue.size > 0) scheduleDrain();
   }
 
   return {
-    enqueue(key: string, value: T) {
-      if (queue.has(key)) return;
-      queue.set(key, value);
+    enqueue(id: string) {
+      if (queue.has(id)) return;
+      queue.add(id);
       scheduleDrain();
     },
-    delete(key: string) {
-      queue.delete(key);
+    delete(id: string) {
+      queue.delete(id);
     },
     /** Discard everything still queued and cancel the pending drain frame. */
     clear() {

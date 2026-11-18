@@ -53,53 +53,42 @@ export function useUserContributions() {
       : project;
   });
 
-  const overlaysById = computed<Record<string, ProjectPanelOverlay>>(() => {
-    const result: Record<string, ProjectPanelOverlay> = Object.assign(
-      {},
-      contributionStore.overlaysById,
-    );
-    const visibleProjectIds = new Set(allContributions.value.map((project) => project.id));
-    if (pinnedExternalProject.value) visibleProjectIds.add(pinnedExternalProject.value.id);
+  const overlaysByProjectId = computed(groupContributionOverlays);
 
-    for (const overlay of Object.values(overlayStore.liveOverlays)) {
-      const contributionOverlay = result[overlay.id];
-      if (contributionOverlay) {
-        result[overlay.id] = {
-          ...contributionOverlay,
-          caption: overlay.caption,
-          filename: overlay.filename,
-          imageUrl: overlay.imageUrl.startsWith("data:")
-            ? overlay.imageUrl
-            : contributionOverlay.imageUrl,
-        };
+  function groupContributionOverlays() {
+    const result: Record<string, ProjectPanelOverlay[]> = {};
+    const externalProjectId = pinnedExternalProject.value?.id;
+    for (const project of allContributions.value) result[project.id] = [];
+    if (externalProjectId) result[externalProjectId] = [];
+
+    const savedOverlays = contributionStore.overlaysById;
+    const liveOverlays = overlayStore.liveOverlays;
+    for (const overlay of Object.values(savedOverlays)) {
+      if (!overlay.projectId) continue;
+      const projectOverlays = result[overlay.projectId];
+      if (!projectOverlays) continue;
+
+      const live = liveOverlays[overlay.id];
+      if (!live) {
+        projectOverlays.push(overlay);
         continue;
       }
-      if (
-        overlay.projectId &&
-        visibleProjectIds.has(overlay.projectId) &&
-        (overlay.status === null || pinnedExternalProject.value?.id === overlay.projectId)
-      ) {
-        result[overlay.id] = overlay;
+      projectOverlays.push({
+        ...overlay,
+        caption: live.caption,
+        filename: live.filename,
+        imageUrl: live.imageUrl.startsWith("data:") ? live.imageUrl : overlay.imageUrl,
+      });
+    }
+
+    for (const overlay of Object.values(liveOverlays)) {
+      if (!overlay.projectId || savedOverlays[overlay.id]) continue;
+      if (overlay.status === null || overlay.projectId === externalProjectId) {
+        result[overlay.projectId]?.push(overlay);
       }
     }
     return result;
-  });
-
-  const projectOverlayIds = computed<Record<string, string[]>>(() => {
-    const result: Record<string, string[]> = {};
-    for (const project of allContributions.value) {
-      result[project.id] = [];
-    }
-    if (pinnedExternalProject.value) result[pinnedExternalProject.value.id] = [];
-
-    for (const overlay of Object.values(overlaysById.value)) {
-      if (!overlay.projectId) continue;
-      const overlayIds = result[overlay.projectId];
-      if (!overlayIds) continue;
-      overlayIds.push(overlay.id);
-    }
-    return result;
-  });
+  }
 
   const localRenderPreviewUrlsByProjectId = computed<Record<string, string>>(() => {
     const urls: Record<string, string> = {};
@@ -116,16 +105,19 @@ export function useUserContributions() {
     if (project.status === "pending" || project.status === null) return true;
     if (localRenderPreviewUrlsByProjectId.value[project.id]) return true;
 
-    const overlayIds = projectOverlayIds.value[project.id] ?? [];
-    for (const overlayId of overlayIds) {
-      const status = overlaysById.value[overlayId]?.status;
-      if (status === "pending" || status === null) return true;
+    const overlays = overlaysByProjectId.value[project.id] ?? [];
+    for (const overlay of overlays) {
+      if (overlay.status === "pending" || overlay.status === null) return true;
     }
 
-    return changeRequestStore.pendingChangeRequests.some((change) => {
-      if (change.entityType === "project") return change.entityId === project.id;
-      return overlayIds.includes(change.entityId);
-    });
+    for (const change of changeRequestStore.pendingChangeRequests) {
+      if (change.entityType === "project" && change.entityId === project.id) return true;
+      if (change.entityType !== "overlay") continue;
+      for (const overlay of overlays) {
+        if (overlay.id === change.entityId) return true;
+      }
+    }
+    return false;
   }
 
   const pendingCount = computed(() => allContributions.value.filter(isContributionPending).length);
@@ -146,8 +138,7 @@ export function useUserContributions() {
   return {
     isLoading,
     allContributions,
-    overlaysById,
-    projectOverlayIds,
+    overlaysByProjectId,
     localRenderPreviewUrlsByProjectId,
     pinnedExternalProject,
     activeFilter,

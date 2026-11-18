@@ -154,8 +154,7 @@ import { handleOverlayClickNavigation } from "@/services/overlay/clickHandler";
 
 interface Props {
   projects: Project[];
-  overlaysById?: Record<string, ProjectPanelOverlay>;
-  projectOverlayIds?: Record<string, string[]>;
+  overlaysByProjectId: Record<string, ProjectPanelOverlay[]>;
   localRenderPreviewUrlsByProjectId?: Record<string, string>;
   isLoading: boolean;
   title?: string;
@@ -183,8 +182,6 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   title: "",
-  overlaysById: () => ({}),
-  projectOverlayIds: () => ({}),
   localRenderPreviewUrlsByProjectId: () => ({}),
   panelClass: "",
   emptyMessage: "",
@@ -258,19 +255,10 @@ function getProjectChangeRequestsForProject(project: Project): PendingChangeRequ
   return projectChangesMap.value.get(project.id) || [];
 }
 
-function getProjectOverlays(projectId: string): ProjectPanelOverlay[] {
-  const overlays: ProjectPanelOverlay[] = [];
-  for (const overlayId of props.projectOverlayIds[projectId] ?? []) {
-    const overlay = props.overlaysById[overlayId];
-    if (overlay) overlays.push(overlay);
-  }
-  return overlays;
-}
-
 function projectCardProps(project: Project) {
   return {
     project,
-    overlays: getProjectOverlays(project.id),
+    overlays: props.overlaysByProjectId[project.id] ?? [],
     localRenderPreviewUrl: props.localRenderPreviewUrlsByProjectId[project.id],
     projectChanges: getProjectChangeRequestsForProject(project),
     overlayChangesMap: overlayChangesMap.value,

@@ -90,8 +90,7 @@
     <div v-else class="flex-1 min-h-0">
       <ProjectAccordionPanel
         :projects="projects"
-        :overlays-by-id="moderationStore.overlaysById"
-        :project-overlay-ids="moderationStore.projectOverlayIds"
+        :overlays-by-project-id="moderationStore.overlaysByProjectId"
         :change-requests="changeRequests"
         :is-loading="isLoading"
         :title="$t('moderation.pendingProjects')"
@@ -284,9 +283,11 @@ const pendingOverlayCount = computed(() => {
   const project = projects.value.find((p) => p.id === pendingRejection.value?.id);
   if (!project) return 0;
 
-  return (moderationStore.projectOverlayIds[project.id] ?? []).filter(
-    (overlayId) => moderationStore.overlaysById[overlayId]?.status === "pending",
-  ).length;
+  let count = 0;
+  for (const overlay of moderationStore.overlaysByProjectId[project.id] ?? []) {
+    if (overlay.status === "pending") count += 1;
+  }
+  return count;
 });
 
 // Check if a change request is for a geometry field (corners or centroid)

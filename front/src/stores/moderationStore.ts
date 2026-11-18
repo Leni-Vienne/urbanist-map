@@ -33,15 +33,17 @@ export const useModerationStore = defineStore("moderation", () => {
     return result;
   });
 
-  const projectOverlayIds = computed<Record<string, string[]>>(() => {
-    const result: Record<string, string[]> = {};
+  const overlaysByProjectId = computed(groupModerationOverlays);
+
+  function groupModerationOverlays() {
+    const result: Record<string, Overlay[]> = {};
     for (const projectId of projectIds.value) result[projectId] = [];
     for (const overlay of Object.values(overlaysById.value)) {
       if (!overlay.projectId) continue;
-      result[overlay.projectId]?.push(overlay.id);
+      result[overlay.projectId]?.push(overlay);
     }
     return result;
-  });
+  }
 
   const moderationLoadStatus = ref<ModerationLoadStatus>("idle");
 
@@ -160,7 +162,7 @@ export const useModerationStore = defineStore("moderation", () => {
     selectedCountryCode,
     projects,
     overlaysById,
-    projectOverlayIds,
+    overlaysByProjectId,
     changeRequests,
     moderationLoadStatus,
     allCountries,

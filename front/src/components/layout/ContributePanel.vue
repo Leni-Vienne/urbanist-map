@@ -2,8 +2,7 @@
   <!-- Full panel for authenticated users -->
   <ProjectAccordionPanel
     :projects="filteredProjects"
-    :overlays-by-id="overlaysById"
-    :project-overlay-ids="projectOverlayIds"
+    :overlays-by-project-id="overlaysByProjectId"
     :local-render-preview-urls-by-project-id="localRenderPreviewUrlsByProjectId"
     :is-loading="isLoading"
     :change-requests="changeRequestStore.pendingChangeRequests"
@@ -163,8 +162,7 @@ const focusStore = useFocusStore();
 const {
   isLoading,
   allContributions,
-  overlaysById,
-  projectOverlayIds,
+  overlaysByProjectId,
   localRenderPreviewUrlsByProjectId,
   pinnedExternalProject,
   activeFilter,
@@ -186,7 +184,7 @@ const {
   handleDrawShapesClick,
   handleExternalProjectClick,
   handleEditProjectClick,
-} = useContributeActions(projectOverlayIds);
+} = useContributeActions(overlaysByProjectId);
 
 const selectedProjectId = computed(() => focusStore.selectedProject?.id ?? null);
 </script>

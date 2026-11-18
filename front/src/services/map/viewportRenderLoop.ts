@@ -63,11 +63,12 @@ function convergeOverlayDisplay(overlayObject: OverlayObject): boolean {
 export function createViewportRenderLoop(target: MaplibreMap, onDisplayChanged: () => void) {
   let renderLoopRafId: number | null = null;
   let stopped = false;
-  // Drains in batches of 10 per frame to spread bulk teardown (e.g. Edit -> View) across frames.
-  const destructionQueue = createRafBatchQueue<null>((_, id) => {
+  const destructionQueue = createRafBatchQueue(destroyOverlay, 10);
+
+  function destroyOverlay(id: string): void {
     // A gesture can begin after this entry was queued for removal.
     if (getMapOrNull() === target && !registry.isGestureOwned(id)) registry.clearEntry(id);
-  }, 10);
+  }
 
   // Coalesce camera, style and state changes into one pass over the latest state per frame.
   function run(): void {
@@ -86,10 +87,6 @@ export function createViewportRenderLoop(target: MaplibreMap, onDisplayChanged: 
       renderLoopRafId = null;
     }
     destructionQueue.clear();
-  }
-
-  function queueForDestruction(id: string): void {
-    destructionQueue.enqueue(id, null);
   }
 
   /**
@@ -124,7 +121,7 @@ export function createViewportRenderLoop(target: MaplibreMap, onDisplayChanged: 
     // Crossing back up re-creates images and markers from the store and the tile cache.
     if (target.getZoom() < getEffectiveThreshold(MAP_CONFIG.MIN_ZOOM_FOR_OVERLAYS)) {
       for (const id of registry.getEntryIds()) {
-        if (!registry.isGestureOwned(id)) queueForDestruction(id);
+        if (!registry.isGestureOwned(id)) destructionQueue.enqueue(id);
       }
       return;
     }
@@ -181,7 +178,7 @@ export function createViewportRenderLoop(target: MaplibreMap, onDisplayChanged: 
           handlesNeedSync = true;
         }
       } else if (hasImage || hasMarker) {
-        queueForDestruction(id);
+        destructionQueue.enqueue(id);
       }
     }
 
