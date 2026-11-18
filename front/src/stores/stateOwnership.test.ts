@@ -29,6 +29,7 @@ import type {
   BackendOverlayData,
   Overlay,
   OverlayObject,
+  PendingChangeRequest,
   Project,
   TileOverlayData,
 } from "@/types/index";
@@ -660,6 +661,47 @@ beforeEach(activateFreshPinia);
 describe("project state ownership", projectStateOwnership);
 describe("overlay state ownership", overlayStateOwnership);
 describe("moderation state ownership", moderationStateOwnership);
+
+test("loads contributions alongside a request for a retired field", async () => {
+  authenticateTestUser();
+  useUiStore().setMode("edit");
+  const project = makePersistedProject("Project", "Description");
+  const overlay = makePanelOverlay("overlay-1", project.id);
+  const validChange = {
+    id: "description-change",
+    entityType: "project",
+    entityId: project.id,
+    fieldName: "description",
+    oldValue: project.description,
+    newValue: "New description",
+    changeReason: null,
+    status: "pending",
+    requestedBy: "user-1",
+    requestedByUsername: "user",
+    requestedByReportCount: 0,
+    createdAt: new Date(0),
+    hasConflict: false,
+  } satisfies PendingChangeRequest;
+  const data = superjson.serialize({
+    projectsById: { [project.id]: project },
+    overlaysById: { [overlay.id]: overlay },
+    changeRequests: [{ ...validChange, id: "city-change", fieldName: "cityId" }, validChange],
+    editSession: { projects: [project], overlays: [] },
+  });
+  const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce(
+    Response.json([{ result: { data } }]),
+  );
+  try {
+    await useContributionStore().refresh();
+    const contributions = useUserContributions();
+    expect(contributions.allContributions.value.map((item) => item.id)).toEqual([project.id]);
+    expect(contributions.projectOverlayIds.value[project.id]).toEqual([overlay.id]);
+    expect(useChangeRequestStore().pendingChangeRequests).toEqual([validChange]);
+    expect(useMapSessionStore().snapshot?.projectIds).toEqual([project.id]);
+  } finally {
+    fetchSpy.mockRestore();
+  }
+});
 
 test("a fresh application does not inherit submission drafts, locks, or map membership", () => {
   const submission = useSubmissionStore();

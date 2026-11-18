@@ -42,11 +42,11 @@ export const useContributionStore = defineStore("contribution", () => {
     try {
       const result = await loadOrNull(
         async () => {
-          const [data, { changeRequestFromWire }] = await Promise.all([
+          const [data, { changeRequestsFromWire }] = await Promise.all([
             trpc.project.getUsersContributions.query(undefined, { signal: request.signal }),
             import("@/services/changes/changeRequestData"),
           ]);
-          return { ...data, changeRequests: data.changeRequests.map(changeRequestFromWire) };
+          return { ...data, changeRequests: changeRequestsFromWire(data.changeRequests) };
         },
         { signal: request.signal },
       );

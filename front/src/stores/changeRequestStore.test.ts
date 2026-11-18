@@ -3,7 +3,7 @@ import { createPinia, setActivePinia } from "pinia";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useFocusStore } from "@/stores/focusStore";
 import { useModerationStore } from "@/stores/moderationStore";
-import { changeRequestFromWire } from "@/services/changes/changeRequestData";
+import { changeRequestsFromWire } from "@/services/changes/changeRequestData";
 import type { PendingChangeRequest } from "@/types/index";
 
 function activateFreshPinia(): void {
@@ -104,7 +104,7 @@ function changeRequestPreviewOwnership(): void {
     store.setModerationData({
       projectIds: [],
       overlaysById: {},
-      changeRequests: [valid, invalid].map(changeRequestFromWire),
+      changeRequests: changeRequestsFromWire([valid, invalid]),
     });
     expect(store.changeRequests[0]?.newValue).toBeNull();
     expect(store.changeRequests[1]?.newValue).toBeUndefined();

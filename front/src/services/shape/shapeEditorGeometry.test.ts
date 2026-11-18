@@ -6,7 +6,7 @@ import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { createLocalProject } from "@/utils/typeFactories";
 import type { Project, PendingChangeRequest } from "@/types/index";
-import { changeRequestFromWire } from "@/services/changes/changeRequestData";
+import { changeRequestsFromWire } from "@/services/changes/changeRequestData";
 
 function makeGeometry(offset: number): GeoJSON.GeometryCollection {
   return {
@@ -126,15 +126,17 @@ describe("shape editor geometry ownership", () => {
   test("falls back to approved shapes for malformed pending geometry", () => {
     const baseline = makeGeometry(0);
     seedPersistedProject(baseline);
-    useChangeRequestStore().setPendingChangeRequests([
-      changeRequestFromWire({
-        ...makeGeometryChange(null),
-        newValue: {
-          type: "GeometryCollection",
-          geometries: [{ type: "LineString", coordinates: null }],
+    useChangeRequestStore().setPendingChangeRequests(
+      changeRequestsFromWire([
+        {
+          ...makeGeometryChange(null),
+          newValue: {
+            type: "GeometryCollection",
+            geometries: [{ type: "LineString", coordinates: null }],
+          },
         },
-      }),
-    ]);
+      ]),
+    );
     expect(resolveShapeEditorGeometry("project-1")).toEqual(baseline);
   });
 });

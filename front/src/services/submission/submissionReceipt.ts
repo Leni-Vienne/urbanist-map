@@ -7,7 +7,7 @@ import { useContributionStore } from "@/stores/contributionStore";
 import { useChangeRequestStore } from "@/stores/changeRequestStore";
 import { useUiStore } from "@/stores/uiStore";
 import { overlayWireToData, projectFromWire } from "@/utils/typeFactories";
-import { changeRequestFromWire } from "@/services/changes/changeRequestData";
+import { changeRequestsFromWire } from "@/services/changes/changeRequestData";
 import type { SubmissionBatchInput } from "@shared/validation/schemas";
 
 type SubmissionResult = RouterOutput["submission"]["submit"];
@@ -32,7 +32,7 @@ export function acknowledgeSubmission(result: SubmissionResult, batch: Submissio
         ? request.entityId !== batch.projectId
         : !overlayIds.has(request.entityId),
     ),
-    ...receipt.changeRequests.map(changeRequestFromWire),
+    ...changeRequestsFromWire(receipt.changeRequests),
   ];
   if (render) {
     projectStore.updatePersistedProject(batch.projectId, {

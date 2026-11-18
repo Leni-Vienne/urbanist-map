@@ -97,14 +97,14 @@ export const useModerationStore = defineStore("moderation", () => {
     }
 
     try {
-      const [response, { changeRequestFromWire }] = await Promise.all([
+      const [response, { changeRequestsFromWire }] = await Promise.all([
         trpc.moderation.getPendingSubmissions.query({ countryCode }),
         import("@/services/changes/changeRequestData"),
       ]);
 
       if (!isCurrentRequest()) return;
 
-      const parsedChanges = response.changeRequests.map(changeRequestFromWire);
+      const parsedChanges = changeRequestsFromWire(response.changeRequests);
 
       const mapProjects = [];
       for (const project of Object.values(response.projectsById)) {

@@ -7,16 +7,29 @@ import type { PendingChangeRequest, PendingChangeRequestWire } from "@/types/ind
 const changeFieldSchema = z.enum(CHANGE_REQUEST_FIELDS);
 const changeGeometrySchema = GeoJSONGeometryCollectionSchema.nullable();
 
-export function changeRequestFromWire(data: PendingChangeRequestWire): PendingChangeRequest {
-  const fieldName = changeFieldSchema.parse(data.fieldName);
-  if (fieldName !== "geometry") return { ...data, fieldName };
+export function changeRequestsFromWire(rows: PendingChangeRequestWire[]): PendingChangeRequest[] {
+  const requests: PendingChangeRequest[] = [];
+  for (const data of rows) {
+    const field = changeFieldSchema.safeParse(data.fieldName);
+    if (!field.success) {
+      console.warn("Ignoring change request with unsupported field", data.id, data.fieldName);
+      continue;
+    }
 
-  const oldValue = changeGeometrySchema.safeParse(data.oldValue);
-  const newValue = changeGeometrySchema.safeParse(data.newValue);
-  return {
-    ...data,
-    fieldName,
-    oldValue: oldValue.success ? oldValue.data : undefined,
-    newValue: newValue.success ? newValue.data : undefined,
-  };
+    const fieldName = field.data;
+    if (fieldName !== "geometry") {
+      requests.push({ ...data, fieldName });
+      continue;
+    }
+
+    const oldValue = changeGeometrySchema.safeParse(data.oldValue);
+    const newValue = changeGeometrySchema.safeParse(data.newValue);
+    requests.push({
+      ...data,
+      fieldName,
+      oldValue: oldValue.success ? oldValue.data : undefined,
+      newValue: newValue.success ? newValue.data : undefined,
+    });
+  }
+  return requests;
 }
