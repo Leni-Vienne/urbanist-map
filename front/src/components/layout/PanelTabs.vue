@@ -15,7 +15,7 @@
         ]"
         @click="$emit('update:activeTab', tab.key)"
       >
-        {{ variant === "mobile" && tab.mobileLabelKey ? $t(tab.mobileLabelKey) : $t(tab.labelKey) }}
+        {{ $t(tab.labelKey) }}
       </button>
     </template>
   </div>
@@ -30,22 +30,17 @@ const authStore = useAuthStore();
 const TABS: {
   key: PanelTab;
   labelKey: string;
-  mobileLabelKey?: string;
   mobileOnly?: boolean;
   requiresModerator?: boolean;
 }[] = [
-  {
-    key: "explore",
-    labelKey: "navigation.latestContributions",
-    mobileLabelKey: "navigation.latestContributionsShort",
-  },
+  { key: "explore", labelKey: "navigation.latestContributions" },
   { key: "filter", labelKey: "navigation.filter", mobileOnly: true },
   { key: "contribute", labelKey: "navigation.contribute" },
   { key: "moderation", labelKey: "moderation.title", requiresModerator: true },
 ];
 
 defineProps<{
-  activeTab: PanelTab;
+  activeTab: PanelTab | null;
   variant?: "desktop" | "mobile";
 }>();
 

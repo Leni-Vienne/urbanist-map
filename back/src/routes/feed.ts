@@ -52,11 +52,11 @@ const getLatestContributionsSchema = feedQuerySchema.extend({
   cursor: feedCursorSchema.nullish(),
 });
 
-type FeedInput = z.infer<typeof feedQuerySchema>;
+type FeedFilters = Omit<z.infer<typeof feedQuerySchema>, "source">;
 type FeedPageInput = z.infer<typeof getLatestContributionsSchema>;
 type MapArea = z.infer<typeof mapAreaSchema>;
 
-function projectFilterConditions(input: FeedInput): SQL[] {
+function projectFilterConditions(input: FeedFilters): SQL[] {
   const conditions: SQL[] = [];
 
   const tagMatches: SQL[] = [];
@@ -89,7 +89,7 @@ function projectFilterConditions(input: FeedInput): SQL[] {
   return conditions;
 }
 
-function dateRangeConditions(input: FeedInput, dateExpr: SQL): SQL[] {
+function dateRangeConditions(input: FeedFilters, dateExpr: SQL): SQL[] {
   const conditions: SQL[] = [];
   if (input.modifiedAfterMs !== undefined) {
     conditions.push(sql`${dateExpr} >= ${new Date(input.modifiedAfterMs)}`);
@@ -114,7 +114,7 @@ function intersectsMapArea(geometry: SQL, area: MapArea): SQL {
   )`;
 }
 
-function standaloneMapAreaConditions(input: FeedInput): SQL[] {
+function standaloneMapAreaConditions(input: FeedFilters): SQL[] {
   if (!input.mapArea) return [];
   const area = input.mapArea;
   return [
@@ -125,7 +125,7 @@ function standaloneMapAreaConditions(input: FeedInput): SQL[] {
   ];
 }
 
-function imageMapAreaConditions(input: FeedInput): SQL[] {
+function imageMapAreaConditions(input: FeedFilters): SQL[] {
   if (!input.mapArea) return [];
   const area = input.mapArea;
   return [
@@ -169,7 +169,7 @@ function standaloneImportFilter(stream: StandaloneStream): SQL {
 
 function standaloneConditions(
   stream: StandaloneStream,
-  input: FeedInput,
+  input: FeedFilters,
   cursor?: FeedPageInput["cursor"],
 ): SQL[] {
   const contributionDate = standaloneContributionDate(stream);
@@ -231,7 +231,7 @@ function standaloneCandidates(stream: StandaloneStream, input: FeedPageInput) {
     .limit(input.limit + 1);
 }
 
-function imageConditions(input: FeedInput): SQL[] {
+function imageConditions(input: FeedFilters): SQL[] {
   return [
     eq(overlays.status, "approved"),
     eq(projects.status, "approved"),
@@ -351,8 +351,9 @@ type FeedPage = {
 const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
 const firstPageCache = new Map<string, { page: FeedPage; timestamp: number }>();
 const COUNT_CACHE_MAX_ENTRIES = 128;
-const contributionCountCache = new Map<string, { count: number; timestamp: number }>();
-const pendingContributionCounts = new Map<string, Promise<number>>();
+type ContributionCounts = { community: number; osm: number };
+const contributionCountCache = new Map<string, { counts: ContributionCounts; timestamp: number }>();
+const pendingContributionCounts = new Map<string, Promise<ContributionCounts>>();
 let feedCacheGeneration = 0;
 
 export function invalidateLatestContributionsCache() {
@@ -377,7 +378,7 @@ function cacheKey(input: FeedPageInput): string | null {
   return isDefaultPage ? `${input.source}|${input.limit}` : null;
 }
 
-function contributionCountCacheKey(input: FeedInput): string {
+function contributionCountCacheKey(input: FeedFilters): string {
   return JSON.stringify({
     ...input,
     tags: input.tags.toSorted(),
@@ -385,9 +386,9 @@ function contributionCountCacheKey(input: FeedInput): string {
   });
 }
 
-function cacheContributionCount(key: string, count: number, timestamp: number): void {
+function cacheContributionCount(key: string, counts: ContributionCounts, timestamp: number): void {
   contributionCountCache.delete(key);
-  contributionCountCache.set(key, { count, timestamp });
+  contributionCountCache.set(key, { counts, timestamp });
   while (contributionCountCache.size > COUNT_CACHE_MAX_ENTRIES) {
     const oldestKey = contributionCountCache.keys().next().value;
     if (oldestKey === undefined) return;
@@ -395,7 +396,7 @@ function cacheContributionCount(key: string, count: number, timestamp: number): 
   }
 }
 
-function standaloneProjectCount(stream: StandaloneStream, input: FeedInput): SQL<number> {
+function standaloneProjectCount(stream: StandaloneStream, input: FeedFilters): SQL<number> {
   return sql<number>`(
     SELECT COUNT(*)::int
     FROM ${projects}
@@ -403,7 +404,7 @@ function standaloneProjectCount(stream: StandaloneStream, input: FeedInput): SQL
   )`;
 }
 
-function imageProjectCount(input: FeedInput): SQL<number> {
+function imageProjectCount(input: FeedFilters): SQL<number> {
   return sql<number>`(
     SELECT COUNT(DISTINCT ${overlays.projectId})::int
     FROM ${overlays}
@@ -412,31 +413,24 @@ function imageProjectCount(input: FeedInput): SQL<number> {
   )`;
 }
 
-async function countLatestContributions(input: FeedInput): Promise<number> {
-  const wantsCommunity = input.source !== "osm";
-  const wantsImported = input.source !== "community";
-  const countExpressions: SQL<number>[] = [];
-  if (wantsCommunity) {
-    countExpressions.push(imageProjectCount(input), standaloneProjectCount("direct", input));
-  }
-  if (wantsImported) {
-    countExpressions.push(standaloneProjectCount("imported", input));
-  }
-
+async function countLatestContributions(input: FeedFilters): Promise<ContributionCounts> {
   const [row] = await db
-    .select({ count: sql<number>`(${sql.join(countExpressions, sql` + `)})::int` })
+    .select({
+      community: sql<number>`${imageProjectCount(input)} + ${standaloneProjectCount("direct", input)}`,
+      osm: standaloneProjectCount("imported", input),
+    })
     .from(sql`(SELECT 1) AS count_source`);
-  return row?.count ?? 0;
+  return row ?? { community: 0, osm: 0 };
 }
 
-async function getCachedContributionCount(input: FeedInput): Promise<number> {
+async function getCachedContributionCounts(input: FeedFilters): Promise<ContributionCounts> {
   const key = contributionCountCacheKey(input);
   const now = Date.now();
   const hit = contributionCountCache.get(key);
   if (hit && now - hit.timestamp < CACHE_TTL) {
     contributionCountCache.delete(key);
     contributionCountCache.set(key, hit);
-    return hit.count;
+    return hit.counts;
   }
 
   const generation = feedCacheGeneration;
@@ -448,11 +442,11 @@ async function getCachedContributionCount(input: FeedInput): Promise<number> {
   }
 
   try {
-    const count = await pending;
+    const counts = await pending;
     if (generation === feedCacheGeneration) {
-      cacheContributionCount(key, count, now);
+      cacheContributionCount(key, counts, now);
     }
-    return count;
+    return counts;
   } finally {
     if (pendingContributionCounts.get(pendingKey) === pending) {
       pendingContributionCounts.delete(pendingKey);
@@ -463,7 +457,10 @@ async function getCachedContributionCount(input: FeedInput): Promise<number> {
 export const feedRouter = router({
   getContributionCount: publicProcedure.input(feedQuerySchema).query(async ({ input }) => {
     try {
-      return { count: await getCachedContributionCount(input) };
+      const { source, ...filters } = input;
+      const counts = await getCachedContributionCounts(filters);
+      const count = source === "all" ? counts.community + counts.osm : counts[source];
+      return { count, community: counts.community };
     } catch (error) {
       console.error("Error in getContributionCount:", error);
       throw new TRPCError({

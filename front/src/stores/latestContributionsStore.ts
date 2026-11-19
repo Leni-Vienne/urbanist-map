@@ -1,4 +1,4 @@
-import { computed, onScopeDispose, ref, shallowRef, watch } from "vue";
+import { computed, onScopeDispose, onWatcherCleanup, ref, shallowRef, watch } from "vue";
 import { defineStore } from "pinia";
 import { trpc, type RouterInput, type RouterOutput } from "@/client";
 import { loadOrNull } from "@/services/core/errorHandling";
@@ -21,16 +21,15 @@ export const useLatestContributionsStore = defineStore("latestContributions", ()
   const cursor = ref<FeedCursor>(null);
   const hasLoadError = ref(false);
   const hasLoadMoreError = ref(false);
-  const projectCount = ref<number | null>(null);
+  const counts = shallowRef<RouterOutput["feed"]["getContributionCount"] | null>(null);
 
   const isOsmIncluded = ref(false);
   const mapArea = ref<MapArea | null>(null);
 
   const source = computed<ContributionSource>(() => (isOsmIncluded.value ? "all" : "community"));
-
-  // Identifies the query the loaded rows belong to. Comparing it against the live one tells whether
-  // the list is stale without keeping a copy of the filter state.
-  const queryKey = computed(() => JSON.stringify(buildFilterQueryInput()));
+  const projectCount = computed(selectedProjectCount);
+  const countKey = computed(countQueryKey);
+  const queryKey = computed(pageQueryKey);
   const loadedKey = ref<string | null>(null);
   const loadedCountKey = ref<string | null>(null);
   const isFeedStale = computed(() => loadedKey.value !== queryKey.value);
@@ -43,7 +42,7 @@ export const useLatestContributionsStore = defineStore("latestContributions", ()
   // The count survives a query change and is only replaced once the new one arrives, so narrowing the
   // feed never collapses the row it sits on. True while the shown count does not describe the live
   // query.
-  const isCountStale = computed(() => loadedCountKey.value !== queryKey.value);
+  const isCountStale = computed(countIsStale);
   const hasMore = computed(() => cursor.value !== null);
   // True while the tab hosting this feed is the one on screen, so a filter change with the tab closed
   // costs no request. Read from the shared tab state rather than the panel's own mount hooks: desktop
@@ -51,9 +50,25 @@ export const useLatestContributionsStore = defineStore("latestContributions", ()
   // breakpoint tears a panel down and builds another without the tab ever changing.
   const isFeedActive = computed(() => uiStore.activeTab === "explore");
 
+  function selectedProjectCount(): number | null {
+    if (!counts.value) return null;
+    return isOsmIncluded.value ? counts.value.count : counts.value.community;
+  }
+
+  function countQueryKey(): string {
+    return JSON.stringify(buildFilterQueryInput());
+  }
+
+  function pageQueryKey(): string {
+    return `${source.value}|${countKey.value}`;
+  }
+
+  function countIsStale(): boolean {
+    return loadedCountKey.value !== countKey.value;
+  }
+
   function buildFilterQueryInput() {
     return {
-      source: source.value,
       ...(mapArea.value && { mapArea: mapArea.value }),
       ...feedFilterInput.value,
     };
@@ -62,12 +77,14 @@ export const useLatestContributionsStore = defineStore("latestContributions", ()
   function buildQueryInput(pageCursor: FeedCursor) {
     return {
       limit: PAGE_SIZE,
+      source: source.value,
       ...buildFilterQueryInput(),
       ...(pageCursor && { cursor: pageCursor }),
     };
   }
 
-  async function refreshContributionCount(key: string): Promise<void> {
+  async function refreshContributionCount(): Promise<void> {
+    const key = countKey.value;
     if (loadedCountKey.value === key || countRequest) return;
     const request = new AbortController();
     countRequest = request;
@@ -83,7 +100,7 @@ export const useLatestContributionsStore = defineStore("latestContributions", ()
         { signal: request.signal },
       );
       if (countRequest !== request || !result) return;
-      projectCount.value = result.count;
+      counts.value = result;
       loadedCountKey.value = key;
     } finally {
       if (countRequest === request) countRequest = null;
@@ -95,7 +112,7 @@ export const useLatestContributionsStore = defineStore("latestContributions", ()
   async function activateLatestContributions(): Promise<void> {
     const key = queryKey.value;
     // The count is independent: retry it even if this query's rows are already loaded.
-    void refreshContributionCount(key);
+    void refreshContributionCount();
     if (loadedKey.value === key || pageRequest.value) return;
     await loadPage(null);
   }
@@ -130,20 +147,24 @@ export const useLatestContributionsStore = defineStore("latestContributions", ()
   }
 
   function invalidateLatestContributions(): void {
-    cancelPendingRequests();
+    cancelPageRequest();
+    cancelCountRequest();
     contributions.value = [];
     cursor.value = null;
     loadedKey.value = null;
     loadedCountKey.value = null;
   }
 
-  function cancelPendingRequests(): void {
+  function cancelPageRequest(): void {
     pageRequest.value?.controller.abort();
-    countRequest?.abort();
     pageRequest.value = null;
-    countRequest = null;
     hasLoadError.value = false;
     hasLoadMoreError.value = false;
+  }
+
+  function cancelCountRequest(): void {
+    countRequest?.abort();
+    countRequest = null;
   }
 
   // Bounding the feed to a viewport asks what is in that place, so include OSM projects too.
@@ -175,23 +196,30 @@ export const useLatestContributionsStore = defineStore("latestContributions", ()
     );
   }
 
-  // A range slider rewrites the query on every step of a drag, and each intermediate query would
-  // otherwise cost a page fetch plus an unbatched count query whose answers are thrown away on
-  // arrival. Waiting for the query to settle sends one pair.
   const FILTER_SETTLE_MS = 300;
 
   // Cancel synchronously so active requests always belong to the live query, even after away/back.
-  watch(queryKey, cancelPendingRequests, { flush: "sync" });
+  watch(queryKey, cancelPageRequest, { flush: "sync" });
+  watch(countKey, cancelCountRequest, { flush: "sync" });
 
-  // Pinia owns this watcher. Changing the query or disposing the store cancels its timer.
-  watch(queryKey, (_key, _previous, onCleanup) => {
+  watch([source, countKey], refreshOnQueryChange);
+
+  function refreshOnQueryChange(
+    [nextSource]: [ContributionSource, string],
+    [previousSource]: [ContributionSource, string],
+  ): void {
+    if (nextSource !== previousSource) {
+      if (isFeedActive.value) void activateLatestContributions();
+      return;
+    }
+    // A range slider rewrites the filters on every step of a drag.
     const timer = setTimeout(() => {
       if (isFeedActive.value) void activateLatestContributions();
     }, FILTER_SETTLE_MS);
-    onCleanup(() => {
+    onWatcherCleanup(() => {
       clearTimeout(timer);
     });
-  });
+  }
 
   // Responses arriving after disposal must not repopulate the retired store.
   onScopeDispose(invalidateLatestContributions);

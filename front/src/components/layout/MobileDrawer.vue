@@ -7,27 +7,14 @@
       <SatellitePreview in-drawer />
     </template>
 
-    <template #header>
-      <!-- Hidden while a detail is open so the detail takes over the mobile drawer. -->
-      <div v-if="!detailVisible" class="flex flex-col">
-        <div
-          class="grid transition-[grid-template-rows] duration-200 ease-in-out"
-          :class="activeTab === 'explore' ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'"
-        >
-          <div class="overflow-hidden">
-            <div class="ml-4 pb-1">
-              <h3 class="text-lg font-semibold text-color select-none leading-tight">
-                {{ $t("app.title") }}
-              </h3>
-              <p class="mt-1 text-[13px] text-muted-color leading-tight">
-                {{ $t("app.subtitle") }}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <PanelTabs v-model:active-tab="activeTab" variant="mobile" />
-      </div>
+    <template #header="{ collapsed }">
+      <PanelTabs
+        v-if="!detailVisible"
+        class="h-(--drawer-tab-height)"
+        :active-tab="collapsed ? null : uiStore.activeTab"
+        variant="mobile"
+        @update:active-tab="selectTab($event, collapsed)"
+      />
     </template>
 
     <!-- Tab content with the selected project/overlay detail layered above it as a slide-over,
@@ -50,7 +37,8 @@
 
 <script setup lang="ts">
 import { computed, defineAsyncComponent } from "vue";
-import { useUiStore } from "@/stores/uiStore";
+import { DEFAULT_MOBILE_DRAWER_HEIGHT_PERCENT, useUiStore } from "@/stores/uiStore";
+import type { PanelTab } from "@/types";
 import { useFocusStore } from "@/stores/focusStore";
 import { useDetailPanel } from "@/composables/layout/useDetailPanel";
 
@@ -65,10 +53,13 @@ const ProjectDetailPanel = defineAsyncComponent(() => import("./ProjectDetailPan
 const uiStore = useUiStore();
 const focusStore = useFocusStore();
 
-// activeTab proxies uiStore (shared with the desktop SideMenu); detailVisible drives the detail
-// slide-over (suppressed in edit mode, where ContributePanel renders the selection inline).
-const { detailVisible, activeTab } = useDetailPanel();
+const { detailVisible } = useDetailPanel();
 const peekTarget = computed(getPeekTarget);
+
+function selectTab(tab: PanelTab, collapsed: boolean): void {
+  uiStore.activeTab = tab;
+  if (collapsed) uiStore.mobileDrawerHeightPercent = DEFAULT_MOBILE_DRAWER_HEIGHT_PERCENT;
+}
 
 function getPeekTarget(): string | null {
   const selection = focusStore.selection;

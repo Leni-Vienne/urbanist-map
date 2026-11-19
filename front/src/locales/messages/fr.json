@@ -66,8 +66,8 @@
     "tags": "Catégories"
   },
   "navigation": {
+    "drawerHeight": "Hauteur du panneau",
     "latestContributions": "Explorer",
-    "latestContributionsShort": "Explorer",
     "filter": "Filtrer",
     "contribute": "Contribuer",
     "unsavedOverlaysWarning": "Vous avez des images non enregistrées. La navigation les supprimera. Continuer ?"
@@ -189,6 +189,8 @@
     }
   },
   "contribution": {
+    "projectSource": "Source des projets",
+    "siteAndOsm": "{site} + {source}",
     "projects": "Projets",
     "loadMoreError": "Impossible de charger plus de projets.",
     "loadError": "Impossible de charger les projets.",

@@ -9,13 +9,13 @@ export interface BoundaryPathEntry extends LocalizedBoundaryName {
   adminLevel: number;
 }
 
-export const BOUNDARY_LEVEL_RANGES = {
+const BOUNDARY_LEVEL_RANGES = {
   city: [6, 8],
   state: [4, 4],
   country: [2, 2],
 } as const;
 
-export type BoundaryLevel = keyof typeof BOUNDARY_LEVEL_RANGES;
+type BoundaryLevel = keyof typeof BOUNDARY_LEVEL_RANGES;
 export type BoundaryLevels<T = LocalizedBoundaryName> = Record<BoundaryLevel, T | null>;
 
 export function selectBoundaryLevels<T extends { adminLevel: number }>(

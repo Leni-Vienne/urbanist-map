@@ -180,7 +180,7 @@ function openProject(): void {
 }
 
 .is-selected .render-pin-frame {
-  border-color: var(--pin-color);
+  border-color: var(--p-primary-color);
 }
 
 .render-pin-project,

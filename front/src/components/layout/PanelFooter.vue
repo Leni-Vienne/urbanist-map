@@ -2,9 +2,7 @@
   <div
     class="shrink-0 bg-content-background border-t border-surface flex justify-center items-center gap-2 text-xs text-muted-color"
     :class="
-      compact
-        ? 'pt-[0.2rem] pb-[calc(0.2rem+env(safe-area-inset-bottom))] px-4'
-        : 'pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] px-2'
+      compact ? 'py-[0.2rem] px-4' : 'pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] px-2'
     "
   >
     <a href="/legal" :class="linkClass">{{ $t("footer.legal") }}</a>

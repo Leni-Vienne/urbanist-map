@@ -47,8 +47,8 @@ function pageResponse(items: LatestContribution[], nextCursor: FeedPage["nextCur
   return Response.json([{ result: { data: superjson.serialize({ items, nextCursor }) } }]);
 }
 
-function countResponse(count: number): Response {
-  return Response.json({ result: { data: superjson.serialize({ count }) } });
+function countResponse(count: number, community = count): Response {
+  return Response.json({ result: { data: superjson.serialize({ count, community }) } });
 }
 
 function respondToPages(
@@ -101,9 +101,17 @@ describe("latest contribution loading", () => {
       expect(pageRequests).toBe(1);
       expect(countRequests).toBe(1);
 
-      pendingCount.resolve(countResponse(123));
+      feed.isOsmIncluded = true;
+      await feed.activateLatestContributions();
+      expect(countRequests).toBe(1);
+      pendingCount.resolve(countResponse(123, 7));
       await countReady.promise;
       expect(feed.projectCount).toBe(123);
+      feed.isOsmIncluded = false;
+      expect(feed.projectCount).toBe(7);
+      expect(feed.isCountStale).toBeFalse();
+      await feed.activateLatestContributions();
+      expect(countRequests).toBe(1);
     } finally {
       stop();
     }

@@ -15,7 +15,7 @@
       </p>
     </div>
 
-    <PanelTabs v-model:active-tab="activeTab" variant="desktop" />
+    <PanelTabs v-model:active-tab="uiStore.activeTab" variant="desktop" />
 
     <PanelContent class="overflow-hidden" />
 
@@ -27,7 +27,7 @@
 import PanelContent from "./PanelContent.vue";
 import PanelFooter from "./PanelFooter.vue";
 import PanelTabs from "./PanelTabs.vue";
-import { useDetailPanel } from "@/composables/layout/useDetailPanel";
+import { useUiStore } from "@/stores/uiStore";
 
-const { activeTab } = useDetailPanel();
+const uiStore = useUiStore();
 </script>

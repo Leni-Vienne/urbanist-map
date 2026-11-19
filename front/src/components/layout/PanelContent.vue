@@ -1,18 +1,23 @@
 <template>
   <div class="flex-1 flex flex-col min-h-0">
-    <ExplorePanel v-show="activeTab === 'explore'" />
+    <ExplorePanel v-show="uiStore.activeTab === 'explore'" />
     <!-- overflow-x hidden removes the spurious horizontal scrollbar from the sliders -->
-    <div v-if="activeTab === 'filter'" class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4">
+    <div
+      v-if="uiStore.activeTab === 'filter'"
+      class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4"
+    >
       <FilterPanelContent :show-heading="false" />
     </div>
-    <ContributePanel v-else-if="activeTab === 'contribute' && authStore.isAuthenticated" />
-    <ContributeGuestPanel v-else-if="activeTab === 'contribute' && !authStore.isAuthenticated" />
-    <ModerationPanel v-else-if="activeTab === 'moderation' && authStore.isModerator" />
+    <ContributePanel v-else-if="uiStore.activeTab === 'contribute' && authStore.isAuthenticated" />
+    <ContributeGuestPanel
+      v-else-if="uiStore.activeTab === 'contribute' && !authStore.isAuthenticated"
+    />
+    <ModerationPanel v-else-if="uiStore.activeTab === 'moderation' && authStore.isModerator" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent } from "vue";
+import { defineAsyncComponent } from "vue";
 import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
 
@@ -27,7 +32,4 @@ const ContributeGuestPanel = defineAsyncComponent(() => import("./ContributeGues
 
 const authStore = useAuthStore();
 const uiStore = useUiStore();
-
-// Tab and its derived map mode share this single source of truth.
-const activeTab = computed(() => uiStore.activeTab);
 </script>

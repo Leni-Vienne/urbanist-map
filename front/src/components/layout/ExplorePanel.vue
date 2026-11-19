@@ -30,46 +30,63 @@
       @dblclick="resetDetailHeight"
     ></div>
 
-    <!-- Controls. On desktop the filter surface opens in a popover here, so narrowing the list
-           never costs a navigation away from it; on mobile there is no room for it beside the list,
-           so it opens the Filter tab instead. -->
     <div class="shrink-0 bg-content-background border-b border-surface">
-      <div class="px-2 py-2 flex items-center gap-2">
-        <span
-          v-if="projectCount !== null"
-          class="px-0.5 min-w-0 truncate text-[13px] text-muted-color transition-opacity duration-150"
-          :class="isCountStale ? 'opacity-50' : ''"
-          aria-live="polite"
-        >
-          {{ projectCountLabel }}
-        </span>
-        <span v-else-if="isCountStale" class="text-[13px] text-muted-color" aria-hidden="true">
-          …
-        </span>
-        <i
-          v-if="isLoading || isLoadingMore"
-          class="pi pi-spin pi-spinner text-[11px] text-muted-color shrink-0"
-        ></i>
-
-        <label
-          for="explore-include-osm"
-          class="ml-auto inline-flex shrink-0 cursor-pointer items-center gap-1.5 text-[13px] text-color"
-        >
-          <ToggleSwitch
-            input-id="explore-include-osm"
+      <div class="px-2 py-1 flex items-center gap-1">
+        <div class="flex min-w-0 items-center gap-1">
+          <Select
+            ref="sourceSelect"
             v-model="isOsmIncluded"
-            class="explore-osm-switch"
-          />
-          <span>{{ t("project.osmSource") }}</span>
-        </label>
+            :options="sourceOptions"
+            option-label="label"
+            option-value="includesOsm"
+            :ariaLabel="t('contribution.projectSource')"
+            size="small"
+            class="explore-source-select min-w-0"
+            overlay-class="explore-source-options"
+            label-class="font-medium"
+            @before-show="sourceMenuOpen = true"
+            @before-hide="sourceMenuOpen = false"
+          >
+            <template #value>
+              <span class="grid">
+                <span
+                  class="col-start-1 row-start-1 truncate"
+                  :class="{ invisible: isOsmIncluded }"
+                >
+                  {{ t("app.title") }}
+                </span>
+                <span
+                  class="col-start-1 row-start-1 truncate"
+                  :class="{ invisible: !isOsmIncluded }"
+                >
+                  {{ t("contribution.siteAndOsm", { site: t("app.title"), source: "OSM" }) }}
+                </span>
+              </span>
+            </template>
+          </Select>
+          <div
+            class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[13px] text-muted-color"
+          >
+            <template v-if="projectCount !== null">
+              <span aria-hidden="true">·</span>
+              <span
+                class="transition-opacity duration-150"
+                :class="isCountStale ? 'opacity-50' : ''"
+                aria-live="polite"
+                >{{ projectCountLabel }}</span
+              >
+            </template>
+            <span v-else-if="isCountStale" aria-hidden="true">…</span>
+          </div>
+        </div>
 
-        <div class="relative inline-flex shrink-0">
+        <div v-if="!isMobile" class="relative ml-auto inline-flex shrink-0">
           <span
             v-if="showFilterDot"
             class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-content-background pointer-events-none z-10"
           />
           <Button
-            @click="openFilters"
+            @click="filterPopover?.toggle($event)"
             icon="pi pi-sliders-h"
             :label="t('navigation.filter')"
             size="small"
@@ -128,11 +145,7 @@
           @click="retryFeed"
         />
       </div>
-      <div
-        v-else-if="isFeedStale && rows.length > 0"
-        class="shrink-0 border-b border-surface px-2 py-2 text-xs text-muted-color"
-        role="status"
-      >
+      <div v-else-if="isFeedStale && rows.length > 0" class="sr-only" role="status">
         {{ t("contribution.updatingResults") }}
       </div>
       <Listbox
@@ -169,9 +182,6 @@
           <div
             :ref="(element) => setRowElement(row.contribution.id, element)"
             class="flex h-full min-w-0 w-full items-center gap-3 px-2 py-2 transition-colors duration-150 hover:bg-black/5 dark:hover:bg-white/10"
-            :class="{
-              'project-row-reference': !detailVisible && row.contribution.id === lastSelectedRowId,
-            }"
             @mouseenter="handleContributionHover(row.contribution, row.color)"
             @mouseleave="clearContributionHover(row.contribution.id)"
           >
@@ -320,6 +330,7 @@ import {
 } from "vue";
 import { useI18n } from "vue-i18n";
 import Listbox, { type ListboxChangeEvent } from "primevue/listbox";
+import type { SelectMethods } from "primevue/select";
 import type { VirtualScrollerLazyEvent } from "primevue/virtualscroller";
 import { storeToRefs } from "pinia";
 import { useLatestContributionsStore } from "@/stores/latestContributionsStore";
@@ -373,6 +384,9 @@ const { activateLatestContributions, loadMoreLatestContributions, clearMapArea }
 const ProjectDetailPanel = defineAsyncComponent(() => import("./ProjectDetailPanel.vue"));
 
 const { t, te, locale } = useI18n();
+const sourceOptions = computed(getSourceOptions);
+const sourceSelect = useTemplateRef<SelectMethods>("sourceSelect");
+const sourceMenuOpen = ref(false);
 const uiStore = useUiStore();
 const focusStore = useFocusStore();
 const { detailVisible } = useDetailPanel();
@@ -382,6 +396,22 @@ const DEFAULT_DETAIL_HEIGHT = 240;
 const DETAIL_DIVIDER_HEIGHT = 8;
 const MIN_LIST_HEIGHT = 160;
 const explorePanel = useTemplateRef<HTMLElement>("explorePanel");
+
+function getSourceOptions() {
+  const site = t("app.title");
+  return [
+    { label: site, includesOsm: false },
+    {
+      label: t("contribution.siteAndOsm", { site, source: t("project.osmSource") }),
+      includesOsm: true,
+    },
+  ];
+}
+
+function closeSourceMenu(): void {
+  if (sourceMenuOpen.value) sourceSelect.value?.hide();
+}
+
 const panelHeight = ref(0);
 const manualDetailHeight = ref(DEFAULT_DETAIL_HEIGHT);
 const detailFit = ref<{
@@ -454,6 +484,7 @@ function observePanelHeight(): void {
   panelHeight.value = panel.clientHeight;
   panelObserver = new ResizeObserver(() => {
     panelHeight.value = panel.clientHeight;
+    closeSourceMenu();
   });
   panelObserver.observe(panel);
 }
@@ -470,6 +501,7 @@ function startDetailResize(event: PointerEvent): void {
   if (!event.isPrimary || event.button !== 0 || !(event.currentTarget instanceof HTMLElement)) {
     return;
   }
+  closeSourceMenu();
   event.preventDefault();
   event.currentTarget.focus();
   event.currentTarget.setPointerCapture(event.pointerId);
@@ -615,14 +647,6 @@ const filterPopover = ref<{
   hide: () => void;
 } | null>(null);
 
-function openFilters(event: Event) {
-  if (isMobile.value) {
-    uiStore.activeTab = "filter";
-    return;
-  }
-  filterPopover.value?.toggle(event);
-}
-
 function filterKey(filter: ActiveFilter): string {
   return JSON.stringify(filter);
 }
@@ -751,13 +775,6 @@ const { captureRow, clearAnchor } = useScrollAnchor(scrollAreaRef);
 const selectedRowId = computed(
   () => rows.value.find((row) => isSelectedRow(row.contribution))?.contribution.id ?? null,
 );
-const lastSelectedRowId = ref<string | null>(null);
-
-function rememberSelectedRow(id: string | null): void {
-  if (id) lastSelectedRowId.value = id;
-}
-
-watch(selectedRowId, rememberSelectedRow, { immediate: true });
 
 function fitSelectedDetail(): void {
   if (!showDesktopDetail.value) {
@@ -833,7 +850,6 @@ async function retryFeed(): Promise<void> {
 function resetScrollForRefresh(loading: boolean): void {
   if (loading) {
     clearAnchor();
-    lastSelectedRowId.value = null;
     scrollAreaRef.value?.scrollTo({ top: 0 });
   }
 }
@@ -855,9 +871,12 @@ function anchorClosingDetail(visible: boolean): void {
 // Capture before Vue removes the panel, while the rows still have their old screen positions.
 watch(showDesktopDetail, anchorClosingDetail);
 
-function restoreListFocus(visible: boolean): void {
+function handleDetailVisibilityChange(visible: boolean): void {
+  if (visible) {
+    closeSourceMenu();
+    return;
+  }
   if (
-    !visible &&
     uiStore.activeTab === "explore" &&
     document.activeElement?.closest(".project-detail-panel, .explore-detail-divider")
   ) {
@@ -866,7 +885,7 @@ function restoreListFocus(visible: boolean): void {
   }
 }
 
-watch(detailVisible, restoreListFocus);
+watch(detailVisible, handleDetailVisibilityChange);
 
 function handleActiveTabChange(activeTab: typeof uiStore.activeTab): void {
   if (activeTab === "explore") {
@@ -874,6 +893,7 @@ function handleActiveTabChange(activeTab: typeof uiStore.activeTab): void {
   } else {
     clearDetailFit();
     clearAnchor();
+    closeSourceMenu();
     filterPopover.value?.hide();
     clearContributionHover();
   }
@@ -890,6 +910,37 @@ onBeforeUnmount(teardownExplorePanel);
 </script>
 
 <style scoped>
+.explore-source-select {
+  --p-select-background: transparent;
+  --p-select-shadow: none;
+  --p-select-sm-font-size: 0.8125rem;
+  --p-select-sm-padding-x: 0.375rem;
+  --p-select-sm-padding-y: 0.3125rem;
+  --p-select-dropdown-width: 1.25rem;
+}
+
+.explore-source-select:hover {
+  background: var(--p-content-hover-background);
+}
+
+:global(.explore-source-options) {
+  z-index: 1200 !important;
+  font-size: 0.8125rem;
+  --p-select-option-padding: 0.375rem 0.625rem;
+  --p-select-option-selected-background: color-mix(
+    in srgb,
+    var(--p-primary-color) 10%,
+    transparent
+  );
+  --p-select-option-selected-focus-background: color-mix(
+    in srgb,
+    var(--p-primary-color) 16%,
+    transparent
+  );
+  --p-select-option-selected-color: var(--p-text-color);
+  --p-select-option-selected-focus-color: var(--p-text-color);
+}
+
 .explore-detail-section {
   flex: 0 0 auto;
   min-height: 0;
@@ -975,25 +1026,18 @@ onBeforeUnmount(teardownExplorePanel);
 .explore-project-list {
   --p-listbox-option-selected-background: color-mix(
     in srgb,
-    var(--p-primary-color) 10%,
+    var(--p-primary-color) 15%,
     transparent
   );
   --p-listbox-option-selected-focus-background: color-mix(
     in srgb,
-    var(--p-primary-color) 15%,
+    var(--p-primary-color) 20%,
     transparent
   );
 }
 
-.project-row-reference {
-  background-color: var(--p-listbox-option-selected-background);
-}
-
-.explore-osm-switch {
-  --p-toggleswitch-width: 2rem;
-  --p-toggleswitch-height: 1.125rem;
-  --p-toggleswitch-gap: 0.125rem;
-  --p-toggleswitch-handle-size: 0.875rem;
+:deep(.p-listbox-option[aria-selected="true"]) {
+  box-shadow: inset 3px 0 var(--p-primary-color);
 }
 
 :global(.explore-project-beacon) {

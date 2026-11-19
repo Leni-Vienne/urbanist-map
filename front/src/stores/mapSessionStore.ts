@@ -6,7 +6,7 @@ import { projectFromWire } from "@/utils/typeFactories";
 import type { BackendOverlayData, ProjectWire } from "@/types/index";
 import type { AppMode } from "@shared/types";
 
-export type MapSessionMode = Exclude<AppMode, "view">;
+type MapSessionMode = Exclude<AppMode, "view">;
 
 export interface MapSessionSnapshot {
   mode: MapSessionMode;

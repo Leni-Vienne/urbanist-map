@@ -5,6 +5,8 @@ import type { AppMode } from "@shared/types";
 import { useAuthStore } from "@/stores/authStore";
 import { useSubmissionStore } from "@/stores/submissionStore";
 
+export const DEFAULT_MOBILE_DRAWER_HEIGHT_PERCENT = 40;
+
 export type ProjectCoordinates = { lat: number; lng: number };
 export type EditingTarget =
   | { type: "none" }
@@ -42,7 +44,7 @@ export const useUiStore = defineStore("ui", () => {
     if (panelMode === "moderation" && !authStore.isModerator) return "view";
     return panelMode;
   });
-  const mobileDrawerHeightPercent = ref(40);
+  const mobileDrawerHeightPercent = ref(DEFAULT_MOBILE_DRAWER_HEIGHT_PERCENT);
 
   // Shared accordion state that persists across panels
   const activeAccordionPanels = ref<string[]>([]);

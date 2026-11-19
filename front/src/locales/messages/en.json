@@ -66,8 +66,8 @@
     "tags": "Tags"
   },
   "navigation": {
+    "drawerHeight": "Panel height",
     "latestContributions": "Explore",
-    "latestContributionsShort": "Explore",
     "filter": "Filter",
     "contribute": "Contribute",
     "unsavedOverlaysWarning": "You have unsaved images. Navigating will discard them. Continue?"
@@ -189,6 +189,8 @@
     }
   },
   "contribution": {
+    "projectSource": "Project source",
+    "siteAndOsm": "{site} + {source}",
     "projects": "Projects",
     "loadMoreError": "Could not load more projects.",
     "loadError": "Could not load projects.",
