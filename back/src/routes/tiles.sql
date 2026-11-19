@@ -15,12 +15,13 @@ WITH tile_grid AS (
   -- Keep the grid aligned to tile boundaries so neighbouring requests agree on cell membership.
   SELECT CASE WHEN $1 >= 10 THEN 16 WHEN $1 >= 7 THEN 8 ELSE 4 END AS cells_per_tile
 ),
-tile_env AS (
+tile_env AS NOT MATERIALIZED (
   -- Calculate the bounding box for the requested tile ($1=Z, $2=X, $3=Y) in Web Mercator (EPSG:3857)
   -- and also transform it to WGS84 (EPSG:4326) for quick intersection checks against table geometries.
   SELECT
     ST_TileEnvelope($1, $2, $3) AS bounds,
     ST_Transform(ST_TileEnvelope($1, $2, $3), 4326) AS bounds_4326,
+    cells_per_tile,
     power(2, $1) * cells_per_tile AS grid_scale,
     $2::integer * cells_per_tile AS grid_x_offset,
     $3::integer * cells_per_tile AS grid_y_offset
@@ -99,7 +100,6 @@ shapes AS (
                AND (p.geometry_size_m IS NULL OR p.geometry_size_m < 1000)
                AND NULLIF(BTRIM(p.name), '') IS NULL)
   ) q
-  WHERE q.mvt_geom IS NOT NULL
 ),
 footprints AS (
   -- Generate the 'overlay-footprints' vector tile layer showing the bounding box of georeferenced images.
@@ -145,13 +145,12 @@ footprints AS (
       AND p.status = 'approved'
       AND o.corners && te.bounds_4326
   ) q
-  WHERE q.mvt_geom IS NOT NULL
 ),
 points AS (
   -- Generate the 'project-points' vector tile layer containing center markers for projects.
   SELECT ST_AsMVT(q, 'project-points', 4096, 'mvt_geom') AS tile
   FROM (
-    WITH candidates AS (
+    WITH candidates AS NOT MATERIALIZED (
       -- Assign markers to a world-aligned grid without building an MVT geometry for every project.
       SELECT
         p.center_coordinate,
@@ -190,12 +189,47 @@ points AS (
                    AND NULLIF(BTRIM(p.name), '') IS NULL)
         )
     ),
+    low_zoom_grid_lines AS (
+      -- The tile bbox includes its edges. A boundary point can fall in grid cell -1 or cells_per_tile.
+      SELECT i,
+        (te.grid_x_offset + greatest(i, 0)) / te.grid_scale * 360 - 180 AS lng,
+        degrees(atan(sinh(
+          pi() * (1 - 2 * (te.grid_y_offset + greatest(i, 0)) / te.grid_scale)
+        ))) AS lat
+      FROM tile_env te
+      CROSS JOIN generate_series(-1, te.cells_per_tile) AS i
+      WHERE $1 < 9
+    ),
+    low_zoom_cell_edges AS (
+      SELECT i, lng AS west, lead(lng, 1, lng) OVER w AS east,
+        lat AS north, lead(lat, 1, lat) OVER w AS south
+      FROM low_zoom_grid_lines
+      WINDOW w AS (ORDER BY i)
+    ),
+    sampled_candidates AS (
+      SELECT c.* FROM candidates c WHERE $1 >= 9
+      UNION ALL
+      SELECT c.*
+      FROM low_zoom_cell_edges x
+      CROSS JOIN low_zoom_cell_edges y
+      CROSS JOIN LATERAL (
+        SELECT c.* FROM candidates c
+        WHERE c.grid_x = x.i AND c.grid_y = y.i
+          -- Pad the index probe for coordinate rounding. The grid keys decide membership.
+          AND c.center_coordinate && ST_Expand(
+            ST_MakeEnvelope(x.west, y.south, x.east, y.north, 4326), 0.0001
+          )
+        -- A fourth eligible marker hides the whole cell below z9.
+        LIMIT 4
+      ) c
+      WHERE $1 < 9
+    ),
     cell_members AS (
       -- At maxzoom every point is individual; the custom plan can omit the density window.
       SELECT c.*,
         CASE WHEN $1 >= 14 THEN 1
           ELSE COUNT(*) OVER (PARTITION BY grid_x, grid_y) END AS cell_population
-      FROM candidates c
+      FROM sampled_candidates c
     ),
     visible_points AS MATERIALIZED (
       -- Dense cells are invisible below z9. Reject them before image lookups and clustering.
@@ -366,7 +400,6 @@ points AS (
     CROSS JOIN tile_env te
     WHERE f.representative_rank = 1
   ) q
-  WHERE q.mvt_geom IS NOT NULL
 )
 -- Aggregate all three computed tile layers into a single MVT binary payload returned to the client
 SELECT (
