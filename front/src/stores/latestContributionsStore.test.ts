@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { createPinia, setActivePinia } from "pinia";
 import superjson from "superjson";
-import { nextTick, watch } from "vue";
+import { effectScope, nextTick, watch } from "vue";
 import type { RouterOutput } from "@/client";
 import { selectedProjectTags } from "@/services/core/filters";
 import { useUiStore } from "@/stores/uiStore";
@@ -69,50 +69,72 @@ function respondToPages(
 }
 
 describe("latest contribution loading", () => {
-  test("loads rows without waiting for the count and shares pending requests across activations", async () => {
+  test("loads the count only while observed and reuses it across source changes", async function () {
     const feed = useLatestContributionsStore();
+    const filters = effectScope();
     const pendingCount = Promise.withResolvers<Response>();
-    const countReady = Promise.withResolvers<undefined>();
+    const pendingFilteredCount = Promise.withResolvers<Response>();
+    const filteredCountStarted = Promise.withResolvers<undefined>();
+    const countReady = Promise.withResolvers<number>();
+    const filteredCountReady = Promise.withResolvers<number>();
     let pageRequests = 0;
     let countRequests = 0;
     respondToPages(
-      async () => {
+      async function fetchPage() {
         pageRequests += 1;
         return pageResponse([project("first")]);
       },
-      async () => {
+      async function fetchCount() {
         countRequests += 1;
-        return pendingCount.promise;
+        if (countRequests === 1) return pendingCount.promise;
+        filteredCountStarted.resolve(undefined);
+        return pendingFilteredCount.promise;
       },
     );
     const stop = watch(
-      () => feed.isCountStale,
-      (stale) => {
-        if (!stale) countReady.resolve(undefined);
+      function readCount() {
+        return feed.projectCount;
+      },
+      function captureCount(count) {
+        if (count === 123) countReady.resolve(count);
+        if (count === 3) filteredCountReady.resolve(count);
       },
     );
     try {
       await Promise.all([feed.activateLatestContributions(), feed.activateLatestContributions()]);
       expect(feed.contributions.map((item) => item.id)).toEqual(["first"]);
       expect(feed.isFeedStale).toBeFalse();
-      expect(feed.isCountStale).toBeTrue();
-
       await feed.activateLatestContributions();
       expect(pageRequests).toBe(1);
-      expect(countRequests).toBe(1);
+      expect(countRequests).toBe(0);
 
+      filters.run(feed.observeContributionCount);
       feed.isOsmIncluded = true;
       await feed.activateLatestContributions();
+      expect(pageRequests).toBe(2);
       expect(countRequests).toBe(1);
+      expect(feed.projectCount).toBeNull();
       pendingCount.resolve(countResponse(123, 7));
-      await countReady.promise;
-      expect(feed.projectCount).toBe(123);
+      expect(await countReady.promise).toBe(123);
       feed.isOsmIncluded = false;
       expect(feed.projectCount).toBe(7);
-      expect(feed.isCountStale).toBeFalse();
-      await feed.activateLatestContributions();
       expect(countRequests).toBe(1);
+
+      selectedProjectTags.value = ["rail"];
+      expect(feed.projectCount).toBe(7);
+      await filteredCountStarted.promise;
+      expect(feed.projectCount).toBe(7);
+      pendingFilteredCount.resolve(countResponse(12, 3));
+      expect(await filteredCountReady.promise).toBe(3);
+      expect(countRequests).toBe(2);
+
+      selectedProjectTags.value = [];
+      await nextTick();
+      filters.stop();
+      await Bun.sleep(350);
+      expect(countRequests).toBe(2);
     } finally {
+      filters.stop();
       stop();
     }
   });

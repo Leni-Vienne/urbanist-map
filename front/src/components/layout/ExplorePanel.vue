@@ -32,53 +32,31 @@
 
     <div class="shrink-0 bg-content-background border-b border-surface">
       <div class="px-2 py-1 flex items-center gap-1">
-        <div class="flex min-w-0 items-center gap-1">
-          <Select
-            ref="sourceSelect"
-            v-model="isOsmIncluded"
-            :options="sourceOptions"
-            option-label="label"
-            option-value="includesOsm"
-            :ariaLabel="t('contribution.projectSource')"
-            size="small"
-            class="explore-source-select min-w-0"
-            overlay-class="explore-source-options"
-            label-class="font-medium"
-            @before-show="sourceMenuOpen = true"
-            @before-hide="sourceMenuOpen = false"
-          >
-            <template #value>
-              <span class="grid">
-                <span
-                  class="col-start-1 row-start-1 truncate"
-                  :class="{ invisible: isOsmIncluded }"
-                >
-                  {{ t("app.title") }}
-                </span>
-                <span
-                  class="col-start-1 row-start-1 truncate"
-                  :class="{ invisible: !isOsmIncluded }"
-                >
-                  {{ t("contribution.siteAndOsm", { site: t("app.title"), source: "OSM" }) }}
-                </span>
+        <Select
+          ref="sourceSelect"
+          v-model="isOsmIncluded"
+          :options="sourceOptions"
+          option-label="label"
+          option-value="includesOsm"
+          :ariaLabel="t('contribution.projectSource')"
+          size="small"
+          class="explore-source-select min-w-0"
+          overlay-class="explore-source-options"
+          label-class="font-medium"
+          @before-show="sourceMenuOpen = true"
+          @before-hide="sourceMenuOpen = false"
+        >
+          <template #value>
+            <span class="grid">
+              <span class="col-start-1 row-start-1 truncate" :class="{ invisible: isOsmIncluded }">
+                {{ t("app.title") }}
               </span>
-            </template>
-          </Select>
-          <div
-            class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[13px] text-muted-color"
-          >
-            <template v-if="projectCount !== null">
-              <span aria-hidden="true">·</span>
-              <span
-                class="transition-opacity duration-150"
-                :class="isCountStale ? 'opacity-50' : ''"
-                aria-live="polite"
-                >{{ projectCountLabel }}</span
-              >
-            </template>
-            <span v-else-if="isCountStale" aria-hidden="true">…</span>
-          </div>
-        </div>
+              <span class="col-start-1 row-start-1 truncate" :class="{ invisible: !isOsmIncluded }">
+                {{ t("contribution.siteAndOsm", { site: t("app.title"), source: "OSM" }) }}
+              </span>
+            </span>
+          </template>
+        </Select>
 
         <div v-if="!isMobile" class="relative ml-auto inline-flex shrink-0">
           <span
@@ -86,7 +64,7 @@
             class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-content-background pointer-events-none z-10"
           />
           <Button
-            @click="filterPopover?.toggle($event)"
+            @click="toggleFilterPopover"
             icon="pi pi-sliders-h"
             :label="t('navigation.filter')"
             size="small"
@@ -307,8 +285,10 @@
     <Popover ref="filterPopover" appendTo="body" :pt="{ root: { class: 'filter-popover' } }">
       <!-- overflow-x hidden removes the spurious horizontal scrollbar from the sliders -->
       <div
-        class="min-w-55 max-w-75 overflow-y-auto overflow-x-hidden pr-1"
-        style="max-height: min(600px, 70svh)"
+        class="min-w-55 max-w-75 overflow-y-auto overflow-x-hidden scroll-pt-9 pr-1"
+        :style="{
+          maxHeight: `calc(${filterPopoverHeight}px - 2 * var(--p-popover-content-padding) - 2px)`,
+        }"
       >
         <FilterPanelContent />
       </div>
@@ -372,9 +352,7 @@ const {
   isLoadingMore,
   hasLoadError,
   hasLoadMoreError,
-  isCountStale,
   isFeedStale,
-  projectCount,
   hasMore,
   isOsmIncluded,
   mapArea,
@@ -566,19 +544,10 @@ const hasPopoverFilters = computed(() => activeFilters.value.length > 0 || mapAr
 const hasNarrowedQuery = computed(() => hasPopoverFilters.value || !isOsmIncluded.value);
 // Before the filter surface has ever been opened the dot is a discovery hint instead.
 const showFilterDot = computed(() => hasPopoverFilters.value || !filtersSeen.value);
-const projectCountLabel = computed(formatProjectCount);
 
 // Applied-filter pill, shared by the map-area chip and the per-filter chips.
 const filterChipClass =
   "inline-flex items-center gap-1 pl-2 pr-1.5 py-0.5 rounded-full text-xs font-medium bg-(--p-content-hover-background) text-color border border-surface cursor-pointer transition-colors duration-150 hover:bg-black/5 dark:hover:bg-white/10";
-
-function formatProjectCount(): string {
-  const count = projectCount.value;
-  if (count === null) return "";
-  const formatted = new Intl.NumberFormat(locale.value).format(count);
-  const key = count === 1 ? "contribution.projectCountOne" : "contribution.projectCountMany";
-  return t(key, { count: formatted });
-}
 
 // A shaped standalone that carries only the generic "construction" tag prefers its geometry over the
 // generic tag icon, so returning null lets the shape thumbnail render instead.
@@ -641,6 +610,27 @@ const rows = computed(() =>
     };
   }),
 );
+const filterPopoverHeight = ref(0);
+
+function toggleFilterPopover(event: MouseEvent): void {
+  if (!(event.currentTarget instanceof HTMLElement)) return;
+  const { top, bottom } = event.currentTarget.getBoundingClientRect();
+  const viewportHeight = window.innerHeight;
+  const below = viewportHeight - bottom;
+  const maxHeight = Math.min(600, viewportHeight * 0.7);
+  const edgeClearance = 14; // 10px popover gutter and 4px viewport clearance.
+  const aboveHeight = Math.min(maxHeight, top - edgeClearance);
+  // PrimeVue flips only when the popover's box, excluding its gutter, cannot fit below.
+  filterPopoverHeight.value =
+    aboveHeight > below + 1 ? aboveHeight : Math.min(maxHeight, below - edgeClearance);
+  filterPopover.value?.toggle(event);
+}
+
+function closeFilterPopover(): void {
+  filterPopover.value?.hide();
+}
+
+watch([showDesktopDetail, detailHeight], closeFilterPopover);
 
 const filterPopover = ref<{
   toggle: (event: Event) => void;
@@ -894,7 +884,7 @@ function handleActiveTabChange(activeTab: typeof uiStore.activeTab): void {
     clearDetailFit();
     clearAnchor();
     closeSourceMenu();
-    filterPopover.value?.hide();
+    closeFilterPopover();
     clearContributionHover();
   }
 }

@@ -7,6 +7,7 @@ import type { MapArea } from "@/stores/latestContributionsStore";
 // rather than on a zoom level keeps the threshold the same everywhere: a phone covers far less at a
 // given zoom than a desktop map does, and would otherwise have to zoom in much further to qualify.
 const MAX_FILTER_SPAN_DEGREES = 25;
+const FILTER_AREA_INSET_PX = 24;
 
 /** The area a filter applied right now would capture, or null when no map is mounted. */
 export function getVisibleMapArea(): MapArea | null {
@@ -27,19 +28,18 @@ export function canFilterVisibleArea(): boolean {
   return target !== null && longitudeSpanDegrees(target) <= MAX_FILTER_SPAN_DEGREES;
 }
 
-// The mobile drawer covers the bottom of the map, so the whole-container bounds reach well past
-// what the user can see. Corners of the uncovered rectangle instead, keeping the diagonal pair
-// MapLibre uses so a rotated view still yields the box that encloses it.
+// Inset the uncovered map so the filter outline and the dimmed area around it are visible.
 function visibleBounds(target: MaplibreMap): LngLatBounds {
   const container = target.getContainer();
   const width = container.clientWidth;
   const height = container.clientHeight - getMobileDrawerOcclusionPx();
   if (width <= 0 || height <= 0) return target.getBounds();
+  const inset = Math.min(FILTER_AREA_INSET_PX, Math.min(width, height) / 10);
   return new LngLatBounds()
-    .extend(target.unproject([0, 0]))
-    .extend(target.unproject([width, 0]))
-    .extend(target.unproject([width, height]))
-    .extend(target.unproject([0, height]));
+    .extend(target.unproject([inset, inset]))
+    .extend(target.unproject([width - inset, inset]))
+    .extend(target.unproject([width - inset, height - inset]))
+    .extend(target.unproject([inset, height - inset]));
 }
 
 // Longitude the map container spans at its current zoom. MapLibre tiles are 512px, so the whole

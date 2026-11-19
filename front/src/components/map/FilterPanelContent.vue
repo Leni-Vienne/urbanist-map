@@ -1,14 +1,17 @@
 <template>
-  <h3 v-if="showHeading" class="m-0 mb-3 text-[0.95rem] font-semibold text-color">
-    {{ $t("map.controls.filterByStatusAndTags") }}
-  </h3>
-
-  <p
-    class="m-0 mb-1.5 text-xs font-semibold text-(--p-text-color-secondary) uppercase tracking-wide"
+  <div
+    class="sticky top-0 z-10 mb-3 flex h-9 items-center gap-2 border-b border-(--p-content-border-color) bg-content-background"
   >
-    {{ $t("map.controls.filterByArea") }}
-  </p>
-  <div class="flex flex-col gap-1 mb-4">
+    <h3 v-if="showHeading" class="m-0 shrink-0 text-[0.95rem] font-semibold text-color">
+      {{ $t("map.controls.filterByStatusAndTags") }}
+    </h3>
+    <p class="m-0 min-w-0 truncate text-sm text-muted-color tabular-nums" role="status">
+      <span v-if="showHeading && projectCountLabel" class="me-1" aria-hidden="true">·</span
+      >{{ projectCountLabel }}
+    </p>
+  </div>
+
+  <div class="flex flex-col gap-2 mb-4">
     <label
       class="flex items-center gap-2 text-sm text-color"
       :class="canPickArea ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'"
@@ -21,9 +24,17 @@
       />
       {{ $t("map.controls.onlyVisibleArea") }}
     </label>
-    <p v-if="!canPickArea" class="m-0 text-xs italic text-(--p-text-color-secondary)">
+    <p v-if="!canPickArea" class="m-0 -mt-1 ps-7 text-xs text-muted-color">
       {{ $t("map.controls.zoomInToFilterArea") }}
     </p>
+    <label class="flex items-center gap-2 cursor-pointer text-sm text-color">
+      <Checkbox
+        :model-value="showOnlyWithImages"
+        :binary="true"
+        @update:model-value="toggleShowOnlyWithImages"
+      />
+      {{ $t("map.controls.onlyWithImages") }}
+    </label>
   </div>
 
   <div class="flex items-center justify-between mb-1.5">
@@ -41,39 +52,87 @@
     </button>
   </div>
   <template v-for="group in tagGroups" :key="group.key">
-    <p v-if="group.hintKey" class="m-0 mb-1.5 text-xs italic text-(--p-text-color-secondary)">
-      {{ $t(group.hintKey) }}
-    </p>
-    <div class="flex flex-wrap gap-2 mb-4">
+    <button
+      v-if="group.key === 'building'"
+      type="button"
+      class="mb-4 flex w-full items-center gap-1.5 rounded-md border-0 bg-transparent px-1.5 py-1 text-start text-sm font-medium text-color hover:bg-(--p-content-hover-background) cursor-pointer aria-expanded:mb-1.5"
+      :aria-controls="buildingTagsId"
+      :aria-expanded="buildingTagsOpen"
+      @click="buildingTagsOpen = !buildingTagsOpen"
+      @dblclick.stop
+    >
+      <ChevronDown
+        :size="14"
+        class="shrink-0"
+        :class="{ '-rotate-90': !buildingTagsOpen }"
+        aria-hidden="true"
+      />
+      {{ $t("map.controls.buildingTags") }}
+    </button>
+    <div
+      v-show="group.key !== 'building' || buildingTagsOpen"
+      :id="group.key === 'building' ? buildingTagsId : undefined"
+      class="flex flex-wrap gap-1.5 mb-3"
+    >
       <button
         v-for="tag in group.tags"
         :key="tag.slug"
         type="button"
-        class="px-3 py-1.5 rounded-full text-xs font-semibold border-2 transition-all duration-150 cursor-pointer"
+        class="filter-tag"
         :aria-pressed="selectedProjectTags.includes(tag.slug)"
-        :style="tagStyle(tag)"
+        :style="{ '--tag-color': tag.color }"
         @click="toggleProjectTagFilter(tag.slug)"
         @dblclick.stop
       >
+        <span class="grid size-3 shrink-0 place-items-center" aria-hidden="true">
+          <Check v-if="selectedProjectTags.includes(tag.slug)" :size="12" />
+          <span v-else class="size-2 rounded-full bg-(--tag-color)" />
+        </span>
         {{ $te(`tags.${tag.slug}`) ? $t(`tags.${tag.slug}`) : tag.slug }}
       </button>
     </div>
   </template>
 
-  <p
-    class="m-0 mb-1.5 text-xs font-semibold text-(--p-text-color-secondary) uppercase tracking-wide"
-  >
-    {{ $t("map.controls.filterByImages") }}
+  <div class="mb-4">
+    <p
+      class="m-0 mb-2 text-xs font-semibold text-(--p-text-color-secondary) uppercase tracking-wide"
+    >
+      {{ $t("map.controls.filterBySize") }}
+    </p>
+    <!-- The horizontal padding holds the handles, which overhang the track ends by half their width -->
+    <div class="px-2.5">
+      <!-- @vue-expect-error PrimeVue v-model type mismatch -->
+      <Slider v-model="sizeSliderPositions" :min="0" :max="100" :step="1" range class="w-full" />
+      <div class="flex justify-between mt-2 text-xs text-(--p-text-color-secondary)">
+        <span>{{ formatSizeM(sizeFilterRange[0]) }}</span>
+        <span>{{ formatSizeM(sizeFilterRange[1]) }}</span>
+      </div>
+    </div>
+  </div>
+
+  <p class="m-0 mb-2 text-xs font-semibold text-(--p-text-color-secondary) uppercase tracking-wide">
+    {{ $t("map.controls.filterByLastModified") }}
   </p>
-  <div class="flex flex-col gap-1 mb-4">
-    <label class="flex items-center gap-2 cursor-pointer text-sm text-color">
-      <Checkbox
-        :model-value="showOnlyWithImages"
-        :binary="true"
-        @update:model-value="toggleShowOnlyWithImages"
-      />
-      {{ $t("map.controls.onlyWithImages") }}
-    </label>
+  <div class="mb-4 px-2.5">
+    <!-- @vue-expect-error PrimeVue v-model type mismatch -->
+    <Slider
+      v-model="dateSliderPositions"
+      :min="0"
+      :max="DATE_SLIDER_MAX"
+      :step="1"
+      range
+      class="w-full"
+    />
+    <div class="flex justify-between mt-2 text-xs text-(--p-text-color-secondary)">
+      <span
+        >{{ $t("map.controls.lastModifiedFrom") }}:
+        {{ formatDateSlider(dateSliderPositions[0]) }}</span
+      >
+      <span
+        >{{ $t("map.controls.lastModifiedTo") }}:
+        {{ formatDateSlider(dateSliderPositions[1]) }}</span
+      >
+    </div>
   </div>
 
   <p
@@ -102,7 +161,7 @@
   >
     {{ $t("map.controls.filterByName") }}
   </p>
-  <div class="flex flex-col gap-1 mb-4">
+  <div class="flex flex-col gap-1">
     <label
       v-for="nameVal in nameFilters"
       :key="nameVal"
@@ -124,52 +183,12 @@
       {{ $t("map.controls.untagged") }}
     </label>
   </div>
-
-  <div class="mb-4">
-    <p
-      class="m-0 mb-2 text-xs font-semibold text-(--p-text-color-secondary) uppercase tracking-wide"
-    >
-      {{ $t("map.controls.filterBySize") }}
-    </p>
-    <!-- The horizontal padding holds the handles, which overhang the track ends by half their width -->
-    <div class="px-2.5">
-      <!-- @vue-expect-error PrimeVue v-model type mismatch -->
-      <Slider v-model="sizeSliderPositions" :min="0" :max="100" :step="1" range class="w-full" />
-      <div class="flex justify-between mt-2 text-xs text-(--p-text-color-secondary)">
-        <span>{{ formatSizeM(sizeFilterRange[0]) }}</span>
-        <span>{{ formatSizeM(sizeFilterRange[1]) }}</span>
-      </div>
-    </div>
-  </div>
-
-  <p class="m-0 mb-2 text-xs font-semibold text-(--p-text-color-secondary) uppercase tracking-wide">
-    {{ $t("map.controls.filterByLastModified") }}
-  </p>
-  <div class="px-2.5">
-    <!-- @vue-expect-error PrimeVue v-model type mismatch -->
-    <Slider
-      v-model="dateSliderPositions"
-      :min="0"
-      :max="DATE_SLIDER_MAX"
-      :step="1"
-      range
-      class="w-full"
-    />
-    <div class="flex justify-between mt-2 text-xs text-(--p-text-color-secondary)">
-      <span
-        >{{ $t("map.controls.lastModifiedFrom") }}:
-        {{ formatDateSlider(dateSliderPositions[0]) }}</span
-      >
-      <span
-        >{{ $t("map.controls.lastModifiedTo") }}:
-        {{ formatDateSlider(dateSliderPositions[1]) }}</span
-      >
-    </div>
-  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onUnmounted } from "vue";
+import { ref, computed, onUnmounted, useId, watch } from "vue";
+import Check from "@lucide/vue/dist/esm/icons/check.mjs";
+import ChevronDown from "@lucide/vue/dist/esm/icons/chevron-down.mjs";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { useI18n } from "vue-i18n";
 import { onMapReady } from "@/services/core/map";
@@ -196,25 +215,27 @@ import {
   posToMs,
 } from "@/services/core/filters";
 import type { TimelineStatus } from "@shared/types/project";
-import {
-  PROJECT_TAGS,
-  PROJECT_TAG_MAP,
-  AREAL_PROJECT_TAGS,
-  type ProjectTag,
-} from "@/constants/projectTags";
-import { useTheme } from "@/composables/core/useTheme";
+import { PROJECT_TAGS, PROJECT_TAG_MAP, AREAL_PROJECT_TAGS } from "@/constants/projectTags";
 import { markFiltersSeen } from "@/services/core/settings";
 import LinePreview from "@/components/common/LinePreview.vue";
 
 const feedStore = useLatestContributionsStore();
-const { mapArea } = storeToRefs(feedStore);
+const { mapArea, projectCount, hasCountError } = storeToRefs(feedStore);
 const { clearMapArea, setMapArea } = feedStore;
 
 withDefaults(defineProps<{ showHeading?: boolean }>(), { showHeading: true });
 
 markFiltersSeen();
 
-const { t } = useI18n();
+const { t, n } = useI18n();
+const projectCountLabel = computed(formatProjectCount);
+feedStore.observeContributionCount();
+
+function formatProjectCount(): string {
+  if (hasCountError.value) return t("contribution.projectCountUnavailable");
+  const count = projectCount.value;
+  return count === null ? "" : t("contribution.matchingProjectCount", { count: n(count) }, count);
+}
 
 // The area is captured when the box is ticked and then held, so panning away never rewrites it.
 const canFilterArea = ref(false);
@@ -282,26 +303,47 @@ const linePreviewColor = computed(() => {
   return "#6b7280";
 });
 
-const { theme } = useTheme();
-
-function tagStyle(tag: ProjectTag) {
-  if (selectedProjectTags.value.includes(tag.slug)) {
-    return { backgroundColor: tag.color, color: tag.textColor, borderColor: tag.color };
-  }
-  if (theme.value === "dark") {
-    return { backgroundColor: `${tag.color}28`, color: tag.textColor, borderColor: tag.color };
-  }
-  return { backgroundColor: "transparent", color: tag.color, borderColor: tag.color };
-}
-
 const allTags = PROJECT_TAGS.filter((tag) => !tag.hidden);
-const tagGroups: { key: string; hintKey?: string; tags: ProjectTag[] }[] = [
+const tagGroups = [
   { key: "line", tags: allTags.filter((tag) => !AREAL_PROJECT_TAGS.has(tag.slug)) },
-  {
-    key: "building",
-    hintKey: "map.controls.buildingTagsHint",
-    tags: allTags.filter((tag) => AREAL_PROJECT_TAGS.has(tag.slug)),
-  },
+  { key: "building", tags: allTags.filter((tag) => AREAL_PROJECT_TAGS.has(tag.slug)) },
 ];
 const untaggedFilter = UNTAGGED_PROJECT_FILTER;
+
+const buildingTagsId = useId();
+const buildingTagsOpen = ref(false);
+const hasSelectedBuildingTag = computed(() =>
+  selectedProjectTags.value.some((slug) => AREAL_PROJECT_TAGS.has(slug)),
+);
+watch(hasSelectedBuildingTag, revealSelectedBuildings, { immediate: true });
+
+function revealSelectedBuildings(selected: boolean): void {
+  if (selected) buildingTagsOpen.value = true;
+}
 </script>
+
+<style scoped>
+.filter-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 2rem;
+  padding: 0.25rem 0.375rem;
+  border: 1px solid var(--p-content-border-color);
+  border-radius: 9999px;
+  background: var(--p-content-background);
+  color: var(--p-text-color);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.filter-tag:hover {
+  background: var(--p-content-hover-background);
+}
+
+.filter-tag[aria-pressed="true"] {
+  border-color: var(--tag-color);
+  background: color-mix(in srgb, var(--tag-color) 25%, var(--p-content-background));
+}
+</style>

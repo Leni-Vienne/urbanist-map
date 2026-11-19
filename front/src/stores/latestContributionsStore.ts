@@ -12,6 +12,7 @@ type ContributionSource = "all" | "community";
 export type MapArea = NonNullable<RouterInput["feed"]["getLatestContributions"]["mapArea"]>;
 
 const PAGE_SIZE = 20;
+const FILTER_SETTLE_MS = 300;
 
 export const useLatestContributionsStore = defineStore("latestContributions", () => {
   const uiStore = useUiStore();
@@ -21,6 +22,7 @@ export const useLatestContributionsStore = defineStore("latestContributions", ()
   const cursor = ref<FeedCursor>(null);
   const hasLoadError = ref(false);
   const hasLoadMoreError = ref(false);
+  const hasCountError = ref(false);
   const counts = shallowRef<RouterOutput["feed"]["getContributionCount"] | null>(null);
 
   const isOsmIncluded = ref(false);
@@ -39,10 +41,6 @@ export const useLatestContributionsStore = defineStore("latestContributions", ()
   const isLoading = computed(() => pageRequest.value?.more === false);
   const isLoadingMore = computed(() => pageRequest.value?.more === true);
 
-  // The count survives a query change and is only replaced once the new one arrives, so narrowing the
-  // feed never collapses the row it sits on. True while the shown count does not describe the live
-  // query.
-  const isCountStale = computed(countIsStale);
   const hasMore = computed(() => cursor.value !== null);
   // True while the tab hosting this feed is the one on screen, so a filter change with the tab closed
   // costs no request. Read from the shared tab state rather than the panel's own mount hooks: desktop
@@ -61,10 +59,6 @@ export const useLatestContributionsStore = defineStore("latestContributions", ()
 
   function pageQueryKey(): string {
     return `${source.value}|${countKey.value}`;
-  }
-
-  function countIsStale(): boolean {
-    return loadedCountKey.value !== countKey.value;
   }
 
   function buildFilterQueryInput() {
@@ -86,6 +80,7 @@ export const useLatestContributionsStore = defineStore("latestContributions", ()
   async function refreshContributionCount(): Promise<void> {
     const key = countKey.value;
     if (loadedCountKey.value === key || countRequest) return;
+    hasCountError.value = false;
     const request = new AbortController();
     countRequest = request;
     try {
@@ -99,7 +94,11 @@ export const useLatestContributionsStore = defineStore("latestContributions", ()
           }),
         { signal: request.signal },
       );
-      if (countRequest !== request || !result) return;
+      if (countRequest !== request) return;
+      if (!result) {
+        hasCountError.value = true;
+        return;
+      }
       counts.value = result;
       loadedCountKey.value = key;
     } finally {
@@ -107,12 +106,29 @@ export const useLatestContributionsStore = defineStore("latestContributions", ()
     }
   }
 
+  function observeContributionCount(): void {
+    watch([countKey, loadedCountKey], scheduleContributionCount);
+    loadCount();
+  }
+
+  function loadCount(): void {
+    void refreshContributionCount();
+  }
+
+  function scheduleContributionCount([key, loadedCount]: [string, string | null]): void {
+    if (key === loadedCount) return;
+    const timer = setTimeout(loadCount, FILTER_SETTLE_MS);
+    onWatcherCleanup(cancelScheduledCount);
+
+    function cancelScheduledCount(): void {
+      clearTimeout(timer);
+    }
+  }
+
   // Loads page one unless the live query is already shown or already on its way, so a query change, a
   // tab switch and a panel activation cannot each start the same request.
   async function activateLatestContributions(): Promise<void> {
     const key = queryKey.value;
-    // The count is independent: retry it even if this query's rows are already loaded.
-    void refreshContributionCount();
     if (loadedKey.value === key || pageRequest.value) return;
     await loadPage(null);
   }
@@ -153,6 +169,7 @@ export const useLatestContributionsStore = defineStore("latestContributions", ()
     cursor.value = null;
     loadedKey.value = null;
     loadedCountKey.value = null;
+    counts.value = null;
   }
 
   function cancelPageRequest(): void {
@@ -165,6 +182,7 @@ export const useLatestContributionsStore = defineStore("latestContributions", ()
   function cancelCountRequest(): void {
     countRequest?.abort();
     countRequest = null;
+    hasCountError.value = false;
   }
 
   // Bounding the feed to a viewport asks what is in that place, so include OSM projects too.
@@ -195,8 +213,6 @@ export const useLatestContributionsStore = defineStore("latestContributions", ()
       left.north === right.north
     );
   }
-
-  const FILTER_SETTLE_MS = 300;
 
   // Cancel synchronously so active requests always belong to the live query, even after away/back.
   watch(queryKey, cancelPageRequest, { flush: "sync" });
@@ -232,12 +248,13 @@ export const useLatestContributionsStore = defineStore("latestContributions", ()
     hasLoadMoreError,
     projectCount,
     hasLoadError,
-    isCountStale,
+    hasCountError,
     isFeedStale,
     hasMore,
     isOsmIncluded,
     mapArea,
     activateLatestContributions,
+    observeContributionCount,
     loadMoreLatestContributions,
     invalidateLatestContributions,
     setMapArea,

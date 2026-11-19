@@ -4,7 +4,7 @@
     <!-- overflow-x hidden removes the spurious horizontal scrollbar from the sliders -->
     <div
       v-if="uiStore.activeTab === 'filter'"
-      class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4"
+      class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scroll-pt-9 px-4 pb-4"
     >
       <FilterPanelContent :show-heading="false" />
     </div>
