@@ -4,6 +4,7 @@ import { projects, overlays, changeRequests, users, userReports, importSources }
 import type { BoundaryPathEntry } from "@shared/types/boundary";
 import { buildOwnOverlayProposal } from "./overlayProposal";
 import { overlayCornersJsonSql } from "./geometry";
+import { boundaryChainSql } from "./boundaryAssignment";
 
 // Country display name resolved from the level-2 (country) admin boundary matching a project's
 // country_code. Replaces the former join to the dropped `countries` table.
@@ -17,23 +18,13 @@ export const countryNameSql = sql<
 // nameEn, and each boundary's native/local label travels as name.
 const BOUNDARY_NAME_LOCALES = ["fr"];
 
-// The depth limit bounds malformed parent chains, including cycles.
 export function boundaryPathSql(requestLanguage = "en"): SQL<BoundaryPathEntry[]> {
   const nameLocales =
     requestLanguage === "en"
       ? BOUNDARY_NAME_LOCALES
       : [...new Set([...BOUNDARY_NAME_LOCALES, requestLanguage])];
   return sql`COALESCE((
-  WITH RECURSIVE chain AS (
-    SELECT osm_id, parent_id, name, name_en, names, admin_level, 1 AS depth
-    FROM admin_boundaries
-    WHERE osm_id = "projects"."admin_boundary_id"
-    UNION ALL
-    SELECT ab.osm_id, ab.parent_id, ab.name, ab.name_en, ab.names, ab.admin_level, c.depth + 1
-    FROM admin_boundaries ab
-    JOIN chain c ON ab.osm_id = c.parent_id
-    WHERE c.depth < 12
-  )
+  ${boundaryChainSql(sql`"projects"."admin_boundary_id"`)}
   SELECT json_agg(
     json_build_object('name', name, 'nameEn', name_en, 'names', (
       SELECT json_object_agg(n.k, n.v)

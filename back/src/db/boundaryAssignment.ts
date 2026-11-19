@@ -20,9 +20,20 @@ export async function resolveCountryCode(lat: number, lng: number): Promise<stri
   return rows[0]?.country_code ?? null;
 }
 
-// Walk the admin boundary parent chain from a project's assigned boundary up to the country,
-// returning the hierarchy ordered deepest-first (e.g. neighborhood, city, state, country) for a
-// location breadcrumb. The depth guard stops a malformed parent cycle from looping forever.
+// The depth limit bounds malformed parent chains, including cycles.
+export function boundaryChainSql(boundaryId: SQL): SQL {
+  return sql`WITH RECURSIVE chain AS (
+    SELECT osm_id, parent_id, name, name_en, names, admin_level, 1 AS depth
+    FROM admin_boundaries
+    WHERE osm_id = ${boundaryId}
+    UNION ALL
+    SELECT ab.osm_id, ab.parent_id, ab.name, ab.name_en, ab.names, ab.admin_level, c.depth + 1
+    FROM admin_boundaries ab
+    JOIN chain c ON ab.osm_id = c.parent_id
+    WHERE c.depth < 12
+  )`;
+}
+
 export async function resolveBoundaryPath(
   adminBoundaryId: string | null | undefined,
 ): Promise<BoundaryPathEntry[]> {
@@ -34,16 +45,7 @@ export async function resolveBoundaryPath(
       names: Record<string, string> | null;
       admin_level: number;
     }>(sql`
-      WITH RECURSIVE chain AS (
-        SELECT osm_id, parent_id, name, name_en, names, admin_level, 1 AS depth
-        FROM admin_boundaries
-        WHERE osm_id = ${adminBoundaryId}
-        UNION ALL
-        SELECT ab.osm_id, ab.parent_id, ab.name, ab.name_en, ab.names, ab.admin_level, c.depth + 1
-        FROM admin_boundaries ab
-        JOIN chain c ON ab.osm_id = c.parent_id
-        WHERE c.depth < 12
-      )
+      ${boundaryChainSql(sql`${adminBoundaryId}`)}
       SELECT name, name_en, names, admin_level FROM chain ORDER BY admin_level DESC
     `);
 
