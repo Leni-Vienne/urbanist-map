@@ -309,13 +309,14 @@ function getTagFilterExpression(): FilterSpecification | null {
 
   const conditions: unknown[] = [];
 
-  // Match any of the selected known tags. The backend sends 'tags' as a JSON array string in the tiles.
+  // Match full elements of the compact JSON array, including the first and last tags.
+  const tags = ["concat", ",", ["slice", ["to-string", ["get", "tags"]], 1, -1], ","];
   for (const tag of knownTags) {
     conditions.push([
       "case",
       ["has", "cluster_tags"],
       ["in", `,${tag},`, ["to-string", ["get", "cluster_tags"]]],
-      ["in", tag, ["to-string", ["get", "tags"]]],
+      ["in", `,${JSON.stringify(tag)},`, tags],
     ]);
   }
 
