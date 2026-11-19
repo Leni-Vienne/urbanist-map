@@ -33,19 +33,3 @@ export function getProjectEditValidationErrors(patch: ProjectPatch, baseline: Pr
   const result = validateProjectPatch(patch, baseline);
   return result.success ? null : getValidationErrors(result.error);
 }
-
-// Validates a project form against the selected timeline status: a proposed project carries only a
-// proposal date, any other status carries only start/end dates. Returns the errors, or null
-// when valid.
-export function getScopedProjectValidationErrors(formData: ProjectFormData) {
-  const isProposed = formData.timelineStatus === "proposed";
-  return getProjectValidationErrors({
-    ...formData,
-    proposalDate: isProposed ? formData.proposalDate : null,
-    proposalDatePrecision: isProposed ? formData.proposalDatePrecision : null,
-    startDate: isProposed ? null : formData.startDate,
-    startDatePrecision: isProposed ? null : formData.startDatePrecision,
-    endDate: isProposed ? null : formData.endDate,
-    endDatePrecision: isProposed ? null : formData.endDatePrecision,
-  });
-}
