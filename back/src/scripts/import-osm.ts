@@ -597,7 +597,7 @@ async function main() {
 
         // Centroid for lat/lng and center_coordinate
         const geom = feature.geometry as GeoJSON.Geometry | null;
-        const center = geom ? centroid(geom) : null;
+        const center = centroidsToResolve[i] ?? (geom ? centroid(geom) : null);
         const geometry: GeoJSON.GeometryCollection | null = geom
           ? { type: "GeometryCollection", geometries: [geom] }
           : null;
