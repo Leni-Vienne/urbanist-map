@@ -8,7 +8,7 @@ import {
   buildProjectModerationQuery,
   buildOverlayModerationQuery,
   addConflictFlags,
-  fetchModerationMapOverlays,
+  fetchMapOverlaysById,
 } from "../../db/helpers";
 import { TRPCError } from "@trpc/server";
 import * as z from "zod";
@@ -173,7 +173,7 @@ export const queueProcedures = {
 
         return {
           ...normalizeModerationCollections(projectsResult, overlaysResult, changes, reportCounts),
-          mapOverlays: await fetchModerationMapOverlays(mapOverlayIds),
+          mapOverlays: await fetchMapOverlaysById(db, mapOverlayIds),
         };
       } catch (error) {
         console.error("Error fetching pending submissions:", error);

@@ -228,11 +228,8 @@ export function buildOverlayVisibilityCondition(user: UserContext): SQL {
   return sql`(${overlays.status} = 'approved' OR (${overlays.authorId} = ${user.id} AND ${overlays.status} = 'pending'))`;
 }
 
-type OverlayChangeValue = { fieldName: string; newValue: unknown };
+type OverlayChangeRow = { entityId: string; fieldName: string; newValue: unknown };
 type OverlayLocationRow = Awaited<ReturnType<typeof fetchOverlayLocationRows>>[number];
-type MapOverlayRow = OverlayLocationRow["overlay"] & {
-  ownProposal: ReturnType<typeof buildOwnOverlayProposal>;
-};
 type MapProjectRow = OverlayLocationRow["project"] & {
   importSource: OverlayLocationRow["importSource"];
 };
@@ -251,16 +248,14 @@ function fetchOverlayLocationRows(database: DatabaseExecutor, whereConditions: S
     .orderBy(overlays.createdAt);
 }
 
-// The caller's own open overlay change requests, grouped by overlay id.
 async function fetchOwnOverlayChangeRequests(
   database: DatabaseExecutor,
   user: UserContext,
   overlayIds: string[],
-): Promise<Map<string, OverlayChangeValue[]>> {
-  const changeRequestsByOverlay = new Map<string, OverlayChangeValue[]>();
-  if (!user || overlayIds.length === 0) return changeRequestsByOverlay;
+): Promise<OverlayChangeRow[]> {
+  if (!user || overlayIds.length === 0) return [];
 
-  const changeRequestsData = await database
+  return database
     .select({
       entityId: changeRequests.entityId,
       fieldName: changeRequests.fieldName,
@@ -275,25 +270,32 @@ async function fetchOwnOverlayChangeRequests(
         eq(changeRequests.status, "pending"),
       ),
     );
-
-  for (const cr of changeRequestsData) {
-    const existing = changeRequestsByOverlay.get(cr.entityId) ?? [];
-    existing.push({ fieldName: cr.fieldName, newValue: cr.newValue });
-    changeRequestsByOverlay.set(cr.entityId, existing);
-  }
-
-  return changeRequestsByOverlay;
 }
 
-export async function fetchModerationMapOverlays(overlayIds: string[]) {
+export function withOwnOverlayProposals(
+  rows: OverlayLocationRow["overlay"][],
+  pendingOverlayChanges: OverlayChangeRow[],
+) {
+  const changeRequestsByOverlay = new Map<string, OverlayChangeRow[]>();
+  for (const cr of pendingOverlayChanges) {
+    const existing = changeRequestsByOverlay.get(cr.entityId) ?? [];
+    existing.push(cr);
+    changeRequestsByOverlay.set(cr.entityId, existing);
+  }
+  return rows.map((overlay) => ({
+    ...overlay,
+    ownProposal: buildOwnOverlayProposal(changeRequestsByOverlay.get(overlay.id) ?? []),
+  }));
+}
+
+export async function fetchMapOverlaysById(database: DatabaseExecutor, overlayIds: string[]) {
   if (overlayIds.length === 0) return [];
 
-  const rows = await db
+  return database
     .select(OVERLAY_COLUMNS)
     .from(overlays)
     .where(and(eq(overlays.kind, "map"), inArray(overlays.id, overlayIds)))
     .orderBy(overlays.createdAt);
-  return rows;
 }
 
 // Fetch overlays matching the given WHERE conditions, their parent projects, and the caller's own
@@ -304,24 +306,23 @@ export async function fetchOverlaysForMap(
   user: UserContext,
 ) {
   const overlaysData = await fetchOverlayLocationRows(database, whereConditions);
-  const changeRequestsByOverlay = await fetchOwnOverlayChangeRequests(
+  const overlayRows = overlaysData.map((row) => row.overlay);
+  const pendingOverlayChanges = await fetchOwnOverlayChangeRequests(
     database,
     user,
-    overlaysData.map((row) => row.overlay.id),
+    overlayRows.map((overlay) => overlay.id),
   );
 
-  const mapOverlays: MapOverlayRow[] = [];
   const projectsById = new Map<string, MapProjectRow>();
 
   for (const row of overlaysData) {
-    mapOverlays.push({
-      ...row.overlay,
-      ownProposal: buildOwnOverlayProposal(changeRequestsByOverlay.get(row.overlay.id) ?? []),
-    });
     projectsById.set(row.project.id, { ...row.project, importSource: row.importSource });
   }
 
-  return { overlays: mapOverlays, projects: [...projectsById.values()] };
+  return {
+    overlays: withOwnOverlayProposals(overlayRows, pendingOverlayChanges),
+    projects: [...projectsById.values()],
+  };
 }
 
 export function isModeratorOrAdmin(user: UserContext): boolean {

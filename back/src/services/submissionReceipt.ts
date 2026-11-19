@@ -4,7 +4,8 @@ import type { Transaction } from "../database";
 import { changeRequests, importSources, overlays, projects } from "../db/schema";
 import {
   buildOverlayModerationQuery,
-  fetchOverlaysForMap,
+  fetchMapOverlaysById,
+  withOwnOverlayProposals,
   PROJECT_COLUMNS,
   IMPORT_SOURCE_COLUMNS,
 } from "../db/helpers";
@@ -20,13 +21,13 @@ export async function getSubmissionReceipt(
 ) {
   const overlayIds = input.overlays.map((overlay) => overlay.id);
   const imageIds = input.render ? [...overlayIds, input.render.id] : overlayIds;
-  const [[project], mapData, imageRows, requests] = await Promise.all([
+  const [[project], overlayRows, imageRows, requests] = await Promise.all([
     tx
       .select({ ...PROJECT_COLUMNS, importSource: IMPORT_SOURCE_COLUMNS })
       .from(projects)
       .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
       .where(eq(projects.id, input.projectId)),
-    fetchOverlaysForMap(tx, [inArray(overlays.id, overlayIds)], user),
+    fetchMapOverlaysById(tx, overlayIds),
     buildOverlayModerationQuery(tx).where(inArray(overlays.id, imageIds)),
     getMyChangeRequests(
       tx,
@@ -38,5 +39,9 @@ export async function getSubmissionReceipt(
     ),
   ]);
   if (!project) throw new Error("Submitted project disappeared before acknowledgement");
-  return { project, mapOverlays: mapData.overlays, images: imageRows, changeRequests: requests };
+  const pendingOverlayChanges = requests.filter(
+    (request) => request.entityType === "overlay" && request.status === "pending",
+  );
+  const mapOverlays = withOwnOverlayProposals(overlayRows, pendingOverlayChanges);
+  return { project, mapOverlays, images: imageRows, changeRequests: requests };
 }
