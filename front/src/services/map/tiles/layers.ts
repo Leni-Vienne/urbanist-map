@@ -1126,6 +1126,8 @@ function getFeatureSourceLayer(feature: MapGeoJSONFeature): string {
 /** Extract hover card data from a vector tile feature's properties. */
 function getHoverDataFromFeature(feature: MapGeoJSONFeature): HoverProjectData {
   const name = getFeatureProperty(feature, "name");
+  const construction: unknown = feature.properties.construction;
+  const importSourceType = getFeatureProperty(feature, "import_source_type");
   const timelineStatus = parseTimelineStatus(getFeatureProperty(feature, "timeline_status"));
   // Tags are encoded as a JSON array string in the tile (e.g. '["building","road"]')
   let tags: string[] = [];
@@ -1135,7 +1137,13 @@ function getHoverDataFromFeature(feature: MapGeoJSONFeature): HoverProjectData {
   } catch {
     // malformed tags, leave empty
   }
-  return { name, timelineStatus, tags };
+  return {
+    name,
+    externalProperties: typeof construction === "string" ? { construction } : null,
+    importSource: importSourceType ? { type: importSourceType } : null,
+    timelineStatus,
+    tags,
+  };
 }
 
 type ProjectShapeLayerSpec =

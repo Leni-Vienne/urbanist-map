@@ -25,6 +25,18 @@ function matchesPendingProjectFilters(project: Project, hasOverlay: boolean): bo
   });
 }
 
+function projectFeatureProperties(project: Project) {
+  const construction = project.externalProperties?.construction;
+  return {
+    name: project.name,
+    construction: typeof construction === "string" ? construction : null,
+    import_source_type: project.importSource?.type ?? null,
+    timeline_status: project.timelineStatus,
+    tags: JSON.stringify(project.tags),
+    first_tag: project.tags[0] ?? null,
+  };
+}
+
 function createProjectPoint(project: Project, lng: number, lat: number): GeoJSON.Feature {
   return {
     type: "Feature",
@@ -34,9 +46,7 @@ function createProjectPoint(project: Project, lng: number, lat: number): GeoJSON
     },
     properties: {
       id: project.id,
-      name: project.name,
-      tags: JSON.stringify(project.tags),
-      first_tag: project.tags[0] ?? null,
+      ...projectFeatureProperties(project),
       status: project.status,
       cell_count: 1,
       render_filename: project.render?.filename,
@@ -64,10 +74,7 @@ function createOverlayFootprint(
       project_id: project.id,
       sourceLayer: "overlay-footprints",
       status: overlay.status,
-      name: project.name,
-      timeline_status: project.timelineStatus,
-      tags: JSON.stringify(project.tags),
-      first_tag: project.tags[0] ?? null,
+      ...projectFeatureProperties(project),
     },
   };
 }
@@ -84,10 +91,7 @@ function createProjectShapeFeature(
       id: project.id,
       sourceLayer: "project-shapes",
       status: project.status,
-      name: project.name,
-      timeline_status: project.timelineStatus,
-      tags: JSON.stringify(project.tags),
-      first_tag: project.tags[0] ?? null,
+      ...projectFeatureProperties(project),
       render_filename: project.render?.filename,
       render_status: project.render?.status,
       render_lng: project.lng,

@@ -77,7 +77,13 @@ test("source observer follows persisted session changes and catches up after dis
   useUiStore().setMode("edit");
   const projectStore = useProjectStore();
   const project = {
-    ...createLocalProject({ id: "project", name: "Before", lat: 48, lng: 2 }),
+    ...createLocalProject({
+      id: "project",
+      lat: 48,
+      lng: 2,
+      externalProperties: { construction: "light_rail" },
+      importSource: { id: "osm", type: "osm", name: "OpenStreetMap", urlTemplate: null },
+    }),
     status: "pending" as const,
   };
   projectStore.upsertProjectSummary(project);
@@ -90,7 +96,11 @@ test("source observer follows persisted session changes and catches up after dis
   function latestPoints() {
     return points.mock.calls.at(-1)?.[0].features;
   }
-  expect(latestPoints()?.[0]?.properties?.name).toBe("Before");
+  expect(latestPoints()?.[0]?.properties).toMatchObject({
+    name: "",
+    construction: "light_rail",
+    import_source_type: "osm",
+  });
 
   // Membership stays fixed: a persisted receipt field still needs to refresh the source.
   projectStore.updatePersistedProject(project.id, { name: "After", lng: 3 });

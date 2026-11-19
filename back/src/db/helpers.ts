@@ -173,6 +173,7 @@ export function buildProjectModerationQuery(database: Database) {
   return database
     .select({
       ...PROJECT_COLUMNS,
+      importSource: IMPORT_SOURCE_COLUMNS,
       hasImage: sql<boolean>`EXISTS (
         SELECT 1
         FROM overlays AS project_image
@@ -185,6 +186,7 @@ export function buildProjectModerationQuery(database: Database) {
       countryName: countryNameSql,
     })
     .from(projects)
+    .leftJoin(importSources, eq(importSources.id, projects.importSourceId))
     .leftJoin(users, eq(projects.ownerId, users.id));
 }
 

@@ -69,7 +69,7 @@
                 type="button"
                 :aria-label="$t('project.centerOnMap')"
                 class="min-w-0 p-0 text-left text-base font-semibold leading-snug wrap-break-word bg-transparent border-0 cursor-pointer underline-offset-2 hover:text-primary-color hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color"
-                :class="project?.name ? 'text-color' : 'text-muted-color italic'"
+                :class="project?.name?.trim() ? 'text-color' : 'text-muted-color italic'"
                 @click="handleRecenter"
               >
                 {{ displayName }}
@@ -77,7 +77,7 @@
               <span
                 v-else
                 class="text-base font-semibold leading-snug wrap-break-word"
-                :class="project?.name ? 'text-color' : 'text-muted-color italic'"
+                :class="project?.name?.trim() ? 'text-color' : 'text-muted-color italic'"
               >
                 {{ displayName }}
               </span>
@@ -279,7 +279,7 @@ import { buildShapeBounds } from "@/utils/cornersBounds";
 import { openProjectForEditing } from "@/services/core/projectSelection";
 
 import { buildImageUrl, buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
-import { formatConstructionName } from "@shared/osmRules";
+import { getProjectDisplayName } from "@/utils/projectDisplayName";
 import type { ProjectMapOverlay } from "@/types/index";
 
 import ProjectMetadataCard from "@/components/map/popups/ProjectMetadataCard.vue";
@@ -293,7 +293,8 @@ interface DetailImage {
   referrerpolicy?: "no-referrer";
 }
 
-const { t } = useI18n();
+const i18n = useI18n();
+const { t } = i18n;
 const emit = defineEmits<{ "content-height": [height: number] }>();
 const detailPanel = useTemplateRef<HTMLElement>("detailPanel");
 
@@ -395,13 +396,11 @@ const { entity: wikidataEntity } = useWikidataEntity(
   computed(() => project.value?.externalProperties ?? null),
 );
 
-const displayName = computed(() => {
-  const current = project.value;
-  if (current?.name) return current.name;
-  const constructionName = formatConstructionName(current?.externalProperties?.construction);
-  if (constructionName) return constructionName;
-  return current?.importSource?.type === "osm" ? t("project.osmName") : t("project.unnamed");
-});
+const displayName = computed(readDisplayName);
+
+function readDisplayName(): string {
+  return getProjectDisplayName(project.value, i18n);
+}
 
 // Project render (artist's impression), delivered with the project by project.getById. The backend
 // already scopes this to approved or the user's own pending render.

@@ -15,8 +15,8 @@
         />
         <span
           class="font-semibold truncate"
-          :class="project.name ? '' : 'text-muted-color italic'"
-          >{{ project.name || (isOsmImport ? $t("project.osmName") : $t("project.unnamed")) }}</span
+          :class="project.name?.trim() ? '' : 'text-muted-color italic'"
+          >{{ getProjectDisplayName(project, i18n) }}</span
         >
       </div>
       <div class="flex items-center gap-1.5 shrink-0 mr-2">
@@ -298,6 +298,7 @@ import { useWikidataEntity } from "@/composables/project/useWikidataEntity";
 import { toastWarn, toastError } from "@/services/core/toast";
 import { mobileAwareFlyToBounds } from "@/services/core/mapNavigation";
 import { buildShapeBounds } from "@/utils/cornersBounds";
+import { getProjectDisplayName } from "@/utils/projectDisplayName";
 import { navigateToProject } from "@/services/navigation/projectNavigation";
 import { highlightOverlayById, removeOverlayHighlight } from "@/services/overlay/selection";
 
@@ -306,7 +307,8 @@ import ChangeRequestSection from "@/components/layout/ChangeRequestSection.vue";
 import ImageLightbox from "@/components/common/ImageLightbox.vue";
 import ProjectMetadataCard from "@/components/map/popups/ProjectMetadataCard.vue";
 
-const { t } = useI18n();
+const i18n = useI18n();
+const { t } = i18n;
 const authStore = useAuthStore();
 const focusStore = useFocusStore();
 const projectStore = useProjectStore();

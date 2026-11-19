@@ -26,6 +26,26 @@ tile_env AS (
     $3::integer * cells_per_tile AS grid_y_offset
   FROM tile_grid
 ),
+project_tile_data AS NOT MATERIALIZED (
+  SELECT p.*,
+    CASE WHEN NULLIF(BTRIM(p.name), '') IS NULL
+      AND jsonb_typeof(metadata.properties->'construction') = 'string'
+      THEN metadata.properties->>'construction'
+    END AS construction,
+    source.type AS import_source_type
+  FROM projects p
+  LEFT JOIN import_sources source
+    ON source.id = p.import_source_id
+    AND NULLIF(BTRIM(p.name), '') IS NULL
+  CROSS JOIN LATERAL (
+    SELECT CASE
+      WHEN jsonb_typeof(p.external_properties) = 'string'
+        AND pg_input_is_valid(p.external_properties #>> '{}', 'jsonb')
+        THEN (p.external_properties #>> '{}')::jsonb
+      ELSE p.external_properties
+    END AS properties
+  ) metadata
+),
 shapes AS (
   -- Generate the 'project-shapes' vector tile layer containing physical structures (polygons/lines).
   -- Shapes are gated by both zoom and size to avoid noise in dense areas at mid-zoom.
@@ -45,6 +65,8 @@ shapes AS (
       ) AS mvt_geom,
       p.id,
       p.name,
+      p.construction,
+      p.import_source_type,
       array_to_json(COALESCE(p.tags, ARRAY[]::text[]))::text AS tags,
       COALESCE(p.tags[1], '') AS first_tag,
       p.timeline_status,
@@ -56,7 +78,7 @@ shapes AS (
       EXTRACT(EPOCH FROM COALESCE(p.external_last_modified, p.updated_at))::bigint AS last_modified_s,
       -- Any approved image satisfies the project filter, including non-georeferenced renders.
       EXISTS (SELECT 1 FROM overlays image WHERE image.project_id = p.id AND image.status = 'approved') AS has_image
-    FROM projects p
+    FROM project_tile_data p
     LEFT JOIN LATERAL (
       SELECT image.filename
       FROM overlays image
@@ -97,6 +119,8 @@ footprints AS (
       o.caption,
       o.project_id,
       NULLIF(BTRIM(p.name), '') AS name,
+      p.construction,
+      p.import_source_type,
       array_to_json(COALESCE(p.tags, ARRAY[]::text[]))::text AS tags,
       COALESCE(p.tags[1], '') AS first_tag,
       p.timeline_status,
@@ -113,7 +137,7 @@ footprints AS (
       ST_Y(ST_PointN(ST_ExteriorRing(o.corners), 4)) AS c3_lat,
       ST_X(ST_PointN(ST_ExteriorRing(o.corners), 4)) AS c3_lng
     FROM overlays o
-    JOIN projects p ON p.id = o.project_id,
+    JOIN project_tile_data p ON p.id = o.project_id,
     tile_env te
     WHERE $1 >= 12
       AND o.status = 'approved'
@@ -278,6 +302,8 @@ points AS (
       ) AS mvt_geom,
       f.id,
       f.name,
+      title.construction,
+      title.import_source_type,
       array_to_json(f.tags)::text AS tags,
       f.first_tag,
       f.timeline_status,
@@ -324,6 +350,12 @@ points AS (
       ON ca.grid_x = f.grid_x
       AND ca.grid_y = f.grid_y
       AND f.cell_count > 1
+    LEFT JOIN LATERAL (
+      SELECT p.construction, p.import_source_type
+      FROM project_tile_data p
+      WHERE p.id = f.id AND f.cell_count = 1 AND f.is_named = 0
+      LIMIT 1
+    ) title ON true
     LEFT JOIN LATERAL (
       SELECT image.filename
       FROM overlays image

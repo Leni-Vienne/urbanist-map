@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { extractTags } from "./osmDerive";
-import { formatConstructionName, isRedevelopmentSite } from "@shared/osmRules";
+import { isRedevelopmentSite } from "@shared/osmRules";
+import { formatConstructionName } from "@shared/osmConstructionName";
 
 describe("OSM construction fallback tag", () => {
   test("tags a bare construction landuse", () => {

@@ -42,9 +42,9 @@
         <!-- Project name -->
         <span
           class="text-sm font-semibold leading-snug"
-          :class="hoverPreview.data.name ? 'text-color' : 'text-muted-color italic'"
+          :class="hoverPreview.data.name?.trim() ? 'text-color' : 'text-muted-color italic'"
         >
-          {{ hoverPreview.data.name || $t("project.unnamed") }}
+          {{ getProjectDisplayName(hoverPreview.data, i18n) }}
         </span>
         <!-- Timeline status with dashed line preview matching the map vector style -->
         <div class="flex items-center gap-1.5">
@@ -77,8 +77,10 @@ import { PROJECT_TAG_MAP, DEFAULT_TAG_COLOR } from "@/constants/projectTags";
 import LinePreview from "@/components/common/LinePreview.vue";
 import TagChip from "@/components/common/TagChip.vue";
 import { useFocusStore } from "@/stores/focusStore";
+import { getProjectDisplayName } from "@/utils/projectDisplayName";
 
-const { te: $te, t: $t } = useI18n();
+const i18n = useI18n();
+const { te: $te, t: $t } = i18n;
 const focusStore = useFocusStore();
 
 // Suppress when a persistent detail panel is already open for the hovered project

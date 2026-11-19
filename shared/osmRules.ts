@@ -32,15 +32,6 @@ const LIFECYCLE_VALUES = new Set(["proposed", "planned", "construction"]);
 const LIFECYCLE_PREFIX_RE = /^(?:proposed|planned|construction):/;
 const AREA_LIFECYCLE_KEY_RE = /^(?:proposed|planned|construction):(?:building|landuse|leisure)$/;
 const PLAIN_LIFECYCLE_KEYS = ["construction", "proposed", "planned"];
-const NON_DESCRIPTIVE_CONSTRUCTION_VALUES = new Set([
-  "",
-  "yes",
-  "no",
-  "construction",
-  "proposed",
-  "planned",
-]);
-
 /**
  * True when the feature is an existing site whose project is expressed only through
  * lifecycle-namespaced keys. When the lifecycle signal sits on plain keys instead
@@ -323,11 +314,4 @@ export function hasConstructionSignal(props: JsonObject): boolean {
     construction.trim() !== "" &&
     construction.trim().toLowerCase() !== "no"
   );
-}
-
-export function formatConstructionName(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const normalized = value.trim().replaceAll("_", " ").replace(/\s+/g, " ");
-  if (NON_DESCRIPTIVE_CONSTRUCTION_VALUES.has(normalized.toLowerCase())) return null;
-  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
