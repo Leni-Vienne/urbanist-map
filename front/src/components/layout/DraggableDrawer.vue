@@ -48,9 +48,10 @@
           <slot></slot>
         </div>
 
-        <div v-if="currentHeight >= FOOTER_HEIGHT_PERCENT && $slots.footer" class="shrink-0">
+        <div v-if="$slots.footer" class="drawer-footer shrink-0 overflow-clip">
           <slot name="footer"></slot>
         </div>
+        <div class="h-[env(safe-area-inset-bottom)] shrink-0"></div>
       </div>
     </div>
   </Teleport>
@@ -68,7 +69,6 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const MAX_HEIGHT_PERCENT = 75;
-const FOOTER_HEIGHT_PERCENT = 40;
 const PEEK_HEIGHT_PX = 128;
 
 const currentHeight = defineModel<number>("heightPercent", { required: true });
@@ -196,7 +196,17 @@ onBeforeUnmount(() => {
   min-height: var(--resting-height);
   height: var(--drawer-height);
   translate: 0 max(0px, calc(var(--resting-height) - var(--drawer-height)));
-  padding-bottom: env(safe-area-inset-bottom);
+  container: mobile-drawer / size;
+}
+
+.drawer-footer {
+  max-height: max(0px, calc(100% - 40dvh));
+}
+
+@container mobile-drawer (height <= 40dvh) {
+  .drawer-footer {
+    visibility: hidden;
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
