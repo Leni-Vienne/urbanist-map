@@ -256,7 +256,7 @@
     "clusterProjectsPlus": "(+{count} projets)",
     "controls": {
       "filterProjects": "Filtrer les projets par statut",
-      "onlyVisibleArea": "Limiter à la zone visible",
+      "onlyVisibleArea": "Rechercher dans cette zone",
       "zoomInToFilterArea": "Zoomez pour filtrer par zone",
       "filterByStatus": "Avancement",
       "filterByName": "Nom",
@@ -353,7 +353,7 @@
   },
   "app": {
     "title": "Urbanistmap.org",
-    "subtitle": "Une carte participative des projets d'aménagement urbain dans le monde"
+    "subtitle": "Une carte participative des projets d'aménagement urbain"
   },
   "footer": {
     "legal": "Mentions légales",

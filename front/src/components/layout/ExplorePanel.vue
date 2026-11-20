@@ -114,7 +114,8 @@
         <template #option="{ option: row }">
           <div
             :ref="(element) => setRowElement(row.contribution.id, element)"
-            class="flex h-full min-w-0 w-full items-center gap-3 px-2 py-2 transition-colors duration-150 hover:bg-black/5 dark:hover:bg-white/10"
+            class="flex h-full min-w-0 w-full items-center gap-3 py-2 pr-2 transition-colors duration-150 hover:bg-black/5 dark:hover:bg-white/10"
+            :class="isMobile ? 'pl-2' : 'pl-4'"
             @mouseenter="handleContributionHover(row.contribution, row.color)"
             @mouseleave="clearContributionHover(row.contribution.id)"
           >

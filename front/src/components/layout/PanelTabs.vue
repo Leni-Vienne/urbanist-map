@@ -12,7 +12,8 @@
         type="button"
         :class="[
           'flex-1 py-2 text-sm border-b-2 bg-transparent font-medium cursor-pointer transition-all duration-150 text-center hover:bg-(--p-content-hover-background)',
-          variant === 'desktop' ? 'px-1' : 'min-[360px]:px-0.5',
+          variant === 'desktop' ? 'first:pl-4 first:text-left' : 'min-[360px]:px-0.5',
+          variant === 'desktop' && (authStore.isModerator ? 'px-0.5' : 'px-1'),
           variant === 'mobile' && authStore.isModerator && 'max-[389px]:text-xs',
           isSelected(tab)
             ? 'font-semibold text-primary-color border-primary-color hover:text-primary-hover-color'

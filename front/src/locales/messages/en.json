@@ -256,7 +256,7 @@
     "clusterProjectsPlus": "(+{count} projects)",
     "controls": {
       "filterProjects": "Filter projects by status",
-      "onlyVisibleArea": "Limit to the visible area",
+      "onlyVisibleArea": "Search this area",
       "zoomInToFilterArea": "Zoom in to filter by area",
       "filterByStatus": "Project status",
       "filterByName": "Name",

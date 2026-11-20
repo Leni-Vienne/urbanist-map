@@ -6,7 +6,7 @@
       --p-accordion-header-active-hover-background: var(--p-content-hover-background);
     "
   >
-    <div class="shrink-0 py-2 px-4">
+    <div class="shrink-0 px-4 pt-2 pb-0.5">
       <h2 class="text-[1.75rem] font-semibold leading-tight text-color">
         {{ $t("app.title") }}
       </h2>
