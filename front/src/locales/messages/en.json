@@ -67,7 +67,7 @@
   },
   "navigation": {
     "drawerHeight": "Panel height",
-    "latestContributions": "Explore",
+    "urbanistmap": "Urbanistmap",
     "filter": "Filter",
     "contribute": "Contribute",
     "unsavedOverlaysWarning": "You have unsaved images. Navigating will discard them. Continue?"
@@ -189,8 +189,6 @@
     }
   },
   "contribution": {
-    "projectSource": "Project source",
-    "siteAndOsm": "{site} + {source}",
     "projects": "Projects",
     "loadMoreError": "Could not load more projects.",
     "loadError": "Could not load projects.",
@@ -203,7 +201,6 @@
     "projectCountUnavailable": "Project count unavailable",
     "noMatchingContributions": "Nothing matches these filters yet.",
     "tryWideningFilters": "Widen a filter, or add the first one from Contribute.",
-    "moreFilters": "More filters",
     "mapArea": "Map area",
     "moreProjectsWithOsm": "See OpenStreetMap projects"
   },

@@ -1,6 +1,6 @@
 <template>
   <div
-    class="z-10 shrink-0 w-95 bg-content-background shadow-[2px_0_8px_rgba(0,0,0,0.1),6px_0_24px_-6px_rgba(0,0,0,0.12)] flex flex-col overflow-hidden"
+    class="z-10 shrink-0 w-100 bg-content-background shadow-[2px_0_8px_rgba(0,0,0,0.1),6px_0_24px_-6px_rgba(0,0,0,0.12)] flex flex-col overflow-hidden"
     style="
       --p-accordion-header-hover-background: var(--p-content-hover-background);
       --p-accordion-header-active-hover-background: var(--p-content-hover-background);

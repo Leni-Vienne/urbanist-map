@@ -30,69 +30,24 @@
       @dblclick="resetDetailHeight"
     ></div>
 
-    <div class="shrink-0 bg-content-background border-b border-surface">
-      <div class="px-2 py-1 flex items-center gap-1">
-        <Select
-          ref="sourceSelect"
-          v-model="isOsmIncluded"
-          :options="sourceOptions"
-          option-label="label"
-          option-value="includesOsm"
-          :ariaLabel="t('contribution.projectSource')"
-          size="small"
-          class="explore-source-select min-w-0"
-          overlay-class="explore-source-options"
-          label-class="font-medium"
-          @before-show="sourceMenuOpen = true"
-          @before-hide="sourceMenuOpen = false"
-        >
-          <template #value>
-            <span class="grid">
-              <span class="col-start-1 row-start-1 truncate" :class="{ invisible: isOsmIncluded }">
-                {{ t("app.title") }}
-              </span>
-              <span class="col-start-1 row-start-1 truncate" :class="{ invisible: !isOsmIncluded }">
-                {{ t("contribution.siteAndOsm", { site: t("app.title"), source: "OSM" }) }}
-              </span>
-            </span>
-          </template>
-        </Select>
-
-        <div v-if="!isMobile" class="relative ml-auto inline-flex shrink-0">
-          <span
-            v-if="showFilterDot"
-            class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-content-background pointer-events-none z-10"
-          />
-          <Button
-            @click="toggleFilterPopover"
-            icon="pi pi-sliders-h"
-            :label="t('navigation.filter')"
-            size="small"
-            severity="secondary"
-            v-tooltip.top="t('contribution.moreFilters')"
-            :aria-label="t('contribution.moreFilters')"
-          />
-        </div>
-      </div>
-
-      <!-- Applied filters, removable in place. Relaxing a filter is the common case and needs no
-         trip back to the full palette. -->
-      <div v-if="hasPopoverFilters" class="flex flex-wrap items-center gap-1.5 px-2 pb-2">
-        <button v-if="mapArea" type="button" :class="filterChipClass" @click="clearMapArea">
-          {{ t("contribution.mapArea") }}
-          <i class="pi pi-times text-[0.6rem] text-muted-color"></i>
-        </button>
-        <button
-          v-for="filter in activeFilters"
-          :key="filterKey(filter)"
-          type="button"
-          :class="filterChipClass"
-          @click="clearActiveFilter(filter)"
-        >
-          {{ filterLabel(filter) }}
-          <i class="pi pi-times text-[0.6rem] text-muted-color"></i>
-        </button>
-      </div>
+    <div
+      v-if="hasFeedFilters"
+      class="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-surface px-2 py-2"
+    >
+      <button v-if="mapArea" type="button" :class="filterChipClass" @click="clearMapArea">
+        {{ t("contribution.mapArea") }}
+        <i class="pi pi-times text-[0.6rem] text-muted-color"></i>
+      </button>
+      <button
+        v-for="filter in activeFilters"
+        :key="filterKey(filter)"
+        type="button"
+        :class="filterChipClass"
+        @click="clearActiveFilter(filter)"
+      >
+        {{ filterLabel(filter) }}
+        <i class="pi pi-times text-[0.6rem] text-muted-color"></i>
+      </button>
     </div>
 
     <div
@@ -244,7 +199,7 @@
         rows.length > 0 &&
         !hasMore &&
         !isOsmIncluded &&
-        !hasPopoverFilters &&
+        !hasFeedFilters &&
         !isLoading &&
         !isFeedStale &&
         !hasLoadMoreError
@@ -281,18 +236,6 @@
         @click="retryFeed"
       />
     </div>
-
-    <Popover ref="filterPopover" appendTo="body" :pt="{ root: { class: 'filter-popover' } }">
-      <!-- overflow-x hidden removes the spurious horizontal scrollbar from the sliders -->
-      <div
-        class="min-w-55 max-w-75 overflow-y-auto overflow-x-hidden scroll-pt-9 pr-1"
-        :style="{
-          maxHeight: `calc(${filterPopoverHeight}px - 2 * var(--p-popover-content-padding) - 2px)`,
-        }"
-      >
-        <FilterPanelContent />
-      </div>
-    </Popover>
   </div>
 </template>
 
@@ -310,7 +253,6 @@ import {
 } from "vue";
 import { useI18n } from "vue-i18n";
 import Listbox, { type ListboxChangeEvent } from "primevue/listbox";
-import type { SelectMethods } from "primevue/select";
 import type { VirtualScrollerLazyEvent } from "primevue/virtualscroller";
 import { storeToRefs } from "pinia";
 import { useLatestContributionsStore } from "@/stores/latestContributionsStore";
@@ -324,7 +266,6 @@ import { buildThumbnailUrl, imageRequiresCredentials } from "@/utils/imageUrl";
 import { getProjectTagIcon, getProjectTagColor } from "@/constants/projectTags";
 import ShapeThumbnail from "@/components/common/ShapeThumbnail.vue";
 import PanelEmptyState from "@/components/common/PanelEmptyState.vue";
-import FilterPanelContent from "@/components/map/FilterPanelContent.vue";
 import { formatRelativeTime } from "@/utils/dateFormat";
 import { boundaryLocationParts, formatBoundaryLocation } from "@/utils/locationDisplay";
 import { useImageErrors } from "@/composables/ui/useImageErrors";
@@ -332,7 +273,6 @@ import { useDetailPanel } from "@/composables/layout/useDetailPanel";
 import { useFocusStore, type FocusTarget } from "@/stores/focusStore";
 import { useUiStore } from "@/stores/uiStore";
 import { isMobile } from "@/services/core/viewport";
-import { filtersSeen } from "@/services/core/settings";
 
 import { useScrollAnchor } from "@/composables/ui/useScrollAnchor";
 import {
@@ -362,9 +302,6 @@ const { activateLatestContributions, loadMoreLatestContributions, clearMapArea }
 const ProjectDetailPanel = defineAsyncComponent(() => import("./ProjectDetailPanel.vue"));
 
 const { t, te, locale } = useI18n();
-const sourceOptions = computed(getSourceOptions);
-const sourceSelect = useTemplateRef<SelectMethods>("sourceSelect");
-const sourceMenuOpen = ref(false);
 const uiStore = useUiStore();
 const focusStore = useFocusStore();
 const { detailVisible } = useDetailPanel();
@@ -374,21 +311,6 @@ const DEFAULT_DETAIL_HEIGHT = 240;
 const DETAIL_DIVIDER_HEIGHT = 8;
 const MIN_LIST_HEIGHT = 160;
 const explorePanel = useTemplateRef<HTMLElement>("explorePanel");
-
-function getSourceOptions() {
-  const site = t("app.title");
-  return [
-    { label: site, includesOsm: false },
-    {
-      label: t("contribution.siteAndOsm", { site, source: t("project.osmSource") }),
-      includesOsm: true,
-    },
-  ];
-}
-
-function closeSourceMenu(): void {
-  if (sourceMenuOpen.value) sourceSelect.value?.hide();
-}
 
 const panelHeight = ref(0);
 const manualDetailHeight = ref(DEFAULT_DETAIL_HEIGHT);
@@ -462,7 +384,6 @@ function observePanelHeight(): void {
   panelHeight.value = panel.clientHeight;
   panelObserver = new ResizeObserver(() => {
     panelHeight.value = panel.clientHeight;
-    closeSourceMenu();
   });
   panelObserver.observe(panel);
 }
@@ -479,7 +400,6 @@ function startDetailResize(event: PointerEvent): void {
   if (!event.isPrimary || event.button !== 0 || !(event.currentTarget instanceof HTMLElement)) {
     return;
   }
-  closeSourceMenu();
   event.preventDefault();
   event.currentTarget.focus();
   event.currentTarget.setPointerCapture(event.pointerId);
@@ -537,13 +457,10 @@ onMounted(() => {
 
 const { imageErrors, handleImageError } = useImageErrors();
 
-// Everything reachable only through the popover, so the button can show that something is applied.
-const hasPopoverFilters = computed(() => activeFilters.value.length > 0 || mapArea.value !== null);
+const hasFeedFilters = computed(() => activeFilters.value.length > 0 || mapArea.value !== null);
 // Drives the empty-state copy: an empty list means something different when the query was narrowed.
 // Leaving OSM out is itself a narrowing, so the default community-only view counts.
-const hasNarrowedQuery = computed(() => hasPopoverFilters.value || !isOsmIncluded.value);
-// Before the filter surface has ever been opened the dot is a discovery hint instead.
-const showFilterDot = computed(() => hasPopoverFilters.value || !filtersSeen.value);
+const hasNarrowedQuery = computed(() => hasFeedFilters.value || !isOsmIncluded.value);
 
 // Applied-filter pill, shared by the map-area chip and the per-filter chips.
 const filterChipClass =
@@ -610,33 +527,6 @@ const rows = computed(() =>
     };
   }),
 );
-const filterPopoverHeight = ref(0);
-
-function toggleFilterPopover(event: MouseEvent): void {
-  if (!(event.currentTarget instanceof HTMLElement)) return;
-  const { top, bottom } = event.currentTarget.getBoundingClientRect();
-  const viewportHeight = window.innerHeight;
-  const below = viewportHeight - bottom;
-  const maxHeight = Math.min(600, viewportHeight * 0.7);
-  const edgeClearance = 14; // 10px popover gutter and 4px viewport clearance.
-  const aboveHeight = Math.min(maxHeight, top - edgeClearance);
-  // PrimeVue flips only when the popover's box, excluding its gutter, cannot fit below.
-  filterPopoverHeight.value =
-    aboveHeight > below + 1 ? aboveHeight : Math.min(maxHeight, below - edgeClearance);
-  filterPopover.value?.toggle(event);
-}
-
-function closeFilterPopover(): void {
-  filterPopover.value?.hide();
-}
-
-watch([showDesktopDetail, detailHeight], closeFilterPopover);
-
-const filterPopover = ref<{
-  toggle: (event: Event) => void;
-  hide: () => void;
-} | null>(null);
-
 function filterKey(filter: ActiveFilter): string {
   return JSON.stringify(filter);
 }
@@ -862,10 +752,7 @@ function anchorClosingDetail(visible: boolean): void {
 watch(showDesktopDetail, anchorClosingDetail);
 
 function handleDetailVisibilityChange(visible: boolean): void {
-  if (visible) {
-    closeSourceMenu();
-    return;
-  }
+  if (visible) return;
   if (
     uiStore.activeTab === "explore" &&
     document.activeElement?.closest(".project-detail-panel, .explore-detail-divider")
@@ -883,8 +770,6 @@ function handleActiveTabChange(activeTab: typeof uiStore.activeTab): void {
   } else {
     clearDetailFit();
     clearAnchor();
-    closeSourceMenu();
-    closeFilterPopover();
     clearContributionHover();
   }
 }
@@ -900,37 +785,6 @@ onBeforeUnmount(teardownExplorePanel);
 </script>
 
 <style scoped>
-.explore-source-select {
-  --p-select-background: transparent;
-  --p-select-shadow: none;
-  --p-select-sm-font-size: 0.8125rem;
-  --p-select-sm-padding-x: 0.375rem;
-  --p-select-sm-padding-y: 0.3125rem;
-  --p-select-dropdown-width: 1.25rem;
-}
-
-.explore-source-select:hover {
-  background: var(--p-content-hover-background);
-}
-
-:global(.explore-source-options) {
-  z-index: 1200 !important;
-  font-size: 0.8125rem;
-  --p-select-option-padding: 0.375rem 0.625rem;
-  --p-select-option-selected-background: color-mix(
-    in srgb,
-    var(--p-primary-color) 10%,
-    transparent
-  );
-  --p-select-option-selected-focus-background: color-mix(
-    in srgb,
-    var(--p-primary-color) 16%,
-    transparent
-  );
-  --p-select-option-selected-color: var(--p-text-color);
-  --p-select-option-selected-focus-color: var(--p-text-color);
-}
-
 .explore-detail-section {
   flex: 0 0 auto;
   min-height: 0;
