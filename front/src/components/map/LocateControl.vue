@@ -66,9 +66,10 @@ function attachControl([target]: [MaplibreMap | null, number]): void {
   if (!target) return;
   const map = target;
   const next = new GeolocateControl({
-    trackUserLocation: true,
-    positionOptions: { maximumAge: 30_000, timeout: 15_000 },
+    trackUserLocation: false,
+    positionOptions: { maximumAge: 30_000, timeout: 5000 },
     fitBoundsOptions: {
+      animate: false,
       maxZoom: 16,
       absolutePadding: true,
       get padding() {
