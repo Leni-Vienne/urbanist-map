@@ -6,7 +6,7 @@
     @click.stop
     @dblclick.stop
   >
-    <i class="pi pi-search" />
+    <i class="pi pi-search pointer-events-none" aria-hidden="true" />
     <AutoComplete
       v-model="selectedCity"
       :suggestions="suggestions"
@@ -19,7 +19,7 @@
       :loading="isLoading"
       :dropdown="false"
       name="city-search"
-      :pt="{ pcInputText: { root: { dir: 'auto' } } }"
+      :pt="{ pcInputText: { root: { dir: 'auto', 'aria-label': $t('search.cities') } } }"
     >
       <template #option="{ option }">
         <div class="flex flex-col min-w-0 w-full leading-tight">
@@ -30,6 +30,9 @@
         </div>
       </template>
     </AutoComplete>
+    <div class="absolute inset-y-px right-px z-1 w-(--locate-button-width)">
+      <LocateControl />
+    </div>
   </div>
 </template>
 
@@ -44,6 +47,7 @@ import { LngLatBounds } from "maplibre-gl";
 import { loadOrNull } from "@/services/core/errorHandling";
 import { countAlphanumeric, MIN_LOCATION_SEARCH_ALNUM } from "@shared/locationSearch";
 import { localizedBoundaryName } from "@shared/types/boundary";
+import LocateControl from "@/components/map/LocateControl.vue";
 
 type BoundarySearchResult = RouterOutput["boundaries"]["searchBoundariesNearLocation"][number];
 type BoundarySuggestion = BoundarySearchResult & {
@@ -142,14 +146,27 @@ const MAX_BOUNDARY_ZOOM = 16;
 </script>
 
 <style scoped>
+.city-search {
+  --locate-button-width: 2.75rem;
+}
+
 :deep(.p-autocomplete-input) {
-  padding: 0.5rem 0.75rem 0.5rem 2.5rem;
+  padding: 0.5rem calc(var(--locate-button-width) + 0.5rem) 0.5rem 2rem;
   font-size: 0.875rem;
   border-radius: 0.375rem;
   background: var(--p-content-background);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   width: 100%;
   min-width: 0;
+}
+
+:deep(.p-autocomplete:has(.p-autocomplete-loader) .p-autocomplete-input) {
+  padding-right: calc(var(--locate-button-width) + 2rem);
+}
+
+:deep(.p-autocomplete-loader) {
+  inset-inline-end: calc(var(--locate-button-width) + 0.5rem);
+  pointer-events: none;
 }
 
 .city-search > i {

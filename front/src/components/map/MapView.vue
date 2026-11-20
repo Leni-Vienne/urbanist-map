@@ -22,7 +22,7 @@
 
       <!-- Top controls: Search (left) + User Menu and Settings (right) -->
       <div
-        class="absolute top-4 left-4 right-4 flex justify-between items-start gap-4 z-1000 pointer-events-none"
+        class="absolute top-4 left-4 right-4 flex justify-between items-start gap-2 md:gap-4 z-1000 pointer-events-none"
       >
         <CitySearch class="pointer-events-auto min-w-0 flex-[0_1_100%] md:flex-[0_1_280px]" />
         <div class="shrink-0 flex items-center gap-2 pointer-events-auto">
@@ -33,13 +33,7 @@
 
       <!-- Map controls, stacked below the top controls -->
       <div class="absolute top-18 right-4 z-1000 flex flex-col items-end gap-3 pointer-events-none">
-        <div
-          class="flex flex-col rounded-lg overflow-hidden border border-surface bg-content-background/95 backdrop-blur-sm shadow-[0_2px_8px_rgba(0,0,0,0.2)] pointer-events-auto"
-        >
-          <ZoomControls />
-          <div class="hidden md:block h-px bg-content-border-color"></div>
-          <LocateControl />
-        </div>
+        <ZoomControls />
         <CompassControl />
       </div>
 
@@ -65,7 +59,6 @@ import { useFocusStore } from "@/stores/focusStore";
 
 import SatellitePreview from "@/components/map/SatellitePreview.vue";
 import ZoomControls from "@/components/map/ZoomControls.vue";
-import LocateControl from "@/components/map/LocateControl.vue";
 import CompassControl from "@/components/map/CompassControl.vue";
 import RenderImageMarkers from "@/components/map/RenderImageMarkers.vue";
 
@@ -128,6 +121,10 @@ function handleMapViewUnmount(): void {
 </script>
 
 <style scoped>
+:deep(.maplibregl-ctrl-group:has(> .maplibregl-ctrl-geolocate)) {
+  display: none;
+}
+
 @keyframes borderFadeIn {
   from {
     opacity: 0;

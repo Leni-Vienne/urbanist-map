@@ -31,7 +31,7 @@ export function getMobileDrawerOcclusionPx(): number {
   return (useUiStore().mobileDrawerHeightPercent / 100) * globalThis.innerHeight;
 }
 
-function resolvePadding(mobileTopInset = MOBILE_OVERLAY_TOP_INSET): PaddingOptions {
+export function resolveMapPadding(mobileTopInset = MOBILE_OVERLAY_TOP_INSET): PaddingOptions {
   const { clientWidth, clientHeight } = getMap().getContainer();
   const padding = {
     top: isMobile.value ? mobileTopInset : 50,
@@ -95,7 +95,7 @@ export function mobileAwareFlyTo(
 ): void {
   const center = toLngLat(latlng);
   if (!center) return;
-  moveCamera({ center, zoom, padding: resolvePadding(options.mobileTopInset) }, options.instant);
+  moveCamera({ center, zoom, padding: resolveMapPadding(options.mobileTopInset) }, options.instant);
 }
 
 /** Fit once, then use that exact destination for either animation or an instant move. */
@@ -108,7 +108,7 @@ export function mobileAwareFlyToBounds(
   const isPoint = bounds.getWest() === bounds.getEast() && bounds.getSouth() === bounds.getNorth();
   const camera = map.cameraForBounds(bounds, {
     absolutePadding: true,
-    padding: resolvePadding(options.mobileTopInset),
+    padding: resolveMapPadding(options.mobileTopInset),
     maxZoom: options.maxZoom ?? (isPoint ? 17 : map.getMaxZoom()),
   });
   if (!camera) return;
@@ -121,7 +121,7 @@ export function flyToGeometry(latlng: LatLngInput, sizeM: number, options: FlyOp
   const map = getMap();
   const center = toLngLat(latlng);
   if (!center) return;
-  const padding = resolvePadding(options.mobileTopInset);
+  const padding = resolveMapPadding(options.mobileTopInset);
   const camera =
     sizeM > 0
       ? map.cameraForBounds(LngLatBounds.fromLngLat(center, sizeM / 2), {

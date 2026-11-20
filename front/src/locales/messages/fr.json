@@ -245,9 +245,11 @@
     "location": {
       "label": "Afficher ma position",
       "hide": "Masquer ma position",
-      "blocked": "L’accès à votre position est bloqué dans votre navigateur",
+      "recenter": "Centrer sur ma position",
+      "blocked": "Autorisez l’accès à votre position dans les paramètres de votre navigateur et de votre appareil.",
+      "secureContext": "Ouvrez le site en HTTPS pour utiliser votre position.",
+      "starting": "Le bouton de localisation est en cours de chargement. Réessayez dans un instant.",
       "locating": "Recherche de votre position…",
-      "accuracy": "Votre position (précision : {distance})",
       "unsupported": "La géolocalisation n’est pas disponible dans ce navigateur.",
       "timeout": "La recherche de votre position a pris trop de temps. Veuillez réessayer.",
       "unavailable": "Impossible de déterminer votre position. Veuillez réessayer."
@@ -290,7 +292,7 @@
     }
   },
   "search": {
-    "cities": "Rechercher une ville..."
+    "cities": "Trouver une ville"
   },
   "auth": {
     "logout": "Déconnexion",

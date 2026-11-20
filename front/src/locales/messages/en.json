@@ -245,9 +245,11 @@
     "location": {
       "label": "Show my location",
       "hide": "Hide my location",
-      "blocked": "Location access is blocked in your browser",
+      "recenter": "Center on my location",
+      "blocked": "Allow location access in your browser and device settings to use this feature.",
+      "secureContext": "Open the site over HTTPS to use your location.",
+      "starting": "The location control is still loading. Try again in a moment.",
       "locating": "Finding your location…",
-      "accuracy": "Your location (accuracy: {distance})",
       "unsupported": "Location is not available in this browser.",
       "timeout": "Finding your location took too long. Please try again.",
       "unavailable": "Could not determine your location. Please try again."
@@ -290,7 +292,7 @@
     }
   },
   "search": {
-    "cities": "Search cities..."
+    "cities": "Find a city"
   },
   "auth": {
     "logout": "Logout",
